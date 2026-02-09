@@ -70,17 +70,24 @@ runtime:
   mergerfs_options_base: allow_other,default_permissions,use_ino,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0
   excluded_sources:
     - Local source
+
+logging:
+  file_name: daemon.log
+  max_file_size_mb: 10
+  retained_file_count: 10
+  level: warning
 ```
 
 ### Validation rules
 
-- Required sections: `paths`, `scan`, `rename`, `diagnostics`, `shutdown`, `permissions`, `runtime`
+- Required sections: `paths`, `scan`, `rename`, `diagnostics`, `shutdown`, `permissions`, `runtime`, `logging`
 - Required fields: all fields shown in schema (except `unraid_cache_pool_name`, which may be empty)
 - Path fields must be absolute paths
 - Numeric fields:
   - Must be `>= 0`: `merge_min_seconds_between_scans`, `rename_delay_seconds`, `rename_quiet_seconds`, `debug_timing_min_item_ms`, `debug_scan_progress_every`, `debug_scan_progress_seconds`
   - Must be `> 0`: all other numeric fields
 - `details_description_mode` allowed values: `text`, `br`, `html`
+- `logging.level` allowed values: `trace`, `debug`, `warning`, `error`, `none`
 - `excluded_sources` cannot contain empty items or duplicates after normalization
 
 ## manga_equivalents.yml

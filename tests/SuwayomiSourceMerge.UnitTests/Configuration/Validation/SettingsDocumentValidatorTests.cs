@@ -64,7 +64,14 @@ public sealed class SettingsDocumentValidatorTests
                 CleanupHighPriority = true
             },
             Permissions = baseline.Permissions,
-            Runtime = baseline.Runtime
+            Runtime = baseline.Runtime,
+            Logging = new SettingsLoggingSection
+            {
+                FileName = "daemon.log",
+                MaxFileSizeMb = 1,
+                RetainedFileCount = 1,
+                Level = "trace"
+            }
         };
 
         ValidationResult result = validator.Validate(document, "settings.yml");
@@ -95,7 +102,8 @@ public sealed class SettingsDocumentValidatorTests
                 DetailsDescriptionMode = baseline.Runtime.DetailsDescriptionMode,
                 MergerfsOptionsBase = baseline.Runtime.MergerfsOptionsBase,
                 ExcludedSources = ["Source A", " source-a "]
-            }
+            },
+            Logging = baseline.Logging
         };
 
         ValidationResult result = validator.Validate(document, "settings.yml");
@@ -190,6 +198,13 @@ public sealed class SettingsDocumentValidatorTests
                 DetailsDescriptionMode = null,
                 MergerfsOptionsBase = "allow_other",
                 ExcludedSources = null
+            },
+            Logging = new SettingsLoggingSection
+            {
+                FileName = "daemon.log",
+                MaxFileSizeMb = 10,
+                RetainedFileCount = 10,
+                Level = "warning"
             }
         };
 
@@ -226,12 +241,127 @@ public sealed class SettingsDocumentValidatorTests
                 DetailsDescriptionMode = baseline.Runtime.DetailsDescriptionMode,
                 MergerfsOptionsBase = baseline.Runtime.MergerfsOptionsBase,
                 ExcludedSources = [" ", "Source A"]
-            }
+            },
+            Logging = baseline.Logging
         };
 
         ValidationResult result = validator.Validate(document, "settings.yml");
 
         Assert.Contains(result.Errors, error => error.Path == "$.paths" && error.Code == "CFG-SET-001");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.excluded_sources[0]" && error.Code == "CFG-SET-002");
+    }
+
+    [Fact]
+    public void Validate_ShouldReportDeterministicError_WhenLoggingLevelInvalid()
+    {
+        SettingsDocumentValidator validator = new();
+        SettingsDocument baseline = ConfigurationTestData.CreateValidSettingsDocument();
+        SettingsDocument document = new()
+        {
+            Paths = baseline.Paths,
+            Scan = baseline.Scan,
+            Rename = baseline.Rename,
+            Diagnostics = baseline.Diagnostics,
+            Shutdown = baseline.Shutdown,
+            Permissions = baseline.Permissions,
+            Runtime = baseline.Runtime,
+            Logging = new SettingsLoggingSection
+            {
+                FileName = "daemon.log",
+                MaxFileSizeMb = 10,
+                RetainedFileCount = 10,
+                Level = "information"
+            }
+        };
+
+        ValidationResult result = validator.Validate(document, "settings.yml");
+
+        ValidationError error = Assert.Single(result.Errors);
+        Assert.Equal("settings.yml", error.File);
+        Assert.Equal("$.logging.level", error.Path);
+        Assert.Equal("CFG-SET-005", error.Code);
+    }
+
+    [Fact]
+    public void Validate_ShouldAllowLoggingLevelWithWhitespaceAndMixedCase()
+    {
+        SettingsDocumentValidator validator = new();
+        SettingsDocument baseline = ConfigurationTestData.CreateValidSettingsDocument();
+        SettingsDocument document = new()
+        {
+            Paths = baseline.Paths,
+            Scan = baseline.Scan,
+            Rename = baseline.Rename,
+            Diagnostics = baseline.Diagnostics,
+            Shutdown = baseline.Shutdown,
+            Permissions = baseline.Permissions,
+            Runtime = baseline.Runtime,
+            Logging = new SettingsLoggingSection
+            {
+                FileName = "daemon.log",
+                MaxFileSizeMb = 10,
+                RetainedFileCount = 10,
+                Level = "  WaRnInG "
+            }
+        };
+
+        ValidationResult result = validator.Validate(document, "settings.yml");
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Validate_ShouldReportMissingSection_WhenLoggingSectionNull()
+    {
+        SettingsDocumentValidator validator = new();
+        SettingsDocument baseline = ConfigurationTestData.CreateValidSettingsDocument();
+        SettingsDocument document = new()
+        {
+            Paths = baseline.Paths,
+            Scan = baseline.Scan,
+            Rename = baseline.Rename,
+            Diagnostics = baseline.Diagnostics,
+            Shutdown = baseline.Shutdown,
+            Permissions = baseline.Permissions,
+            Runtime = baseline.Runtime,
+            Logging = null
+        };
+
+        ValidationResult result = validator.Validate(document, "settings.yml");
+
+        ValidationError error = Assert.Single(result.Errors);
+        Assert.Equal("$.logging", error.Path);
+        Assert.Equal("CFG-SET-001", error.Code);
+    }
+
+    [Fact]
+    public void Validate_ShouldReportRangeAndMissingErrors_WhenLoggingFieldsInvalid()
+    {
+        SettingsDocumentValidator validator = new();
+        SettingsDocument baseline = ConfigurationTestData.CreateValidSettingsDocument();
+        SettingsDocument document = new()
+        {
+            Paths = baseline.Paths,
+            Scan = baseline.Scan,
+            Rename = baseline.Rename,
+            Diagnostics = baseline.Diagnostics,
+            Shutdown = baseline.Shutdown,
+            Permissions = baseline.Permissions,
+            Runtime = baseline.Runtime,
+            Logging = new SettingsLoggingSection
+            {
+                FileName = " ",
+                MaxFileSizeMb = 0,
+                RetainedFileCount = null,
+                Level = null
+            }
+        };
+
+        ValidationResult result = validator.Validate(document, "settings.yml");
+
+        Assert.Contains(result.Errors, error => error.Path == "$.logging.file_name" && error.Code == "CFG-SET-002");
+        Assert.Contains(result.Errors, error => error.Path == "$.logging.max_file_size_mb" && error.Code == "CFG-SET-004");
+        Assert.Contains(result.Errors, error => error.Path == "$.logging.retained_file_count" && error.Code == "CFG-SET-002");
+        Assert.Contains(result.Errors, error => error.Path == "$.logging.level" && error.Code == "CFG-SET-002");
     }
 }

@@ -75,6 +75,13 @@ public static class SettingsDocumentDefaults
                 DetailsDescriptionMode = "text",
                 MergerfsOptionsBase = "allow_other,default_permissions,use_ino,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0",
                 ExcludedSources = ["Local source"]
+            },
+            Logging = new SettingsLoggingSection
+            {
+                FileName = "daemon.log",
+                MaxFileSizeMb = 10,
+                RetainedFileCount = 10,
+                Level = "warning"
             }
         };
     }

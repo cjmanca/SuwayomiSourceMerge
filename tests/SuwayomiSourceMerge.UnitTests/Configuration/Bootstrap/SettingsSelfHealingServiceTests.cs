@@ -39,6 +39,7 @@ public sealed class SettingsSelfHealingServiceTests
         Assert.Equal(60, result.Document.Scan!.MergeIntervalSeconds);
         Assert.Equal(5, result.Document.Scan.MergeTriggerPollSeconds);
         Assert.NotNull(result.Document.Runtime);
+        Assert.Equal("daemon.log", result.Document.Logging!.FileName);
     }
 
     [Fact]
@@ -56,6 +57,7 @@ public sealed class SettingsSelfHealingServiceTests
         Assert.False(result.WasHealed);
         Assert.Equal("text", result.Document.Runtime!.DetailsDescriptionMode);
         Assert.Equal("/ssm/config", result.Document.Paths!.ConfigRootPath);
+        Assert.Equal("warning", result.Document.Logging!.Level);
     }
 
     [Fact]
@@ -71,6 +73,20 @@ public sealed class SettingsSelfHealingServiceTests
         ConfigurationBootstrapException exception = Assert.Throws<ConfigurationBootstrapException>(() => service.SelfHeal(settingsPath));
 
         Assert.Contains(exception.ValidationErrors, error => error.Code == "CFG-YAML-001");
+    }
+
+    [Fact]
+    public void SelfHeal_ShouldThrowConfigurationBootstrapException_WhenYamlIsEmptyDocument()
+    {
+        using TemporaryDirectory tempDirectory = new();
+        string settingsPath = Path.Combine(tempDirectory.Path, "settings.yml");
+        File.WriteAllText(settingsPath, string.Empty);
+
+        SettingsSelfHealingService service = new(new YamlDocumentParser());
+
+        ConfigurationBootstrapException exception = Assert.Throws<ConfigurationBootstrapException>(() => service.SelfHeal(settingsPath));
+
+        Assert.Contains(exception.ValidationErrors, error => error.Code == "CFG-YAML-002");
     }
 
     [Fact]
@@ -150,6 +166,11 @@ public sealed class SettingsSelfHealingServiceTests
               mergerfs_options_base: allow_other,default_permissions,use_ino,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0
               excluded_sources:
                 - Local source
+            logging:
+              file_name: daemon.log
+              max_file_size_mb: 10
+              retained_file_count: 10
+              level: warning
             """ + unknown;
     }
 

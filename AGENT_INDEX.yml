@@ -15,6 +15,41 @@ conventions:
   - Use xUnit for unit tests and keep reusable fixtures/helpers in a shared test project.
   - Prefer extending existing orchestration/test roots over creating parallel frameworks.
 modules:
+  - id: application-hosting
+    summary: Runtime host orchestration that bootstraps configuration, initializes logging, and handles fatal paths.
+    tags: [application, hosting, runtime]
+    paths:
+      - SuwayomiSourceMerge/Application/Hosting/ApplicationHost.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Hosting/ApplicationHostTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/ProgramEntryPointTests.cs
+    entrypoints:
+      - symbol: ApplicationHost
+        kind: class
+        path: SuwayomiSourceMerge/Application/Hosting/ApplicationHost.cs
+        purpose: Coordinates bootstrap, logger creation, lifecycle events, and failure handling.
+      - symbol: ApplicationHost.CreateDefault
+        kind: method
+        path: SuwayomiSourceMerge/Application/Hosting/ApplicationHost.cs
+        purpose: Builds the default production composition of bootstrap and logging services.
+      - symbol: ApplicationHost.Run
+        kind: method
+        path: SuwayomiSourceMerge/Application/Hosting/ApplicationHost.cs
+        purpose: Executes host startup/shutdown flow and writes stderr fallback diagnostics on failures.
+      - symbol: ApplicationHostTests
+        kind: class
+        path: tests/SuwayomiSourceMerge.UnitTests/Application/Hosting/ApplicationHostTests.cs
+        purpose: Verifies success, bootstrap failure, unhandled exception, and level-none host behavior.
+    extension_points:
+      - how: Add or adjust host lifecycle events and shutdown behavior in the run pipeline.
+        symbols: [ApplicationHost.Run]
+        paths: [SuwayomiSourceMerge/Application/Hosting/ApplicationHost.cs]
+      - how: Swap runtime composition dependencies by extending the default host factory method.
+        symbols: [ApplicationHost.CreateDefault]
+        paths: [SuwayomiSourceMerge/Application/Hosting/ApplicationHost.cs]
+    do_not_reimplement:
+      - Canonical host lifecycle orchestration and stderr fallback handling; use ApplicationHost.Run.
+      - Canonical runtime dependency composition for bootstrap and logging; use ApplicationHost.CreateDefault.
+    related: [logging-infrastructure, runtime-host, unit-test-suite]
   - id: build-and-quality
     summary: Central build defaults and formatting behavior for the solution.
     tags: [build, msbuild, quality]
@@ -196,10 +231,69 @@ modules:
       - Document-level parse-and-validate orchestration; use ConfigurationSchemaService.
       - Manga equivalents conflict detection rules; use MangaEquivalentsDocumentValidator.
       - Scene tag dedup normalization rules; use SceneTagsDocumentValidator.
+      - Settings logging level and logging section validation rules; use SettingsDocumentValidator.
       - Settings validation code map and field constraints; use SettingsDocumentValidator.
       - Source priority dedup validation rules; use SourcePriorityDocumentValidator.
       - YAML parser unknown-key tolerance for schema evolution; use YamlDocumentParser.
-    related: [runtime-host, unit-test-suite]
+    related: [logging-infrastructure, runtime-host, unit-test-suite]
+  - id: logging-infrastructure
+    summary: Structured log formatting, level filtering, and file rolling/retention for runtime diagnostics.
+    tags: [diagnostics, logging, runtime]
+    paths:
+      - SuwayomiSourceMerge/Infrastructure/Logging/ILogSink.cs
+      - SuwayomiSourceMerge/Infrastructure/Logging/ISsmLogger.cs
+      - SuwayomiSourceMerge/Infrastructure/Logging/ISsmLoggerFactory.cs
+      - SuwayomiSourceMerge/Infrastructure/Logging/LogEvent.cs
+      - SuwayomiSourceMerge/Infrastructure/Logging/LogLevel.cs
+      - SuwayomiSourceMerge/Infrastructure/Logging/RollingFileLogger.cs
+      - SuwayomiSourceMerge/Infrastructure/Logging/RollingFileSink.cs
+      - SuwayomiSourceMerge/Infrastructure/Logging/SsmLoggerFactory.cs
+      - SuwayomiSourceMerge/Infrastructure/Logging/StructuredTextLogFormatter.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogEventTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/RollingFileLoggerTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/RollingFileSinkTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/SsmLoggerFactoryTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/StructuredTextLogFormatterTests.cs
+    entrypoints:
+      - symbol: ISsmLogger
+        kind: interface
+        path: SuwayomiSourceMerge/Infrastructure/Logging/ISsmLogger.cs
+        purpose: Defines canonical structured log emission methods and level checks.
+      - symbol: RollingFileLogger
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Logging/RollingFileLogger.cs
+        purpose: Applies level filtering and fail-open sink writes with stderr fallback.
+      - symbol: RollingFileSink
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Logging/RollingFileSink.cs
+        purpose: Persists structured lines to disk with size-based rolling and retention.
+      - symbol: SsmLoggerFactory
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Logging/SsmLoggerFactory.cs
+        purpose: Maps validated settings to configured logger instances and level behavior.
+      - symbol: StructuredTextLogFormatter
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Logging/StructuredTextLogFormatter.cs
+        purpose: Formats log events into deterministic single-line key/value text output.
+    extension_points:
+      - how: Add new sink targets by implementing the sink contract and wiring them via the logger factory.
+        symbols: [ILogSink, SsmLoggerFactory]
+        paths: [SuwayomiSourceMerge/Infrastructure/Logging/ILogSink.cs, SuwayomiSourceMerge/Infrastructure/Logging/SsmLoggerFactory.cs]
+      - how: Change structured line rendering and escaping behavior in the text formatter.
+        symbols: [StructuredTextLogFormatter]
+        paths: [SuwayomiSourceMerge/Infrastructure/Logging/StructuredTextLogFormatter.cs]
+      - how: Update level-threshold behavior and fallback write semantics in the rolling logger.
+        symbols: [ISsmLogger, RollingFileLogger]
+        paths: [SuwayomiSourceMerge/Infrastructure/Logging/ISsmLogger.cs, SuwayomiSourceMerge/Infrastructure/Logging/RollingFileLogger.cs]
+      - how: Update retention and rollover file policies in the rolling file sink.
+        symbols: [RollingFileSink]
+        paths: [SuwayomiSourceMerge/Infrastructure/Logging/RollingFileSink.cs]
+    do_not_reimplement:
+      - Canonical config-to-level parsing and logger construction; use SsmLoggerFactory.
+      - Canonical level filtering and sink fault fallback behavior; use RollingFileLogger.
+      - Canonical structured text line format and escaping policy; use StructuredTextLogFormatter.
+      - Canonical size-based rollover and retained archive handling; use RollingFileSink.
+    related: [application-hosting, config-schema-validation, unit-test-suite]
   - id: runtime-host
     summary: Console application host and project-level runtime configuration.
     tags: [runtime, host, console]
@@ -211,6 +305,10 @@ modules:
         kind: file
         path: SuwayomiSourceMerge/Program.cs
         purpose: Current runtime entrypoint for the console application.
+      - symbol: ProgramEntryPoint.Run
+        kind: method
+        path: SuwayomiSourceMerge/Program.cs
+        purpose: Executes the composed application host using the canonical container config root.
       - symbol: SuwayomiSourceMerge.csproj
         kind: file
         path: SuwayomiSourceMerge/SuwayomiSourceMerge.csproj
@@ -224,9 +322,10 @@ modules:
         paths: [SuwayomiSourceMerge/SuwayomiSourceMerge.csproj]
     do_not_reimplement:
       - Console entrypoint bootstrapping; extend Program.cs.
+      - Canonical default startup config root handoff to application host; use ProgramEntryPoint.Run.
       - Runtime project configuration root; extend SuwayomiSourceMerge.csproj.
       - Warning policy overrides in app project; keep centralized in Directory.Build.props.
-    related: [build-and-quality, shared-test-support, unit-test-suite]
+    related: [application-hosting, build-and-quality, shared-test-support, unit-test-suite]
   - id: shared-test-support
     summary: Reusable testing helpers shared across test projects.
     tags: [tests, support, shared]
@@ -258,9 +357,10 @@ modules:
       - Shared test helper project root; use SuwayomiSourceMerge.Testing.csproj.
     related: [runtime-host, unit-test-suite]
   - id: unit-test-suite
-    summary: Primary xUnit test project with schema, bootstrap, property-based, and mutation-test scaffolding.
+    summary: Primary xUnit project covering config, host lifecycle, and logging behavior with mutation scaffolding.
     tags: [tests, xunit, validation]
     paths:
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Hosting/ApplicationHostTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapExceptionTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapGuardTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapServiceTests.cs
@@ -275,6 +375,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Loading/ConfigurationValidationPipelineTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/MangaEquivalentsSchemaTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/SceneTagsSchemaTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/SettingsDocumentDefaultsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/SettingsSchemaTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/SourcePrioritySchemaTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/MangaEquivalentsDocumentValidatorTests.cs
@@ -286,6 +387,12 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/ValidationResultTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/YamlDocumentParserPropertyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/YamlDocumentParserTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogEventTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/RollingFileLoggerTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/RollingFileSinkTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/SsmLoggerFactoryTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/StructuredTextLogFormatterTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/ProgramEntryPointTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/README.md
       - tests/SuwayomiSourceMerge.UnitTests/stryker-config.json
       - tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj
@@ -330,5 +437,7 @@ modules:
       - Baseline test-harness smoke coverage; extend ProjectLayoutTests.
       - Canonical unit-test project wiring; use SuwayomiSourceMerge.UnitTests.csproj.
       - Canonical YAML schema validation test scenarios; extend configuration schema test classes.
+      - Host lifecycle and stderr fallback coverage; extend ApplicationHostTests.
+      - Logging formatter/filter/rolling behavior coverage; extend Infrastructure/Logging test classes.
       - Mutation-test scope and threshold gates; use stryker-config.json.
-    related: [build-and-quality, config-schema-validation, runtime-host, shared-test-support]
+    related: [application-hosting, build-and-quality, config-schema-validation, logging-infrastructure, runtime-host, shared-test-support]

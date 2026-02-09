@@ -13,6 +13,14 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
     private const string InvalidRangeCode = "CFG-SET-004";
     private const string InvalidEnumCode = "CFG-SET-005";
     private const string DuplicateListCode = "CFG-SET-006";
+    private static readonly HashSet<string> AllowedLogLevels = new(StringComparer.Ordinal)
+    {
+        "trace",
+        "debug",
+        "warning",
+        "error",
+        "none"
+    };
 
     /// <inheritdoc />
     public ValidationResult Validate(SettingsDocument document, string file)
@@ -29,6 +37,7 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
         ValidateRequiredSection(document.Shutdown, file, "$.shutdown", result);
         ValidateRequiredSection(document.Permissions, file, "$.permissions", result);
         ValidateRequiredSection(document.Runtime, file, "$.runtime", result);
+        ValidateRequiredSection(document.Logging, file, "$.logging", result);
 
         if (document.Paths is not null)
         {
@@ -97,6 +106,14 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
             ValidateRequired(document.Runtime.MergerfsOptionsBase, file, "$.runtime.mergerfs_options_base", result);
             ValidateDetailsDescriptionMode(document.Runtime.DetailsDescriptionMode, file, "$.runtime.details_description_mode", result);
             ValidateExcludedSources(document.Runtime.ExcludedSources, file, "$.runtime.excluded_sources", result);
+        }
+
+        if (document.Logging is not null)
+        {
+            ValidateRequired(document.Logging.FileName, file, "$.logging.file_name", result);
+            ValidatePositive(document.Logging.MaxFileSizeMb, file, "$.logging.max_file_size_mb", result);
+            ValidatePositive(document.Logging.RetainedFileCount, file, "$.logging.retained_file_count", result);
+            ValidateLogLevel(document.Logging.Level, file, "$.logging.level", result);
         }
 
         return result;
@@ -181,6 +198,21 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
         if (mode != "text" && mode != "br" && mode != "html")
         {
             result.Add(new ValidationError(file, path, InvalidEnumCode, "Allowed values: text, br, html."));
+        }
+    }
+
+    private static void ValidateLogLevel(string? value, string file, string path, ValidationResult result)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            result.Add(new ValidationError(file, path, MissingFieldCode, "Required field is missing."));
+            return;
+        }
+
+        string normalized = value.Trim().ToLowerInvariant();
+        if (!AllowedLogLevels.Contains(normalized))
+        {
+            result.Add(new ValidationError(file, path, InvalidEnumCode, "Allowed values: trace, debug, warning, error, none."));
         }
     }
 
