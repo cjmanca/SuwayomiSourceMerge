@@ -285,6 +285,76 @@ public sealed class SettingsSchemaTests
     }
 
     [Fact]
+    public void ParseSettings_ShouldFailForInvalidLoggingFileName()
+    {
+        ConfigurationSchemaService service = ConfigurationSchemaServiceFactory.Create();
+
+        ParsedDocument<SuwayomiSourceMerge.Configuration.Documents.SettingsDocument> parsed = service.ParseSettings(
+            "settings.yml",
+            """
+            paths:
+              config_root_path: /ssm/config
+              sources_root_path: /ssm/sources
+              override_root_path: /ssm/override
+              merged_root_path: /ssm/merged
+              state_root_path: /ssm/state
+              log_root_path: /ssm/config
+              branch_links_root_path: /ssm/state/.mergerfs-branches
+              unraid_cache_pool_name: ""
+            scan:
+              merge_interval_seconds: 3600
+              merge_trigger_poll_seconds: 5
+              merge_min_seconds_between_scans: 15
+              merge_lock_retry_seconds: 30
+            rename:
+              rename_delay_seconds: 300
+              rename_quiet_seconds: 120
+              rename_poll_seconds: 20
+              rename_rescan_seconds: 172800
+            diagnostics:
+              debug_timing: true
+              debug_timing_top_n: 15
+              debug_timing_min_item_ms: 250
+              debug_timing_slow_ms: 5000
+              debug_timing_live: true
+              debug_scan_progress_every: 250
+              debug_scan_progress_seconds: 60
+              debug_comic_info: false
+              timeout_poll_ms: 100
+              timeout_poll_ms_fast: 10
+            shutdown:
+              unmount_on_exit: true
+              stop_timeout_seconds: 120
+              child_exit_grace_seconds: 5
+              unmount_command_timeout_seconds: 8
+              unmount_detach_wait_seconds: 5
+              cleanup_high_priority: true
+            permissions:
+              inherit_from_parent: true
+              enforce_existing: false
+              reference_path: /ssm/sources
+            runtime:
+              low_priority: true
+              startup_cleanup: true
+              rescan_now: true
+              enable_mount_healthcheck: false
+              details_description_mode: text
+              mergerfs_options_base: allow_other
+              excluded_sources:
+                - Local source
+            logging:
+              file_name: ../daemon.log
+              max_file_size_mb: 10
+              retained_file_count: 10
+              level: warning
+            """);
+
+        var error = Assert.Single(parsed.Validation.Errors);
+        Assert.Equal("CFG-SET-007", error.Code);
+        Assert.Equal("$.logging.file_name", error.Path);
+    }
+
+    [Fact]
     public void ParseSettings_ShouldFailWhenLoggingSectionMissing()
     {
         ConfigurationSchemaService service = ConfigurationSchemaServiceFactory.Create();

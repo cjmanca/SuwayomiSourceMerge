@@ -38,7 +38,7 @@ internal sealed class SsmLoggerFactory : ISsmLoggerFactory
             logging.Level,
             "Settings logging.level is required for logger creation.");
         long maxFileSizeBytes = checked(logging.MaxFileSizeMb.Value * 1024L * 1024L);
-        string logFilePath = Path.Combine(paths.LogRootPath, logging.FileName);
+        string logFilePath = LogFilePathPolicy.ResolvePathUnderRootOrThrow(paths.LogRootPath, logging.FileName);
 
         ILogSink sink = new RollingFileSink(logFilePath, maxFileSizeBytes, logging.RetainedFileCount.Value);
         StructuredTextLogFormatter formatter = new();

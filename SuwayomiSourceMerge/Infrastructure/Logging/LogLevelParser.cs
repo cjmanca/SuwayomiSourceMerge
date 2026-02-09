@@ -2,34 +2,45 @@ namespace SuwayomiSourceMerge.Infrastructure.Logging;
 
 internal static class LogLevelParser
 {
-    public const string SupportedValuesDisplay = "trace, debug, warning, error, none";
+    private static readonly (string Token, LogLevel Level)[] SupportedTokens =
+    [
+        ("trace", LogLevel.Trace),
+        ("debug", LogLevel.Debug),
+        ("warning", LogLevel.Warning),
+        ("error", LogLevel.Error),
+        ("none", LogLevel.None)
+    ];
 
-    public static bool TryParse(string value, out LogLevel level)
+    public static string SupportedValuesDisplay
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        get
+        {
+            return string.Join(", ", SupportedTokens.Select(static token => token.Token));
+        }
+    }
+
+    public static bool TryParse(string? value, out LogLevel level)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            level = default;
+            return false;
+        }
 
         string normalized = Normalize(value);
-        switch (normalized)
+        foreach ((string token, LogLevel parsedLevel) in SupportedTokens)
         {
-            case "trace":
-                level = LogLevel.Trace;
-                return true;
-            case "debug":
-                level = LogLevel.Debug;
-                return true;
-            case "warning":
-                level = LogLevel.Warning;
-                return true;
-            case "error":
-                level = LogLevel.Error;
-                return true;
-            case "none":
-                level = LogLevel.None;
-                return true;
-            default:
-                level = default;
-                return false;
+            if (!string.Equals(token, normalized, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            level = parsedLevel;
+            return true;
         }
+
+        level = default;
+        return false;
     }
 
     public static LogLevel ParseOrThrow(string? value, string missingValueMessage)

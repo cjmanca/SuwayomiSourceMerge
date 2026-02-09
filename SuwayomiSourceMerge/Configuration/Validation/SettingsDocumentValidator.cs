@@ -14,6 +14,7 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
     private const string InvalidRangeCode = "CFG-SET-004";
     private const string InvalidEnumCode = "CFG-SET-005";
     private const string DuplicateListCode = "CFG-SET-006";
+    private const string InvalidFileNameCode = "CFG-SET-007";
     /// <inheritdoc />
     public ValidationResult Validate(SettingsDocument document, string file)
     {
@@ -102,7 +103,7 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
 
         if (document.Logging is not null)
         {
-            ValidateRequired(document.Logging.FileName, file, "$.logging.file_name", result);
+            ValidateLogFileName(document.Logging.FileName, file, "$.logging.file_name", result);
             ValidatePositive(document.Logging.MaxFileSizeMb, file, "$.logging.max_file_size_mb", result);
             ValidatePositive(document.Logging.RetainedFileCount, file, "$.logging.retained_file_count", result);
             ValidateLogLevel(document.Logging.Level, file, "$.logging.level", result);
@@ -209,6 +210,20 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
                     path,
                     InvalidEnumCode,
                     $"Allowed values: {LogLevelParser.SupportedValuesDisplay}."));
+        }
+    }
+
+    private static void ValidateLogFileName(string? value, string file, string path, ValidationResult result)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            result.Add(new ValidationError(file, path, MissingFieldCode, "Required field is missing."));
+            return;
+        }
+
+        if (!LogFilePathPolicy.TryValidateFileName(value, out _))
+        {
+            result.Add(new ValidationError(file, path, InvalidFileNameCode, LogFilePathPolicy.InvalidFileNameMessage));
         }
     }
 

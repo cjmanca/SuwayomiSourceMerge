@@ -87,6 +87,7 @@ logging:
   - Must be `>= 0`: `merge_min_seconds_between_scans`, `rename_delay_seconds`, `rename_quiet_seconds`, `debug_timing_min_item_ms`, `debug_scan_progress_every`, `debug_scan_progress_seconds`
   - Must be `> 0`: all other numeric fields
 - `details_description_mode` allowed values: `text`, `br`, `html`
+- `logging.file_name` must be a single file name (no rooted path, directory separators, or traversal segments)
 - `logging.level` allowed values: `trace`, `debug`, `warning`, `error`, `none`
 - `excluded_sources` cannot contain empty items or duplicates after normalization
 
@@ -158,6 +159,7 @@ sources:
 | `CFG-SET-004` | Numeric range violation in settings |
 | `CFG-SET-005` | Invalid enum-like settings value |
 | `CFG-SET-006` | Duplicate list item in settings |
+| `CFG-SET-007` | Invalid `logging.file_name` value |
 | `CFG-MEQ-001` | Missing `groups` in manga equivalents |
 | `CFG-MEQ-002` | Missing canonical title |
 | `CFG-MEQ-003` | Missing aliases list |

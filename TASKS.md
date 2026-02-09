@@ -11,6 +11,8 @@
 - [x] 2026-02-09 - Harden configuration unit tests across bootstrap/loading/validation files with expected, edge, and exception coverage per function, plus targeted property-based and mutation-test scaffolding.
 - [x] 2026-02-09 - Implement config directory logging subsystem (structured, relevant messages, rolling/retention policy as configured). DoD: logs write under config path, include key operational events, and honor configured retention/rotation behavior.
 - [x] 2026-02-09 - Centralize logging level parsing so settings validation and logger creation share one canonical implementation.
+- [x] 2026-02-09 - Address PR feedback on log-level parser semantics and token-source drift (non-throwing TryParse + single-source supported token list).
+- [x] 2026-02-09 - Harden logging file-path safety by rejecting rooted/traversal `logging.file_name` values in validation and enforcing resolved path containment under `paths.log_root_path`.
 - [ ] 2026-02-09 - Implement scene-tag service with default `scene_tags.yml` generation and data-driven tag matching. DoD: missing file is created with defaults; matching behavior is driven exclusively by YAML entries; no hardcoded tag list remains in runtime logic.
 - [ ] 2026-02-09 - Implement title normalization engine per docs (ASCII fold, punctuation strip, leading-article strip, trailing-`s` singularization, cached compare keys). DoD: normalization rules match documented order and are covered by unit tests for expected, edge, and failure cases.
 - [ ] 2026-02-09 - Implement equivalence and source-priority services using YAML-backed data models. DoD: canonical title mapping and source ordering are loaded from YAML and exercised by unit tests for precedence, fallback, and invalid entries.

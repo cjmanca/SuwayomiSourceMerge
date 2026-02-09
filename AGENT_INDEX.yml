@@ -244,6 +244,7 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Logging/ISsmLogger.cs
       - SuwayomiSourceMerge/Infrastructure/Logging/ISsmLoggerFactory.cs
       - SuwayomiSourceMerge/Infrastructure/Logging/LogEvent.cs
+      - SuwayomiSourceMerge/Infrastructure/Logging/LogFilePathPolicy.cs
       - SuwayomiSourceMerge/Infrastructure/Logging/LogLevel.cs
       - SuwayomiSourceMerge/Infrastructure/Logging/LogLevelParser.cs
       - SuwayomiSourceMerge/Infrastructure/Logging/RollingFileLogger.cs
@@ -251,6 +252,7 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Logging/SsmLoggerFactory.cs
       - SuwayomiSourceMerge/Infrastructure/Logging/StructuredTextLogFormatter.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogEventTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogFilePathPolicyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogLevelParserTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/RollingFileLoggerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/RollingFileSinkTests.cs
@@ -261,10 +263,14 @@ modules:
         kind: interface
         path: SuwayomiSourceMerge/Infrastructure/Logging/ISsmLogger.cs
         purpose: Defines canonical structured log emission methods and level checks.
+      - symbol: LogFilePathPolicy
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Logging/LogFilePathPolicy.cs
+        purpose: Validates logging file names and enforces resolved file paths remain under the configured log root.
       - symbol: LogLevelParser
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Logging/LogLevelParser.cs
-        purpose: Centralizes logging-level token parsing shared by settings validation and logger creation.
+        purpose: Centralizes logging-level token parsing with non-throwing TryParse and shared supported-token display.
       - symbol: RollingFileLogger
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Logging/RollingFileLogger.cs
@@ -296,8 +302,10 @@ modules:
         paths: [SuwayomiSourceMerge/Infrastructure/Logging/RollingFileSink.cs]
     do_not_reimplement:
       - Canonical config-to-logger construction; use SsmLoggerFactory.
+      - Canonical log-file name/path safety checks; use LogFilePathPolicy.
       - Canonical level filtering and sink fault fallback behavior; use RollingFileLogger.
       - Canonical logging-level token parsing shared by validation and runtime; use LogLevelParser.
+      - Canonical non-throw probing for logging-level tokens; use LogLevelParser.TryParse.
       - Canonical structured text line format and escaping policy; use StructuredTextLogFormatter.
       - Canonical size-based rollover and retained archive handling; use RollingFileSink.
     related: [application-hosting, config-schema-validation, unit-test-suite]
@@ -395,6 +403,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/YamlDocumentParserPropertyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/YamlDocumentParserTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogEventTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogFilePathPolicyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogLevelParserTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/RollingFileLoggerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/RollingFileSinkTests.cs

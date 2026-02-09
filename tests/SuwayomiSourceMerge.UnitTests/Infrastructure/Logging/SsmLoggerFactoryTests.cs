@@ -98,6 +98,28 @@ public sealed class SsmLoggerFactoryTests
     }
 
     [Fact]
+    public void Create_ShouldThrow_WhenFileNameIsAbsolutePath()
+    {
+        using TemporaryDirectory temporaryDirectory = new();
+        SettingsDocument settings = CreateSettings(temporaryDirectory.Path, "debug", "/tmp/daemon.log");
+        SsmLoggerFactory factory = new();
+
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => factory.Create(settings, _ => { }));
+        Assert.Equal(LogFilePathPolicy.InvalidFileNameMessage, exception.Message);
+    }
+
+    [Fact]
+    public void Create_ShouldThrow_WhenFileNameContainsDirectoryTraversal()
+    {
+        using TemporaryDirectory temporaryDirectory = new();
+        SettingsDocument settings = CreateSettings(temporaryDirectory.Path, "debug", "../daemon.log");
+        SsmLoggerFactory factory = new();
+
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => factory.Create(settings, _ => { }));
+        Assert.Equal(LogFilePathPolicy.InvalidFileNameMessage, exception.Message);
+    }
+
+    [Fact]
     public void Create_ShouldThrow_WhenSettingsIsNull()
     {
         SsmLoggerFactory factory = new();
@@ -209,7 +231,7 @@ public sealed class SsmLoggerFactoryTests
         Assert.Throws<InvalidOperationException>(() => factory.Create(settings, _ => { }));
     }
 
-    private static SettingsDocument CreateSettings(string logRootPath, string level)
+    private static SettingsDocument CreateSettings(string logRootPath, string level, string fileName = "daemon.log")
     {
         SettingsDocument defaults = SettingsDocumentDefaults.Create();
         return new SettingsDocument
@@ -233,7 +255,7 @@ public sealed class SsmLoggerFactoryTests
             Runtime = defaults.Runtime,
             Logging = new SettingsLoggingSection
             {
-                FileName = "daemon.log",
+                FileName = fileName,
                 MaxFileSizeMb = 1,
                 RetainedFileCount = 2,
                 Level = level

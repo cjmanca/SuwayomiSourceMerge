@@ -32,9 +32,21 @@ public sealed class LogLevelParserTests
     }
 
     [Fact]
-    public void TryParse_ShouldThrow_WhenInputMissing()
+    public void TryParse_ShouldReturnFalse_WhenInputMissing()
     {
-        Assert.Throws<ArgumentException>(() => LogLevelParser.TryParse(" ", out _));
+        bool parsed = LogLevelParser.TryParse(" ", out LogLevel level);
+
+        Assert.False(parsed);
+        Assert.Equal(default, level);
+    }
+
+    [Fact]
+    public void TryParse_ShouldReturnFalse_WhenInputIsNull()
+    {
+        bool parsed = LogLevelParser.TryParse(null, out LogLevel level);
+
+        Assert.False(parsed);
+        Assert.Equal(default, level);
     }
 
     [Fact]
