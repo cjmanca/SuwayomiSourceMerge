@@ -60,6 +60,14 @@ public sealed class SettingsDocument
     {
         get; init;
     }
+
+    /// <summary>
+    /// Gets or sets logging settings.
+    /// </summary>
+    public SettingsLoggingSection? Logging
+    {
+        get; init;
+    }
 }
 
 /// <summary>
@@ -309,6 +317,32 @@ public sealed class SettingsRuntimeSection
     }
 
     public List<string>? ExcludedSources
+    {
+        get; init;
+    }
+}
+
+/// <summary>
+/// Contains logging settings.
+/// </summary>
+public sealed class SettingsLoggingSection
+{
+    public string? FileName
+    {
+        get; init;
+    }
+
+    public int? MaxFileSizeMb
+    {
+        get; init;
+    }
+
+    public int? RetainedFileCount
+    {
+        get; init;
+    }
+
+    public string? Level
     {
         get; init;
     }

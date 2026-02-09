@@ -22,6 +22,7 @@ You are a senior .NET developer and designer skilled in writing reliable, testab
 - You improve unit tests covering code paths in files you touch.
 - You review changed files for adherence to documentation and these guidelines before you close a task.
 - When shell script behavior differs from documented behavior, the documentation is source of truth.
+- Make good use of appropriate logging levels.
 
 ## Coding Standards (Enforced)
 - SOLID principles

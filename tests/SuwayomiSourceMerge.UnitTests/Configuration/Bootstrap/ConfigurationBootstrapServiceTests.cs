@@ -157,6 +157,11 @@ public sealed class ConfigurationBootstrapServiceTests
               mergerfs_options_base: allow_other
               excluded_sources:
                 - Local source
+            logging:
+              file_name: daemon.log
+              max_file_size_mb: 10
+              retained_file_count: 10
+              level: warning
             """);
 
         ConfigurationBootstrapService service = ConfigurationSchemaServiceFactory.CreateBootstrapService();
@@ -308,6 +313,7 @@ public sealed class ConfigurationBootstrapServiceTests
         Assert.Equal(false, result.Documents.Settings.Runtime!.LowPriority);
         Assert.Equal("/ssm/sources", result.Documents.Settings.Paths!.SourcesRootPath);
         Assert.Equal(5, result.Documents.Settings.Scan!.MergeTriggerPollSeconds);
+        Assert.Equal("warning", result.Documents.Settings.Logging!.Level);
     }
 
     [Fact]
@@ -429,6 +435,11 @@ public sealed class ConfigurationBootstrapServiceTests
               mergerfs_options_base: allow_other,default_permissions,use_ino,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0
               excluded_sources:
                 - Local source
+            logging:
+              file_name: daemon.log
+              max_file_size_mb: 10
+              retained_file_count: 10
+              level: warning
             unexpected_runtime_hint: keep_me
             """;
         File.WriteAllText(settingsPath, settingsWithUnknownKey);
@@ -503,6 +514,11 @@ public sealed class ConfigurationBootstrapServiceTests
               mergerfs_options_base: allow_other
               excluded_sources:
                 - Local source
+            logging:
+              file_name: daemon.log
+              max_file_size_mb: 10
+              retained_file_count: 10
+              level: warning
             unexpected_runtime_hint: drop_me
             """);
 

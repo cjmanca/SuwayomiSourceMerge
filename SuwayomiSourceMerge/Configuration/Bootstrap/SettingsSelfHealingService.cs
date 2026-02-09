@@ -41,6 +41,7 @@ internal sealed class SettingsSelfHealingService
         SettingsShutdownSection? existingShutdown = existing.Shutdown;
         SettingsPermissionsSection? existingPermissions = existing.Permissions;
         SettingsRuntimeSection? existingRuntime = existing.Runtime;
+        SettingsLoggingSection? existingLogging = existing.Logging;
 
         SettingsPathsSection defaultPaths = defaults.Paths!;
         SettingsScanSection defaultScan = defaults.Scan!;
@@ -49,6 +50,7 @@ internal sealed class SettingsSelfHealingService
         SettingsShutdownSection defaultShutdown = defaults.Shutdown!;
         SettingsPermissionsSection defaultPermissions = defaults.Permissions!;
         SettingsRuntimeSection defaultRuntime = defaults.Runtime!;
+        SettingsLoggingSection defaultLogging = defaults.Logging!;
 
         return new SettingsDocument
         {
@@ -114,6 +116,13 @@ internal sealed class SettingsSelfHealingService
                 DetailsDescriptionMode = existingRuntime?.DetailsDescriptionMode ?? UseDefault(defaultRuntime.DetailsDescriptionMode, ref wasHealed),
                 MergerfsOptionsBase = existingRuntime?.MergerfsOptionsBase ?? UseDefault(defaultRuntime.MergerfsOptionsBase, ref wasHealed),
                 ExcludedSources = existingRuntime?.ExcludedSources ?? UseDefault(defaultRuntime.ExcludedSources, ref wasHealed)
+            },
+            Logging = new SettingsLoggingSection
+            {
+                FileName = existingLogging?.FileName ?? UseDefault(defaultLogging.FileName, ref wasHealed),
+                MaxFileSizeMb = existingLogging?.MaxFileSizeMb ?? UseDefault(defaultLogging.MaxFileSizeMb, ref wasHealed),
+                RetainedFileCount = existingLogging?.RetainedFileCount ?? UseDefault(defaultLogging.RetainedFileCount, ref wasHealed),
+                Level = existingLogging?.Level ?? UseDefault(defaultLogging.Level, ref wasHealed)
             }
         };
     }
