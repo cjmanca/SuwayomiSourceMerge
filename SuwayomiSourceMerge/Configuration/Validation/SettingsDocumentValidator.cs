@@ -1,4 +1,5 @@
 using SuwayomiSourceMerge.Configuration.Documents;
+using SuwayomiSourceMerge.Infrastructure.Logging;
 
 namespace SuwayomiSourceMerge.Configuration.Validation;
 
@@ -13,15 +14,6 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
     private const string InvalidRangeCode = "CFG-SET-004";
     private const string InvalidEnumCode = "CFG-SET-005";
     private const string DuplicateListCode = "CFG-SET-006";
-    private static readonly HashSet<string> AllowedLogLevels = new(StringComparer.Ordinal)
-    {
-        "trace",
-        "debug",
-        "warning",
-        "error",
-        "none"
-    };
-
     /// <inheritdoc />
     public ValidationResult Validate(SettingsDocument document, string file)
     {
@@ -209,10 +201,14 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
             return;
         }
 
-        string normalized = value.Trim().ToLowerInvariant();
-        if (!AllowedLogLevels.Contains(normalized))
+        if (!LogLevelParser.TryParse(value, out _))
         {
-            result.Add(new ValidationError(file, path, InvalidEnumCode, "Allowed values: trace, debug, warning, error, none."));
+            result.Add(
+                new ValidationError(
+                    file,
+                    path,
+                    InvalidEnumCode,
+                    $"Allowed values: {LogLevelParser.SupportedValuesDisplay}."));
         }
     }
 

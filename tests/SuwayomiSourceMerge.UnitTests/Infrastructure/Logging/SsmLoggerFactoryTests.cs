@@ -47,6 +47,22 @@ public sealed class SsmLoggerFactoryTests
     }
 
     [Fact]
+    public void Create_ShouldAllowLogLevelWithWhitespaceAndMixedCase()
+    {
+        using TemporaryDirectory temporaryDirectory = new();
+        SettingsDocument settings = CreateSettings(temporaryDirectory.Path, "  WaRnInG ");
+        SsmLoggerFactory factory = new();
+
+        ISsmLogger logger = factory.Create(settings, _ => { });
+        logger.Warning("host.warning", "warning");
+
+        string logPath = Path.Combine(temporaryDirectory.Path, "daemon.log");
+        Assert.True(File.Exists(logPath));
+        string content = File.ReadAllText(logPath);
+        Assert.Contains("level=warning", content);
+    }
+
+    [Fact]
     public void Create_ShouldSuppressFileLogs_WhenLevelIsNone()
     {
         using TemporaryDirectory temporaryDirectory = new();
@@ -68,6 +84,17 @@ public sealed class SsmLoggerFactoryTests
         SsmLoggerFactory factory = new();
 
         Assert.Throws<InvalidOperationException>(() => factory.Create(settings, _ => { }));
+    }
+
+    [Fact]
+    public void Create_ShouldThrow_WhenLevelIsWhitespace()
+    {
+        using TemporaryDirectory temporaryDirectory = new();
+        SettingsDocument settings = CreateSettings(temporaryDirectory.Path, " ");
+        SsmLoggerFactory factory = new();
+
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => factory.Create(settings, _ => { }));
+        Assert.Equal("Settings logging.level is required for logger creation.", exception.Message);
     }
 
     [Fact]

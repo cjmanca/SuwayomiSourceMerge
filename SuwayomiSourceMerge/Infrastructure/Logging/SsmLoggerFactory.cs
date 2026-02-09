@@ -34,31 +34,14 @@ internal sealed class SsmLoggerFactory : ISsmLoggerFactory
             throw new InvalidOperationException("Settings logging.retained_file_count must be greater than 0.");
         }
 
-        LogLevel minimumLevel = ParseLogLevel(logging.Level);
+        LogLevel minimumLevel = LogLevelParser.ParseOrThrow(
+            logging.Level,
+            "Settings logging.level is required for logger creation.");
         long maxFileSizeBytes = checked(logging.MaxFileSizeMb.Value * 1024L * 1024L);
         string logFilePath = Path.Combine(paths.LogRootPath, logging.FileName);
 
         ILogSink sink = new RollingFileSink(logFilePath, maxFileSizeBytes, logging.RetainedFileCount.Value);
         StructuredTextLogFormatter formatter = new();
         return new RollingFileLogger(minimumLevel, sink, formatter, fallbackErrorWriter);
-    }
-
-    private static LogLevel ParseLogLevel(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new InvalidOperationException("Settings logging.level is required for logger creation.");
-        }
-
-        string normalized = value.Trim().ToLowerInvariant();
-        return normalized switch
-        {
-            "trace" => LogLevel.Trace,
-            "debug" => LogLevel.Debug,
-            "warning" => LogLevel.Warning,
-            "error" => LogLevel.Error,
-            "none" => LogLevel.None,
-            _ => throw new InvalidOperationException($"Unsupported logging level '{value}'.")
-        };
     }
 }

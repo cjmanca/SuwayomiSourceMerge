@@ -245,11 +245,13 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Logging/ISsmLoggerFactory.cs
       - SuwayomiSourceMerge/Infrastructure/Logging/LogEvent.cs
       - SuwayomiSourceMerge/Infrastructure/Logging/LogLevel.cs
+      - SuwayomiSourceMerge/Infrastructure/Logging/LogLevelParser.cs
       - SuwayomiSourceMerge/Infrastructure/Logging/RollingFileLogger.cs
       - SuwayomiSourceMerge/Infrastructure/Logging/RollingFileSink.cs
       - SuwayomiSourceMerge/Infrastructure/Logging/SsmLoggerFactory.cs
       - SuwayomiSourceMerge/Infrastructure/Logging/StructuredTextLogFormatter.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogEventTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogLevelParserTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/RollingFileLoggerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/RollingFileSinkTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/SsmLoggerFactoryTests.cs
@@ -259,6 +261,10 @@ modules:
         kind: interface
         path: SuwayomiSourceMerge/Infrastructure/Logging/ISsmLogger.cs
         purpose: Defines canonical structured log emission methods and level checks.
+      - symbol: LogLevelParser
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Logging/LogLevelParser.cs
+        purpose: Centralizes logging-level token parsing shared by settings validation and logger creation.
       - symbol: RollingFileLogger
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Logging/RollingFileLogger.cs
@@ -289,8 +295,9 @@ modules:
         symbols: [RollingFileSink]
         paths: [SuwayomiSourceMerge/Infrastructure/Logging/RollingFileSink.cs]
     do_not_reimplement:
-      - Canonical config-to-level parsing and logger construction; use SsmLoggerFactory.
+      - Canonical config-to-logger construction; use SsmLoggerFactory.
       - Canonical level filtering and sink fault fallback behavior; use RollingFileLogger.
+      - Canonical logging-level token parsing shared by validation and runtime; use LogLevelParser.
       - Canonical structured text line format and escaping policy; use StructuredTextLogFormatter.
       - Canonical size-based rollover and retained archive handling; use RollingFileSink.
     related: [application-hosting, config-schema-validation, unit-test-suite]
@@ -388,6 +395,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/YamlDocumentParserPropertyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/YamlDocumentParserTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogEventTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogLevelParserTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/RollingFileLoggerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/RollingFileSinkTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/SsmLoggerFactoryTests.cs
