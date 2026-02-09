@@ -1,0 +1,334 @@
+version: 1
+language: csharp
+unity:
+  asmdef_paths: []
+maintenance:
+  update_when:
+    - Add, remove, or rename entrypoint files/classes/methods in runtime or test projects.
+    - Change build/test wiring, project references, or central MSBuild policies.
+    - Introduce new canonical extension points to avoid duplicate implementations.
+  generation_notes:
+    - Verify symbols directly in source files before adding or modifying entries.
+    - Keep modules curated around canonical runtime, build, and test roots.
+conventions:
+  - Treat warnings as errors globally via central MSBuild props.
+  - Use xUnit for unit tests and keep reusable fixtures/helpers in a shared test project.
+  - Prefer extending existing orchestration/test roots over creating parallel frameworks.
+modules:
+  - id: build-and-quality
+    summary: Central build defaults and formatting behavior for the solution.
+    tags: [build, msbuild, quality]
+    paths:
+      - .editorconfig
+      - Directory.Build.props
+      - SuwayomiSourceMerge/AssemblyInfo.cs
+      - SuwayomiSourceMerge/SuwayomiSourceMerge.csproj
+    entrypoints:
+      - symbol: .editorconfig
+        kind: file
+        path: .editorconfig
+        purpose: Defines canonical repository code style and naming conventions.
+      - symbol: CleanupFormatLock
+        kind: method
+        path: SuwayomiSourceMerge/SuwayomiSourceMerge.csproj
+        purpose: Removes the formatting lock file after build completion.
+      - symbol: Directory.Build.props
+        kind: file
+        path: Directory.Build.props
+        purpose: Defines solution-wide warning policy.
+      - symbol: FormatCode
+        kind: method
+        path: SuwayomiSourceMerge/SuwayomiSourceMerge.csproj
+        purpose: Runs dotnet format before compilation when enabled.
+      - symbol: SuwayomiSourceMerge/AssemblyInfo.cs
+        kind: file
+        path: SuwayomiSourceMerge/AssemblyInfo.cs
+        purpose: Declares assembly-level test visibility for internal runtime types.
+    extension_points:
+      - how: Add or adjust global build quality policies in the shared props file.
+        symbols: [Directory.Build.props]
+        paths: [Directory.Build.props]
+      - how: Adjust C# formatting and naming conventions in the repository editorconfig.
+        symbols: [.editorconfig]
+        paths: [.editorconfig]
+      - how: Adjust internal test visibility through assembly attributes instead of exposing runtime internals publicly.
+        symbols: [SuwayomiSourceMerge/AssemblyInfo.cs]
+        paths: [SuwayomiSourceMerge/AssemblyInfo.cs]
+      - how: Adjust formatting behavior by editing build targets and conditions in the app project file.
+        symbols: [CleanupFormatLock, FormatCode]
+        paths: [SuwayomiSourceMerge/SuwayomiSourceMerge.csproj]
+    do_not_reimplement:
+      - Code formatting and naming conventions; use .editorconfig.
+      - Global warnings-as-errors behavior; use Directory.Build.props.
+      - Post-build formatting lock cleanup; use CleanupFormatLock.
+      - Pre-build formatting orchestration; use FormatCode.
+      - Test assembly internal visibility policy; use SuwayomiSourceMerge/AssemblyInfo.cs.
+    related: [runtime-host, unit-test-suite]
+  - id: config-bootstrap-migration
+    summary: Bootstrap orchestration that creates missing YAML, migrates legacy text, and self-heals settings values.
+    tags: [bootstrap, config, migration, yaml]
+    paths:
+      - SuwayomiSourceMerge/Configuration/Bootstrap/ConfigurationBootstrapException.cs
+      - SuwayomiSourceMerge/Configuration/Bootstrap/ConfigurationBootstrapFileState.cs
+      - SuwayomiSourceMerge/Configuration/Bootstrap/ConfigurationBootstrapResult.cs
+      - SuwayomiSourceMerge/Configuration/Bootstrap/ConfigurationBootstrapService.cs
+      - SuwayomiSourceMerge/Configuration/Bootstrap/ConfigurationBootstrapWarning.cs
+      - SuwayomiSourceMerge/Configuration/Bootstrap/ConfigurationDocumentSet.cs
+      - SuwayomiSourceMerge/Configuration/Bootstrap/ConfigurationPathSet.cs
+      - SuwayomiSourceMerge/Configuration/Bootstrap/IConfigurationBootstrapService.cs
+      - SuwayomiSourceMerge/Configuration/Bootstrap/LegacyMangaEquivalentsMigrator.cs
+      - SuwayomiSourceMerge/Configuration/Bootstrap/LegacyMigrationResult.cs
+      - SuwayomiSourceMerge/Configuration/Bootstrap/LegacySourcePriorityMigrator.cs
+      - SuwayomiSourceMerge/Configuration/Bootstrap/SettingsSelfHealingResult.cs
+      - SuwayomiSourceMerge/Configuration/Bootstrap/SettingsSelfHealingService.cs
+      - SuwayomiSourceMerge/Configuration/Bootstrap/YamlDocumentWriter.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapExceptionTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapGuardTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationPathSetTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/LegacyMangaEquivalentsMigratorTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/LegacySourcePriorityMigratorTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/SettingsSelfHealingServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/YamlDocumentWriterTests.cs
+    entrypoints:
+      - symbol: ConfigurationBootstrapException
+        kind: class
+        path: SuwayomiSourceMerge/Configuration/Bootstrap/ConfigurationBootstrapException.cs
+        purpose: Represents bootstrap failures caused by validation errors.
+      - symbol: ConfigurationBootstrapResult
+        kind: class
+        path: SuwayomiSourceMerge/Configuration/Bootstrap/ConfigurationBootstrapResult.cs
+        purpose: Returns validated documents, file-state metadata, and migration warnings.
+      - symbol: ConfigurationBootstrapService
+        kind: class
+        path: SuwayomiSourceMerge/Configuration/Bootstrap/ConfigurationBootstrapService.cs
+        purpose: Coordinates file creation, legacy migration, and final parse-and-validate loading.
+      - symbol: ConfigurationBootstrapService.Bootstrap
+        kind: method
+        path: SuwayomiSourceMerge/Configuration/Bootstrap/ConfigurationBootstrapService.cs
+        purpose: Executes per-file bootstrap decisions and throws on any validation errors.
+      - symbol: IConfigurationBootstrapService
+        kind: interface
+        path: SuwayomiSourceMerge/Configuration/Bootstrap/IConfigurationBootstrapService.cs
+        purpose: Defines the canonical bootstrap entrypoint for runtime orchestration.
+      - symbol: SettingsSelfHealingService
+        kind: class
+        path: SuwayomiSourceMerge/Configuration/Bootstrap/SettingsSelfHealingService.cs
+        purpose: Fills missing settings keys from defaults while preserving existing values.
+    extension_points:
+      - how: Add support for new legacy file formats by adding migrators and wiring them into bootstrap service decisions.
+        symbols: [ConfigurationBootstrapService, LegacyMangaEquivalentsMigrator, LegacySourcePriorityMigrator]
+        paths: [SuwayomiSourceMerge/Configuration/Bootstrap/ConfigurationBootstrapService.cs, SuwayomiSourceMerge/Configuration/Bootstrap/LegacyMangaEquivalentsMigrator.cs, SuwayomiSourceMerge/Configuration/Bootstrap/LegacySourcePriorityMigrator.cs]
+      - how: Extend bootstrap result diagnostics by adding metadata fields to result and warning records consumed by callers.
+        symbols: [ConfigurationBootstrapFileState, ConfigurationBootstrapResult, ConfigurationBootstrapWarning]
+        paths: [SuwayomiSourceMerge/Configuration/Bootstrap/ConfigurationBootstrapFileState.cs, SuwayomiSourceMerge/Configuration/Bootstrap/ConfigurationBootstrapResult.cs, SuwayomiSourceMerge/Configuration/Bootstrap/ConfigurationBootstrapWarning.cs]
+      - how: Extend settings self-heal merge policy by editing the section and field coalescing logic in the self-heal service.
+        symbols: [SettingsSelfHealingService]
+        paths: [SuwayomiSourceMerge/Configuration/Bootstrap/SettingsSelfHealingService.cs]
+      - how: Update canonical config file locations by editing ConfigurationPathSet instead of hardcoding names in callers.
+        symbols: [ConfigurationPathSet]
+        paths: [SuwayomiSourceMerge/Configuration/Bootstrap/ConfigurationPathSet.cs]
+    do_not_reimplement:
+      - Canonical legacy manga-equivalents parsing and warning behavior; use LegacyMangaEquivalentsMigrator.
+      - Canonical legacy source-priority parsing behavior; use LegacySourcePriorityMigrator.
+      - Canonical settings self-heal merge behavior; use SettingsSelfHealingService.
+      - Canonical YAML bootstrap write format; use YamlDocumentWriter.
+      - Per-file bootstrap orchestration and validation failure policy; use ConfigurationBootstrapService.Bootstrap.
+    related: [config-schema-validation, runtime-host, unit-test-suite]
+  - id: config-schema-validation
+    summary: Strongly typed YAML schema parsing, defaults, and deterministic validation rules.
+    tags: [config, yaml, validation]
+    paths:
+      - SuwayomiSourceMerge/Configuration/Documents/MangaEquivalentsDocument.cs
+      - SuwayomiSourceMerge/Configuration/Documents/MangaEquivalentsDocumentDefaults.cs
+      - SuwayomiSourceMerge/Configuration/Documents/SceneTagsDocument.cs
+      - SuwayomiSourceMerge/Configuration/Documents/SceneTagsDocumentDefaults.cs
+      - SuwayomiSourceMerge/Configuration/Documents/SettingsDocument.cs
+      - SuwayomiSourceMerge/Configuration/Documents/SettingsDocumentDefaults.cs
+      - SuwayomiSourceMerge/Configuration/Documents/SourcePriorityDocument.cs
+      - SuwayomiSourceMerge/Configuration/Documents/SourcePriorityDocumentDefaults.cs
+      - SuwayomiSourceMerge/Configuration/Loading/ConfigurationSchemaService.cs
+      - SuwayomiSourceMerge/Configuration/Loading/ConfigurationValidationPipeline.cs
+      - SuwayomiSourceMerge/Configuration/Loading/ParsedDocument.cs
+      - SuwayomiSourceMerge/Configuration/Loading/YamlDocumentParser.cs
+      - SuwayomiSourceMerge/Configuration/Validation/IConfigValidator.cs
+      - SuwayomiSourceMerge/Configuration/Validation/MangaEquivalentsDocumentValidator.cs
+      - SuwayomiSourceMerge/Configuration/Validation/SceneTagsDocumentValidator.cs
+      - SuwayomiSourceMerge/Configuration/Validation/SettingsDocumentValidator.cs
+      - SuwayomiSourceMerge/Configuration/Validation/SourcePriorityDocumentValidator.cs
+      - SuwayomiSourceMerge/Configuration/Validation/ValidationError.cs
+      - SuwayomiSourceMerge/Configuration/Validation/ValidationKeyNormalizer.cs
+      - SuwayomiSourceMerge/Configuration/Validation/ValidationResult.cs
+      - docs/config-schema.md
+    entrypoints:
+      - symbol: ConfigurationSchemaService
+        kind: class
+        path: SuwayomiSourceMerge/Configuration/Loading/ConfigurationSchemaService.cs
+        purpose: Provides parse-and-validate entrypoints for all configuration files.
+      - symbol: SettingsDocument
+        kind: class
+        path: SuwayomiSourceMerge/Configuration/Documents/SettingsDocument.cs
+        purpose: Canonical sectioned schema model for settings.yml.
+      - symbol: SettingsDocumentDefaults.Create
+        kind: method
+        path: SuwayomiSourceMerge/Configuration/Documents/SettingsDocumentDefaults.cs
+        purpose: Produces default container-oriented settings values.
+      - symbol: SettingsDocumentValidator
+        kind: class
+        path: SuwayomiSourceMerge/Configuration/Validation/SettingsDocumentValidator.cs
+        purpose: Enforces deterministic settings validation rules and error codes.
+      - symbol: YamlDocumentParser
+        kind: class
+        path: SuwayomiSourceMerge/Configuration/Loading/YamlDocumentParser.cs
+        purpose: Parses YAML into strongly typed documents and reports parser errors.
+    extension_points:
+      - how: Add new configuration files by introducing typed documents plus dedicated validators wired through the schema service.
+        symbols: [ConfigurationSchemaService, IConfigValidator]
+        paths: [SuwayomiSourceMerge/Configuration/Loading/ConfigurationSchemaService.cs, SuwayomiSourceMerge/Configuration/Validation/IConfigValidator.cs]
+      - how: Extend settings shape by adding fields to document sections, defaults, and validator rules in lockstep.
+        symbols: [SettingsDocument, SettingsDocumentDefaults.Create, SettingsDocumentValidator]
+        paths: [SuwayomiSourceMerge/Configuration/Documents/SettingsDocument.cs, SuwayomiSourceMerge/Configuration/Documents/SettingsDocumentDefaults.cs, SuwayomiSourceMerge/Configuration/Validation/SettingsDocumentValidator.cs]
+      - how: Update schema documentation and validation code catalog when rule sets change.
+        symbols: [config-schema.md]
+        paths: [docs/config-schema.md]
+    do_not_reimplement:
+      - Canonical YAML parser behavior and parser error codes; use YamlDocumentParser.
+      - Document-level parse-and-validate orchestration; use ConfigurationSchemaService.
+      - Manga equivalents conflict detection rules; use MangaEquivalentsDocumentValidator.
+      - Scene tag dedup normalization rules; use SceneTagsDocumentValidator.
+      - Settings validation code map and field constraints; use SettingsDocumentValidator.
+      - Source priority dedup validation rules; use SourcePriorityDocumentValidator.
+      - YAML parser unknown-key tolerance for schema evolution; use YamlDocumentParser.
+    related: [runtime-host, unit-test-suite]
+  - id: runtime-host
+    summary: Console application host and project-level runtime configuration.
+    tags: [runtime, host, console]
+    paths:
+      - SuwayomiSourceMerge/Program.cs
+      - SuwayomiSourceMerge/SuwayomiSourceMerge.csproj
+    entrypoints:
+      - symbol: Program.cs
+        kind: file
+        path: SuwayomiSourceMerge/Program.cs
+        purpose: Current runtime entrypoint for the console application.
+      - symbol: SuwayomiSourceMerge.csproj
+        kind: file
+        path: SuwayomiSourceMerge/SuwayomiSourceMerge.csproj
+        purpose: Defines runtime target framework and build behavior.
+    extension_points:
+      - how: Add new runtime orchestration by introducing services and invoking them from Program.cs.
+        symbols: [Program.cs]
+        paths: [SuwayomiSourceMerge/Program.cs]
+      - how: Add project-level runtime/build settings in the application project file.
+        symbols: [SuwayomiSourceMerge.csproj]
+        paths: [SuwayomiSourceMerge/SuwayomiSourceMerge.csproj]
+    do_not_reimplement:
+      - Console entrypoint bootstrapping; extend Program.cs.
+      - Runtime project configuration root; extend SuwayomiSourceMerge.csproj.
+      - Warning policy overrides in app project; keep centralized in Directory.Build.props.
+    related: [build-and-quality, shared-test-support, unit-test-suite]
+  - id: shared-test-support
+    summary: Reusable testing helpers shared across test projects.
+    tags: [tests, support, shared]
+    paths:
+      - tests/SuwayomiSourceMerge.Testing/Class1.cs
+      - tests/SuwayomiSourceMerge.Testing/SuwayomiSourceMerge.Testing.csproj
+    entrypoints:
+      - symbol: SuwayomiSourceMerge.Testing.csproj
+        kind: file
+        path: tests/SuwayomiSourceMerge.Testing/SuwayomiSourceMerge.Testing.csproj
+        purpose: Shared test-support project referenced by test suites.
+      - symbol: TestPathHelper
+        kind: class
+        path: tests/SuwayomiSourceMerge.Testing/Class1.cs
+        purpose: Canonical helper class for common test path operations.
+      - symbol: TestPathHelper.Combine
+        kind: method
+        path: tests/SuwayomiSourceMerge.Testing/Class1.cs
+        purpose: Combines path segments for tests using platform separators.
+    extension_points:
+      - how: Add reusable fixtures/utilities in the shared support project for broad test reuse.
+        symbols: [TestPathHelper]
+        paths: [tests/SuwayomiSourceMerge.Testing/Class1.cs]
+      - how: Expand shared support dependencies via the test-support project file.
+        symbols: [SuwayomiSourceMerge.Testing.csproj]
+        paths: [tests/SuwayomiSourceMerge.Testing/SuwayomiSourceMerge.Testing.csproj]
+    do_not_reimplement:
+      - Shared path composition helper; use TestPathHelper.Combine.
+      - Shared test helper project root; use SuwayomiSourceMerge.Testing.csproj.
+    related: [runtime-host, unit-test-suite]
+  - id: unit-test-suite
+    summary: Primary xUnit test project with schema, bootstrap, property-based, and mutation-test scaffolding.
+    tags: [tests, xunit, validation]
+    paths:
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapExceptionTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapGuardTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationPathSetTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/LegacyMangaEquivalentsMigratorTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/LegacySourcePriorityMigratorTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/SettingsSelfHealingServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/YamlDocumentWriterTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/ConfigurationSchemaServiceFactory.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/ConfigurationTestData.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Loading/ConfigurationSchemaServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Loading/ConfigurationValidationPipelineTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/MangaEquivalentsSchemaTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/SceneTagsSchemaTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/SettingsSchemaTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/SourcePrioritySchemaTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/MangaEquivalentsDocumentValidatorTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/SceneTagsDocumentValidatorTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/SettingsDocumentValidatorTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/SourcePriorityDocumentValidatorTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/ValidationKeyNormalizerPropertyTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/ValidationKeyNormalizerTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/ValidationResultTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/YamlDocumentParserPropertyTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/YamlDocumentParserTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/README.md
+      - tests/SuwayomiSourceMerge.UnitTests/stryker-config.json
+      - tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj
+      - tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/TemporaryDirectory.cs
+      - tests/SuwayomiSourceMerge.UnitTests/UnitTest1.cs
+    entrypoints:
+      - symbol: ConfigurationBootstrapServiceTests
+        kind: class
+        path: tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapServiceTests.cs
+        purpose: Verifies expected, edge, and failure behavior for bootstrap and legacy migration.
+      - symbol: ConfigurationValidationPipelineTests
+        kind: class
+        path: tests/SuwayomiSourceMerge.UnitTests/Configuration/Loading/ConfigurationValidationPipelineTests.cs
+        purpose: Verifies parse/validate orchestration, guard clauses, and validator exception propagation.
+      - symbol: SettingsSchemaTests
+        kind: class
+        path: tests/SuwayomiSourceMerge.UnitTests/Configuration/SettingsSchemaTests.cs
+        purpose: Verifies expected, edge, and failure validation behavior for settings schema.
+      - symbol: stryker-config.json
+        kind: file
+        path: tests/SuwayomiSourceMerge.UnitTests/stryker-config.json
+        purpose: Defines mutation-testing scope and threshold break values for configuration code.
+      - symbol: SuwayomiSourceMerge.UnitTests.csproj
+        kind: file
+        path: tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj
+        purpose: Defines xUnit + FsCheck test framework dependencies and project references.
+      - symbol: ValidationKeyNormalizerPropertyTests
+        kind: class
+        path: tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/ValidationKeyNormalizerPropertyTests.cs
+        purpose: Verifies key-normalization invariants with property-based tests.
+    extension_points:
+      - how: Add new deterministic unit tests in the unit test project and centralize reusable fixtures/helpers for reuse.
+        symbols: [ProjectLayoutTests, SuwayomiSourceMerge.UnitTests.csproj]
+        paths: [tests/SuwayomiSourceMerge.UnitTests/Configuration/ConfigurationTestData.cs, tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/TemporaryDirectory.cs, tests/SuwayomiSourceMerge.UnitTests/UnitTest1.cs]
+      - how: Adjust mutation-test scope and score gates in the stryker configuration file.
+        symbols: [stryker-config.json]
+        paths: [tests/SuwayomiSourceMerge.UnitTests/stryker-config.json]
+      - how: Extend framework/test-runner dependencies in the unit test project file.
+        symbols: [SuwayomiSourceMerge.UnitTests.csproj]
+        paths: [tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj]
+    do_not_reimplement:
+      - Baseline test-harness smoke coverage; extend ProjectLayoutTests.
+      - Canonical unit-test project wiring; use SuwayomiSourceMerge.UnitTests.csproj.
+      - Canonical YAML schema validation test scenarios; extend configuration schema test classes.
+      - Mutation-test scope and threshold gates; use stryker-config.json.
+    related: [build-and-quality, config-schema-validation, runtime-host, shared-test-support]

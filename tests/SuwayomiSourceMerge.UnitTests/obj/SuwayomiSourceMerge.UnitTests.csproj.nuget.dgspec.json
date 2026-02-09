@@ -1,0 +1,247 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Documents\\projects\\SuwayomiSourceMerge\\tests\\SuwayomiSourceMerge.UnitTests\\SuwayomiSourceMerge.UnitTests.csproj": {}
+  },
+  "projects": {
+    "C:\\Documents\\projects\\SuwayomiSourceMerge\\SuwayomiSourceMerge\\SuwayomiSourceMerge.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Documents\\projects\\SuwayomiSourceMerge\\SuwayomiSourceMerge\\SuwayomiSourceMerge.csproj",
+        "projectName": "SuwayomiSourceMerge",
+        "projectPath": "C:\\Documents\\projects\\SuwayomiSourceMerge\\SuwayomiSourceMerge\\SuwayomiSourceMerge.csproj",
+        "packagesPath": "C:\\Users\\methejuggler\\.nuget\\packages\\",
+        "outputPath": "C:\\Documents\\projects\\SuwayomiSourceMerge\\SuwayomiSourceMerge\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\methejuggler\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
+          "https://api.nuget.org/v3/index.json": {},
+          "https://nuget.bepinex.dev/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "allWarningsAsErrors": true,
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "YamlDotNet": {
+              "target": "Package",
+              "version": "[15.1.2, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.308/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\Documents\\projects\\SuwayomiSourceMerge\\tests\\SuwayomiSourceMerge.Testing\\SuwayomiSourceMerge.Testing.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Documents\\projects\\SuwayomiSourceMerge\\tests\\SuwayomiSourceMerge.Testing\\SuwayomiSourceMerge.Testing.csproj",
+        "projectName": "SuwayomiSourceMerge.Testing",
+        "projectPath": "C:\\Documents\\projects\\SuwayomiSourceMerge\\tests\\SuwayomiSourceMerge.Testing\\SuwayomiSourceMerge.Testing.csproj",
+        "packagesPath": "C:\\Users\\methejuggler\\.nuget\\packages\\",
+        "outputPath": "C:\\Documents\\projects\\SuwayomiSourceMerge\\tests\\SuwayomiSourceMerge.Testing\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\methejuggler\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
+          "https://api.nuget.org/v3/index.json": {},
+          "https://nuget.bepinex.dev/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "allWarningsAsErrors": true,
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.308/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\Documents\\projects\\SuwayomiSourceMerge\\tests\\SuwayomiSourceMerge.UnitTests\\SuwayomiSourceMerge.UnitTests.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Documents\\projects\\SuwayomiSourceMerge\\tests\\SuwayomiSourceMerge.UnitTests\\SuwayomiSourceMerge.UnitTests.csproj",
+        "projectName": "SuwayomiSourceMerge.UnitTests",
+        "projectPath": "C:\\Documents\\projects\\SuwayomiSourceMerge\\tests\\SuwayomiSourceMerge.UnitTests\\SuwayomiSourceMerge.UnitTests.csproj",
+        "packagesPath": "C:\\Users\\methejuggler\\.nuget\\packages\\",
+        "outputPath": "C:\\Documents\\projects\\SuwayomiSourceMerge\\tests\\SuwayomiSourceMerge.UnitTests\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\methejuggler\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
+          "https://api.nuget.org/v3/index.json": {},
+          "https://nuget.bepinex.dev/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {
+              "C:\\Documents\\projects\\SuwayomiSourceMerge\\SuwayomiSourceMerge\\SuwayomiSourceMerge.csproj": {
+                "projectPath": "C:\\Documents\\projects\\SuwayomiSourceMerge\\SuwayomiSourceMerge\\SuwayomiSourceMerge.csproj"
+              },
+              "C:\\Documents\\projects\\SuwayomiSourceMerge\\tests\\SuwayomiSourceMerge.Testing\\SuwayomiSourceMerge.Testing.csproj": {
+                "projectPath": "C:\\Documents\\projects\\SuwayomiSourceMerge\\tests\\SuwayomiSourceMerge.Testing\\SuwayomiSourceMerge.Testing.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "allWarningsAsErrors": true,
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "FsCheck.Xunit": {
+              "target": "Package",
+              "version": "[3.3.2, )"
+            },
+            "Microsoft.NET.Test.Sdk": {
+              "target": "Package",
+              "version": "[17.12.0, )"
+            },
+            "coverlet.collector": {
+              "target": "Package",
+              "version": "[6.0.2, )"
+            },
+            "xunit": {
+              "target": "Package",
+              "version": "[2.9.2, )"
+            },
+            "xunit.runner.visualstudio": {
+              "target": "Package",
+              "version": "[2.8.2, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.308/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

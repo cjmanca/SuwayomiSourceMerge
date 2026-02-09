@@ -1,0 +1,20 @@
+{
+  "stryker-config": {
+    "project": "SuwayomiSourceMerge.UnitTests.csproj",
+    "mutate": [
+      "../../SuwayomiSourceMerge/Configuration/Bootstrap/*.cs",
+      "../../SuwayomiSourceMerge/Configuration/Loading/*.cs",
+      "../../SuwayomiSourceMerge/Configuration/Validation/*.cs"
+    ],
+    "reporters": [
+      "progress",
+      "html",
+      "json"
+    ],
+    "thresholds": {
+      "high": 90,
+      "low": 80,
+      "break": 80
+    }
+  }
+}

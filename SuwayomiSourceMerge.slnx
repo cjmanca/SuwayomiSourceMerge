@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="SuwayomiSourceMerge/SuwayomiSourceMerge.csproj" />
+  <Project Path="tests/SuwayomiSourceMerge.Testing/SuwayomiSourceMerge.Testing.csproj" />
+  <Project Path="tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj" />
+</Solution>
