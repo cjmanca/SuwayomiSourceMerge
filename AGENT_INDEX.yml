@@ -10,10 +10,12 @@ maintenance:
   generation_notes:
     - Verify symbols directly in source files before adding or modifying entries.
     - Keep modules curated around canonical runtime, build, and test roots.
+    - When configuration APIs are edited, keep XMLDOC coverage complete across touched identifiers.
 conventions:
   - Treat warnings as errors globally via central MSBuild props.
   - Use xUnit for unit tests and keep reusable fixtures/helpers in a shared test project.
   - Prefer extending existing orchestration/test roots over creating parallel frameworks.
+  - Keep XMLDOC comments detailed for runtime and configuration APIs so intent/usage are clear in-code.
 modules:
   - id: application-hosting
     summary: Runtime host orchestration that bootstraps configuration, initializes logging, and handles fatal paths.
@@ -211,7 +213,7 @@ modules:
       - symbol: SettingsDocumentValidator
         kind: class
         path: SuwayomiSourceMerge/Configuration/Validation/SettingsDocumentValidator.cs
-        purpose: Enforces deterministic settings validation rules and error codes.
+        purpose: Enforces deterministic settings validation rules via documented helper routines and emits actionable, path-scoped errors.
       - symbol: YamlDocumentParser
         kind: class
         path: SuwayomiSourceMerge/Configuration/Loading/YamlDocumentParser.cs
@@ -266,7 +268,7 @@ modules:
       - symbol: LogFilePathPolicy
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Logging/LogFilePathPolicy.cs
-        purpose: Validates logging file names and enforces resolved file paths remain under the configured log root.
+        purpose: Enforces deterministic log-file-name safety rules (invalid chars, trailing dot/space, Windows reserved names) and root containment.
       - symbol: LogLevelParser
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Logging/LogLevelParser.cs
@@ -274,7 +276,7 @@ modules:
       - symbol: RollingFileLogger
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Logging/RollingFileLogger.cs
-        purpose: Applies level filtering and fail-open sink writes with stderr fallback.
+        purpose: Applies level filtering (including non-emitting LogLevel.None sentinel handling) and fail-open sink writes with stderr fallback.
       - symbol: RollingFileSink
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Logging/RollingFileSink.cs
@@ -304,6 +306,7 @@ modules:
       - Canonical config-to-logger construction; use SsmLoggerFactory.
       - Canonical log-file name/path safety checks; use LogFilePathPolicy.
       - Canonical level filtering and sink fault fallback behavior; use RollingFileLogger.
+      - Canonical non-emitting handling for LogLevel.None sentinel values; use RollingFileLogger.
       - Canonical logging-level token parsing shared by validation and runtime; use LogLevelParser.
       - Canonical non-throw probing for logging-level tokens; use LogLevelParser.TryParse.
       - Canonical structured text line format and escaping policy; use StructuredTextLogFormatter.

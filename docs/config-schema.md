@@ -88,6 +88,9 @@ logging:
   - Must be `> 0`: all other numeric fields
 - `details_description_mode` allowed values: `text`, `br`, `html`
 - `logging.file_name` must be a single file name (no rooted path, directory separators, or traversal segments)
+- `logging.file_name` must not contain cross-platform strict invalid file-name characters (`U+0000`-`U+001F`, `<`, `>`, `:`, `"`, `/`, `\`, `|`, `?`, `*`)
+- `logging.file_name` must not end with `.` or space
+- On Windows hosts, `logging.file_name` must not resolve to a reserved device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1`-`COM9`, `LPT1`-`LPT9`)
 - `logging.level` allowed values: `trace`, `debug`, `warning`, `error`, `none`
 - `excluded_sources` cannot contain empty items or duplicates after normalization
 

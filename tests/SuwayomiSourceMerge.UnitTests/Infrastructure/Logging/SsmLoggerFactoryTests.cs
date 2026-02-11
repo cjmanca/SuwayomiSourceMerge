@@ -119,6 +119,48 @@ public sealed class SsmLoggerFactoryTests
         Assert.Equal(LogFilePathPolicy.InvalidFileNameMessage, exception.Message);
     }
 
+    [Theory]
+    [InlineData("da:mon.log")]
+    [InlineData("da*mon.log")]
+    public void Create_ShouldThrow_WhenFileNameContainsInvalidCharacters(string fileName)
+    {
+        using TemporaryDirectory temporaryDirectory = new();
+        SettingsDocument settings = CreateSettings(temporaryDirectory.Path, "debug", fileName);
+        SsmLoggerFactory factory = new();
+
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => factory.Create(settings, _ => { }));
+        Assert.Equal(LogFilePathPolicy.InvalidFileNameMessage, exception.Message);
+    }
+
+    [Theory]
+    [InlineData("daemon.")]
+    [InlineData("daemon ")]
+    public void Create_ShouldThrow_WhenFileNameEndsWithDotOrSpace(string fileName)
+    {
+        using TemporaryDirectory temporaryDirectory = new();
+        SettingsDocument settings = CreateSettings(temporaryDirectory.Path, "debug", fileName);
+        SsmLoggerFactory factory = new();
+
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => factory.Create(settings, _ => { }));
+        Assert.Equal(LogFilePathPolicy.InvalidFileNameMessage, exception.Message);
+    }
+
+    [Fact]
+    public void Create_ShouldThrow_WhenFileNameIsReservedWindowsDeviceName_OnWindows()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using TemporaryDirectory temporaryDirectory = new();
+        SettingsDocument settings = CreateSettings(temporaryDirectory.Path, "debug", "CON.log");
+        SsmLoggerFactory factory = new();
+
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(() => factory.Create(settings, _ => { }));
+        Assert.Equal(LogFilePathPolicy.InvalidFileNameMessage, exception.Message);
+    }
+
     [Fact]
     public void Create_ShouldThrow_WhenSettingsIsNull()
     {

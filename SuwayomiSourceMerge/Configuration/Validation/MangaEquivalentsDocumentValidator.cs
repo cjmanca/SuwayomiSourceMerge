@@ -5,106 +5,149 @@ namespace SuwayomiSourceMerge.Configuration.Validation;
 /// <summary>
 /// Validates <see cref="MangaEquivalentsDocument"/>.
 /// </summary>
+/// <remarks>
+/// Validation ensures group structure is complete and alias mappings are unambiguous after title
+/// normalization so canonical grouping remains deterministic.
+/// </remarks>
 public sealed class MangaEquivalentsDocumentValidator : IConfigValidator<MangaEquivalentsDocument>
 {
-    private const string MissingGroupsCode = "CFG-MEQ-001";
-    private const string MissingCanonicalCode = "CFG-MEQ-002";
-    private const string MissingAliasesCode = "CFG-MEQ-003";
-    private const string DuplicateCanonicalCode = "CFG-MEQ-004";
-    private const string ConflictingAliasCode = "CFG-MEQ-005";
-    private const string EmptyAliasCode = "CFG-MEQ-006";
+	/// <summary>
+	/// Error code emitted when <c>groups</c> is missing.
+	/// </summary>
+	private const string MissingGroupsCode = "CFG-MEQ-001";
 
-    /// <inheritdoc />
-    public ValidationResult Validate(MangaEquivalentsDocument document, string file)
-    {
-        ArgumentNullException.ThrowIfNull(document);
-        ArgumentException.ThrowIfNullOrWhiteSpace(file);
+	/// <summary>
+	/// Error code emitted when a group's canonical value is missing.
+	/// </summary>
+	private const string MissingCanonicalCode = "CFG-MEQ-002";
 
-        ValidationResult result = new();
+	/// <summary>
+	/// Error code emitted when a group's aliases list is missing.
+	/// </summary>
+	private const string MissingAliasesCode = "CFG-MEQ-003";
 
-        if (document.Groups is null)
-        {
-            result.Add(new ValidationError(file, "$.groups", MissingGroupsCode, "Groups list is required."));
-            return result;
-        }
+	/// <summary>
+	/// Error code emitted when canonical titles collide after normalization.
+	/// </summary>
+	private const string DuplicateCanonicalCode = "CFG-MEQ-004";
 
-        Dictionary<string, string> canonicalByAlias = new(StringComparer.Ordinal);
-        HashSet<string> canonicalKeys = new(StringComparer.Ordinal);
+	/// <summary>
+	/// Error code emitted when one normalized alias maps to different canonicals.
+	/// </summary>
+	private const string ConflictingAliasCode = "CFG-MEQ-005";
 
-        for (int i = 0; i < document.Groups.Count; i++)
-        {
-            MangaEquivalentGroup group = document.Groups[i];
-            string groupPath = $"$.groups[{i}]";
+	/// <summary>
+	/// Error code emitted when an alias is empty before or after normalization.
+	/// </summary>
+	private const string EmptyAliasCode = "CFG-MEQ-006";
 
-            if (string.IsNullOrWhiteSpace(group.Canonical))
-            {
-                result.Add(new ValidationError(file, $"{groupPath}.canonical", MissingCanonicalCode, "Canonical title is required."));
-                continue;
-            }
+	/// <summary>
+	/// Validates manga equivalence groups and alias mapping integrity.
+	/// </summary>
+	/// <param name="document">Parsed manga equivalence document to validate.</param>
+	/// <param name="file">Logical file name used in emitted errors.</param>
+	/// <returns>A validation result containing deterministic path-scoped errors.</returns>
+	/// <exception cref="ArgumentNullException">Thrown when <paramref name="document"/> is <see langword="null"/>.</exception>
+	/// <exception cref="ArgumentException">Thrown when <paramref name="file"/> is empty or whitespace.</exception>
+	public ValidationResult Validate(MangaEquivalentsDocument document, string file)
+	{
+		ArgumentNullException.ThrowIfNull(document);
+		ArgumentException.ThrowIfNullOrWhiteSpace(file);
 
-            if (group.Aliases is null)
-            {
-                result.Add(new ValidationError(file, $"{groupPath}.aliases", MissingAliasesCode, "Aliases list is required."));
-                continue;
-            }
+		ValidationResult result = new();
 
-            string canonical = group.Canonical.Trim();
-            string canonicalKey = ValidationKeyNormalizer.NormalizeTitleKey(canonical);
+		if (document.Groups is null)
+		{
+			result.Add(new ValidationError(file, "$.groups", MissingGroupsCode, "Groups list is required."));
+			return result;
+		}
 
-            if (!canonicalKeys.Add(canonicalKey))
-            {
-                result.Add(new ValidationError(file, $"{groupPath}.canonical", DuplicateCanonicalCode, "Duplicate canonical entry after normalization."));
-            }
+		Dictionary<string, string> canonicalByAlias = new(StringComparer.Ordinal);
+		HashSet<string> canonicalKeys = new(StringComparer.Ordinal);
 
-            RegisterAlias(canonicalKey, canonical, file, $"{groupPath}.canonical", canonicalByAlias, result);
+		for (int i = 0; i < document.Groups.Count; i++)
+		{
+			MangaEquivalentGroup group = document.Groups[i];
+			string groupPath = $"$.groups[{i}]";
 
-            for (int aliasIndex = 0; aliasIndex < group.Aliases.Count; aliasIndex++)
-            {
-                string? alias = group.Aliases[aliasIndex];
-                string aliasPath = $"{groupPath}.aliases[{aliasIndex}]";
+			if (string.IsNullOrWhiteSpace(group.Canonical))
+			{
+				result.Add(new ValidationError(file, $"{groupPath}.canonical", MissingCanonicalCode, "Canonical title is required."));
+				continue;
+			}
 
-                if (string.IsNullOrWhiteSpace(alias))
-                {
-                    result.Add(new ValidationError(file, aliasPath, EmptyAliasCode, "Alias must not be empty."));
-                    continue;
-                }
+			if (group.Aliases is null)
+			{
+				result.Add(new ValidationError(file, $"{groupPath}.aliases", MissingAliasesCode, "Aliases list is required."));
+				continue;
+			}
 
-                RegisterAlias(
-                    ValidationKeyNormalizer.NormalizeTitleKey(alias),
-                    canonical,
-                    file,
-                    aliasPath,
-                    canonicalByAlias,
-                    result);
-            }
-        }
+			string canonical = group.Canonical.Trim();
+			string canonicalKey = ValidationKeyNormalizer.NormalizeTitleKey(canonical);
 
-        return result;
-    }
+			if (!canonicalKeys.Add(canonicalKey))
+			{
+				result.Add(new ValidationError(file, $"{groupPath}.canonical", DuplicateCanonicalCode, "Duplicate canonical entry after normalization."));
+			}
 
-    private static void RegisterAlias(
-        string aliasKey,
-        string canonical,
-        string file,
-        string path,
-        IDictionary<string, string> canonicalByAlias,
-        ValidationResult result)
-    {
-        if (string.IsNullOrEmpty(aliasKey))
-        {
-            result.Add(new ValidationError(file, path, EmptyAliasCode, "Alias becomes empty after normalization."));
-            return;
-        }
+			RegisterAlias(canonicalKey, canonical, file, $"{groupPath}.canonical", canonicalByAlias, result);
 
-        if (!canonicalByAlias.TryGetValue(aliasKey, out string? existingCanonical))
-        {
-            canonicalByAlias[aliasKey] = canonical;
-            return;
-        }
+			for (int aliasIndex = 0; aliasIndex < group.Aliases.Count; aliasIndex++)
+			{
+				string? alias = group.Aliases[aliasIndex];
+				string aliasPath = $"{groupPath}.aliases[{aliasIndex}]";
 
-        if (!string.Equals(existingCanonical, canonical, StringComparison.Ordinal))
-        {
-            result.Add(new ValidationError(file, path, ConflictingAliasCode, "Alias maps to conflicting canonical values."));
-        }
-    }
+				if (string.IsNullOrWhiteSpace(alias))
+				{
+					result.Add(new ValidationError(file, aliasPath, EmptyAliasCode, "Alias must not be empty."));
+					continue;
+				}
+
+				RegisterAlias(
+					ValidationKeyNormalizer.NormalizeTitleKey(alias),
+					canonical,
+					file,
+					aliasPath,
+					canonicalByAlias,
+					result);
+			}
+		}
+
+		return result;
+	}
+
+	/// <summary>
+	/// Registers one normalized alias key and reports conflicts against previously seen mappings.
+	/// </summary>
+	/// <param name="aliasKey">Normalized alias key.</param>
+	/// <param name="canonical">Canonical title currently being processed.</param>
+	/// <param name="file">Logical file name used in emitted errors.</param>
+	/// <param name="path">Logical YAML/JSON path for diagnostics.</param>
+	/// <param name="canonicalByAlias">Lookup storing the first canonical mapped for each alias key.</param>
+	/// <param name="result">Validation collector that receives conflict/empty-alias errors.</param>
+	private static void RegisterAlias(
+		string aliasKey,
+		string canonical,
+		string file,
+		string path,
+		IDictionary<string, string> canonicalByAlias,
+		ValidationResult result)
+	{
+		if (string.IsNullOrEmpty(aliasKey))
+		{
+			result.Add(new ValidationError(file, path, EmptyAliasCode, "Alias becomes empty after normalization."));
+			return;
+		}
+
+		if (!canonicalByAlias.TryGetValue(aliasKey, out string? existingCanonical))
+		{
+			canonicalByAlias[aliasKey] = canonical;
+			return;
+		}
+
+		if (!string.Equals(existingCanonical, canonical, StringComparison.Ordinal))
+		{
+			result.Add(new ValidationError(file, path, ConflictingAliasCode, "Alias maps to conflicting canonical values."));
+		}
+	}
 }
