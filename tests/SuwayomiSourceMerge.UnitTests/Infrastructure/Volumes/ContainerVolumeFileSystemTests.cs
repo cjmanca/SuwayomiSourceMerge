@@ -101,18 +101,58 @@ public sealed class ContainerVolumeFileSystemTests
     }
 
     /// <summary>
-    /// Verifies <see cref="ContainerVolumeFileSystem.GetFullPath"/> resolves relative paths to absolute paths.
+    /// Verifies <see cref="ContainerVolumeFileSystem.GetFullPath"/> resolves a truly relative path against the
+    /// current working directory and restores the original directory after the assertion.
     /// </summary>
     [Fact]
-    public void GetFullPath_Expected_ShouldReturnAbsolutePath_WhenPathRelative()
+    public void GetFullPath_Expected_ShouldResolveRelativePathAgainstCurrentDirectory()
     {
         using TemporaryDirectory temporaryDirectory = new();
         ContainerVolumeFileSystem fileSystem = new();
-        string relativePath = Path.Combine(temporaryDirectory.Path, "..", Path.GetFileName(temporaryDirectory.Path));
+        string originalCurrentDirectory = Environment.CurrentDirectory;
 
-        string fullPath = fileSystem.GetFullPath(relativePath);
+        try
+        {
+            Environment.CurrentDirectory = temporaryDirectory.Path;
+            string relativePath = Path.Combine("manga", "..", "chapter");
 
-        Assert.True(Path.IsPathRooted(fullPath));
+            string fullPath = fileSystem.GetFullPath(relativePath);
+            string expectedPath = Path.GetFullPath(Path.Combine(temporaryDirectory.Path, "chapter"));
+
+            Assert.True(Path.IsPathRooted(fullPath));
+            Assert.Equal(expectedPath, fullPath);
+        }
+        finally
+        {
+            Environment.CurrentDirectory = originalCurrentDirectory;
+        }
+    }
+
+    /// <summary>
+    /// Verifies <see cref="ContainerVolumeFileSystem.GetFullPath"/> normalizes dot and parent segments
+    /// for relative paths using the current working directory.
+    /// </summary>
+    [Fact]
+    public void GetFullPath_Edge_ShouldNormalizeDotAndParentSegments_ForRelativeInput()
+    {
+        using TemporaryDirectory temporaryDirectory = new();
+        ContainerVolumeFileSystem fileSystem = new();
+        string originalCurrentDirectory = Environment.CurrentDirectory;
+
+        try
+        {
+            Environment.CurrentDirectory = temporaryDirectory.Path;
+            string relativePath = Path.Combine(".", "disk1", "..", "disk2", ".");
+
+            string fullPath = fileSystem.GetFullPath(relativePath);
+            string expectedPath = Path.GetFullPath(Path.Combine(temporaryDirectory.Path, "disk2"));
+
+            Assert.Equal(expectedPath, fullPath);
+        }
+        finally
+        {
+            Environment.CurrentDirectory = originalCurrentDirectory;
+        }
     }
 
     /// <summary>

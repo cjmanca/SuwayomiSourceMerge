@@ -275,6 +275,9 @@ modules:
         path: SuwayomiSourceMerge/Infrastructure/Volumes/IContainerVolumeFileSystem.cs
         purpose: Defines filesystem operations consumed by volume discovery for deterministic testing.
     extension_points:
+      - how: Adapt internal discovery results to strongly typed public test contracts to keep reusable contract tests compile-time safe.
+        symbols: [ContainerVolumeDiscoveryServiceContractTestsBase, IVolumeDiscoveryContractService]
+        paths: [tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeDiscoveryServiceContractTests.cs]
       - how: Add additional discovery diagnostics by extending warning/result types consumed by orchestrators.
         symbols: [ContainerVolumeDiscoveryResult, ContainerVolumeDiscoveryWarning]
         paths: [SuwayomiSourceMerge/Infrastructure/Volumes/ContainerVolumeDiscoveryResult.cs]
@@ -285,6 +288,7 @@ modules:
         symbols: [ContainerVolumeDiscoveryService, IContainerVolumeFileSystem]
         paths: [SuwayomiSourceMerge/Infrastructure/Volumes/ContainerVolumeDiscoveryService.cs, SuwayomiSourceMerge/Infrastructure/Volumes/IContainerVolumeFileSystem.cs]
     do_not_reimplement:
+      - Canonical contract-test typing adapter for volume discovery; use IVolumeDiscoveryContractService.
       - Canonical missing-root warning semantics for volume discovery; use ContainerVolumeDiscoveryService.Discover.
       - Canonical source/override direct-child enumeration and ordering; use ContainerVolumeDiscoveryService.Discover.
       - Canonical volume discovery filesystem operations contract; use IContainerVolumeFileSystem.
