@@ -236,6 +236,63 @@ modules:
       - Source priority dedup validation rules; use SourcePriorityDocumentValidator.
       - YAML parser unknown-key tolerance for schema evolution; use YamlDocumentParser.
     related: [logging-infrastructure, runtime-host, unit-test-suite]
+  - id: infrastructure-volumes
+    summary: Container volume discovery for source and override roots with deterministic ordering and warnings.
+    tags: [filesystem, infrastructure, volumes]
+    paths:
+      - SuwayomiSourceMerge/Infrastructure/Volumes/ContainerVolumeDiscoveryResult.cs
+      - SuwayomiSourceMerge/Infrastructure/Volumes/ContainerVolumeDiscoveryService.cs
+      - SuwayomiSourceMerge/Infrastructure/Volumes/ContainerVolumeFileSystem.cs
+      - SuwayomiSourceMerge/Infrastructure/Volumes/IContainerVolumeDiscoveryService.cs
+      - SuwayomiSourceMerge/Infrastructure/Volumes/IContainerVolumeFileSystem.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeDiscoveryResultTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeDiscoveryServiceContractTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeDiscoveryServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeFileSystemTests.cs
+    entrypoints:
+      - symbol: ContainerVolumeDiscoveryResult
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Volumes/ContainerVolumeDiscoveryResult.cs
+        purpose: Returns discovered source/override volume paths and non-fatal discovery warnings.
+      - symbol: ContainerVolumeDiscoveryService
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Volumes/ContainerVolumeDiscoveryService.cs
+        purpose: Discovers direct-child source and override volumes and emits warnings for missing roots.
+      - symbol: ContainerVolumeDiscoveryService.Discover
+        kind: method
+        path: SuwayomiSourceMerge/Infrastructure/Volumes/ContainerVolumeDiscoveryService.cs
+        purpose: Validates root paths, enumerates direct-child directories, and returns sorted results.
+      - symbol: ContainerVolumeFileSystem
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Volumes/ContainerVolumeFileSystem.cs
+        purpose: Provides direct filesystem calls for path normalization and direct-child directory enumeration.
+      - symbol: IContainerVolumeDiscoveryService
+        kind: interface
+        path: SuwayomiSourceMerge/Infrastructure/Volumes/IContainerVolumeDiscoveryService.cs
+        purpose: Defines the canonical discovery entrypoint for mapped source and override volumes.
+      - symbol: IContainerVolumeFileSystem
+        kind: interface
+        path: SuwayomiSourceMerge/Infrastructure/Volumes/IContainerVolumeFileSystem.cs
+        purpose: Defines filesystem operations consumed by volume discovery for deterministic testing.
+    extension_points:
+      - how: Adapt internal discovery results to strongly typed public test contracts to keep reusable contract tests compile-time safe.
+        symbols: [ContainerVolumeDiscoveryServiceContractTestsBase, IVolumeDiscoveryContractService]
+        paths: [tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeDiscoveryServiceContractTests.cs]
+      - how: Add additional discovery diagnostics by extending warning/result types consumed by orchestrators.
+        symbols: [ContainerVolumeDiscoveryResult, ContainerVolumeDiscoveryWarning]
+        paths: [SuwayomiSourceMerge/Infrastructure/Volumes/ContainerVolumeDiscoveryResult.cs]
+      - how: Extend discovered root categories by adding interface methods and implementing them in the discovery service.
+        symbols: [ContainerVolumeDiscoveryService, IContainerVolumeDiscoveryService]
+        paths: [SuwayomiSourceMerge/Infrastructure/Volumes/ContainerVolumeDiscoveryService.cs, SuwayomiSourceMerge/Infrastructure/Volumes/IContainerVolumeDiscoveryService.cs]
+      - how: Swap filesystem behavior in tests or future runtime variants by implementing the filesystem interface dependency.
+        symbols: [ContainerVolumeDiscoveryService, IContainerVolumeFileSystem]
+        paths: [SuwayomiSourceMerge/Infrastructure/Volumes/ContainerVolumeDiscoveryService.cs, SuwayomiSourceMerge/Infrastructure/Volumes/IContainerVolumeFileSystem.cs]
+    do_not_reimplement:
+      - Canonical contract-test typing adapter for volume discovery; use IVolumeDiscoveryContractService.
+      - Canonical missing-root warning semantics for volume discovery; use ContainerVolumeDiscoveryService.Discover.
+      - Canonical source/override direct-child enumeration and ordering; use ContainerVolumeDiscoveryService.Discover.
+      - Canonical volume discovery filesystem operations contract; use IContainerVolumeFileSystem.
+    related: [runtime-host, unit-test-suite]
   - id: logging-infrastructure
     summary: Structured log formatting, level filtering, and file rolling/retention for runtime diagnostics.
     tags: [diagnostics, logging, runtime]
@@ -409,6 +466,10 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/RollingFileSinkTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/SsmLoggerFactoryTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/StructuredTextLogFormatterTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeDiscoveryResultTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeDiscoveryServiceContractTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeDiscoveryServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeFileSystemTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/ProgramEntryPointTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/README.md
       - tests/SuwayomiSourceMerge.UnitTests/stryker-config.json
