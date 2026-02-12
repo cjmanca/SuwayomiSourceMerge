@@ -178,7 +178,7 @@ modules:
       - Per-file bootstrap orchestration and validation failure policy; use ConfigurationBootstrapService.Bootstrap.
     related: [config-schema-validation, domain-normalization, runtime-host, unit-test-suite]
   - id: config-resolution
-    summary: YAML-backed canonical title, source-priority, and override-title resolution services for runtime grouping flows.
+    summary: YAML-backed canonical title, source-priority, and override-title resolution services with frozen normalized lookups for runtime grouping flows.
     tags: [config, priority, resolution, titles]
     paths:
       - SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceService.cs
@@ -206,15 +206,15 @@ modules:
       - symbol: MangaEquivalenceService
         kind: class
         path: SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceService.cs
-        purpose: Builds canonical title lookups from canonical and alias mappings with fail-fast conflict checks.
+        purpose: Builds frozen canonical title lookups from canonical and alias mappings with fail-fast conflict checks.
       - symbol: OverrideCanonicalResolver
         kind: class
         path: SuwayomiSourceMerge/Configuration/Resolution/OverrideCanonicalResolver.cs
-        purpose: Resolves normalized title keys to first-seen exact override titles.
+        purpose: Resolves normalized title keys to first-seen exact override titles via frozen lookup data.
       - symbol: SourcePriorityService
         kind: class
         path: SuwayomiSourceMerge/Configuration/Resolution/SourcePriorityService.cs
-        purpose: Resolves normalized source keys to configured priority indexes with deterministic fallback handling.
+        purpose: Resolves normalized source keys to configured priority indexes with deterministic fallback handling and frozen lookups.
     extension_points:
       - how: Add additional resolution behavior by extending service interfaces and implementations in the resolution module.
         symbols: [IMangaEquivalenceService, IOverrideCanonicalResolver, ISourcePriorityService, MangaEquivalenceService, OverrideCanonicalResolver, SourcePriorityService]

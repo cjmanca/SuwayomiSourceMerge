@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+
 using SuwayomiSourceMerge.Domain.Normalization;
 
 namespace SuwayomiSourceMerge.Configuration.Resolution;
@@ -104,6 +106,6 @@ internal sealed class OverrideCanonicalResolver : IOverrideCanonicalResolver
 			index++;
 		}
 
-		return lookup;
+		return lookup.ToFrozenDictionary(StringComparer.Ordinal);
 	}
 }

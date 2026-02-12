@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+
 using SuwayomiSourceMerge.Configuration.Documents;
 using SuwayomiSourceMerge.Domain.Normalization;
 
@@ -8,7 +10,7 @@ namespace SuwayomiSourceMerge.Configuration.Resolution;
 /// </summary>
 /// <remarks>
 /// The constructor eagerly validates and indexes mappings so lookup operations remain deterministic and
-/// allocation-free for runtime call sites.
+/// efficient for runtime call sites.
 /// </remarks>
 internal sealed class MangaEquivalenceService : IMangaEquivalenceService
 {
@@ -133,7 +135,7 @@ internal sealed class MangaEquivalenceService : IMangaEquivalenceService
 			}
 		}
 
-		return lookup;
+		return lookup.ToFrozenDictionary(StringComparer.Ordinal);
 	}
 
 	/// <summary>

@@ -10,16 +10,6 @@ namespace SuwayomiSourceMerge.Domain.Normalization;
 internal static class TitleKeyNormalizer
 {
 	/// <summary>
-	/// Leading article tokens removed from title keys during normalization.
-	/// </summary>
-	private static readonly string[] LeadingArticles =
-	[
-		"a",
-		"an",
-		"the"
-	];
-
-	/// <summary>
 	/// Normalizes a title into a compact alphanumeric key for title matching.
 	/// </summary>
 	/// <param name="input">Raw title value.</param>
@@ -59,20 +49,16 @@ internal static class TitleKeyNormalizer
 		folded = ComparisonTextNormalizer.ReplacePunctuationWithSpace(folded);
 
 		string[] words = folded
-			.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-			.ToArray();
+			.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
 		if (words.Length == 0)
 		{
 			return string.Empty;
 		}
 
-		if (LeadingArticles.Contains(words[0], StringComparer.Ordinal))
-		{
-			words = words.Skip(1).ToArray();
-		}
+		int wordStartIndex = IsLeadingArticle(words[0]) ? 1 : 0;
 
-		for (int i = 0; i < words.Length; i++)
+		for (int i = wordStartIndex; i < words.Length; i++)
 		{
 			if (words[i].Length > 1 && words[i].EndsWith('s'))
 			{
@@ -80,7 +66,8 @@ internal static class TitleKeyNormalizer
 			}
 		}
 
-		return string.Concat(words);
+		ReadOnlySpan<string?> wordsSpan = words;
+		return string.Concat(wordsSpan[wordStartIndex..]);
 	}
 
 	/// <summary>
@@ -92,6 +79,16 @@ internal static class TitleKeyNormalizer
 	public static string NormalizeTokenKey(string input)
 	{
 		return ComparisonTextNormalizer.NormalizeTokenKey(input);
+	}
+
+	/// <summary>
+	/// Determines whether a word is one of the canonical leading articles removed from title keys.
+	/// </summary>
+	/// <param name="word">Word token to evaluate.</param>
+	/// <returns><see langword="true"/> when <paramref name="word"/> is <c>a</c>, <c>an</c>, or <c>the</c>.</returns>
+	private static bool IsLeadingArticle(string word)
+	{
+		return word is "a" or "an" or "the";
 	}
 
 	/// <summary>

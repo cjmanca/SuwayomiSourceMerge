@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+
 using SuwayomiSourceMerge.Configuration.Documents;
 using SuwayomiSourceMerge.Domain.Normalization;
 
@@ -103,6 +105,6 @@ internal sealed class SourcePriorityService : ISourcePriorityService
 			}
 		}
 
-		return lookup;
+		return lookup.ToFrozenDictionary(StringComparer.Ordinal);
 	}
 }
