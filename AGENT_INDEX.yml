@@ -177,6 +177,59 @@ modules:
       - Canonical YAML bootstrap write format; use YamlDocumentWriter.
       - Per-file bootstrap orchestration and validation failure policy; use ConfigurationBootstrapService.Bootstrap.
     related: [config-schema-validation, domain-normalization, runtime-host, unit-test-suite]
+  - id: config-resolution
+    summary: YAML-backed canonical title, source-priority, and override-title resolution services for runtime grouping flows.
+    tags: [config, priority, resolution, titles]
+    paths:
+      - SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceService.cs
+      - SuwayomiSourceMerge/Configuration/Resolution/IOverrideCanonicalResolver.cs
+      - SuwayomiSourceMerge/Configuration/Resolution/ISourcePriorityService.cs
+      - SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceService.cs
+      - SuwayomiSourceMerge/Configuration/Resolution/OverrideCanonicalResolver.cs
+      - SuwayomiSourceMerge/Configuration/Resolution/SourcePriorityService.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalenceServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/OverrideCanonicalResolverTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/SourcePriorityServiceTests.cs
+    entrypoints:
+      - symbol: IMangaEquivalenceService
+        kind: interface
+        path: SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceService.cs
+        purpose: Defines canonical title resolution operations over YAML equivalence mappings.
+      - symbol: IOverrideCanonicalResolver
+        kind: interface
+        path: SuwayomiSourceMerge/Configuration/Resolution/IOverrideCanonicalResolver.cs
+        purpose: Defines exact override-title resolution behavior for unmatched equivalence titles.
+      - symbol: ISourcePriorityService
+        kind: interface
+        path: SuwayomiSourceMerge/Configuration/Resolution/ISourcePriorityService.cs
+        purpose: Defines source-priority lookup behavior for normalized source names.
+      - symbol: MangaEquivalenceService
+        kind: class
+        path: SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceService.cs
+        purpose: Builds canonical title lookups from canonical and alias mappings with fail-fast conflict checks.
+      - symbol: OverrideCanonicalResolver
+        kind: class
+        path: SuwayomiSourceMerge/Configuration/Resolution/OverrideCanonicalResolver.cs
+        purpose: Resolves normalized title keys to first-seen exact override titles.
+      - symbol: SourcePriorityService
+        kind: class
+        path: SuwayomiSourceMerge/Configuration/Resolution/SourcePriorityService.cs
+        purpose: Resolves normalized source keys to configured priority indexes with deterministic fallback handling.
+    extension_points:
+      - how: Add additional resolution behavior by extending service interfaces and implementations in the resolution module.
+        symbols: [IMangaEquivalenceService, IOverrideCanonicalResolver, ISourcePriorityService, MangaEquivalenceService, OverrideCanonicalResolver, SourcePriorityService]
+        paths: [SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceService.cs, SuwayomiSourceMerge/Configuration/Resolution/IOverrideCanonicalResolver.cs, SuwayomiSourceMerge/Configuration/Resolution/ISourcePriorityService.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceService.cs, SuwayomiSourceMerge/Configuration/Resolution/OverrideCanonicalResolver.cs, SuwayomiSourceMerge/Configuration/Resolution/SourcePriorityService.cs]
+      - how: Swap scene-tag-aware normalization behavior by injecting alternate ISceneTagMatcher implementations into title-based resolvers.
+        symbols: [MangaEquivalenceService, OverrideCanonicalResolver, ISceneTagMatcher]
+        paths: [SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceService.cs, SuwayomiSourceMerge/Configuration/Resolution/OverrideCanonicalResolver.cs, SuwayomiSourceMerge/Domain/Normalization/ISceneTagMatcher.cs]
+      - how: Wire runtime grouping or mount pipelines to these lookup services via interfaces instead of duplicating dictionary-building logic.
+        symbols: [IMangaEquivalenceService, IOverrideCanonicalResolver, ISourcePriorityService]
+        paths: [SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceService.cs, SuwayomiSourceMerge/Configuration/Resolution/IOverrideCanonicalResolver.cs, SuwayomiSourceMerge/Configuration/Resolution/ISourcePriorityService.cs]
+    do_not_reimplement:
+      - Canonical manga equivalence canonical/alias lookup construction and conflict checks; use MangaEquivalenceService.
+      - Canonical override-title normalized lookup with caller-order-first collision policy; use OverrideCanonicalResolver.
+      - Canonical source-priority normalized token matching and fallback behavior; use SourcePriorityService.
+    related: [config-schema-validation, domain-normalization, unit-test-suite]
   - id: config-schema-validation
     summary: Strongly typed YAML schema parsing, defaults, and deterministic validation rules.
     tags: [config, yaml, validation]
@@ -230,9 +283,9 @@ modules:
       - how: Adjust default scene-tag coverage by updating the defaults factory consumed during bootstrap file creation.
         symbols: [SceneTagsDocumentDefaults.Create]
         paths: [SuwayomiSourceMerge/Configuration/Documents/SceneTagsDocumentDefaults.cs]
-      - how: Extend title-key normalization behavior by adding optional matcher-aware transformations in the validation normalizer.
-        symbols: [ValidationKeyNormalizer, ValidationKeyNormalizer.NormalizeTitleKey]
-        paths: [SuwayomiSourceMerge/Configuration/Validation/ValidationKeyNormalizer.cs]
+      - how: Extend title-key normalization behavior by changing the domain normalizer and keeping the validation adapter in sync.
+        symbols: [TitleKeyNormalizer.NormalizeTitleKey, ValidationKeyNormalizer]
+        paths: [SuwayomiSourceMerge/Configuration/Validation/ValidationKeyNormalizer.cs, SuwayomiSourceMerge/Domain/Normalization/TitleKeyNormalizer.cs]
       - how: Extend settings shape by adding fields to document sections, defaults, and validator rules in lockstep.
         symbols: [SettingsDocument, SettingsDocumentDefaults.Create, SettingsDocumentValidator]
         paths: [SuwayomiSourceMerge/Configuration/Documents/SettingsDocument.cs, SuwayomiSourceMerge/Configuration/Documents/SettingsDocumentDefaults.cs, SuwayomiSourceMerge/Configuration/Validation/SettingsDocumentValidator.cs]
@@ -240,7 +293,7 @@ modules:
         symbols: [config-schema.md]
         paths: [docs/config-schema.md]
     do_not_reimplement:
-      - Canonical matcher-aware title key normalization with trailing scene-tag suffix stripping; use ValidationKeyNormalizer.NormalizeTitleKey.
+      - Canonical matcher-aware title key normalization with trailing scene-tag suffix stripping; use TitleKeyNormalizer.NormalizeTitleKey.
       - Canonical default scene-tag list creation used for missing scene_tags.yml bootstrap; use SceneTagsDocumentDefaults.Create.
       - Canonical YAML parser behavior and parser error codes; use YamlDocumentParser.
       - Document-level parse-and-validate orchestration; use ConfigurationSchemaService.
@@ -250,7 +303,7 @@ modules:
       - Settings validation code map and field constraints; use SettingsDocumentValidator.
       - Source priority dedup validation rules; use SourcePriorityDocumentValidator.
       - YAML parser unknown-key tolerance for schema evolution; use YamlDocumentParser.
-    related: [domain-normalization, logging-infrastructure, runtime-host, unit-test-suite]
+    related: [config-resolution, domain-normalization, logging-infrastructure, runtime-host, unit-test-suite]
   - id: domain-normalization
     summary: Data-driven scene-tag phrase matching used by title normalization and cross-document validation flows.
     tags: [domain, normalization, titles]
@@ -261,8 +314,10 @@ modules:
       - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyBuilder.cs
       - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyKind.cs
       - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatcher.cs
+      - SuwayomiSourceMerge/Domain/Normalization/TitleKeyNormalizer.cs
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/ComparisonTextNormalizerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/SceneTagMatcherTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/TitleKeyNormalizerTests.cs
     entrypoints:
       - symbol: ComparisonTextNormalizer.NormalizeTokenKey
         kind: method
@@ -284,6 +339,10 @@ modules:
         kind: method
         path: SuwayomiSourceMerge/Domain/Normalization/SceneTagMatcher.cs
         purpose: Returns whether a candidate phrase matches one normalized configured scene tag.
+      - symbol: TitleKeyNormalizer.NormalizeTitleKey
+        kind: method
+        path: SuwayomiSourceMerge/Domain/Normalization/TitleKeyNormalizer.cs
+        purpose: Builds compact title comparison keys with optional scene-tag suffix stripping.
     extension_points:
       - how: Add alternate scene-tag matching policies by implementing the matcher interface and injecting the implementation into validation call sites.
         symbols: [ISceneTagMatcher, MangaEquivalentsDocumentValidator]
@@ -292,14 +351,15 @@ modules:
         symbols: [SceneTagMatchKeyBuilder.TryCreate, SceneTagMatcher, SceneTagsDocumentValidator]
         paths: [SuwayomiSourceMerge/Configuration/Validation/SceneTagsDocumentValidator.cs, SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyBuilder.cs, SuwayomiSourceMerge/Domain/Normalization/SceneTagMatcher.cs]
       - how: Reuse shared punctuation/ASCII/token normalization primitives across validators and domain matchers.
-        symbols: [ComparisonTextNormalizer.NormalizeTokenKey, SceneTagMatchKeyBuilder.TryCreate, ValidationKeyNormalizer.NormalizeTokenKey]
-        paths: [SuwayomiSourceMerge/Configuration/Validation/ValidationKeyNormalizer.cs, SuwayomiSourceMerge/Domain/Normalization/ComparisonTextNormalizer.cs, SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyBuilder.cs]
+        symbols: [ComparisonTextNormalizer.NormalizeTokenKey, SceneTagMatchKeyBuilder.TryCreate, TitleKeyNormalizer.NormalizeTokenKey]
+        paths: [SuwayomiSourceMerge/Domain/Normalization/ComparisonTextNormalizer.cs, SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyBuilder.cs, SuwayomiSourceMerge/Domain/Normalization/TitleKeyNormalizer.cs]
     do_not_reimplement:
       - Canonical ASCII-fold + punctuation-insensitive token key normalization; use ComparisonTextNormalizer.NormalizeTokenKey.
       - Canonical configured scene-tag phrase matching implementation; use SceneTagMatcher.
       - Canonical matcher-equivalent scene-tag key derivation; use SceneTagMatchKeyBuilder.TryCreate.
       - Canonical scene-tag matcher contract for normalization consumers; use ISceneTagMatcher.
-    related: [config-bootstrap-migration, config-schema-validation, unit-test-suite]
+      - Canonical title key normalization for runtime and validation call sites; use TitleKeyNormalizer.NormalizeTitleKey.
+    related: [config-bootstrap-migration, config-resolution, config-schema-validation, unit-test-suite]
   - id: infrastructure-volumes
     summary: Container volume discovery for source and override roots with deterministic ordering and warnings.
     tags: [filesystem, infrastructure, volumes]
@@ -512,6 +572,9 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Loading/ConfigurationSchemaServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Loading/ConfigurationValidationPipelineTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/MangaEquivalentsSchemaTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalenceServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/OverrideCanonicalResolverTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/SourcePriorityServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/SceneTagsSchemaTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/SettingsDocumentDefaultsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/SettingsSchemaTests.cs
@@ -527,6 +590,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/YamlDocumentParserTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/ComparisonTextNormalizerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/SceneTagMatcherTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/TitleKeyNormalizerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogEventTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogFilePathPolicyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogLevelParserTests.cs

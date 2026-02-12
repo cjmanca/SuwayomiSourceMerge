@@ -1,0 +1,71 @@
+namespace SuwayomiSourceMerge.UnitTests.Domain.Normalization;
+
+using SuwayomiSourceMerge.Domain.Normalization;
+
+/// <summary>
+/// Verifies title-key normalization behavior used by runtime and validation flows.
+/// </summary>
+public sealed class TitleKeyNormalizerTests
+{
+	[Fact]
+	public void NormalizeTitleKey_ShouldNormalizeArticlesPunctuationAndPluralSuffixes()
+	{
+		string normalized = TitleKeyNormalizer.NormalizeTitleKey("The M\u00E4\u00F1gas: Title-s!!");
+
+		Assert.Equal("mangatitles", normalized);
+	}
+
+	[Fact]
+	public void NormalizeTitleKey_ShouldReturnEmpty_WhenInputIsWhitespace()
+	{
+		string normalized = TitleKeyNormalizer.NormalizeTitleKey("   ");
+
+		Assert.Equal(string.Empty, normalized);
+	}
+
+	[Fact]
+	public void NormalizeTitleKey_ShouldThrow_WhenInputIsNull()
+	{
+		Assert.Throws<ArgumentNullException>(() => TitleKeyNormalizer.NormalizeTitleKey(null!));
+	}
+
+	[Fact]
+	public void NormalizeTitleKey_ShouldStripTrailingSceneTag_WhenMatcherProvided()
+	{
+		ISceneTagMatcher matcher = new SceneTagMatcher(["official"]);
+
+		string normalized = TitleKeyNormalizer.NormalizeTitleKey("Manga Title (Official)", matcher);
+
+		Assert.Equal("mangatitle", normalized);
+	}
+
+	[Fact]
+	public void NormalizeTitleKey_ShouldThrow_WhenMatcherThrows()
+	{
+		ISceneTagMatcher matcher = new ThrowingSceneTagMatcher();
+
+		Assert.Throws<InvalidOperationException>(() => TitleKeyNormalizer.NormalizeTitleKey("Manga (Official)", matcher));
+	}
+
+	[Fact]
+	public void NormalizeTokenKey_ShouldNormalizeCaseAndPunctuation()
+	{
+		string normalized = TitleKeyNormalizer.NormalizeTokenKey("Asura-Scan! Official");
+
+		Assert.Equal("asura scan official", normalized);
+	}
+
+	[Fact]
+	public void NormalizeTokenKey_ShouldThrow_WhenInputIsNull()
+	{
+		Assert.Throws<ArgumentNullException>(() => TitleKeyNormalizer.NormalizeTokenKey(null!));
+	}
+
+	private sealed class ThrowingSceneTagMatcher : ISceneTagMatcher
+	{
+		public bool IsMatch(string candidate)
+		{
+			throw new InvalidOperationException("matcher-failure");
+		}
+	}
+}
