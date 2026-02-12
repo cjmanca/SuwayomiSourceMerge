@@ -416,7 +416,7 @@ modules:
     do_not_reimplement:
       - Canonical reconciliation action contract for planner outputs; use MountReconciliationAction.
       - Canonical desired-vs-actual reconciliation decision engine; use MountReconciliationService.Reconcile.
-      - Canonical findmnt snapshot capture and parse-warning behavior; use FindmntMountSnapshotService.
+      - Canonical findmnt snapshot capture and parse-warning behavior (including non-throwing parser guards and escape decoding); use FindmntMountSnapshotService.
       - Canonical normalized mountpoint key matching across desired/actual/forced/stale checks; use MountReconciliationService.Reconcile.
       - Canonical snapshot model consumed by mount reconciliation flows; use MountSnapshot.
     related: [infrastructure-processes, runtime-host, unit-test-suite]

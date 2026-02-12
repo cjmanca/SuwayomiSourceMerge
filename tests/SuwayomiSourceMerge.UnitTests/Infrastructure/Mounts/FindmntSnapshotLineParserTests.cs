@@ -8,6 +8,32 @@ using SuwayomiSourceMerge.Infrastructure.Mounts;
 public sealed class FindmntSnapshotLineParserTests
 {
 	/// <summary>
+	/// Verifies null input returns parse failure instead of throwing.
+	/// </summary>
+	[Fact]
+	public void TryParse_Failure_ShouldReturnWarning_WhenInputIsNull()
+	{
+		bool success = FindmntSnapshotLineParser.TryParse(null, out MountSnapshotEntry? entry, out string? warningMessage);
+
+		Assert.False(success);
+		Assert.Null(entry);
+		Assert.Equal("line is null, empty, or whitespace", warningMessage);
+	}
+
+	/// <summary>
+	/// Verifies whitespace input returns parse failure instead of throwing.
+	/// </summary>
+	[Fact]
+	public void TryParse_Failure_ShouldReturnWarning_WhenInputIsWhitespace()
+	{
+		bool success = FindmntSnapshotLineParser.TryParse("   ", out MountSnapshotEntry? entry, out string? warningMessage);
+
+		Assert.False(success);
+		Assert.Null(entry);
+		Assert.Equal("line is null, empty, or whitespace", warningMessage);
+	}
+
+	/// <summary>
 	/// Verifies values ending with escaped backslashes are parsed and terminated correctly.
 	/// </summary>
 	[Fact]
@@ -40,6 +66,22 @@ public sealed class FindmntSnapshotLineParserTests
 		Assert.Null(warningMessage);
 		Assert.NotNull(entry);
 		Assert.Equal("/ssm/merged/Quote\"Title", entry!.MountPoint);
+	}
+
+	/// <summary>
+	/// Verifies unknown escapes preserve their backslash to avoid data loss.
+	/// </summary>
+	[Fact]
+	public void TryParse_Edge_ShouldPreserveBackslash_WhenEscapeSequenceIsUnknown()
+	{
+		string line = "TARGET=\"/ssm/merged/Unknown\\qValue\" FSTYPE=\"fuse.mergerfs\" SOURCE=\"source-id\" OPTIONS=\"rw\"";
+
+		bool success = FindmntSnapshotLineParser.TryParse(line, out MountSnapshotEntry? entry, out string? warningMessage);
+
+		Assert.True(success);
+		Assert.Null(warningMessage);
+		Assert.NotNull(entry);
+		Assert.Equal("/ssm/merged/Unknown\\qValue", entry!.MountPoint);
 	}
 
 	/// <summary>

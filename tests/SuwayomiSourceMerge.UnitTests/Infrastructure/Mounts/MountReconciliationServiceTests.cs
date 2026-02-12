@@ -391,6 +391,39 @@ public sealed class MountReconciliationServiceTests
 	}
 
 	/// <summary>
+	/// Verifies deterministic reconciliation ordering remains stable with mixed slash styles and trailing separators.
+	/// </summary>
+	[Fact]
+	public void Reconcile_Edge_ShouldRemainDeterministic_WhenNormalizedEquivalentPathStylesVary()
+	{
+		MountReconciliationService service = new();
+		DesiredMountDefinition desiredA = new("/ssm/merged/Beta/", "beta_hash", "beta-spec");
+		DesiredMountDefinition desiredB = new("\\ssm\\merged\\Alpha", "alpha_hash", "alpha-spec");
+		MountSnapshotEntry actualA = new("/ssm/merged/Alpha/", "fuse.mergerfs", "old_alpha_hash", "rw", isHealthy: true);
+		MountSnapshotEntry actualB = new("\\ssm\\merged\\Zeta\\Stale\\", "fuse.mergerfs", "stale", "rw", isHealthy: true);
+
+		MountReconciliationInput firstInput = CreateInput(
+			desiredMounts: [desiredA, desiredB],
+			actualEntries: [actualA, actualB],
+			managedMountRoots: ["\\ssm\\merged\\"],
+			enableHealthChecks: false,
+			forceRemountMountPoints: []);
+		MountReconciliationInput secondInput = CreateInput(
+			desiredMounts: [desiredB, desiredA],
+			actualEntries: [actualB, actualA],
+			managedMountRoots: ["/ssm/merged"],
+			enableHealthChecks: false,
+			forceRemountMountPoints: []);
+
+		MountReconciliationPlan firstPlan = service.Reconcile(firstInput);
+		MountReconciliationPlan secondPlan = service.Reconcile(secondInput);
+
+		Assert.Equal(
+			firstPlan.Actions.Select(SerializeAction).ToArray(),
+			secondPlan.Actions.Select(SerializeAction).ToArray());
+	}
+
+	/// <summary>
 	/// Verifies null input guard behavior.
 	/// </summary>
 	[Fact]

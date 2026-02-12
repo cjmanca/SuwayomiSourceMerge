@@ -21,7 +21,8 @@ internal sealed class MountReconciliationService : IMountReconciliationService
 		ArgumentNullException.ThrowIfNull(input);
 
 		DesiredMountDefinition[] orderedDesiredMounts = input.DesiredMounts
-			.OrderBy(mount => mount.MountPoint, StringComparer.Ordinal)
+			.OrderBy(mount => NormalizePath(mount.MountPoint), StringComparer.Ordinal)
+			.ThenBy(mount => mount.MountPoint, StringComparer.Ordinal)
 			.ToArray();
 
 		HashSet<string> desiredMountPointSet = BuildNormalizedDesiredMountPointSet(orderedDesiredMounts);
@@ -103,10 +104,7 @@ internal sealed class MountReconciliationService : IMountReconciliationService
 		foreach (MountSnapshotEntry entry in actualEntries)
 		{
 			string normalizedMountPoint = NormalizePath(entry.MountPoint);
-			if (!lookup.ContainsKey(normalizedMountPoint))
-			{
-				lookup.Add(normalizedMountPoint, entry);
-			}
+			lookup.TryAdd(normalizedMountPoint, entry);
 		}
 
 		return lookup;
@@ -215,6 +213,7 @@ internal sealed class MountReconciliationService : IMountReconciliationService
 					mountPayload: null,
 					MountReconciliationReason.StaleMount))
 			.OrderByDescending(action => GetPathDepth(action.MountPoint))
+			.ThenBy(action => NormalizePath(action.MountPoint), StringComparer.Ordinal)
 			.ThenBy(action => action.MountPoint, StringComparer.Ordinal)
 			.ToArray();
 

@@ -82,6 +82,37 @@ public sealed class FindmntMountSnapshotServiceTests
 	}
 
 	/// <summary>
+	/// Verifies unknown escapes preserve backslashes when decoding captured output.
+	/// </summary>
+	[Fact]
+	public void Capture_Edge_ShouldPreserveBackslashes_WhenEscapeSequenceIsUnknown()
+	{
+		string output = "TARGET=\"/ssm/merged/Unknown\\qValue\" FSTYPE=\"fuse.mergerfs\" SOURCE=\"source\\qid\" OPTIONS=\"rw\"";
+		FakeExternalCommandExecutor commandExecutor = new(
+			new ExternalCommandResult(
+				ExternalCommandOutcome.Success,
+				ExternalCommandFailureKind.None,
+				0,
+				output,
+				string.Empty,
+				false,
+				false,
+				TimeSpan.FromMilliseconds(5)));
+		FindmntMountSnapshotService service = new(
+			commandExecutor,
+			TimeSpan.FromSeconds(3),
+			TimeSpan.FromMilliseconds(50),
+			4096);
+
+		MountSnapshot snapshot = service.Capture();
+
+		Assert.Single(snapshot.Entries);
+		Assert.Empty(snapshot.Warnings);
+		Assert.Equal("/ssm/merged/Unknown\\qValue", snapshot.Entries[0].MountPoint);
+		Assert.Equal("source\\qid", snapshot.Entries[0].Source);
+	}
+
+	/// <summary>
 	/// Verifies lines with values ending in escaped backslashes are parsed without malformed-line warnings.
 	/// </summary>
 	[Fact]

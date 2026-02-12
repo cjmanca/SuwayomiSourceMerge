@@ -37,6 +37,7 @@
 - [x] 2026-02-09 - Implement mount-state snapshot and reconciliation service (desired mounts vs actual mounts, remount decisions, stale cleanup). DoD: reconciliation computes mount/unmount/remount actions deterministically and safely handles stale entries in tested scenarios.
 - [x] 2026-02-12 - Fix mountpoint reconciliation key drift by normalizing desired/actual/forced/stale mountpoint matching (slash/trailing-separator variants) and add regression tests.
 - [x] 2026-02-12 - Fix findmnt `-P` escaped-backslash quote termination parsing drift and add parser/service regression tests.
+- [x] 2026-02-12 - Harden mount parser/reconciliation contracts: non-throwing `TryParse` blank handling, unknown-escape preservation, normalized ordering keys, and regression coverage.
 - [ ] 2026-02-09 - Implement branch-link preparation and override branch selection logic (preferred write branch + additional RW override branches + RO source branches). DoD: generated branch order and RW/RO flags match requirements and are validated by integration-style tests.
 - [ ] 2026-02-09 - Implement `ComicInfo.xml` parsing and `details.json` creation/seeding behavior for overrides. DoD: existing `details.json` seeding and ComicInfo fallback generation both work; parsing and output mapping are covered by unit tests.
 - [ ] 2026-02-09 - Implement chapter rename rules and queue processor matching current shell behavior for v1. DoD: rename decisions and queue timing/quiet behavior match shell baseline for representative test fixtures.

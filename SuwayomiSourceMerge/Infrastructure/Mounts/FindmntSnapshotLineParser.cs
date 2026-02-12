@@ -15,14 +15,17 @@ internal static class FindmntSnapshotLineParser
 	/// <param name="warningMessage">Parse warning details on failure.</param>
 	/// <returns><see langword="true"/> when parsing succeeds; otherwise <see langword="false"/>.</returns>
 	public static bool TryParse(
-		string line,
+		string? line,
 		out MountSnapshotEntry? entry,
 		out string? warningMessage)
 	{
-		ArgumentException.ThrowIfNullOrWhiteSpace(line);
-
 		entry = null;
 		warningMessage = null;
+		if (string.IsNullOrWhiteSpace(line))
+		{
+			warningMessage = "line is null, empty, or whitespace";
+			return false;
+		}
 
 		if (!TryParseKeyValuePairs(line, out IReadOnlyDictionary<string, string>? pairs, out warningMessage))
 		{
@@ -84,11 +87,16 @@ internal static class FindmntSnapshotLineParser
 	/// <param name="warningMessage">Parse warning details on failure.</param>
 	/// <returns><see langword="true"/> when parsing succeeds; otherwise <see langword="false"/>.</returns>
 	private static bool TryParseKeyValuePairs(
-		string line,
+		string? line,
 		out IReadOnlyDictionary<string, string>? pairs,
 		out string? warningMessage)
 	{
-		ArgumentException.ThrowIfNullOrWhiteSpace(line);
+		if (string.IsNullOrWhiteSpace(line))
+		{
+			pairs = null;
+			warningMessage = "line is null, empty, or whitespace";
+			return false;
+		}
 
 		Dictionary<string, string> parsedPairs = new(StringComparer.OrdinalIgnoreCase);
 		int index = 0;
@@ -250,6 +258,7 @@ internal static class FindmntSnapshotLineParser
 					decoded.Append('\\');
 					break;
 				default:
+					decoded.Append('\\');
 					decoded.Append(next);
 					break;
 			}
