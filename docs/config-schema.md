@@ -160,6 +160,7 @@ sources:
 - Items must be non-empty strings
 - No duplicate source names after case-insensitive normalized comparison
 - Order in list is priority order (top to bottom)
+- Runtime source-priority lookups are normalized-only (case/punctuation-insensitive token matching)
 
 ## Validation codes
 
