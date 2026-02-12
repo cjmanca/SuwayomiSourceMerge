@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Text;
 
+using SuwayomiSourceMerge.Domain.Normalization;
+
 namespace SuwayomiSourceMerge.Configuration.Validation;
 
 /// <summary>
@@ -33,6 +35,24 @@ internal static class ValidationKeyNormalizer
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="input"/> is <see langword="null"/>.</exception>
 	public static string NormalizeTitleKey(string input)
 	{
+		return NormalizeTitleKey(input, sceneTagMatcher: null);
+	}
+
+	/// <summary>
+	/// Normalizes a title into a compact alphanumeric key for equivalence comparisons using optional
+	/// scene-tag suffix stripping.
+	/// </summary>
+	/// <param name="input">Raw title value.</param>
+	/// <param name="sceneTagMatcher">
+	/// Optional matcher used to remove trailing scene-tag suffixes prior to punctuation/token normalization.
+	/// </param>
+	/// <returns>
+	/// A normalized key with ASCII folding, trailing scene-tag suffix stripping when configured, punctuation
+	/// removal, leading-article stripping, and per-word trailing <c>s</c> trimming applied.
+	/// </returns>
+	/// <exception cref="ArgumentNullException">Thrown when <paramref name="input"/> is <see langword="null"/>.</exception>
+	public static string NormalizeTitleKey(string input, ISceneTagMatcher? sceneTagMatcher)
+	{
 		ArgumentNullException.ThrowIfNull(input);
 
 		if (string.IsNullOrWhiteSpace(input))
@@ -41,6 +61,7 @@ internal static class ValidationKeyNormalizer
 		}
 
 		string folded = FoldToAscii(input).ToLowerInvariant();
+		folded = StripSceneTagSuffixes(folded, sceneTagMatcher);
 		folded = ReplacePunctuationWithSpace(folded);
 
 		string[] words = folded
@@ -136,5 +157,130 @@ internal static class ValidationKeyNormalizer
 		}
 
 		return builder.ToString().Normalize(NormalizationForm.FormC);
+	}
+
+	/// <summary>
+	/// Removes trailing scene-tag suffixes while a configured matcher recognizes trailing fragments.
+	/// </summary>
+	/// <param name="value">Lower-cased folded title value.</param>
+	/// <param name="sceneTagMatcher">Optional matcher used to identify configured scene-tag suffixes.</param>
+	/// <returns>Title text with any matching trailing scene-tag suffixes removed.</returns>
+	private static string StripSceneTagSuffixes(string value, ISceneTagMatcher? sceneTagMatcher)
+	{
+		if (sceneTagMatcher is null || string.IsNullOrWhiteSpace(value))
+		{
+			return value;
+		}
+
+		string current = value.Trim();
+
+		while (true)
+		{
+			if (TryStripBracketedSuffix(current, sceneTagMatcher, out string strippedBracketed))
+			{
+				current = strippedBracketed;
+				continue;
+			}
+
+			if (TryStripDelimitedSuffix(current, '-', sceneTagMatcher, out string strippedHyphenated))
+			{
+				current = strippedHyphenated;
+				continue;
+			}
+
+			if (TryStripDelimitedSuffix(current, ':', sceneTagMatcher, out string strippedColonDelimited))
+			{
+				current = strippedColonDelimited;
+				continue;
+			}
+
+			return current;
+		}
+	}
+
+	/// <summary>
+	/// Attempts to strip one trailing bracketed suffix when it matches a configured scene tag.
+	/// </summary>
+	/// <param name="value">Title value to inspect.</param>
+	/// <param name="sceneTagMatcher">Matcher used for suffix comparison.</param>
+	/// <param name="strippedValue">Title text after removing one matched suffix.</param>
+	/// <returns><see langword="true"/> when one trailing bracketed suffix was removed.</returns>
+	private static bool TryStripBracketedSuffix(
+		string value,
+		ISceneTagMatcher sceneTagMatcher,
+		out string strippedValue)
+	{
+		strippedValue = value;
+
+		if (value.Length < 3)
+		{
+			return false;
+		}
+
+		char closing = value[^1];
+		char opening = closing switch
+		{
+			')' => '(',
+			']' => '[',
+			_ => '\0'
+		};
+
+		if (opening == '\0')
+		{
+			return false;
+		}
+
+		int openingIndex = value.LastIndexOf(opening);
+		if (openingIndex < 0)
+		{
+			return false;
+		}
+
+		int tagLength = value.Length - openingIndex - 2;
+		if (tagLength <= 0)
+		{
+			return false;
+		}
+
+		string candidate = value.Substring(openingIndex + 1, tagLength).Trim();
+		if (!sceneTagMatcher.IsMatch(candidate))
+		{
+			return false;
+		}
+
+		strippedValue = value[..openingIndex].TrimEnd();
+		return true;
+	}
+
+	/// <summary>
+	/// Attempts to strip one trailing delimiter-based suffix when it matches a configured scene tag.
+	/// </summary>
+	/// <param name="value">Title value to inspect.</param>
+	/// <param name="delimiter">Delimiter that precedes the suffix phrase.</param>
+	/// <param name="sceneTagMatcher">Matcher used for suffix comparison.</param>
+	/// <param name="strippedValue">Title text after removing one matched suffix.</param>
+	/// <returns><see langword="true"/> when one trailing delimiter-based suffix was removed.</returns>
+	private static bool TryStripDelimitedSuffix(
+		string value,
+		char delimiter,
+		ISceneTagMatcher sceneTagMatcher,
+		out string strippedValue)
+	{
+		strippedValue = value;
+
+		int delimiterIndex = value.LastIndexOf(delimiter);
+		if (delimiterIndex <= 0)
+		{
+			return false;
+		}
+
+		string candidate = value[(delimiterIndex + 1)..].Trim();
+		if (!sceneTagMatcher.IsMatch(candidate))
+		{
+			return false;
+		}
+
+		strippedValue = value[..delimiterIndex].TrimEnd();
+		return true;
 	}
 }

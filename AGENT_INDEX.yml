@@ -122,6 +122,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapExceptionTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapGuardTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapServiceSceneTagValidationTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationPathSetTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/LegacyMangaEquivalentsMigratorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/LegacySourcePriorityMigratorTests.cs
@@ -153,6 +154,9 @@ modules:
         path: SuwayomiSourceMerge/Configuration/Bootstrap/SettingsSelfHealingService.cs
         purpose: Fills missing settings keys from defaults while preserving existing values.
     extension_points:
+      - how: Add cross-document validation rules that depend on multiple parsed config documents inside bootstrap orchestration.
+        symbols: [ConfigurationBootstrapService, ConfigurationBootstrapService.Bootstrap]
+        paths: [SuwayomiSourceMerge/Configuration/Bootstrap/ConfigurationBootstrapService.cs]
       - how: Add support for new legacy file formats by adding migrators and wiring them into bootstrap service decisions.
         symbols: [ConfigurationBootstrapService, LegacyMangaEquivalentsMigrator, LegacySourcePriorityMigrator]
         paths: [SuwayomiSourceMerge/Configuration/Bootstrap/ConfigurationBootstrapService.cs, SuwayomiSourceMerge/Configuration/Bootstrap/LegacyMangaEquivalentsMigrator.cs, SuwayomiSourceMerge/Configuration/Bootstrap/LegacySourcePriorityMigrator.cs]
@@ -168,10 +172,11 @@ modules:
     do_not_reimplement:
       - Canonical legacy manga-equivalents parsing and warning behavior; use LegacyMangaEquivalentsMigrator.
       - Canonical legacy source-priority parsing behavior; use LegacySourcePriorityMigrator.
+      - Canonical scene-tag-aware cross-document manga-equivalents validation in bootstrap; use ConfigurationBootstrapService.Bootstrap.
       - Canonical settings self-heal merge behavior; use SettingsSelfHealingService.
       - Canonical YAML bootstrap write format; use YamlDocumentWriter.
       - Per-file bootstrap orchestration and validation failure policy; use ConfigurationBootstrapService.Bootstrap.
-    related: [config-schema-validation, runtime-host, unit-test-suite]
+    related: [config-schema-validation, domain-normalization, runtime-host, unit-test-suite]
   - id: config-schema-validation
     summary: Strongly typed YAML schema parsing, defaults, and deterministic validation rules.
     tags: [config, yaml, validation]
@@ -222,6 +227,9 @@ modules:
       - how: Add new configuration files by introducing typed documents plus dedicated validators wired through the schema service.
         symbols: [ConfigurationSchemaService, IConfigValidator]
         paths: [SuwayomiSourceMerge/Configuration/Loading/ConfigurationSchemaService.cs, SuwayomiSourceMerge/Configuration/Validation/IConfigValidator.cs]
+      - how: Extend title-key normalization behavior by adding optional matcher-aware transformations in the validation normalizer.
+        symbols: [ValidationKeyNormalizer, ValidationKeyNormalizer.NormalizeTitleKey]
+        paths: [SuwayomiSourceMerge/Configuration/Validation/ValidationKeyNormalizer.cs]
       - how: Extend settings shape by adding fields to document sections, defaults, and validator rules in lockstep.
         symbols: [SettingsDocument, SettingsDocumentDefaults.Create, SettingsDocumentValidator]
         paths: [SuwayomiSourceMerge/Configuration/Documents/SettingsDocument.cs, SuwayomiSourceMerge/Configuration/Documents/SettingsDocumentDefaults.cs, SuwayomiSourceMerge/Configuration/Validation/SettingsDocumentValidator.cs]
@@ -229,15 +237,55 @@ modules:
         symbols: [config-schema.md]
         paths: [docs/config-schema.md]
     do_not_reimplement:
+      - Canonical matcher-aware title key normalization with trailing scene-tag suffix stripping; use ValidationKeyNormalizer.NormalizeTitleKey.
       - Canonical YAML parser behavior and parser error codes; use YamlDocumentParser.
       - Document-level parse-and-validate orchestration; use ConfigurationSchemaService.
       - Manga equivalents conflict detection rules; use MangaEquivalentsDocumentValidator.
-      - Scene tag dedup normalization rules; use SceneTagsDocumentValidator.
+      - Scene tag matcher-equivalent dedup rules; use SceneTagsDocumentValidator.
       - Settings logging level and logging section validation rules; use SettingsDocumentValidator.
       - Settings validation code map and field constraints; use SettingsDocumentValidator.
       - Source priority dedup validation rules; use SourcePriorityDocumentValidator.
       - YAML parser unknown-key tolerance for schema evolution; use YamlDocumentParser.
-    related: [logging-infrastructure, runtime-host, unit-test-suite]
+    related: [domain-normalization, logging-infrastructure, runtime-host, unit-test-suite]
+  - id: domain-normalization
+    summary: Data-driven scene-tag phrase matching used by title normalization and cross-document validation flows.
+    tags: [domain, normalization, titles]
+    paths:
+      - SuwayomiSourceMerge/Domain/Normalization/ISceneTagMatcher.cs
+      - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKey.cs
+      - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyBuilder.cs
+      - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyKind.cs
+      - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatcher.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/SceneTagMatcherTests.cs
+    entrypoints:
+      - symbol: ISceneTagMatcher
+        kind: interface
+        path: SuwayomiSourceMerge/Domain/Normalization/ISceneTagMatcher.cs
+        purpose: Defines canonical phrase matching for configured scene tags.
+      - symbol: SceneTagMatchKeyBuilder.TryCreate
+        kind: method
+        path: SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyBuilder.cs
+        purpose: Produces matcher-equivalent token or punctuation keys for tags and candidates.
+      - symbol: SceneTagMatcher
+        kind: class
+        path: SuwayomiSourceMerge/Domain/Normalization/SceneTagMatcher.cs
+        purpose: Normalizes configured scene tags into matcher-equivalent keys and performs deterministic candidate matching.
+      - symbol: SceneTagMatcher.IsMatch
+        kind: method
+        path: SuwayomiSourceMerge/Domain/Normalization/SceneTagMatcher.cs
+        purpose: Returns whether a candidate phrase matches one normalized configured scene tag.
+    extension_points:
+      - how: Add alternate scene-tag matching policies by implementing the matcher interface and injecting the implementation into validation call sites.
+        symbols: [ISceneTagMatcher, MangaEquivalentsDocumentValidator]
+        paths: [SuwayomiSourceMerge/Configuration/Validation/MangaEquivalentsDocumentValidator.cs, SuwayomiSourceMerge/Domain/Normalization/ISceneTagMatcher.cs]
+      - how: Extend scene-tag key classification and normalization semantics in one place via the shared key builder.
+        symbols: [SceneTagMatchKeyBuilder.TryCreate, SceneTagMatcher, SceneTagsDocumentValidator]
+        paths: [SuwayomiSourceMerge/Configuration/Validation/SceneTagsDocumentValidator.cs, SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyBuilder.cs, SuwayomiSourceMerge/Domain/Normalization/SceneTagMatcher.cs]
+    do_not_reimplement:
+      - Canonical configured scene-tag phrase matching implementation; use SceneTagMatcher.
+      - Canonical matcher-equivalent scene-tag key derivation; use SceneTagMatchKeyBuilder.TryCreate.
+      - Canonical scene-tag matcher contract for normalization consumers; use ISceneTagMatcher.
+    related: [config-bootstrap-migration, config-schema-validation, unit-test-suite]
   - id: infrastructure-volumes
     summary: Container volume discovery for source and override roots with deterministic ordering and warnings.
     tags: [filesystem, infrastructure, volumes]
@@ -439,6 +487,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapExceptionTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapGuardTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapServiceSceneTagValidationTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationPathSetTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/LegacyMangaEquivalentsMigratorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/LegacySourcePriorityMigratorTests.cs
@@ -462,6 +511,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/ValidationResultTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/YamlDocumentParserPropertyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/YamlDocumentParserTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/SceneTagMatcherTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogEventTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogFilePathPolicyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogLevelParserTests.cs

@@ -130,8 +130,17 @@ tags:
 ### Validation rules
 
 - `tags` is required and must contain at least one item
-- Each tag must be a non-empty string
-- No duplicate tags after case-insensitive normalized comparison
+- Each tag must be a non-empty, non-whitespace string
+- Punctuation-only tags are valid
+- No duplicate tags after matcher-equivalent key comparison:
+  - Text/mixed tags use normalized token keys
+  - Punctuation-only tags use exact trimmed punctuation sequence keys
+
+### Processing semantics
+
+- Scene-tag stripping is applied before punctuation removal, whitespace collapsing, and ASCII folding.
+- Punctuation removal/whitespace normalization/ASCII folding are comparison-key transforms only.
+- Final merged directory display names preserve punctuation except where matched scene-tag suffixes are stripped.
 
 ## source_priority.yml
 
@@ -171,7 +180,7 @@ sources:
 | `CFG-MEQ-006` | Empty alias value |
 | `CFG-STG-001` | Missing/empty tags list |
 | `CFG-STG-002` | Empty scene tag value |
-| `CFG-STG-003` | Duplicate scene tag after normalization |
+| `CFG-STG-003` | Duplicate scene tag after matcher-equivalent normalization |
 | `CFG-SRC-001` | Missing sources list |
 | `CFG-SRC-002` | Empty source name |
 | `CFG-SRC-003` | Duplicate source name after normalization |
