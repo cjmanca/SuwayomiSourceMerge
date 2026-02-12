@@ -338,11 +338,44 @@ public sealed class SettingsDocumentValidatorTests
         Assert.True(result.IsValid);
     }
 
+    [Fact]
+    public void Validate_ShouldAllowBorderlineValidLoggingFileName()
+    {
+        SettingsDocumentValidator validator = new();
+        SettingsDocument baseline = ConfigurationTestData.CreateValidSettingsDocument();
+        SettingsDocument document = new()
+        {
+            Paths = baseline.Paths,
+            Scan = baseline.Scan,
+            Rename = baseline.Rename,
+            Diagnostics = baseline.Diagnostics,
+            Shutdown = baseline.Shutdown,
+            Permissions = baseline.Permissions,
+            Runtime = baseline.Runtime,
+            Logging = new SettingsLoggingSection
+            {
+                FileName = "daemon-1_2.v3.LOG",
+                MaxFileSizeMb = 10,
+                RetainedFileCount = 10,
+                Level = "warning"
+            }
+        };
+
+        ValidationResult result = validator.Validate(document, "settings.yml");
+
+        Assert.True(result.IsValid);
+    }
+
     [Theory]
     [InlineData("/tmp/daemon.log")]
     [InlineData("../daemon.log")]
     [InlineData("logs/daemon.log")]
     [InlineData(@"logs\daemon.log")]
+    [InlineData("daemon.")]
+    [InlineData("daemon ")]
+    [InlineData("da:mon.log")]
+    [InlineData("da*mon.log")]
+    [InlineData("daemon\u0001.log")]
     public void Validate_ShouldReportDeterministicError_WhenLoggingFileNameInvalid(string fileName)
     {
         SettingsDocumentValidator validator = new();
@@ -369,6 +402,41 @@ public sealed class SettingsDocumentValidatorTests
 
         ValidationError error = Assert.Single(result.Errors);
         Assert.Equal("settings.yml", error.File);
+        Assert.Equal("$.logging.file_name", error.Path);
+        Assert.Equal("CFG-SET-007", error.Code);
+    }
+
+    [Fact]
+    public void Validate_ShouldReportDeterministicError_WhenLoggingFileNameIsReservedWindowsDeviceName_OnWindows()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        SettingsDocumentValidator validator = new();
+        SettingsDocument baseline = ConfigurationTestData.CreateValidSettingsDocument();
+        SettingsDocument document = new()
+        {
+            Paths = baseline.Paths,
+            Scan = baseline.Scan,
+            Rename = baseline.Rename,
+            Diagnostics = baseline.Diagnostics,
+            Shutdown = baseline.Shutdown,
+            Permissions = baseline.Permissions,
+            Runtime = baseline.Runtime,
+            Logging = new SettingsLoggingSection
+            {
+                FileName = "CON.log",
+                MaxFileSizeMb = 10,
+                RetainedFileCount = 10,
+                Level = "warning"
+            }
+        };
+
+        ValidationResult result = validator.Validate(document, "settings.yml");
+
+        ValidationError error = Assert.Single(result.Errors);
         Assert.Equal("$.logging.file_name", error.Path);
         Assert.Equal("CFG-SET-007", error.Code);
     }

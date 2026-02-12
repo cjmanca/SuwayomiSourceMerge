@@ -1,10 +1,39 @@
 namespace SuwayomiSourceMerge.Infrastructure.Logging;
 
+/// <summary>
+/// Represents supported runtime log severities in ascending order.
+/// </summary>
+/// <remarks>
+/// The numeric ordering is used for threshold comparisons:
+/// lower values are more verbose; higher values are more restrictive.
+/// </remarks>
 internal enum LogLevel
 {
-    Trace = 0,
-    Debug = 1,
-    Warning = 2,
-    Error = 3,
-    None = 4
+	/// <summary>
+	/// Highly verbose diagnostic detail intended for deep troubleshooting.
+	/// </summary>
+	Trace = 0,
+
+	/// <summary>
+	/// Debug-level information useful during development or focused investigation.
+	/// </summary>
+	Debug = 1,
+
+	/// <summary>
+	/// Non-fatal issues or noteworthy conditions that should be reviewed.
+	/// </summary>
+	Warning = 2,
+
+	/// <summary>
+	/// Failure conditions that indicate an operation did not complete successfully.
+	/// </summary>
+	Error = 3,
+
+	/// <summary>
+	/// Sentinel level that disables normal file log emission.
+	/// </summary>
+	/// <remarks>
+	/// This value is intended for configuration thresholding and should not be emitted as an event level.
+	/// </remarks>
+	None = 4
 }

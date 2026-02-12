@@ -32,7 +32,7 @@ You are a senior .NET developer and designer skilled in writing reliable, testab
 - Cache repeated lookups/processing
 - Pool frequently created objects
 - No magic numbers or strings
-- XMLDOC documentation for all public identifiers
+- XMLDOC documentation for all identifiers (types, members, methods, properties, interfaces, etc)
 - Allman braces
 - `_privateMember` naming
 - `ALL_CAPS` constants

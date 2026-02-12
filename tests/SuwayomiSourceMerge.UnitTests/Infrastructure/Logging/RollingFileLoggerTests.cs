@@ -79,6 +79,44 @@ public sealed class RollingFileLoggerTests
         Assert.False(enabled);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public void IsEnabled_ShouldAlwaysReturnFalse_ForNoneEventLevel(int minimumLevelValue)
+    {
+        LogLevel minimumLevel = (LogLevel)minimumLevelValue;
+
+        RollingFileLogger logger = new(
+            minimumLevel,
+            new RecordingSink(),
+            new StructuredTextLogFormatter(),
+            _ => { });
+
+        bool enabled = logger.IsEnabled(LogLevel.None);
+
+        Assert.False(enabled);
+    }
+
+    [Fact]
+    public void Log_ShouldNotEmit_WhenEventLevelIsNone()
+    {
+        RecordingSink sink = new();
+        List<string> fallbackMessages = [];
+        RollingFileLogger logger = new(
+            LogLevel.Trace,
+            sink,
+            new StructuredTextLogFormatter(),
+            fallbackMessages.Add);
+
+        logger.Log(LogLevel.None, "event.none", "none");
+
+        Assert.Empty(sink.Lines);
+        Assert.Empty(fallbackMessages);
+    }
+
     [Fact]
     public void WrapperMethods_ShouldEmitExpectedLevelTokens()
     {
