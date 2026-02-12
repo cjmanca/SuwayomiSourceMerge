@@ -486,3 +486,4 @@ tests/SuwayomiSourceMerge.Testing/obj/Debug/net9.0/SuwayomiSourceMerge.Testing.c
 tests/SuwayomiSourceMerge.UnitTests/obj/Debug/net9.0/SuwayomiSourceMerge.UnitTests.csproj.FileListAbsolute.txt
 SuwayomiSourceMerge/obj/Debug/net9.0/SuwayomiSourceMerge.csproj.FileListAbsolute.txt
 tests/SuwayomiSourceMerge.Testing/obj/Debug/net9.0/SuwayomiSourceMerge.Testing.csproj.FileListAbsolute.txt
+SuwayomiSourceMerge/.formatting.lock
