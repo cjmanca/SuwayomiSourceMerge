@@ -360,6 +360,66 @@ modules:
       - Canonical scene-tag matcher contract for normalization consumers; use ISceneTagMatcher.
       - Canonical title key normalization for runtime and validation call sites; use TitleKeyNormalizer.NormalizeTitleKey.
     related: [config-bootstrap-migration, config-resolution, config-schema-validation, unit-test-suite]
+  - id: infrastructure-mounts
+    summary: findmnt-backed mount snapshots and deterministic planner-only reconciliation for mount/remount/unmount actions.
+    tags: [infrastructure, mounts, reconciliation, runtime]
+    paths:
+      - SuwayomiSourceMerge/Infrastructure/Mounts/DesiredMountDefinition.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/FindmntMountSnapshotService.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/FindmntSnapshotLineParser.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/IMountReconciliationService.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/IMountSnapshotService.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationAction.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationInput.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationPlan.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationReason.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationService.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/MountSnapshot.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/FindmntMountSnapshotServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/FindmntSnapshotLineParserTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MountReconciliationServiceTests.cs
+    entrypoints:
+      - symbol: FindmntMountSnapshotService
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Mounts/FindmntMountSnapshotService.cs
+        purpose: Captures mount snapshots via findmnt and emits deterministic parse/command warnings.
+      - symbol: FindmntMountSnapshotService.Capture
+        kind: method
+        path: SuwayomiSourceMerge/Infrastructure/Mounts/FindmntMountSnapshotService.cs
+        purpose: Executes findmnt with util-linux-compatible pairs-mode flags and returns parsed mount entries plus non-fatal warnings.
+      - symbol: IMountReconciliationService
+        kind: interface
+        path: SuwayomiSourceMerge/Infrastructure/Mounts/IMountReconciliationService.cs
+        purpose: Defines planner contract for deterministic mount reconciliation.
+      - symbol: IMountSnapshotService
+        kind: interface
+        path: SuwayomiSourceMerge/Infrastructure/Mounts/IMountSnapshotService.cs
+        purpose: Defines mount-state snapshot capture contract for reconciliation consumers.
+      - symbol: MountReconciliationService
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationService.cs
+        purpose: Computes deterministic mount/remount/unmount actions using normalized mountpoint key comparisons.
+      - symbol: MountReconciliationService.Reconcile
+        kind: method
+        path: SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationService.cs
+        purpose: Produces ordered actions with normalized desired/actual/force/stale matching and stale-mergerfs cleanup.
+    extension_points:
+      - how: Add additional snapshot metadata fields by extending MountSnapshotEntry and parser mapping in the findmnt snapshot service.
+        symbols: [FindmntMountSnapshotService, FindmntSnapshotLineParser, MountSnapshotEntry]
+        paths: [SuwayomiSourceMerge/Infrastructure/Mounts/FindmntMountSnapshotService.cs, SuwayomiSourceMerge/Infrastructure/Mounts/FindmntSnapshotLineParser.cs, SuwayomiSourceMerge/Infrastructure/Mounts/MountSnapshot.cs]
+      - how: Swap snapshot capture sources (for example mountinfo readers) by implementing IMountSnapshotService and wiring the new service.
+        symbols: [FindmntMountSnapshotService, IMountSnapshotService]
+        paths: [SuwayomiSourceMerge/Infrastructure/Mounts/FindmntMountSnapshotService.cs, SuwayomiSourceMerge/Infrastructure/Mounts/IMountSnapshotService.cs]
+      - how: Wire mount command applicators to deterministic reconciliation outputs by consuming IMountReconciliationService actions.
+        symbols: [IMountReconciliationService, MountReconciliationAction, MountReconciliationService]
+        paths: [SuwayomiSourceMerge/Infrastructure/Mounts/IMountReconciliationService.cs, SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationAction.cs, SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationService.cs]
+    do_not_reimplement:
+      - Canonical reconciliation action contract for planner outputs; use MountReconciliationAction.
+      - Canonical desired-vs-actual reconciliation decision engine; use MountReconciliationService.Reconcile.
+      - Canonical findmnt snapshot capture and parse-warning behavior (including non-throwing parser guards and escape decoding); use FindmntMountSnapshotService.
+      - Canonical normalized mountpoint key matching across desired/actual/forced/stale checks; use MountReconciliationService.Reconcile.
+      - Canonical snapshot model consumed by mount reconciliation flows; use MountSnapshot.
+    related: [infrastructure-processes, runtime-host, unit-test-suite]
   - id: infrastructure-processes
     summary: External process execution with poll-supervised timeout/cancellation, exit-precedence boundary probes, and bounded output capture.
     tags: [infrastructure, process, runtime]
@@ -414,7 +474,7 @@ modules:
       - Canonical timeout/cancellation boundary exit-precedence probes; use ExternalCommandExecutor.TryWaitForExit.
       - Canonical fail-open capture completion handling with trace diagnostics for unexpected non-fatal faults; use ExternalCommandExecutor.WaitForCaptureCompletion.
       - Canonical process-system adapter for real host execution; use SystemProcessFacade.
-    related: [runtime-host, unit-test-suite]
+    related: [infrastructure-mounts, runtime-host, unit-test-suite]
   - id: infrastructure-volumes
     summary: Container volume discovery for source and override roots with deterministic ordering and warnings.
     tags: [filesystem, infrastructure, volumes]
