@@ -72,6 +72,7 @@ SuwayomiSourceMerge (this project) uses MergerFS to combine all those separate s
 - All comparisons (including those in manga_equivalents):
   - convert extended UTF codes into their equivalent/closest standard ASCII prior to comparison.
   - strip common scene tags from `scene_tags.yml` (fully data-driven; no hardcoded fallback list in app logic). If missing, create a default `scene_tags.yml`.
+  - scene-tag stripping happens before punctuation stripping and before comparison-key ASCII/whitespace normalization; punctuation-only scene tags are valid.
   - strip punctuation
   - strip prefixes such as "the", "a", "an", etc. from the start of the title.
   - strip "s" from the end of each word

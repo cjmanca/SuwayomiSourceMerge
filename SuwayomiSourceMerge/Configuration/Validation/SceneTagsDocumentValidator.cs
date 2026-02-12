@@ -1,4 +1,5 @@
 using SuwayomiSourceMerge.Configuration.Documents;
+using SuwayomiSourceMerge.Domain.Normalization;
 
 namespace SuwayomiSourceMerge.Configuration.Validation;
 
@@ -6,7 +7,7 @@ namespace SuwayomiSourceMerge.Configuration.Validation;
 /// Validates <see cref="SceneTagsDocument"/>.
 /// </summary>
 /// <remarks>
-/// Validation enforces that tag lists are present, non-empty, and unique after token normalization so
+/// Validation enforces that tag lists are present, non-empty, and unique by matcher-equivalent key so
 /// runtime matching behavior stays deterministic.
 /// </remarks>
 public sealed class SceneTagsDocumentValidator : IConfigValidator<SceneTagsDocument>
@@ -22,7 +23,7 @@ public sealed class SceneTagsDocumentValidator : IConfigValidator<SceneTagsDocum
 	private const string EmptyTagCode = "CFG-STG-002";
 
 	/// <summary>
-	/// Error code emitted when two tags collide after normalization.
+	/// Error code emitted when two tags collide under matcher-equivalent semantics.
 	/// </summary>
 	private const string DuplicateTagCode = "CFG-STG-003";
 
@@ -47,7 +48,7 @@ public sealed class SceneTagsDocumentValidator : IConfigValidator<SceneTagsDocum
 			return result;
 		}
 
-		HashSet<string> seen = new(StringComparer.Ordinal);
+		HashSet<SceneTagMatchKey> seen = [];
 
 		for (int i = 0; i < document.Tags.Count; i++)
 		{
@@ -60,10 +61,15 @@ public sealed class SceneTagsDocumentValidator : IConfigValidator<SceneTagsDocum
 				continue;
 			}
 
-			string key = ValidationKeyNormalizer.NormalizeTokenKey(tag);
-			if (!seen.Add(key))
+			if (!SceneTagMatchKeyBuilder.TryCreate(tag, out SceneTagMatchKey matchKey))
 			{
-				result.Add(new ValidationError(file, path, DuplicateTagCode, "Duplicate scene tag after normalization."));
+				result.Add(new ValidationError(file, path, EmptyTagCode, "Tag must not be empty."));
+				continue;
+			}
+
+			if (!seen.Add(matchKey))
+			{
+				result.Add(new ValidationError(file, path, DuplicateTagCode, "Duplicate scene tag after matcher-equivalent normalization."));
 			}
 		}
 

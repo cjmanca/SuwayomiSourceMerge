@@ -110,4 +110,48 @@ public sealed class SceneTagsDocumentValidatorTests
         Assert.Equal("$.tags[0]", error.Path);
         Assert.Equal("CFG-STG-002", error.Code);
     }
+
+    [Fact]
+    public void Validate_ShouldAllowPunctuationOnlyTag()
+    {
+        SceneTagsDocumentValidator validator = new();
+        SceneTagsDocument document = new()
+        {
+            Tags = ["!!!"]
+        };
+
+        ValidationResult result = validator.Validate(document, "scene_tags.yml");
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Validate_ShouldReportDuplicateTag_WhenPunctuationOnlySequenceMatchesExactly()
+    {
+        SceneTagsDocumentValidator validator = new();
+        SceneTagsDocument document = new()
+        {
+            Tags = ["!!!", "  !!!  "]
+        };
+
+        ValidationResult result = validator.Validate(document, "scene_tags.yml");
+
+        ValidationError error = Assert.Single(result.Errors);
+        Assert.Equal("$.tags[1]", error.Path);
+        Assert.Equal("CFG-STG-003", error.Code);
+    }
+
+    [Fact]
+    public void Validate_ShouldAllowDifferentPunctuationOnlySequences()
+    {
+        SceneTagsDocumentValidator validator = new();
+        SceneTagsDocument document = new()
+        {
+            Tags = ["!!!", "??!"]
+        };
+
+        ValidationResult result = validator.Validate(document, "scene_tags.yml");
+
+        Assert.True(result.IsValid);
+    }
 }
