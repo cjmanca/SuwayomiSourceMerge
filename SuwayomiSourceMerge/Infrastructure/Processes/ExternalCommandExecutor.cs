@@ -120,29 +120,49 @@ internal sealed class ExternalCommandExecutor : IExternalCommandExecutor
 	/// <param name="request">Request to validate.</param>
 	private static void ValidateRequest(ExternalCommandRequest request)
 	{
-		ArgumentException.ThrowIfNullOrWhiteSpace(request.FileName);
-		ArgumentNullException.ThrowIfNull(request.Arguments);
+		if (string.IsNullOrWhiteSpace(request.FileName))
+		{
+			throw new ArgumentException(
+				"File name must not be null, empty, or whitespace.",
+				nameof(ExternalCommandRequest.FileName));
+		}
+
+		if (request.Arguments is null)
+		{
+			throw new ArgumentNullException(nameof(ExternalCommandRequest.Arguments));
+		}
 
 		if (request.Timeout <= TimeSpan.Zero)
 		{
-			throw new ArgumentOutOfRangeException(nameof(request), "Timeout must be greater than zero.");
+			throw new ArgumentOutOfRangeException(
+				nameof(ExternalCommandRequest.Timeout),
+				request.Timeout,
+				"Timeout must be greater than zero.");
 		}
 
 		if (request.PollInterval <= TimeSpan.Zero)
 		{
-			throw new ArgumentOutOfRangeException(nameof(request), "Poll interval must be greater than zero.");
+			throw new ArgumentOutOfRangeException(
+				nameof(ExternalCommandRequest.PollInterval),
+				request.PollInterval,
+				"Poll interval must be greater than zero.");
 		}
 
 		if (request.MaxOutputCharacters <= 0)
 		{
-			throw new ArgumentOutOfRangeException(nameof(request), "Max output characters must be greater than zero.");
+			throw new ArgumentOutOfRangeException(
+				nameof(ExternalCommandRequest.MaxOutputCharacters),
+				request.MaxOutputCharacters,
+				"Max output characters must be greater than zero.");
 		}
 
 		for (int index = 0; index < request.Arguments.Count; index++)
 		{
 			if (request.Arguments[index] is null)
 			{
-				throw new ArgumentException("Command arguments must not contain null values.", nameof(request));
+				throw new ArgumentException(
+					$"Command arguments must not contain null values. Null argument at index {index}.",
+					nameof(ExternalCommandRequest.Arguments));
 			}
 		}
 	}
@@ -243,7 +263,7 @@ internal sealed class ExternalCommandExecutor : IExternalCommandExecutor
 				return true;
 			}
 
-			if (process.WaitForExit(0) || process.HasExited)
+			if (TryDetectExitNow(process))
 			{
 				terminalOutcome = ExternalCommandOutcome.Success;
 				return true;
@@ -251,16 +271,38 @@ internal sealed class ExternalCommandExecutor : IExternalCommandExecutor
 
 			if (cancellationToken.IsCancellationRequested)
 			{
+				if (TryDetectExitNow(process))
+				{
+					terminalOutcome = ExternalCommandOutcome.Success;
+					return true;
+				}
+
 				terminalOutcome = ExternalCommandOutcome.Cancelled;
 				return false;
 			}
 
 			if (stopwatch.Elapsed >= request.Timeout)
 			{
+				if (TryDetectExitNow(process))
+				{
+					terminalOutcome = ExternalCommandOutcome.Success;
+					return true;
+				}
+
 				terminalOutcome = ExternalCommandOutcome.TimedOut;
 				return false;
 			}
 		}
+	}
+
+	/// <summary>
+	/// Performs an immediate best-effort exit probe without additional waiting.
+	/// </summary>
+	/// <param name="process">Process facade to probe.</param>
+	/// <returns><see langword="true"/> when the process is observed exited; otherwise <see langword="false"/>.</returns>
+	private static bool TryDetectExitNow(IProcessFacade process)
+	{
+		return process.WaitForExit(0) || process.HasExited;
 	}
 
 	/// <summary>
@@ -363,10 +405,78 @@ internal sealed class ExternalCommandExecutor : IExternalCommandExecutor
 				captureTask.GetAwaiter().GetResult();
 			}
 		}
-		catch
+		catch (ObjectDisposedException)
 		{
 			// Best-effort capture should not fail command execution.
 		}
+		catch (InvalidOperationException)
+		{
+			// Best-effort capture should not fail command execution.
+		}
+		catch (IOException)
+		{
+			// Best-effort capture should not fail command execution.
+		}
+		catch (AggregateException exception)
+		{
+			AggregateException flattenedException = exception.Flatten();
+			if (ContainsFatalException(flattenedException.InnerExceptions))
+			{
+				throw;
+			}
+
+			TraceUnexpectedCaptureException(flattenedException);
+		}
+		catch (Exception exception)
+		{
+			if (IsFatalException(exception))
+			{
+				throw;
+			}
+
+			TraceUnexpectedCaptureException(exception);
+		}
+	}
+
+	/// <summary>
+	/// Determines whether a collection of exceptions contains at least one fatal exception.
+	/// </summary>
+	/// <param name="exceptions">Exceptions to inspect.</param>
+	/// <returns><see langword="true"/> when any exception is fatal; otherwise <see langword="false"/>.</returns>
+	private static bool ContainsFatalException(IReadOnlyCollection<Exception> exceptions)
+	{
+		foreach (Exception exception in exceptions)
+		{
+			if (IsFatalException(exception))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/// <summary>
+	/// Determines whether an exception should be treated as fatal.
+	/// </summary>
+	/// <param name="exception">Exception to inspect.</param>
+	/// <returns><see langword="true"/> when exception is fatal; otherwise <see langword="false"/>.</returns>
+	private static bool IsFatalException(Exception exception)
+	{
+		return exception is OutOfMemoryException
+			|| exception is StackOverflowException
+			|| exception is AccessViolationException;
+	}
+
+	/// <summary>
+	/// Emits a trace warning for unexpected non-fatal output-capture completion failures.
+	/// </summary>
+	/// <param name="exception">Unexpected exception to trace.</param>
+	private static void TraceUnexpectedCaptureException(Exception exception)
+	{
+		Trace.TraceWarning(
+			"External command capture completion ignored unexpected non-fatal exception: {0}",
+			exception);
 	}
 
 	/// <summary>

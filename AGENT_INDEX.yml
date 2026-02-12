@@ -361,7 +361,7 @@ modules:
       - Canonical title key normalization for runtime and validation call sites; use TitleKeyNormalizer.NormalizeTitleKey.
     related: [config-bootstrap-migration, config-resolution, config-schema-validation, unit-test-suite]
   - id: infrastructure-processes
-    summary: External process execution with poll-supervised timeout, cancellation, and bounded output capture.
+    summary: External process execution with poll-supervised timeout/cancellation, exit-precedence boundary probes, and bounded output capture.
     tags: [infrastructure, process, runtime]
     paths:
       - SuwayomiSourceMerge/Infrastructure/Processes/BoundedOutputBuffer.cs
@@ -411,6 +411,8 @@ modules:
       - Canonical bounded stdout/stderr capture with truncation flags; use ExternalCommandExecutor.
       - Canonical command outcome + failure-kind contract for process execution; use ExternalCommandResult.
       - Canonical poll-supervised timeout/cancellation process handling; use ExternalCommandExecutor.Execute.
+      - Canonical timeout/cancellation boundary exit-precedence probes; use ExternalCommandExecutor.TryWaitForExit.
+      - Canonical fail-open capture completion handling with trace diagnostics for unexpected non-fatal faults; use ExternalCommandExecutor.WaitForCaptureCompletion.
       - Canonical process-system adapter for real host execution; use SystemProcessFacade.
     related: [runtime-host, unit-test-suite]
   - id: infrastructure-volumes

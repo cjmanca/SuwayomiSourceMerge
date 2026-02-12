@@ -293,6 +293,53 @@ public sealed class ExternalCommandExecutorTests
 	}
 
 	/// <summary>
+	/// Verifies process exit still wins when it is observed only during the final timeout boundary recheck.
+	/// </summary>
+	[Fact]
+	public void Execute_Edge_ShouldPreferExitCodeOverTimeout_WhenProcessExitsAfterInitialTimeoutProbe()
+	{
+		FakeProcessFacade process = new()
+		{
+			HasExited = false,
+			ExitCode = 17,
+			StandardOutputReader = new StringReader(string.Empty),
+			StandardErrorReader = new StringReader(string.Empty)
+		};
+		int zeroWaitProbeCount = 0;
+		process.WaitForExitHandler = milliseconds =>
+		{
+			if (milliseconds == 0)
+			{
+				zeroWaitProbeCount++;
+				if (zeroWaitProbeCount == 2)
+				{
+					process.HasExited = true;
+					return true;
+				}
+
+				return false;
+			}
+
+			Thread.Sleep(5);
+			return false;
+		};
+		ExternalCommandExecutor executor = new(() => process);
+
+		ExternalCommandResult result = executor.Execute(
+			new ExternalCommandRequest
+			{
+				FileName = "findmnt",
+				Timeout = TimeSpan.FromMilliseconds(1),
+				PollInterval = TimeSpan.FromMilliseconds(1),
+				MaxOutputCharacters = 64
+			});
+
+		Assert.Equal(ExternalCommandOutcome.NonZeroExit, result.Outcome);
+		Assert.Equal(17, result.ExitCode);
+		Assert.Equal(0, process.KillCallCount);
+	}
+
+	/// <summary>
 	/// Verifies cancellation path returns canceled outcome and kills the process tree.
 	/// </summary>
 	[Fact]
@@ -306,7 +353,7 @@ public sealed class ExternalCommandExecutorTests
 		};
 		process.WaitForExitHandler = _ => false;
 		ExternalCommandExecutor executor = new(() => process);
-		CancellationTokenSource cancellationTokenSource = new();
+		using CancellationTokenSource cancellationTokenSource = new();
 		cancellationTokenSource.Cancel();
 
 		ExternalCommandResult result = executor.Execute(
@@ -350,7 +397,7 @@ public sealed class ExternalCommandExecutorTests
 			return false;
 		};
 		ExternalCommandExecutor executor = new(() => process);
-		CancellationTokenSource cancellationTokenSource = new();
+		using CancellationTokenSource cancellationTokenSource = new();
 		cancellationTokenSource.Cancel();
 
 		ExternalCommandResult result = executor.Execute(
@@ -365,6 +412,55 @@ public sealed class ExternalCommandExecutorTests
 
 		Assert.Equal(ExternalCommandOutcome.Success, result.Outcome);
 		Assert.Equal(0, result.ExitCode);
+		Assert.Equal(0, process.KillCallCount);
+	}
+
+	/// <summary>
+	/// Verifies process exit still wins when it is observed only during the final cancellation boundary recheck.
+	/// </summary>
+	[Fact]
+	public void Execute_Edge_ShouldPreferExitCodeOverCancellation_WhenProcessExitsAfterInitialCancellationProbe()
+	{
+		FakeProcessFacade process = new()
+		{
+			HasExited = false,
+			ExitCode = 9,
+			StandardOutputReader = new StringReader(string.Empty),
+			StandardErrorReader = new StringReader(string.Empty)
+		};
+		int zeroWaitProbeCount = 0;
+		process.WaitForExitHandler = milliseconds =>
+		{
+			if (milliseconds == 0)
+			{
+				zeroWaitProbeCount++;
+				if (zeroWaitProbeCount == 2)
+				{
+					process.HasExited = true;
+					return true;
+				}
+
+				return false;
+			}
+
+			return false;
+		};
+		ExternalCommandExecutor executor = new(() => process);
+		using CancellationTokenSource cancellationTokenSource = new();
+		cancellationTokenSource.Cancel();
+
+		ExternalCommandResult result = executor.Execute(
+			new ExternalCommandRequest
+			{
+				FileName = "findmnt",
+				Timeout = TimeSpan.FromSeconds(5),
+				PollInterval = TimeSpan.FromMilliseconds(10),
+				MaxOutputCharacters = 64
+			},
+			cancellationTokenSource.Token);
+
+		Assert.Equal(ExternalCommandOutcome.NonZeroExit, result.Outcome);
+		Assert.Equal(9, result.ExitCode);
 		Assert.Equal(0, process.KillCallCount);
 	}
 
@@ -445,6 +541,39 @@ public sealed class ExternalCommandExecutorTests
 	}
 
 	/// <summary>
+	/// Verifies unexpected capture completion faults are ignored to preserve fail-open command execution.
+	/// </summary>
+	[Fact]
+	public void Execute_Failure_ShouldRemainSuccessful_WhenCaptureTaskThrowsUnexpectedException()
+	{
+		FakeProcessFacade process = new()
+		{
+			ExitCode = 0,
+			StandardOutputReader = new ThrowingTextReader(new FormatException("unexpected capture failure")),
+			StandardErrorReader = new StringReader(string.Empty)
+		};
+		process.WaitForExitHandler = _ =>
+		{
+			process.HasExited = true;
+			return true;
+		};
+		ExternalCommandExecutor executor = new(() => process);
+
+		ExternalCommandResult result = executor.Execute(
+			new ExternalCommandRequest
+			{
+				FileName = "findmnt",
+				Timeout = TimeSpan.FromSeconds(1),
+				PollInterval = TimeSpan.FromMilliseconds(10),
+				MaxOutputCharacters = 64
+			});
+
+		Assert.Equal(ExternalCommandOutcome.Success, result.Outcome);
+		Assert.Equal(string.Empty, result.StandardOutput);
+		Assert.Equal(string.Empty, result.StandardError);
+	}
+
+	/// <summary>
 	/// Verifies null request validation.
 	/// </summary>
 	[Fact]
@@ -487,7 +616,7 @@ public sealed class ExternalCommandExecutorTests
 	{
 		ExternalCommandExecutor executor = new(() => new FakeProcessFacade());
 
-		Assert.Throws<ArgumentOutOfRangeException>(
+		ArgumentOutOfRangeException exception = Assert.Throws<ArgumentOutOfRangeException>(
 			() => executor.Execute(
 				new ExternalCommandRequest
 				{
@@ -496,6 +625,8 @@ public sealed class ExternalCommandExecutorTests
 					PollInterval = TimeSpan.FromMilliseconds(10),
 					MaxOutputCharacters = 10
 				}));
+
+		Assert.Equal(nameof(ExternalCommandRequest.Timeout), exception.ParamName);
 	}
 
 	/// <summary>
@@ -508,7 +639,7 @@ public sealed class ExternalCommandExecutorTests
 	{
 		ExternalCommandExecutor executor = new(() => new FakeProcessFacade());
 
-		Assert.Throws<ArgumentOutOfRangeException>(
+		ArgumentOutOfRangeException exception = Assert.Throws<ArgumentOutOfRangeException>(
 			() => executor.Execute(
 				new ExternalCommandRequest
 				{
@@ -517,6 +648,8 @@ public sealed class ExternalCommandExecutorTests
 					PollInterval = TimeSpan.FromMilliseconds(milliseconds),
 					MaxOutputCharacters = 10
 				}));
+
+		Assert.Equal(nameof(ExternalCommandRequest.PollInterval), exception.ParamName);
 	}
 
 	/// <summary>
@@ -529,7 +662,7 @@ public sealed class ExternalCommandExecutorTests
 	{
 		ExternalCommandExecutor executor = new(() => new FakeProcessFacade());
 
-		Assert.Throws<ArgumentOutOfRangeException>(
+		ArgumentOutOfRangeException exception = Assert.Throws<ArgumentOutOfRangeException>(
 			() => executor.Execute(
 				new ExternalCommandRequest
 				{
@@ -538,6 +671,8 @@ public sealed class ExternalCommandExecutorTests
 					PollInterval = TimeSpan.FromMilliseconds(10),
 					MaxOutputCharacters = maxOutputCharacters
 				}));
+
+		Assert.Equal(nameof(ExternalCommandRequest.MaxOutputCharacters), exception.ParamName);
 	}
 
 	/// <summary>
@@ -548,7 +683,7 @@ public sealed class ExternalCommandExecutorTests
 	{
 		ExternalCommandExecutor executor = new(() => new FakeProcessFacade());
 
-		Assert.Throws<ArgumentException>(
+		ArgumentException exception = Assert.Throws<ArgumentException>(
 			() => executor.Execute(
 				new ExternalCommandRequest
 				{
@@ -558,6 +693,9 @@ public sealed class ExternalCommandExecutorTests
 					PollInterval = TimeSpan.FromMilliseconds(10),
 					MaxOutputCharacters = 10
 				}));
+
+		Assert.Equal(nameof(ExternalCommandRequest.Arguments), exception.ParamName);
+		Assert.Contains("index 1", exception.Message, StringComparison.Ordinal);
 	}
 
 	/// <summary>
@@ -614,6 +752,43 @@ public sealed class ExternalCommandExecutorTests
 			_content.AsMemory(_position, count).CopyTo(buffer);
 			_position += count;
 			return count;
+		}
+	}
+
+	/// <summary>
+	/// Reader that throws a configured exception from the first asynchronous read.
+	/// </summary>
+	private sealed class ThrowingTextReader : TextReader
+	{
+		/// <summary>
+		/// Exception thrown on first read.
+		/// </summary>
+		private readonly Exception _exception;
+
+		/// <summary>
+		/// Tracks whether the exception has already been thrown.
+		/// </summary>
+		private bool _hasThrown;
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="ThrowingTextReader"/> class.
+		/// </summary>
+		/// <param name="exception">Exception thrown by the first read operation.</param>
+		public ThrowingTextReader(Exception exception)
+		{
+			_exception = exception ?? throw new ArgumentNullException(nameof(exception));
+		}
+
+		/// <inheritdoc />
+		public override ValueTask<int> ReadAsync(Memory<char> buffer, CancellationToken cancellationToken = default)
+		{
+			if (!_hasThrown)
+			{
+				_hasThrown = true;
+				return ValueTask.FromException<int>(_exception);
+			}
+
+			return ValueTask.FromResult(0);
 		}
 	}
 
