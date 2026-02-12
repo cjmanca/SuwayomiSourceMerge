@@ -360,6 +360,59 @@ modules:
       - Canonical scene-tag matcher contract for normalization consumers; use ISceneTagMatcher.
       - Canonical title key normalization for runtime and validation call sites; use TitleKeyNormalizer.NormalizeTitleKey.
     related: [config-bootstrap-migration, config-resolution, config-schema-validation, unit-test-suite]
+  - id: infrastructure-processes
+    summary: External process execution with poll-supervised timeout, cancellation, and bounded output capture.
+    tags: [infrastructure, process, runtime]
+    paths:
+      - SuwayomiSourceMerge/Infrastructure/Processes/BoundedOutputBuffer.cs
+      - SuwayomiSourceMerge/Infrastructure/Processes/ExternalCommandExecutor.cs
+      - SuwayomiSourceMerge/Infrastructure/Processes/ExternalCommandRequest.cs
+      - SuwayomiSourceMerge/Infrastructure/Processes/ExternalCommandResult.cs
+      - SuwayomiSourceMerge/Infrastructure/Processes/IExternalCommandExecutor.cs
+      - SuwayomiSourceMerge/Infrastructure/Processes/IProcessFacade.cs
+      - SuwayomiSourceMerge/Infrastructure/Processes/SystemProcessFacade.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Processes/ExternalCommandExecutorTests.cs
+    entrypoints:
+      - symbol: ExternalCommandExecutor
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Processes/ExternalCommandExecutor.cs
+        purpose: Executes external commands with typed outcomes, timeout supervision, and bounded stdout/stderr capture.
+      - symbol: ExternalCommandExecutor.Execute
+        kind: method
+        path: SuwayomiSourceMerge/Infrastructure/Processes/ExternalCommandExecutor.cs
+        purpose: Runs one command request and returns deterministic success, timeout, cancellation, or startup-failure results.
+      - symbol: ExternalCommandRequest
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Processes/ExternalCommandRequest.cs
+        purpose: Defines executable name, arguments, timeout, polling interval, and output-capture limits.
+      - symbol: ExternalCommandResult
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Processes/ExternalCommandResult.cs
+        purpose: Carries command outcome classification, optional exit code, bounded output, truncation flags, and elapsed duration.
+      - symbol: IExternalCommandExecutor
+        kind: interface
+        path: SuwayomiSourceMerge/Infrastructure/Processes/IExternalCommandExecutor.cs
+        purpose: Defines the canonical synchronous command-execution contract for runtime orchestration services.
+      - symbol: SystemProcessFacade
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Processes/SystemProcessFacade.cs
+        purpose: Adapts System.Diagnostics.Process to the internal process-facade contract used by the executor.
+    extension_points:
+      - how: Add richer failure classification by extending startup-exception mapping in the command executor.
+        symbols: [ExternalCommandExecutor, ExternalCommandFailureKind]
+        paths: [SuwayomiSourceMerge/Infrastructure/Processes/ExternalCommandExecutor.cs, SuwayomiSourceMerge/Infrastructure/Processes/ExternalCommandResult.cs]
+      - how: Add tool-specific wrapper services by composing typed request builders over IExternalCommandExecutor.
+        symbols: [ExternalCommandRequest, IExternalCommandExecutor]
+        paths: [SuwayomiSourceMerge/Infrastructure/Processes/ExternalCommandRequest.cs, SuwayomiSourceMerge/Infrastructure/Processes/IExternalCommandExecutor.cs]
+      - how: Swap process behavior in tests or alternate hosts by injecting a custom process-facade factory into ExternalCommandExecutor.
+        symbols: [ExternalCommandExecutor, IProcessFacade]
+        paths: [SuwayomiSourceMerge/Infrastructure/Processes/ExternalCommandExecutor.cs, SuwayomiSourceMerge/Infrastructure/Processes/IProcessFacade.cs]
+    do_not_reimplement:
+      - Canonical bounded stdout/stderr capture with truncation flags; use ExternalCommandExecutor.
+      - Canonical command outcome + failure-kind contract for process execution; use ExternalCommandResult.
+      - Canonical poll-supervised timeout/cancellation process handling; use ExternalCommandExecutor.Execute.
+      - Canonical process-system adapter for real host execution; use SystemProcessFacade.
+    related: [runtime-host, unit-test-suite]
   - id: infrastructure-volumes
     summary: Container volume discovery for source and override roots with deterministic ordering and warnings.
     tags: [filesystem, infrastructure, volumes]
