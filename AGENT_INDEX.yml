@@ -325,7 +325,7 @@ modules:
       - symbol: LogFilePathPolicy
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Logging/LogFilePathPolicy.cs
-        purpose: Enforces deterministic log-file-name safety rules (invalid chars, trailing dot/space, Windows reserved names) and root containment.
+        purpose: Enforces deterministic log-file-name safety rules (invalid chars, trailing dot/space, reserved Windows device names on all platforms) and root containment.
       - symbol: LogLevelParser
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Logging/LogLevelParser.cs

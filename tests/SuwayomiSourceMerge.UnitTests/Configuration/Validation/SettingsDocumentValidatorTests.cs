@@ -407,13 +407,8 @@ public sealed class SettingsDocumentValidatorTests
     }
 
     [Fact]
-    public void Validate_ShouldReportDeterministicError_WhenLoggingFileNameIsReservedWindowsDeviceName_OnWindows()
+    public void Validate_ShouldReportDeterministicError_WhenLoggingFileNameIsReservedWindowsDeviceName()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
         SettingsDocumentValidator validator = new();
         SettingsDocument baseline = ConfigurationTestData.CreateValidSettingsDocument();
         SettingsDocument document = new()

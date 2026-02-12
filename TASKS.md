@@ -19,6 +19,7 @@
 - [x] 2026-02-11 - Improve XML documentation comments for all identifiers in modified configuration bootstrap/document/loading/validation files to provide self-contained usage guidance.
 - [x] 2026-02-11 - Harden `logging.file_name` validation to reject cross-platform invalid characters, trailing dot/space, and Windows reserved device names at config-validation time.
 - [x] 2026-02-11 - Harden `RollingFileLogger` so `LogLevel.None` is always treated as non-emitting sentinel and cannot be logged as an event level.
+- [x] 2026-02-12 - Fix cross-platform logging.file_name validation drift by rejecting reserved Windows device names deterministically on all OSes and updating unit tests.
 - [ ] 2026-02-09 - Implement scene-tag service with default `scene_tags.yml` generation and data-driven tag matching. DoD: missing file is created with defaults; matching behavior is driven exclusively by YAML entries; no hardcoded tag list remains in runtime logic.
 - [ ] 2026-02-09 - Implement title normalization engine per docs (ASCII fold, punctuation strip, leading-article strip, trailing-`s` singularization, cached compare keys). DoD: normalization rules match documented order and are covered by unit tests for expected, edge, and failure cases.
 - [ ] 2026-02-09 - Implement equivalence and source-priority services using YAML-backed data models. DoD: canonical title mapping and source ordering are loaded from YAML and exercised by unit tests for precedence, fallback, and invalid entries.

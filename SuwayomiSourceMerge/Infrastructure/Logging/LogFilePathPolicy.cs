@@ -7,7 +7,7 @@ namespace SuwayomiSourceMerge.Infrastructure.Logging;
 /// This policy prevents path traversal and rooted-path overrides by requiring
 /// <c>logging.file_name</c> to be a single file name segment and by enforcing that the resolved
 /// path remains under <c>paths.log_root_path</c>. It also applies cross-platform strict invalid
-/// character checks and rejects Windows reserved device names when running on Windows.
+/// character checks and rejects reserved Windows device names on all platforms for deterministic behavior.
 /// </remarks>
 internal static class LogFilePathPolicy
 {
@@ -64,7 +64,7 @@ internal static class LogFilePathPolicy
 	/// Message used when the configured log file name violates file-name safety rules.
 	/// </summary>
 	public const string InvalidFileNameMessage =
-		"Settings logging.file_name must be a single file name without directory segments, invalid file-name characters, or trailing dots/spaces; reserved Windows device names are rejected on Windows.";
+		"Settings logging.file_name must be a single file name without directory segments, invalid file-name characters, or trailing dots/spaces; reserved Windows device names are always rejected.";
 
 	/// <summary>
 	/// Validates a configured log file name and returns a normalized value when valid.
@@ -117,7 +117,7 @@ internal static class LogFilePathPolicy
 			return false;
 		}
 
-		if (OperatingSystem.IsWindows() && IsReservedWindowsDeviceName(trimmed))
+		if (IsReservedWindowsDeviceName(trimmed))
 		{
 			return false;
 		}

@@ -61,13 +61,8 @@ public sealed class LogFilePathPolicyTests
     }
 
     [Fact]
-    public void TryValidateFileName_ShouldReturnFalse_ForReservedWindowsDeviceNames_OnWindows()
+    public void TryValidateFileName_ShouldReturnFalse_ForReservedWindowsDeviceNames()
     {
-        if (!OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
         Assert.False(LogFilePathPolicy.TryValidateFileName("CON", out _));
         Assert.False(LogFilePathPolicy.TryValidateFileName("prn.txt", out _));
         Assert.False(LogFilePathPolicy.TryValidateFileName("LPT1.log", out _));
