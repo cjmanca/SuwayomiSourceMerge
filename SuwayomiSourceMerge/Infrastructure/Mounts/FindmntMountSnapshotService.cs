@@ -30,7 +30,7 @@ internal sealed class FindmntMountSnapshotService : IMountSnapshotService
 	/// <summary>
 	/// Shared command argument list used for snapshot capture.
 	/// </summary>
-	private static readonly IReadOnlyList<string> FINDMNT_ARGUMENTS = ["-rn", "-P", "-o", "TARGET,FSTYPE,SOURCE,OPTIONS"];
+	private static readonly IReadOnlyList<string> FINDMNT_ARGUMENTS = ["-n", "-P", "-o", "TARGET,FSTYPE,SOURCE,OPTIONS"];
 
 	/// <summary>
 	/// Default command timeout used for snapshot capture.

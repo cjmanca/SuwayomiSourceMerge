@@ -386,7 +386,7 @@ modules:
       - symbol: FindmntMountSnapshotService.Capture
         kind: method
         path: SuwayomiSourceMerge/Infrastructure/Mounts/FindmntMountSnapshotService.cs
-        purpose: Executes findmnt and returns parsed mount entries plus non-fatal warnings.
+        purpose: Executes findmnt with util-linux-compatible pairs-mode flags and returns parsed mount entries plus non-fatal warnings.
       - symbol: IMountReconciliationService
         kind: interface
         path: SuwayomiSourceMerge/Infrastructure/Mounts/IMountReconciliationService.cs

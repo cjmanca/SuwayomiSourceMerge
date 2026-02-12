@@ -42,7 +42,8 @@ public sealed class FindmntMountSnapshotServiceTests
 		Assert.Null(entry.IsHealthy);
 		Assert.NotNull(commandExecutor.LastRequest);
 		Assert.Equal("findmnt", commandExecutor.LastRequest!.FileName);
-		Assert.Equal(["-rn", "-P", "-o", "TARGET,FSTYPE,SOURCE,OPTIONS"], commandExecutor.LastRequest.Arguments);
+		Assert.Equal(["-n", "-P", "-o", "TARGET,FSTYPE,SOURCE,OPTIONS"], commandExecutor.LastRequest.Arguments);
+		Assert.DoesNotContain("-r", commandExecutor.LastRequest.Arguments);
 	}
 
 	/// <summary>
