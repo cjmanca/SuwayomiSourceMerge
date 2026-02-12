@@ -1,4 +1,5 @@
 using SuwayomiSourceMerge.Configuration.Documents;
+using SuwayomiSourceMerge.Domain.Normalization;
 
 namespace SuwayomiSourceMerge.Configuration.Validation;
 
@@ -11,6 +12,11 @@ namespace SuwayomiSourceMerge.Configuration.Validation;
 /// </remarks>
 public sealed class MangaEquivalentsDocumentValidator : IConfigValidator<MangaEquivalentsDocument>
 {
+	/// <summary>
+	/// Optional matcher used for data-driven trailing scene-tag suffix stripping in title normalization.
+	/// </summary>
+	private readonly ISceneTagMatcher? _sceneTagMatcher;
+
 	/// <summary>
 	/// Error code emitted when <c>groups</c> is missing.
 	/// </summary>
@@ -40,6 +46,25 @@ public sealed class MangaEquivalentsDocumentValidator : IConfigValidator<MangaEq
 	/// Error code emitted when an alias is empty before or after normalization.
 	/// </summary>
 	private const string EmptyAliasCode = "CFG-MEQ-006";
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="MangaEquivalentsDocumentValidator"/> class.
+	/// </summary>
+	public MangaEquivalentsDocumentValidator()
+		: this(sceneTagMatcher: null)
+	{
+	}
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="MangaEquivalentsDocumentValidator"/> class.
+	/// </summary>
+	/// <param name="sceneTagMatcher">
+	/// Optional matcher used to strip configured trailing scene-tag suffixes during title-key normalization.
+	/// </param>
+	public MangaEquivalentsDocumentValidator(ISceneTagMatcher? sceneTagMatcher)
+	{
+		_sceneTagMatcher = sceneTagMatcher;
+	}
 
 	/// <summary>
 	/// Validates manga equivalence groups and alias mapping integrity.
@@ -83,7 +108,7 @@ public sealed class MangaEquivalentsDocumentValidator : IConfigValidator<MangaEq
 			}
 
 			string canonical = group.Canonical.Trim();
-			string canonicalKey = ValidationKeyNormalizer.NormalizeTitleKey(canonical);
+			string canonicalKey = ValidationKeyNormalizer.NormalizeTitleKey(canonical, _sceneTagMatcher);
 
 			if (!canonicalKeys.Add(canonicalKey))
 			{
@@ -104,7 +129,7 @@ public sealed class MangaEquivalentsDocumentValidator : IConfigValidator<MangaEq
 				}
 
 				RegisterAlias(
-					ValidationKeyNormalizer.NormalizeTitleKey(alias),
+					ValidationKeyNormalizer.NormalizeTitleKey(alias, _sceneTagMatcher),
 					canonical,
 					file,
 					aliasPath,

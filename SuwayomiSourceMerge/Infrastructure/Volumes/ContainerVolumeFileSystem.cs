@@ -5,27 +5,27 @@ namespace SuwayomiSourceMerge.Infrastructure.Volumes;
 /// </summary>
 internal sealed class ContainerVolumeFileSystem : IContainerVolumeFileSystem
 {
-    /// <inheritdoc />
-    public bool DirectoryExists(string path)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+	/// <inheritdoc />
+	public bool DirectoryExists(string path)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        return Directory.Exists(path);
-    }
+		return Directory.Exists(path);
+	}
 
-    /// <inheritdoc />
-    public IEnumerable<string> EnumerateDirectories(string path)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+	/// <inheritdoc />
+	public IEnumerable<string> EnumerateDirectories(string path)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        return Directory.EnumerateDirectories(path, "*", SearchOption.TopDirectoryOnly);
-    }
+		return Directory.EnumerateDirectories(path, "*", SearchOption.TopDirectoryOnly);
+	}
 
-    /// <inheritdoc />
-    public string GetFullPath(string path)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+	/// <inheritdoc />
+	public string GetFullPath(string path)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        return Path.GetFullPath(path);
-    }
+		return Path.GetFullPath(path);
+	}
 }

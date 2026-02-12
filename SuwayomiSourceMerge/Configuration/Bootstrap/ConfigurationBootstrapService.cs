@@ -1,6 +1,7 @@
 using SuwayomiSourceMerge.Configuration.Documents;
 using SuwayomiSourceMerge.Configuration.Loading;
 using SuwayomiSourceMerge.Configuration.Validation;
+using SuwayomiSourceMerge.Domain.Normalization;
 
 namespace SuwayomiSourceMerge.Configuration.Bootstrap;
 
@@ -70,6 +71,12 @@ public sealed class ConfigurationBootstrapService : IConfigurationBootstrapServi
 		validationErrors.AddRange(sceneTags.Validation.Errors);
 		validationErrors.AddRange(sourcePriority.Validation.Errors);
 
+		ValidationResult tagAwareValidation = ValidateMangaEquivalentsAgainstSceneTags(
+			mangaEquivalents,
+			sceneTags,
+			Path.GetFileName(paths.MangaEquivalentsYamlPath));
+		validationErrors.AddRange(tagAwareValidation.Errors);
+
 		if (validationErrors.Count > 0)
 		{
 			throw new ConfigurationBootstrapException(validationErrors);
@@ -87,6 +94,26 @@ public sealed class ConfigurationBootstrapService : IConfigurationBootstrapServi
 			Files = files,
 			Warnings = warnings
 		};
+	}
+
+	private static ValidationResult ValidateMangaEquivalentsAgainstSceneTags(
+		ParsedDocument<MangaEquivalentsDocument> mangaEquivalents,
+		ParsedDocument<SceneTagsDocument> sceneTags,
+		string mangaEquivalentsFileName)
+	{
+		if (!mangaEquivalents.Validation.IsValid || !sceneTags.Validation.IsValid)
+		{
+			return new ValidationResult();
+		}
+
+		if (mangaEquivalents.Document is null || sceneTags.Document?.Tags is null)
+		{
+			return new ValidationResult();
+		}
+
+		ISceneTagMatcher sceneTagMatcher = new SceneTagMatcher(sceneTags.Document.Tags);
+		MangaEquivalentsDocumentValidator validator = new(sceneTagMatcher);
+		return validator.Validate(mangaEquivalents.Document, mangaEquivalentsFileName);
 	}
 
 	private static ParsedDocument<TDocument> ParseDocument<TDocument>(
