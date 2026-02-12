@@ -12,6 +12,7 @@ Requirements baseline for the C# port:
 - Scene-tag stripping happens before punctuation/whitespace stripping and ASCII folding; the latter transforms are comparison-only.
 - Final merged display directory names should preserve punctuation except for removed scene-tag suffixes.
 - Punctuation-only scene tags are valid and must be supported for stripping.
+- Scene-tag detection ignores punctuation differences for text/mixed tags (for example, `asura scan` matches `Asura-Scan`), while punctuation-only tags use exact punctuation-sequence matching.
 - Normalization follows docs strictly, including leading-article stripping and trailing-`s` stripping per word.
 - Chapter rename behavior stays aligned with the existing shell script for v1.
 - `details.json` auto-generation from `ComicInfo.xml` is included in v1.

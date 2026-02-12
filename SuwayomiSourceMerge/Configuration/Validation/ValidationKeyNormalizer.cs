@@ -1,6 +1,3 @@
-using System.Globalization;
-using System.Text;
-
 using SuwayomiSourceMerge.Domain.Normalization;
 
 namespace SuwayomiSourceMerge.Configuration.Validation;
@@ -60,9 +57,9 @@ internal static class ValidationKeyNormalizer
 			return string.Empty;
 		}
 
-		string folded = FoldToAscii(input).ToLowerInvariant();
+		string folded = ComparisonTextNormalizer.FoldToAscii(input).ToLowerInvariant();
 		folded = StripSceneTagSuffixes(folded, sceneTagMatcher);
-		folded = ReplacePunctuationWithSpace(folded);
+		folded = ComparisonTextNormalizer.ReplacePunctuationWithSpace(folded);
 
 		string[] words = folded
 			.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -97,66 +94,7 @@ internal static class ValidationKeyNormalizer
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="input"/> is <see langword="null"/>.</exception>
 	public static string NormalizeTokenKey(string input)
 	{
-		ArgumentNullException.ThrowIfNull(input);
-
-		if (string.IsNullOrWhiteSpace(input))
-		{
-			return string.Empty;
-		}
-
-		string folded = FoldToAscii(input).ToLowerInvariant();
-		folded = ReplacePunctuationWithSpace(folded);
-
-		string[] words = folded
-			.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-			.ToArray();
-
-		return string.Join(' ', words);
-	}
-
-	/// <summary>
-	/// Replaces non-alphanumeric characters with spaces to normalize separator variants.
-	/// </summary>
-	/// <param name="input">Input text to normalize.</param>
-	/// <returns>Text where punctuation/separators are replaced by single-character spaces.</returns>
-	private static string ReplacePunctuationWithSpace(string input)
-	{
-		StringBuilder builder = new(input.Length);
-		foreach (char ch in input)
-		{
-			if (char.IsLetterOrDigit(ch))
-			{
-				builder.Append(ch);
-			}
-			else
-			{
-				builder.Append(' ');
-			}
-		}
-
-		return builder.ToString();
-	}
-
-	/// <summary>
-	/// Performs Unicode decomposition and removes combining marks to approximate ASCII folding.
-	/// </summary>
-	/// <param name="input">Input text to fold.</param>
-	/// <returns>Text with diacritic marks removed and normalization form restored.</returns>
-	private static string FoldToAscii(string input)
-	{
-		string decomposed = input.Normalize(NormalizationForm.FormD);
-		StringBuilder builder = new(decomposed.Length);
-
-		foreach (char c in decomposed)
-		{
-			UnicodeCategory category = CharUnicodeInfo.GetUnicodeCategory(c);
-			if (category != UnicodeCategory.NonSpacingMark)
-			{
-				builder.Append(c);
-			}
-		}
-
-		return builder.ToString().Normalize(NormalizationForm.FormC);
+		return ComparisonTextNormalizer.NormalizeTokenKey(input);
 	}
 
 	/// <summary>
@@ -267,20 +205,26 @@ internal static class ValidationKeyNormalizer
 		out string strippedValue)
 	{
 		strippedValue = value;
+		int searchStart = value.Length - 1;
 
-		int delimiterIndex = value.LastIndexOf(delimiter);
-		if (delimiterIndex <= 0)
+		while (searchStart > 0)
 		{
-			return false;
+			int delimiterIndex = value.LastIndexOf(delimiter, searchStart);
+			if (delimiterIndex <= 0)
+			{
+				return false;
+			}
+
+			string candidate = value[(delimiterIndex + 1)..].Trim();
+			if (sceneTagMatcher.IsMatch(candidate))
+			{
+				strippedValue = value[..delimiterIndex].TrimEnd();
+				return true;
+			}
+
+			searchStart = delimiterIndex - 1;
 		}
 
-		string candidate = value[(delimiterIndex + 1)..].Trim();
-		if (!sceneTagMatcher.IsMatch(candidate))
-		{
-			return false;
-		}
-
-		strippedValue = value[..delimiterIndex].TrimEnd();
-		return true;
+		return false;
 	}
 }

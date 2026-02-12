@@ -1,5 +1,3 @@
-using SuwayomiSourceMerge.Configuration.Validation;
-
 namespace SuwayomiSourceMerge.Domain.Normalization;
 
 /// <summary>
@@ -28,7 +26,7 @@ internal static class SceneTagMatchKeyBuilder
 			return false;
 		}
 
-		string tokenKey = ValidationKeyNormalizer.NormalizeTokenKey(trimmed);
+		string tokenKey = ComparisonTextNormalizer.NormalizeTokenKey(trimmed);
 		if (!string.IsNullOrEmpty(tokenKey))
 		{
 			matchKey = new SceneTagMatchKey(SceneTagMatchKeyKind.Token, tokenKey);

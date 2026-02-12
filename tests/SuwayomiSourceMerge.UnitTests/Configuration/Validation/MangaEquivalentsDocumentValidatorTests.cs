@@ -291,4 +291,31 @@ public sealed class MangaEquivalentsDocumentValidatorTests
 
         Assert.True(result.IsValid);
     }
+
+    [Fact]
+    public void Validate_ShouldReportDuplicateCanonical_WhenSceneTagContainsHyphen()
+    {
+        ISceneTagMatcher matcher = new SceneTagMatcher(["asura scan"]);
+        MangaEquivalentsDocumentValidator validator = new(matcher);
+        MangaEquivalentsDocument document = new()
+        {
+            Groups =
+            [
+                new MangaEquivalentGroup
+                {
+                    Canonical = "Manga - Asura-Scan",
+                    Aliases = []
+                },
+                new MangaEquivalentGroup
+                {
+                    Canonical = "Manga",
+                    Aliases = []
+                }
+            ]
+        };
+
+        ValidationResult result = validator.Validate(document, "manga_equivalents.yml");
+
+        Assert.Contains(result.Errors, error => error.Path == "$.groups[1].canonical" && error.Code == "CFG-MEQ-004");
+    }
 }

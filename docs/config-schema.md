@@ -139,6 +139,8 @@ tags:
 ### Processing semantics
 
 - Scene-tag stripping is applied before punctuation removal, whitespace collapsing, and ASCII folding.
+- Scene-tag matching ignores punctuation differences for text/mixed tags.
+- Punctuation-only tags match exact trimmed punctuation sequences.
 - Punctuation removal/whitespace normalization/ASCII folding are comparison-key transforms only.
 - Final merged directory display names preserve punctuation except where matched scene-tag suffixes are stripped.
 

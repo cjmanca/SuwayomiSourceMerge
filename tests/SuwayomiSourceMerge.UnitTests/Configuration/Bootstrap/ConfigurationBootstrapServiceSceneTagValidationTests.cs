@@ -152,6 +152,34 @@ public sealed class ConfigurationBootstrapServiceSceneTagValidationTests
 	}
 
 	[Fact]
+	public void Bootstrap_ShouldDetectDuplicateCanonical_WhenSceneTagContainsHyphen()
+	{
+		using TemporaryDirectory tempDirectory = new();
+		File.WriteAllText(
+			Path.Combine(tempDirectory.Path, "scene_tags.yml"),
+			"""
+			tags:
+			  - asura scan
+			""");
+		File.WriteAllText(
+			Path.Combine(tempDirectory.Path, "manga_equivalents.yml"),
+			"""
+			groups:
+			  - canonical: Manga - Asura-Scan
+			    aliases: []
+			  - canonical: Manga
+			    aliases: []
+			""");
+
+		ConfigurationBootstrapService service = ConfigurationSchemaServiceFactory.CreateBootstrapService();
+
+		ConfigurationBootstrapException exception = Assert.Throws<ConfigurationBootstrapException>(
+			() => service.Bootstrap(tempDirectory.Path));
+
+		Assert.Contains(exception.ValidationErrors, error => error.File == "manga_equivalents.yml" && error.Code == "CFG-MEQ-004");
+	}
+
+	[Fact]
 	public void Bootstrap_ShouldThrowIOException_WhenConfigRootPathIsAnExistingFile()
 	{
 		using TemporaryDirectory tempDirectory = new();

@@ -32,7 +32,7 @@ public static class SceneTagsDocumentDefaults
 				"asura scans",
 				"team argo",
 				"tapas official",
-				"valir scans",
+				"all chapters",
 				"digital",
 				"webtoon",
 				"web",

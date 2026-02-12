@@ -1,5 +1,6 @@
 namespace SuwayomiSourceMerge.UnitTests.Configuration.Validation;
 
+using SuwayomiSourceMerge.Configuration.Documents;
 using SuwayomiSourceMerge.Configuration.Validation;
 using SuwayomiSourceMerge.Domain.Normalization;
 
@@ -128,6 +129,36 @@ public sealed class ValidationKeyNormalizerTests
         Assert.Equal("mangatitle", normalized);
     }
 
+    [Fact]
+    public void NormalizeTitleKey_ShouldStripTrailingHyphenatedSceneTag_WhenMatcherProvided()
+    {
+        ISceneTagMatcher matcher = new SceneTagMatcher(["asura scan"]);
+
+        string normalized = ValidationKeyNormalizer.NormalizeTitleKey("Manga - Asura-Scan", matcher);
+
+        Assert.Equal("manga", normalized);
+    }
+
+    [Fact]
+    public void NormalizeTitleKey_ShouldStripTrailingColonDelimitedSceneTagContainingColon_WhenMatcherProvided()
+    {
+        ISceneTagMatcher matcher = new SceneTagMatcher(["asura scan"]);
+
+        string normalized = ValidationKeyNormalizer.NormalizeTitleKey("Manga: Asura:Scan", matcher);
+
+        Assert.Equal("manga", normalized);
+    }
+
+    [Fact]
+    public void NormalizeTitleKey_ShouldStripBracketedSceneTagContainingPunctuation_WhenMatcherProvided()
+    {
+        ISceneTagMatcher matcher = new SceneTagMatcher(["asura scan"]);
+
+        string normalized = ValidationKeyNormalizer.NormalizeTitleKey("Manga [Asura-Scan]", matcher);
+
+        Assert.Equal("manga", normalized);
+    }
+
     [Theory]
     [InlineData("Manga Title (Official")]
     [InlineData("- Official")]
@@ -158,5 +189,30 @@ public sealed class ValidationKeyNormalizerTests
         {
             throw new InvalidOperationException("matcher-failure");
         }
+    }
+
+    [Theory]
+    [MemberData(nameof(GetTagStrippingFixtures))]
+    public void NormalizeTitleKey_ShouldMatchExpectedFixtureOutcomes_WhenUsingDefaultSceneTags(
+        string rawTitle,
+        string expectedStrippedTitle)
+    {
+        ISceneTagMatcher matcher = new SceneTagMatcher(SceneTagsDocumentDefaults.Create().Tags!);
+
+        string normalizedFromRaw = ValidationKeyNormalizer.NormalizeTitleKey(rawTitle, matcher);
+        string normalizedFromExpected = ValidationKeyNormalizer.NormalizeTitleKey(expectedStrippedTitle);
+
+        Assert.Equal(normalizedFromExpected, normalizedFromRaw);
+    }
+
+    public static IEnumerable<object[]> GetTagStrippingFixtures()
+    {
+        yield return ["Berserk of Gluttony (Official)", "Berserk of Gluttony"];
+        yield return ["Jack Be Invincible [Official]", "Jack Be Invincible"];
+        yield return ["Genius Archer’s Streaming [Asura Scan]", "Genius Archer’s Streaming"];
+        yield return ["I'm a Curse Crafter, and I Don't Need an S-Rank Party! [Official]", "I'm a Curse Crafter, and I Don't Need an S-Rank Party!"];
+        yield return ["Log Into The Future [Tapas Official]", "Log Into The Future"];
+        yield return ["Solo Farming In The Tower [All Chapters]", "Solo Farming In The Tower"];
+        yield return ["The Returned C-Rank Tank Won't Die! (Valir Scans)", "The Returned C-Rank Tank Won't Die! (Valir Scans)"];
     }
 }

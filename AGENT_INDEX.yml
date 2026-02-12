@@ -227,6 +227,9 @@ modules:
       - how: Add new configuration files by introducing typed documents plus dedicated validators wired through the schema service.
         symbols: [ConfigurationSchemaService, IConfigValidator]
         paths: [SuwayomiSourceMerge/Configuration/Loading/ConfigurationSchemaService.cs, SuwayomiSourceMerge/Configuration/Validation/IConfigValidator.cs]
+      - how: Adjust default scene-tag coverage by updating the defaults factory consumed during bootstrap file creation.
+        symbols: [SceneTagsDocumentDefaults.Create]
+        paths: [SuwayomiSourceMerge/Configuration/Documents/SceneTagsDocumentDefaults.cs]
       - how: Extend title-key normalization behavior by adding optional matcher-aware transformations in the validation normalizer.
         symbols: [ValidationKeyNormalizer, ValidationKeyNormalizer.NormalizeTitleKey]
         paths: [SuwayomiSourceMerge/Configuration/Validation/ValidationKeyNormalizer.cs]
@@ -238,6 +241,7 @@ modules:
         paths: [docs/config-schema.md]
     do_not_reimplement:
       - Canonical matcher-aware title key normalization with trailing scene-tag suffix stripping; use ValidationKeyNormalizer.NormalizeTitleKey.
+      - Canonical default scene-tag list creation used for missing scene_tags.yml bootstrap; use SceneTagsDocumentDefaults.Create.
       - Canonical YAML parser behavior and parser error codes; use YamlDocumentParser.
       - Document-level parse-and-validate orchestration; use ConfigurationSchemaService.
       - Manga equivalents conflict detection rules; use MangaEquivalentsDocumentValidator.
@@ -251,13 +255,19 @@ modules:
     summary: Data-driven scene-tag phrase matching used by title normalization and cross-document validation flows.
     tags: [domain, normalization, titles]
     paths:
+      - SuwayomiSourceMerge/Domain/Normalization/ComparisonTextNormalizer.cs
       - SuwayomiSourceMerge/Domain/Normalization/ISceneTagMatcher.cs
       - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKey.cs
       - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyBuilder.cs
       - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyKind.cs
       - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatcher.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/ComparisonTextNormalizerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/SceneTagMatcherTests.cs
     entrypoints:
+      - symbol: ComparisonTextNormalizer.NormalizeTokenKey
+        kind: method
+        path: SuwayomiSourceMerge/Domain/Normalization/ComparisonTextNormalizer.cs
+        purpose: Builds lower-case ASCII token comparison keys with punctuation-insensitive separator handling.
       - symbol: ISceneTagMatcher
         kind: interface
         path: SuwayomiSourceMerge/Domain/Normalization/ISceneTagMatcher.cs
@@ -281,7 +291,11 @@ modules:
       - how: Extend scene-tag key classification and normalization semantics in one place via the shared key builder.
         symbols: [SceneTagMatchKeyBuilder.TryCreate, SceneTagMatcher, SceneTagsDocumentValidator]
         paths: [SuwayomiSourceMerge/Configuration/Validation/SceneTagsDocumentValidator.cs, SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyBuilder.cs, SuwayomiSourceMerge/Domain/Normalization/SceneTagMatcher.cs]
+      - how: Reuse shared punctuation/ASCII/token normalization primitives across validators and domain matchers.
+        symbols: [ComparisonTextNormalizer.NormalizeTokenKey, SceneTagMatchKeyBuilder.TryCreate, ValidationKeyNormalizer.NormalizeTokenKey]
+        paths: [SuwayomiSourceMerge/Configuration/Validation/ValidationKeyNormalizer.cs, SuwayomiSourceMerge/Domain/Normalization/ComparisonTextNormalizer.cs, SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyBuilder.cs]
     do_not_reimplement:
+      - Canonical ASCII-fold + punctuation-insensitive token key normalization; use ComparisonTextNormalizer.NormalizeTokenKey.
       - Canonical configured scene-tag phrase matching implementation; use SceneTagMatcher.
       - Canonical matcher-equivalent scene-tag key derivation; use SceneTagMatchKeyBuilder.TryCreate.
       - Canonical scene-tag matcher contract for normalization consumers; use ISceneTagMatcher.
@@ -511,6 +525,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/ValidationResultTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/YamlDocumentParserPropertyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/YamlDocumentParserTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/ComparisonTextNormalizerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/SceneTagMatcherTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogEventTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogFilePathPolicyTests.cs
