@@ -41,6 +41,7 @@
 - [x] 2026-02-12 - Harden mount parser/reconciliation contracts: non-throwing `TryParse` blank handling, unknown-escape preservation, normalized ordering keys, and regression coverage.
 - [x] 2026-02-12 - Address PR review feedback by using compatible `findmnt` pair-mode flags (`-n -P`) and applying minor reconciliation style cleanup.
 - [x] 2026-02-12 - Audit legacy shell `findmnt -rn -P` usages in `suwayomi_manga_daemon.sh` for util-linux compatibility and decide migration approach.
+- [x] 2026-02-13 - Address PR #11 reviewer feedback by adding timed `findmnt` pair-mode wrapper dispatching to external `findmnt` (not shell functions) under `ro_timeout`.
 - [x] 2026-02-09 - Implement branch-link preparation and override branch selection logic (preferred write branch + additional RW override branches + RO source branches). DoD: generated branch order and RW/RO flags match requirements and are validated by integration-style tests.
 - [x] 2026-02-12 - Expand cross-platform branch-planning coverage and harden path handling (Windows case-variant path dedupe, separator-safe title/link validation).
 - [x] 2026-02-13 - Harden branch-planning path safety by escaping reserved canonical dot-segments and enforcing strict child containment for override/link-derived paths.

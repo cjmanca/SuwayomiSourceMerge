@@ -970,6 +970,19 @@ findmnt_pairs() {
   fi
 }
 
+ro_timeout_findmnt_pairs() {
+  # Timed findmnt pairs-mode wrapper that always invokes the external findmnt binary.
+  local seconds="$1"
+  shift
+
+  probe_findmnt_pairs_mode >/dev/null 2>&1 || true
+  if [[ "$FINDMNT_PAIRS_MODE" == "legacy" ]]; then
+    ro_timeout "$seconds" findmnt -rn -P "$@"
+  else
+    ro_timeout "$seconds" findmnt -n -P "$@"
+  fi
+}
+
 need_cmd(){ command -v "$1" >/dev/null 2>&1 || die "Missing command: $1"; }
 
 run_cmd() {
@@ -3422,7 +3435,7 @@ collect_in_use_branchdirs() {
   # doesn't influence our cleanup logic.
   local lines=() line src fstype
   local _tmp_findmnt="$(tmpfile findmnt)"
-  ro_timeout 5 findmnt_pairs -o SOURCE,FSTYPE >"$_tmp_findmnt" 2>/dev/null || true
+  ro_timeout_findmnt_pairs 5 -o SOURCE,FSTYPE >"$_tmp_findmnt" 2>/dev/null || true
   mapfile -t lines <"$_tmp_findmnt" 2>/dev/null || true
   rm -f -- "$_tmp_findmnt" 2>/dev/null || true
 
@@ -4194,7 +4207,7 @@ if (( need_action )); then
   local _rc_cleanup_fm=0
   local _t_cleanup_fm=0
   if (( DEBUG_TIMING )); then _t_cleanup_fm="$(prof_ns)"; fi
-  ro_timeout 5 findmnt_pairs -o TARGET,FSTYPE >"$_tmp_findmnt" 2>/dev/null || _rc_cleanup_fm=$?
+  ro_timeout_findmnt_pairs 5 -o TARGET,FSTYPE >"$_tmp_findmnt" 2>/dev/null || _rc_cleanup_fm=$?
   if (( DEBUG_TIMING )); then
     prof_add "cleanup_findmnt" "$_t_cleanup_fm"
     if (( _rc_cleanup_fm == 124 )); then
@@ -4434,7 +4447,7 @@ unmount_all_mergerfs_under_local_root() {
   # Gather mounts whose FSTYPE contains "mergerfs" (covers fuse.mergerfs, fuse3.mergerfs, etc.)
   local lines=()
   local _tmp_findmnt="$(tmpfile findmnt)"
-  ro_timeout 5 findmnt_pairs -o TARGET,FSTYPE,PID >"$_tmp_findmnt" 2>/dev/null || true
+  ro_timeout_findmnt_pairs 5 -o TARGET,FSTYPE,PID >"$_tmp_findmnt" 2>/dev/null || true
   mapfile -t lines <"$_tmp_findmnt" 2>/dev/null || true
   rm -f -- "$_tmp_findmnt" 2>/dev/null || true
 
@@ -4621,7 +4634,7 @@ kill_mergerfs_mount_pids_under_local_root() {
   # If any mergerfs mount processes are still alive under LOCAL_ROOT, kill them.
   local lines=() line tgt fstype pid
   local _tmp_findmnt="$(tmpfile findmnt)"
-  ro_timeout 5 findmnt_pairs -o TARGET,FSTYPE,PID >"$_tmp_findmnt" 2>/dev/null || true
+  ro_timeout_findmnt_pairs 5 -o TARGET,FSTYPE,PID >"$_tmp_findmnt" 2>/dev/null || true
   mapfile -t lines <"$_tmp_findmnt" 2>/dev/null || true
   rm -f -- "$_tmp_findmnt" 2>/dev/null || true
 
@@ -4738,7 +4751,7 @@ stop_cmd() {
 has_mergerfs_mounts_under_local_root() {
   local lines=() line tgt fstype
   local _tmp_findmnt="$(tmpfile findmnt)"
-  ro_timeout 5 findmnt_pairs -o TARGET,FSTYPE >"$_tmp_findmnt" 2>/dev/null || true
+  ro_timeout_findmnt_pairs 5 -o TARGET,FSTYPE >"$_tmp_findmnt" 2>/dev/null || true
   mapfile -t lines <"$_tmp_findmnt" 2>/dev/null || true
   rm -f -- "$_tmp_findmnt" 2>/dev/null || true
 
