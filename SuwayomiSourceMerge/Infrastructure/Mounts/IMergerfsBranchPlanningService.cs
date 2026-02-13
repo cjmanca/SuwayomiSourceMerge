@@ -5,7 +5,6 @@ namespace SuwayomiSourceMerge.Infrastructure.Mounts;
 /// </summary>
 internal interface IMergerfsBranchPlanningService
 {
-
 	/// <summary>
 	/// Builds a deterministic mergerfs branch-link plan for one canonical title group.
 	/// </summary>

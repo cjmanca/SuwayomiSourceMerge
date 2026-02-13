@@ -508,6 +508,7 @@ RESCAN_NOW=1               # default: yes (startup rename rescan). Use --no-resc
 STARTUP_CLEANUP=1      # default: yes; best-effort cleanup if previous run died
 TIMEOUT_HAS_PRESERVE=-1       # cached check for timeout --preserve-status support
 INOTIFY_HAS_EXCLUDEI=-1      # cached check for inotifywait --excludei support
+FINDMNT_PAIRS_MODE=""     # cached findmnt pairs-mode compatibility: modern (-n -P) or legacy (-rn -P)
 INHERIT_FROM_PARENT="${INHERIT_FROM_PARENT:-1}"
 # If 1, enforce cached owner/mode on existing paths too (slower). Default 0.
 PERMS_ENFORCE_EXISTING="${PERMS_ENFORCE_EXISTING:-0}"
@@ -918,6 +919,68 @@ inotifywait_supports_excludei() {
     fi
   fi
   (( INOTIFY_HAS_EXCLUDEI == 1 ))
+}
+
+findmnt_pairs_mode_name() {
+  case "${FINDMNT_PAIRS_MODE:-}" in
+    modern) printf '%s' '-n -P' ;;
+    legacy) printf '%s' '-rn -P' ;;
+    *) printf '%s' 'unknown' ;;
+  esac
+}
+
+probe_findmnt_pairs_mode() {
+  # Cache which findmnt pairs-mode flag set is supported by the host util-linux.
+  if [[ -n "${FINDMNT_PAIRS_MODE:-}" ]]; then
+    return 0
+  fi
+
+  local tmp
+  tmp="$(tmpfile findmnt_probe)"
+
+  local modern_rc=0
+  ro_timeout 2 findmnt -n -P -o TARGET >"$tmp" 2>/dev/null || modern_rc=$?
+  if (( modern_rc == 0 )); then
+    FINDMNT_PAIRS_MODE="modern"
+    rm -f -- "$tmp" 2>/dev/null || true
+    return 0
+  fi
+
+  local legacy_rc=0
+  ro_timeout 2 findmnt -rn -P -o TARGET >"$tmp" 2>/dev/null || legacy_rc=$?
+  if (( legacy_rc == 0 )); then
+    FINDMNT_PAIRS_MODE="legacy"
+    rm -f -- "$tmp" 2>/dev/null || true
+    return 0
+  fi
+
+  FINDMNT_PAIRS_MODE="modern"
+  rm -f -- "$tmp" 2>/dev/null || true
+  log "WARN: findmnt pairs-mode probe failed (rc modern=$modern_rc legacy=$legacy_rc); defaulting to -n -P"
+  return 1
+}
+
+findmnt_pairs() {
+  # Canonical wrapper for `findmnt -P` calls with util-linux compatibility fallback.
+  probe_findmnt_pairs_mode >/dev/null 2>&1 || true
+  if [[ "$FINDMNT_PAIRS_MODE" == "legacy" ]]; then
+    findmnt -rn -P "$@"
+  else
+    findmnt -n -P "$@"
+  fi
+}
+
+ro_timeout_findmnt_pairs() {
+  # Timed findmnt pairs-mode wrapper that always invokes the external findmnt binary.
+  local seconds="$1"
+  shift
+
+  probe_findmnt_pairs_mode >/dev/null 2>&1 || true
+  if [[ "$FINDMNT_PAIRS_MODE" == "legacy" ]]; then
+    ro_timeout "$seconds" findmnt -rn -P "$@"
+  else
+    ro_timeout "$seconds" findmnt -n -P "$@"
+  fi
 }
 
 need_cmd(){ command -v "$1" >/dev/null 2>&1 || die "Missing command: $1"; }
@@ -1626,7 +1689,7 @@ build_findmnt_snapshot() {
     fstype_assoc["$target"]="$fstype"
     source_assoc["$target"]="$source"
     opts_assoc["$target"]="$opts"
-  done < <(findmnt -rn -P -o TARGET,FSTYPE,SOURCE,OPTIONS 2>/dev/null || true)
+  done < <(findmnt_pairs -o TARGET,FSTYPE,SOURCE,OPTIONS 2>/dev/null || true)
 }
 
 
@@ -3372,7 +3435,7 @@ collect_in_use_branchdirs() {
   # doesn't influence our cleanup logic.
   local lines=() line src fstype
   local _tmp_findmnt="$(tmpfile findmnt)"
-  ro_timeout 5 findmnt -n -o SOURCE,FSTYPE -P >"$_tmp_findmnt" 2>/dev/null || true
+  ro_timeout_findmnt_pairs 5 -o SOURCE,FSTYPE >"$_tmp_findmnt" 2>/dev/null || true
   mapfile -t lines <"$_tmp_findmnt" 2>/dev/null || true
   rm -f -- "$_tmp_findmnt" 2>/dev/null || true
 
@@ -4144,7 +4207,7 @@ if (( need_action )); then
   local _rc_cleanup_fm=0
   local _t_cleanup_fm=0
   if (( DEBUG_TIMING )); then _t_cleanup_fm="$(prof_ns)"; fi
-  ro_timeout 5 findmnt -n -o TARGET,FSTYPE -P >"$_tmp_findmnt" 2>/dev/null || _rc_cleanup_fm=$?
+  ro_timeout_findmnt_pairs 5 -o TARGET,FSTYPE >"$_tmp_findmnt" 2>/dev/null || _rc_cleanup_fm=$?
   if (( DEBUG_TIMING )); then
     prof_add "cleanup_findmnt" "$_t_cleanup_fm"
     if (( _rc_cleanup_fm == 124 )); then
@@ -4384,7 +4447,7 @@ unmount_all_mergerfs_under_local_root() {
   # Gather mounts whose FSTYPE contains "mergerfs" (covers fuse.mergerfs, fuse3.mergerfs, etc.)
   local lines=()
   local _tmp_findmnt="$(tmpfile findmnt)"
-  ro_timeout 5 findmnt -n -o TARGET,FSTYPE,PID -P >"$_tmp_findmnt" 2>/dev/null || true
+  ro_timeout_findmnt_pairs 5 -o TARGET,FSTYPE,PID >"$_tmp_findmnt" 2>/dev/null || true
   mapfile -t lines <"$_tmp_findmnt" 2>/dev/null || true
   rm -f -- "$_tmp_findmnt" 2>/dev/null || true
 
@@ -4571,7 +4634,7 @@ kill_mergerfs_mount_pids_under_local_root() {
   # If any mergerfs mount processes are still alive under LOCAL_ROOT, kill them.
   local lines=() line tgt fstype pid
   local _tmp_findmnt="$(tmpfile findmnt)"
-  ro_timeout 5 findmnt -n -o TARGET,FSTYPE,PID -P >"$_tmp_findmnt" 2>/dev/null || true
+  ro_timeout_findmnt_pairs 5 -o TARGET,FSTYPE,PID >"$_tmp_findmnt" 2>/dev/null || true
   mapfile -t lines <"$_tmp_findmnt" 2>/dev/null || true
   rm -f -- "$_tmp_findmnt" 2>/dev/null || true
 
@@ -4688,7 +4751,7 @@ stop_cmd() {
 has_mergerfs_mounts_under_local_root() {
   local lines=() line tgt fstype
   local _tmp_findmnt="$(tmpfile findmnt)"
-  ro_timeout 5 findmnt -n -o TARGET,FSTYPE -P >"$_tmp_findmnt" 2>/dev/null || true
+  ro_timeout_findmnt_pairs 5 -o TARGET,FSTYPE >"$_tmp_findmnt" 2>/dev/null || true
   mapfile -t lines <"$_tmp_findmnt" 2>/dev/null || true
   rm -f -- "$_tmp_findmnt" 2>/dev/null || true
 
@@ -4812,6 +4875,8 @@ run_cmd_supervisor() {
   need_cmd ln
   need_cmd stat
   need_cmd findmnt
+  probe_findmnt_pairs_mode || true
+  log "Supervisor: findmnt pairs-mode selected: $(findmnt_pairs_mode_name)"
   need_cmd mergerfs
   need_cmd flock
 

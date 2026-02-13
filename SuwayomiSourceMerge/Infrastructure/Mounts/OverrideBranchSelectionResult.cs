@@ -5,7 +5,6 @@ namespace SuwayomiSourceMerge.Infrastructure.Mounts;
 /// </summary>
 internal sealed class OverrideBranchSelectionResult
 {
-
 	/// <summary>
 	/// Initializes a new instance of the <see cref="OverrideBranchSelectionResult"/> class.
 	/// </summary>

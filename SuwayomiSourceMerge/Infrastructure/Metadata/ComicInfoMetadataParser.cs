@@ -10,7 +10,6 @@ namespace SuwayomiSourceMerge.Infrastructure.Metadata;
 /// </summary>
 internal sealed class ComicInfoMetadataParser : IComicInfoMetadataParser
 {
-
 	/// <summary>
 	/// ComicInfo series element local name.
 	/// </summary>

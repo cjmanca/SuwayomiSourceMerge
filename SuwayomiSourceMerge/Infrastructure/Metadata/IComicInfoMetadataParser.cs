@@ -13,6 +13,4 @@ internal interface IComicInfoMetadataParser
 	/// <returns><see langword="true"/> when parsing succeeds; otherwise <see langword="false"/>.</returns>
 	/// <exception cref="ArgumentException">Thrown when <paramref name="comicInfoXmlPath"/> is empty or whitespace.</exception>
 	bool TryParse(string comicInfoXmlPath, out ComicInfoMetadata? metadata);
-
 }
-

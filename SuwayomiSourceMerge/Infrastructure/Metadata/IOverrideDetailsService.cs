@@ -14,4 +14,3 @@ internal interface IOverrideDetailsService
 	OverrideDetailsResult EnsureDetailsJson(OverrideDetailsRequest request);
 
 }
-

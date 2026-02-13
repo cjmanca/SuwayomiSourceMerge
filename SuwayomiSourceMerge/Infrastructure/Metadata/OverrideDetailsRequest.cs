@@ -5,7 +5,6 @@ namespace SuwayomiSourceMerge.Infrastructure.Metadata;
 /// </summary>
 internal sealed class OverrideDetailsRequest
 {
-
 	/// <summary>
 	/// Initializes a new instance of the <see cref="OverrideDetailsRequest"/> class.
 	/// </summary>

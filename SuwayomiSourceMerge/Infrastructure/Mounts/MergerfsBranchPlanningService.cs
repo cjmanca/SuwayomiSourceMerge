@@ -7,7 +7,6 @@ namespace SuwayomiSourceMerge.Infrastructure.Mounts;
 /// </summary>
 internal sealed class MergerfsBranchPlanningService : IMergerfsBranchPlanningService
 {
-
 	/// <summary>
 	/// Mergerfs read-write mode token.
 	/// </summary>

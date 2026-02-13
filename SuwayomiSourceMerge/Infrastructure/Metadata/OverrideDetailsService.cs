@@ -8,7 +8,6 @@ namespace SuwayomiSourceMerge.Infrastructure.Metadata;
 /// </summary>
 internal sealed class OverrideDetailsService : IOverrideDetailsService
 {
-
 	/// <summary>
 	/// details.json file name.
 	/// </summary>
