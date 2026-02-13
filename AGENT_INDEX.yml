@@ -494,7 +494,7 @@ modules:
       - Canonical runtime contract for details.json ensure operations; use IOverrideDetailsService.
     related: [runtime-host, unit-test-suite]
   - id: infrastructure-mounts
-    summary: findmnt-backed mount snapshots and deterministic planner-only reconciliation for mount/remount/unmount actions.
+    summary: findmnt-backed snapshots, legacy shell pair-mode fallback, and deterministic reconciliation planning.
     tags: [infrastructure, mounts, reconciliation, runtime]
     paths:
       - SuwayomiSourceMerge/Infrastructure/Mounts/DesiredMountDefinition.cs
@@ -508,6 +508,7 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationReason.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationService.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/MountSnapshot.cs
+      - suwayomi_manga_daemon.sh
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/FindmntMountSnapshotServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/FindmntSnapshotLineParserTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MountReconciliationServiceTests.cs
@@ -540,6 +541,9 @@ modules:
       - how: Add additional snapshot metadata fields by extending MountSnapshotEntry and parser mapping in the findmnt snapshot service.
         symbols: [FindmntMountSnapshotService, FindmntSnapshotLineParser, MountSnapshotEntry]
         paths: [SuwayomiSourceMerge/Infrastructure/Mounts/FindmntMountSnapshotService.cs, SuwayomiSourceMerge/Infrastructure/Mounts/FindmntSnapshotLineParser.cs, SuwayomiSourceMerge/Infrastructure/Mounts/MountSnapshot.cs]
+      - how: Adjust legacy shell findmnt pairs-mode fallback policy via probe and wrapper functions.
+        symbols: [findmnt_pairs, probe_findmnt_pairs_mode]
+        paths: [suwayomi_manga_daemon.sh]
       - how: Swap snapshot capture sources (for example mountinfo readers) by implementing IMountSnapshotService and wiring the new service.
         symbols: [FindmntMountSnapshotService, IMountSnapshotService]
         paths: [SuwayomiSourceMerge/Infrastructure/Mounts/FindmntMountSnapshotService.cs, SuwayomiSourceMerge/Infrastructure/Mounts/IMountSnapshotService.cs]
@@ -550,6 +554,7 @@ modules:
       - Canonical reconciliation action contract for planner outputs; use MountReconciliationAction.
       - Canonical desired-vs-actual reconciliation decision engine; use MountReconciliationService.Reconcile.
       - Canonical findmnt snapshot capture and parse-warning behavior (including non-throwing parser guards and escape decoding); use FindmntMountSnapshotService.
+      - Canonical legacy shell findmnt pairs-mode compatibility wrapper; use findmnt_pairs.
       - Canonical normalized mountpoint key matching across desired/actual/forced/stale checks; use MountReconciliationService.Reconcile.
       - Canonical snapshot model consumed by mount reconciliation flows; use MountSnapshot.
     related: [infrastructure-branch-planning, infrastructure-processes, runtime-host, unit-test-suite]

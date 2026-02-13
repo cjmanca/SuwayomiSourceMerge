@@ -5,7 +5,6 @@ namespace SuwayomiSourceMerge.Infrastructure.Mounts;
 /// </summary>
 internal sealed class MergerfsBranchPlanningRequest
 {
-
 	/// <summary>
 	/// Initializes a new instance of the <see cref="MergerfsBranchPlanningRequest"/> class.
 	/// </summary>

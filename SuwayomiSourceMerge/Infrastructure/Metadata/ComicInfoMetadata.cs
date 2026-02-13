@@ -5,7 +5,6 @@ namespace SuwayomiSourceMerge.Infrastructure.Metadata;
 /// </summary>
 internal sealed class ComicInfoMetadata
 {
-
 	/// <summary>
 	/// Initializes a new instance of the <see cref="ComicInfoMetadata"/> class.
 	/// </summary>

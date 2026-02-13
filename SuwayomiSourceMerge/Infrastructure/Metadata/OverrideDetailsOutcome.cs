@@ -31,4 +31,3 @@ internal enum OverrideDetailsOutcome
 	SkippedParseFailure = 4
 
 }
-
