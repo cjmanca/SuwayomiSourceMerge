@@ -360,6 +360,79 @@ modules:
       - Canonical scene-tag matcher contract for normalization consumers; use ISceneTagMatcher.
       - Canonical title key normalization for runtime and validation call sites; use TitleKeyNormalizer.NormalizeTitleKey.
     related: [config-bootstrap-migration, config-resolution, config-schema-validation, unit-test-suite]
+  - id: infrastructure-branch-planning
+    summary: Deterministic branch-link planning with strict path containment for ordering, naming, and mount identity.
+    tags: [branching, infrastructure, mergerfs, mounts]
+    paths:
+      - SuwayomiSourceMerge/Infrastructure/Mounts/BranchIdentityService.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/BranchLinkNamingPolicy.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/IMergerfsBranchPlanningService.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/MergerfsBranchAccessMode.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/MergerfsBranchLinkDefinition.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/MergerfsBranchPlan.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/MergerfsBranchPlanningRequest.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/MergerfsBranchPlanningService.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/MergerfsSourceBranchCandidate.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/OverrideBranchSelectionEntry.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/OverrideBranchSelectionResult.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/OverrideBranchSelectionService.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/PathSafetyPolicy.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/SourceBranchOrderingService.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/BranchIdentityServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/BranchLinkNamingPolicyTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsBranchPlanningModelsTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsBranchPlanningServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/OverrideBranchSelectionResultTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/OverrideBranchSelectionServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/PathSafetyPolicyTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/SourceBranchOrderingServiceTests.cs
+    entrypoints:
+      - symbol: BranchIdentityService
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Mounts/BranchIdentityService.cs
+        purpose: Builds deterministic group ids and desired identity tokens from group keys and branch specifications.
+      - symbol: BranchLinkNamingPolicy
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Mounts/BranchLinkNamingPolicy.cs
+        purpose: Produces deterministic filesystem-safe link names for primary override, extra override, and source branches.
+      - symbol: IMergerfsBranchPlanningService
+        kind: interface
+        path: SuwayomiSourceMerge/Infrastructure/Mounts/IMergerfsBranchPlanningService.cs
+        purpose: Defines the canonical planner contract for mergerfs branch-link plan generation.
+      - symbol: MergerfsBranchPlanningService.Plan
+        kind: method
+        path: SuwayomiSourceMerge/Infrastructure/Mounts/MergerfsBranchPlanningService.cs
+        purpose: Emits ordered branch-link definitions, branch specification string, preferred override path, and desired identity token.
+      - symbol: OverrideBranchSelectionService
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Mounts/OverrideBranchSelectionService.cs
+        purpose: Chooses preferred override branch (`priority` first) with deterministic case-variant dedupe and includes additional existing override title paths.
+      - symbol: PathSafetyPolicy
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Mounts/PathSafetyPolicy.cs
+        purpose: Centralizes deterministic link-name safety, fully-qualified path normalization, dot-segment escaping, and strict child-only containment for planner paths.
+    extension_points:
+      - how: Add alternate source-branch ordering and de-duplication policies by extending source ordering service behavior.
+        symbols: [ISourcePriorityService, SourceBranchOrderingService, SourceBranchOrderingService.Order]
+        paths: [SuwayomiSourceMerge/Configuration/Resolution/ISourcePriorityService.cs, SuwayomiSourceMerge/Infrastructure/Mounts/SourceBranchOrderingService.cs]
+      - how: Adjust deterministic identity-token generation by editing group-id and branch-hash rules in branch identity service.
+        symbols: [BranchIdentityService, BranchIdentityService.BuildDesiredIdentity]
+        paths: [SuwayomiSourceMerge/Infrastructure/Mounts/BranchIdentityService.cs]
+      - how: Centralize future dot-segment escaping and containment policy changes in the shared path safety helper.
+        symbols: [OverrideBranchSelectionService, PathSafetyPolicy]
+        paths: [SuwayomiSourceMerge/Infrastructure/Mounts/OverrideBranchSelectionService.cs, SuwayomiSourceMerge/Infrastructure/Mounts/PathSafetyPolicy.cs]
+      - how: Extend override volume selection and additional-branch inclusion policy in override branch selection service.
+        symbols: [OverrideBranchSelectionService, OverrideBranchSelectionService.Select]
+        paths: [SuwayomiSourceMerge/Infrastructure/Mounts/OverrideBranchSelectionService.cs]
+    do_not_reimplement:
+      - Canonical deterministic branch identity token generation; use BranchIdentityService.
+      - Canonical deterministic branch-link naming for override/source branches; use BranchLinkNamingPolicy.
+      - Canonical deterministic branch-link planning facade output (order, RW/RO, spec, identity); use MergerfsBranchPlanningService.Plan.
+      - Canonical override preferred-volume selection with deterministic case-variant representative dedupe + additional-existing-override inclusion; use OverrideBranchSelectionService.
+      - Canonical deterministic link-name invalid-character/trailing-dot-space validation plus fully-qualified path normalization, dot-segment escaping, path equality, and strict child-only containment; use PathSafetyPolicy.
+      - Canonical source-priority ordering and duplicate-path coalescing for source branches; use SourceBranchOrderingService.Order.
+      - Canonical separator-safe title/link validation for planner request and link models; use MergerfsBranchPlanningRequest and MergerfsBranchLinkDefinition.
+    related: [config-resolution, infrastructure-mounts, infrastructure-volumes, unit-test-suite]
   - id: infrastructure-mounts
     summary: findmnt-backed mount snapshots and deterministic planner-only reconciliation for mount/remount/unmount actions.
     tags: [infrastructure, mounts, reconciliation, runtime]
@@ -419,7 +492,7 @@ modules:
       - Canonical findmnt snapshot capture and parse-warning behavior (including non-throwing parser guards and escape decoding); use FindmntMountSnapshotService.
       - Canonical normalized mountpoint key matching across desired/actual/forced/stale checks; use MountReconciliationService.Reconcile.
       - Canonical snapshot model consumed by mount reconciliation flows; use MountSnapshot.
-    related: [infrastructure-processes, runtime-host, unit-test-suite]
+    related: [infrastructure-branch-planning, infrastructure-processes, runtime-host, unit-test-suite]
   - id: infrastructure-processes
     summary: External process execution with poll-supervised timeout/cancellation, exit-precedence boundary probes, and bounded output capture.
     tags: [infrastructure, process, runtime]
@@ -721,6 +794,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/README.md
       - tests/SuwayomiSourceMerge.UnitTests/stryker-config.json
       - tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj
+      - tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/PathTestUtilities.cs
       - tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/TemporaryDirectory.cs
       - tests/SuwayomiSourceMerge.UnitTests/UnitTest1.cs
     entrypoints:
@@ -751,7 +825,7 @@ modules:
     extension_points:
       - how: Add new deterministic unit tests in the unit test project and centralize reusable fixtures/helpers for reuse.
         symbols: [ProjectLayoutTests, SuwayomiSourceMerge.UnitTests.csproj]
-        paths: [tests/SuwayomiSourceMerge.UnitTests/Configuration/ConfigurationTestData.cs, tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/TemporaryDirectory.cs, tests/SuwayomiSourceMerge.UnitTests/UnitTest1.cs]
+        paths: [tests/SuwayomiSourceMerge.UnitTests/Configuration/ConfigurationTestData.cs, tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/PathTestUtilities.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/TemporaryDirectory.cs, tests/SuwayomiSourceMerge.UnitTests/UnitTest1.cs]
       - how: Adjust mutation-test scope and score gates in the stryker configuration file.
         symbols: [stryker-config.json]
         paths: [tests/SuwayomiSourceMerge.UnitTests/stryker-config.json]

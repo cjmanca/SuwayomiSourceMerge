@@ -40,7 +40,13 @@
 - [x] 2026-02-12 - Harden mount parser/reconciliation contracts: non-throwing `TryParse` blank handling, unknown-escape preservation, normalized ordering keys, and regression coverage.
 - [x] 2026-02-12 - Address PR review feedback by using compatible `findmnt` pair-mode flags (`-n -P`) and applying minor reconciliation style cleanup.
 - [ ] 2026-02-12 - Audit legacy shell `findmnt -rn -P` usages in `suwayomi_manga_daemon.sh` for util-linux compatibility and decide migration approach.
-- [ ] 2026-02-09 - Implement branch-link preparation and override branch selection logic (preferred write branch + additional RW override branches + RO source branches). DoD: generated branch order and RW/RO flags match requirements and are validated by integration-style tests.
+- [x] 2026-02-09 - Implement branch-link preparation and override branch selection logic (preferred write branch + additional RW override branches + RO source branches). DoD: generated branch order and RW/RO flags match requirements and are validated by integration-style tests.
+- [x] 2026-02-12 - Expand cross-platform branch-planning coverage and harden path handling (Windows case-variant path dedupe, separator-safe title/link validation).
+- [x] 2026-02-13 - Harden branch-planning path safety by escaping reserved canonical dot-segments and enforcing strict child containment for override/link-derived paths.
+- [x] 2026-02-13 - Address branch-planning review notes: align path ordering/dedupe semantics, centralize path validation helpers, harden mode-token mapping and sanitize buffer strategy, and expand regression tests.
+- [x] 2026-02-13 - Follow up branch-planning review notes by fixing candidate-path `ParamName` attribution and making override-volume case-variant representative selection deterministic across input permutations.
+- [x] 2026-02-13 - Tighten branch-link name validation with deterministic cross-platform invalid-character/trailing-dot-space guards, remove unreachable planner guards, and clarify path-safety parameter semantics.
+- [x] 2026-02-13 - Harden branch-planning absolute-path validation by requiring fully-qualified paths in `PathSafetyPolicy` and adding Windows root-relative/drive-relative rejection tests.
 - [ ] 2026-02-09 - Implement `ComicInfo.xml` parsing and `details.json` creation/seeding behavior for overrides. DoD: existing `details.json` seeding and ComicInfo fallback generation both work; parsing and output mapping are covered by unit tests.
 - [ ] 2026-02-09 - Implement chapter rename rules and queue processor matching current shell behavior for v1. DoD: rename decisions and queue timing/quiet behavior match shell baseline for representative test fixtures.
 - [ ] 2026-02-09 - Implement filesystem event watcher and trigger pipeline (inotify + periodic rescans + deduped scan requests). DoD: watcher reacts to relevant events, periodic fallback works, and duplicate scans are coalesced under load in integration tests.
