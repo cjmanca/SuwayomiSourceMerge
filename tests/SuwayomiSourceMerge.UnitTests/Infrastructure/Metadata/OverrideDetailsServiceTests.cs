@@ -43,6 +43,7 @@ public sealed class OverrideDetailsServiceTests
 
 		Assert.Equal(OverrideDetailsOutcome.GeneratedFromComicInfo, result.Outcome);
 		Assert.True(result.DetailsJsonExists);
+		Assert.NotNull(result.ComicInfoXmlPath);
 		Assert.StartsWith(preferredSourcePath, result.ComicInfoXmlPath, StringComparison.Ordinal);
 		Assert.Equal("Preferred Writer", document.RootElement.GetProperty("author").GetString());
 	}
@@ -78,6 +79,7 @@ public sealed class OverrideDetailsServiceTests
 
 		Assert.Equal(OverrideDetailsOutcome.GeneratedFromComicInfo, result.Outcome);
 		Assert.True(result.DetailsJsonExists);
+		Assert.NotNull(result.ComicInfoXmlPath);
 		Assert.StartsWith(validSourcePath, result.ComicInfoXmlPath, StringComparison.Ordinal);
 		Assert.Equal("Recovered Writer", document.RootElement.GetProperty("author").GetString());
 	}
@@ -120,6 +122,38 @@ public sealed class OverrideDetailsServiceTests
 		Assert.True(result.DetailsJsonExists);
 		Assert.Equal(sourceOneDetailsPath, result.SourceDetailsJsonPath);
 		Assert.Equal("""{"seed":"first"}""", File.ReadAllText(writtenDetailsPath));
+	}
+
+	/// <summary>
+	/// Confirms seeding skips recoverable copy failures and continues to later sources.
+	/// </summary>
+	[Fact]
+	public void EnsureDetailsJson_Edge_ShouldContinueSeeding_WhenEarlierSourceDetailsIsLocked()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string preferredOverrideDirectoryPath = CreateDirectory(temporaryDirectory.Path, "override", "priority", "Manga Title");
+		string sourceOnePath = CreateDirectory(temporaryDirectory.Path, "sources", "disk1", "Source One", "Manga Title");
+		string sourceTwoPath = CreateDirectory(temporaryDirectory.Path, "sources", "disk2", "Source Two", "Manga Title");
+
+		string sourceOneDetailsPath = Path.Combine(sourceOnePath, "details.json");
+		File.WriteAllText(sourceOneDetailsPath, """{"seed":"locked"}""");
+		string sourceTwoDetailsPath = Path.Combine(sourceTwoPath, "details.json");
+		File.WriteAllText(sourceTwoDetailsPath, """{"seed":"second"}""");
+
+		using FileStream lockStream = new(sourceOneDetailsPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+
+		OverrideDetailsRequest request = CreateRequest(
+			preferredOverrideDirectoryPath,
+			[preferredOverrideDirectoryPath],
+			[sourceOnePath, sourceTwoPath]);
+		OverrideDetailsService service = new();
+
+		OverrideDetailsResult result = service.EnsureDetailsJson(request);
+		string writtenDetailsPath = Path.Combine(preferredOverrideDirectoryPath, "details.json");
+
+		Assert.Equal(OverrideDetailsOutcome.SeededFromSource, result.Outcome);
+		Assert.Equal(sourceTwoDetailsPath, result.SourceDetailsJsonPath);
+		Assert.Equal("""{"seed":"second"}""", File.ReadAllText(writtenDetailsPath));
 	}
 
 	/// <summary>
@@ -254,7 +288,7 @@ public sealed class OverrideDetailsServiceTests
 			Path.Combine(sourcePath, "Chapter 1", "ComicInfo.xml"),
 			"""
 			<ComicInfo>
-			  <Summary>Line1&lt;br /&gt;Line2&#10;Line3</Summary>
+			  <Summary>Line1<br />Line2&#10;Line3</Summary>
 			</ComicInfo>
 			""");
 

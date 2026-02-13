@@ -451,11 +451,11 @@ modules:
       - symbol: ComicInfoMetadataParser
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs
-        purpose: Parses ComicInfo files with strict XDocument parsing first and tolerant line-scanner fallback for malformed XML.
+        purpose: Parses ComicInfo files with strict XDocument parsing (including inline Summary break-markup preservation) first and tolerant line-scanner fallback for malformed XML.
       - symbol: ComicInfoMetadataParser.TryParse
         kind: method
         path: SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs
-        purpose: Parses one ComicInfo.xml path into metadata fields used by details generation.
+        purpose: Parses one ComicInfo.xml path into metadata fields used by details generation with race-tolerant read failure handling.
       - symbol: IComicInfoMetadataParser
         kind: interface
         path: SuwayomiSourceMerge/Infrastructure/Metadata/IComicInfoMetadataParser.cs
@@ -488,6 +488,7 @@ modules:
     do_not_reimplement:
       - Canonical ComicInfo strict-then-fallback parsing behavior; use ComicInfoMetadataParser.TryParse.
       - Canonical details.json ensure flow (override check, source seed, ComicInfo fallback); use OverrideDetailsService.EnsureDetailsJson.
+      - Canonical metadata best-effort IO/race handling for source seeding, candidate traversal, and details writes; use OverrideDetailsService.EnsureDetailsJson.
       - Canonical details.json existence flag semantics returned to callers; use OverrideDetailsResult.DetailsJsonExists.
       - Canonical details.json request validation and description-mode normalization; use OverrideDetailsRequest.
       - Canonical runtime contract for details.json ensure operations; use IOverrideDetailsService.

@@ -288,17 +288,23 @@ internal sealed class OverrideDetailsService : IOverrideDetailsService
 				destinationAlreadyExists = false;
 				return true;
 			}
-			catch (IOException) when (File.Exists(targetDetailsPath))
+			catch (IOException)
 			{
-				sourceDetailsJsonPath = null;
-				destinationAlreadyExists = true;
-				return false;
+				if (File.Exists(targetDetailsPath))
+				{
+					sourceDetailsJsonPath = null;
+					destinationAlreadyExists = true;
+					return false;
+				}
 			}
-			catch (UnauthorizedAccessException) when (File.Exists(targetDetailsPath))
+			catch (UnauthorizedAccessException)
 			{
-				sourceDetailsJsonPath = null;
-				destinationAlreadyExists = true;
-				return false;
+				if (File.Exists(targetDetailsPath))
+				{
+					sourceDetailsJsonPath = null;
+					destinationAlreadyExists = true;
+					return false;
+				}
 			}
 		}
 
@@ -469,15 +475,42 @@ internal sealed class OverrideDetailsService : IOverrideDetailsService
 				continue;
 			}
 
-			string[] childDirectories = Directory
-				.EnumerateDirectories(currentDirectoryPath)
-				.OrderBy(path => path, StringComparer.Ordinal)
-				.ToArray();
+			string[] childDirectories = GetOrderedChildDirectoriesSafe(currentDirectoryPath);
 
 			for (int index = childDirectories.Length - 1; index >= 0; index--)
 			{
 				pendingDirectories.Push((childDirectories[index], nextDirectoryDepth));
 			}
+		}
+	}
+
+	/// <summary>
+	/// Enumerates child directories in deterministic path order while tolerating transient filesystem races.
+	/// </summary>
+	/// <param name="directoryPath">Parent directory path.</param>
+	/// <returns>Ordered child directories, or an empty array when enumeration fails.</returns>
+	private static string[] GetOrderedChildDirectoriesSafe(string directoryPath)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(directoryPath);
+
+		try
+		{
+			return Directory
+				.EnumerateDirectories(directoryPath)
+				.OrderBy(path => path, StringComparer.Ordinal)
+				.ToArray();
+		}
+		catch (UnauthorizedAccessException)
+		{
+			return [];
+		}
+		catch (DirectoryNotFoundException)
+		{
+			return [];
+		}
+		catch (IOException)
+		{
+			return [];
 		}
 	}
 
@@ -507,14 +540,14 @@ internal sealed class OverrideDetailsService : IOverrideDetailsService
 			destinationAlreadyExists = false;
 			return true;
 		}
-		catch (IOException) when (File.Exists(detailsJsonPath))
+		catch (IOException)
 		{
-			destinationAlreadyExists = true;
+			destinationAlreadyExists = File.Exists(detailsJsonPath);
 			return false;
 		}
-		catch (UnauthorizedAccessException) when (File.Exists(detailsJsonPath))
+		catch (UnauthorizedAccessException)
 		{
-			destinationAlreadyExists = true;
+			destinationAlreadyExists = File.Exists(detailsJsonPath);
 			return false;
 		}
 	}

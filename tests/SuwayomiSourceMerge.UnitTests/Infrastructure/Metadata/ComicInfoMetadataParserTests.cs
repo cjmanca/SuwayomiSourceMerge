@@ -45,6 +45,31 @@ public sealed class ComicInfoMetadataParserTests
 	}
 
 	/// <summary>
+	/// Confirms strict parsing preserves inline Summary break tags for downstream description normalization.
+	/// </summary>
+	[Fact]
+	public void TryParse_Expected_ShouldPreserveInlineBrMarkup_InStrictSummary()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string xmlPath = Path.Combine(temporaryDirectory.Path, "ComicInfo.xml");
+		File.WriteAllText(
+			xmlPath,
+			"""
+			<ComicInfo>
+			  <Summary>Line 1<br />Line 2</Summary>
+			</ComicInfo>
+			""");
+
+		ComicInfoMetadataParser parser = new();
+
+		bool parsed = parser.TryParse(xmlPath, out ComicInfoMetadata? metadata);
+
+		Assert.True(parsed);
+		Assert.NotNull(metadata);
+		Assert.Equal("Line 1<br />Line 2", metadata.Summary);
+	}
+
+	/// <summary>
 	/// Confirms status fallback parsing uses PublishingStatusTachiyomi when Status is absent.
 	/// </summary>
 	[Fact]
@@ -178,6 +203,25 @@ public sealed class ComicInfoMetadataParserTests
 		string xmlPath = Path.Combine(temporaryDirectory.Path, "ComicInfo.xml");
 		File.WriteAllText(xmlPath, "not xml");
 
+		ComicInfoMetadataParser parser = new();
+
+		bool parsed = parser.TryParse(xmlPath, out ComicInfoMetadata? metadata);
+
+		Assert.False(parsed);
+		Assert.Null(metadata);
+	}
+
+	/// <summary>
+	/// Confirms read/open races are treated as parse failures rather than thrown exceptions.
+	/// </summary>
+	[Fact]
+	public void TryParse_Failure_ShouldReturnFalse_WhenComicInfoIsLocked()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string xmlPath = Path.Combine(temporaryDirectory.Path, "ComicInfo.xml");
+		File.WriteAllText(xmlPath, "<ComicInfo><Writer>Writer Name</Writer></ComicInfo>");
+
+		using FileStream lockStream = new(xmlPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
 		ComicInfoMetadataParser parser = new();
 
 		bool parsed = parser.TryParse(xmlPath, out ComicInfoMetadata? metadata);

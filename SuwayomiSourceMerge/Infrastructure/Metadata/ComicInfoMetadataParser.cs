@@ -52,12 +52,20 @@ internal sealed class ComicInfoMetadataParser : IComicInfoMetadataParser
 		ArgumentException.ThrowIfNullOrWhiteSpace(comicInfoXmlPath);
 
 		metadata = null;
-		if (!File.Exists(comicInfoXmlPath))
+		string xmlContent;
+		try
+		{
+			xmlContent = File.ReadAllText(comicInfoXmlPath);
+		}
+		catch (IOException)
+		{
+			return false;
+		}
+		catch (UnauthorizedAccessException)
 		{
 			return false;
 		}
 
-		string xmlContent = File.ReadAllText(comicInfoXmlPath);
 		if (string.IsNullOrWhiteSpace(xmlContent))
 		{
 			return false;
@@ -88,7 +96,7 @@ internal sealed class ComicInfoMetadataParser : IComicInfoMetadataParser
 			string series = ReadFirstElementValue(document, SERIES_ELEMENT_NAME);
 			string writer = ReadFirstElementValue(document, WRITER_ELEMENT_NAME);
 			string penciller = ReadFirstElementValue(document, PENCILLER_ELEMENT_NAME);
-			string summary = ReadFirstElementValue(document, SUMMARY_ELEMENT_NAME);
+			string summary = ReadSummaryElementValue(document);
 			string genre = ReadFirstElementValue(document, GENRE_ELEMENT_NAME);
 			string status = ReadFirstElementValue(document, STATUS_ELEMENT_NAME);
 
@@ -244,15 +252,80 @@ internal sealed class ComicInfoMetadataParser : IComicInfoMetadataParser
 		ArgumentNullException.ThrowIfNull(document);
 		ArgumentException.ThrowIfNullOrWhiteSpace(elementName);
 
-		XElement? element = document
+		XElement? element = FindFirstElement(document, elementName);
+
+		return element?.Value ?? string.Empty;
+	}
+
+	/// <summary>
+	/// Reads the first summary element value while preserving inline markup that affects line-break rendering.
+	/// </summary>
+	/// <param name="document">Parsed XML document.</param>
+	/// <returns>Summary text with inline break tags preserved for downstream normalization.</returns>
+	private static string ReadSummaryElementValue(XDocument document)
+	{
+		ArgumentNullException.ThrowIfNull(document);
+
+		XElement? summaryElement = FindFirstElement(document, SUMMARY_ELEMENT_NAME);
+		if (summaryElement is null)
+		{
+			return string.Empty;
+		}
+
+		StringBuilder builder = new();
+		foreach (XNode node in summaryElement.Nodes())
+		{
+			AppendSummaryNodeText(node, builder);
+		}
+
+		return builder.ToString();
+	}
+
+	/// <summary>
+	/// Locates the first element in the document by case-insensitive local name.
+	/// </summary>
+	/// <param name="document">Parsed XML document.</param>
+	/// <param name="elementName">Element local name.</param>
+	/// <returns>First matching element, or <see langword="null"/> when none exists.</returns>
+	private static XElement? FindFirstElement(XDocument document, string elementName)
+	{
+		ArgumentNullException.ThrowIfNull(document);
+		ArgumentException.ThrowIfNullOrWhiteSpace(elementName);
+
+		return document
 			.Descendants()
 			.FirstOrDefault(
 				candidate => string.Equals(
 					candidate.Name.LocalName,
 					elementName,
 					StringComparison.OrdinalIgnoreCase));
+	}
 
-		return element?.Value ?? string.Empty;
+	/// <summary>
+	/// Appends summary node content, preserving inline break tags while keeping other content intact.
+	/// </summary>
+	/// <param name="node">Summary node.</param>
+	/// <param name="builder">Destination builder.</param>
+	private static void AppendSummaryNodeText(XNode node, StringBuilder builder)
+	{
+		ArgumentNullException.ThrowIfNull(node);
+		ArgumentNullException.ThrowIfNull(builder);
+
+		switch (node)
+		{
+			case XCData cdata:
+				builder.Append(cdata.Value);
+				break;
+			case XText text:
+				builder.Append(text.Value);
+				break;
+			case XElement element when string.Equals(element.Name.LocalName, "br", StringComparison.OrdinalIgnoreCase):
+				builder.Append("<br />");
+				break;
+			case XElement element:
+				builder.Append(element.ToString(SaveOptions.DisableFormatting));
+				break;
+		}
 	}
 
 	/// <summary>
