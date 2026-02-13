@@ -1,5 +1,6 @@
 # TASKS.md
 
+
 - [x] 2026-02-09 - Analyze existing markdown docs and `suwayomi_manga_daemon.sh`, then finalize implementation requirements for the C# port.
 - [x] 2026-02-09 - Update documentation to reflect agreed C# port requirements and architecture decisions.
 - [x] 2026-02-09 - Bootstrap solution structure for implementation (`net9.0`, warnings-as-errors, core project folders, test projects, shared test utilities). DoD: `dotnet build` and `dotnet test` succeed; warnings are treated as errors; test projects and shared test helpers are wired into the solution.
@@ -48,7 +49,8 @@
 - [x] 2026-02-13 - Tighten branch-link name validation with deterministic cross-platform invalid-character/trailing-dot-space guards, remove unreachable planner guards, and clarify path-safety parameter semantics.
 - [x] 2026-02-13 - Harden branch-planning absolute-path validation by requiring fully-qualified paths in `PathSafetyPolicy` and adding Windows root-relative/drive-relative rejection tests.
 - [x] 2026-02-13 - Address PR #9 AI review follow-up by unifying fully-qualified path validation across branch-planning models/services, enforcing standalone title-segment safety, and adding deterministic link-name length hash-truncation.
-- [ ] 2026-02-09 - Implement `ComicInfo.xml` parsing and `details.json` creation/seeding behavior for overrides. DoD: existing `details.json` seeding and ComicInfo fallback generation both work; parsing and output mapping are covered by unit tests.
+- [x] 2026-02-09 - Implement `ComicInfo.xml` parsing and `details.json` creation/seeding behavior for overrides. DoD: existing `details.json` seeding and ComicInfo fallback generation both work; parsing and output mapping are covered by unit tests.
+- [x] 2026-02-13 - Address AI review follow-up for metadata parity by optimizing depth-limited ComicInfo discovery, deduping attempted candidates, handling copy/move destination races deterministically, and clarifying details result artifact-existence semantics.
 - [ ] 2026-02-09 - Implement chapter rename rules and queue processor matching current shell behavior for v1. DoD: rename decisions and queue timing/quiet behavior match shell baseline for representative test fixtures.
 - [ ] 2026-02-09 - Implement filesystem event watcher and trigger pipeline (inotify + periodic rescans + deduped scan requests). DoD: watcher reacts to relevant events, periodic fallback works, and duplicate scans are coalesced under load in integration tests.
 - [ ] 2026-02-09 - Implement daemon supervisor lifecycle (startup, health, lock/PID handling, graceful stop/cleanup). DoD: start/stop lifecycle is idempotent, lock behavior prevents duplicate supervisors, and cleanup paths are tested for normal and interrupted shutdown.

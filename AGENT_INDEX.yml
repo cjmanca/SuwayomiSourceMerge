@@ -433,6 +433,65 @@ modules:
       - Canonical source-priority ordering and duplicate-path coalescing for source branches; use SourceBranchOrderingService.Order.
       - Canonical separator-safe title/link validation for planner request and link models; use MergerfsBranchPlanningRequest and MergerfsBranchLinkDefinition.
     related: [config-resolution, infrastructure-mounts, infrastructure-volumes, unit-test-suite]
+  - id: infrastructure-metadata
+    summary: Override metadata seeding and ComicInfo fallback parsing that produces shell-parity details.json payloads.
+    tags: [comicinfo, details, infrastructure, metadata]
+    paths:
+      - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadata.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/IComicInfoMetadataParser.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideDetailsService.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsOutcome.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsRequest.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsResult.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComicInfoMetadataParserTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsServiceTests.cs
+    entrypoints:
+      - symbol: ComicInfoMetadataParser
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs
+        purpose: Parses ComicInfo files with strict XDocument parsing first and tolerant line-scanner fallback for malformed XML.
+      - symbol: ComicInfoMetadataParser.TryParse
+        kind: method
+        path: SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs
+        purpose: Parses one ComicInfo.xml path into metadata fields used by details generation.
+      - symbol: IComicInfoMetadataParser
+        kind: interface
+        path: SuwayomiSourceMerge/Infrastructure/Metadata/IComicInfoMetadataParser.cs
+        purpose: Defines parser contract consumed by override details generation services.
+      - symbol: IOverrideDetailsService
+        kind: interface
+        path: SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideDetailsService.cs
+        purpose: Defines canonical details.json ensure contract for seeding and ComicInfo fallback behavior.
+      - symbol: OverrideDetailsService
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs
+        purpose: Ensures details.json by checking existing overrides, seeding from sources, and generating from ComicInfo candidates.
+      - symbol: OverrideDetailsService.EnsureDetailsJson
+        kind: method
+        path: SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs
+        purpose: Executes deterministic ensure flow and returns typed outcome metadata for callers.
+    extension_points:
+      - how: Add alternate ComicInfo parsing strategies by implementing IComicInfoMetadataParser and injecting it into OverrideDetailsService.
+        symbols: [ComicInfoMetadataParser, IComicInfoMetadataParser, OverrideDetailsService]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs, SuwayomiSourceMerge/Infrastructure/Metadata/IComicInfoMetadataParser.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
+      - how: Adjust details.json output mapping (status code, description mode, genre splitting, field shape) in the override details service.
+        symbols: [OverrideDetailsService, OverrideDetailsService.EnsureDetailsJson]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
+      - how: Extend result metadata semantics exposed to callers (for example existence flags) in the override result model and service return construction.
+        symbols: [OverrideDetailsResult, OverrideDetailsService.EnsureDetailsJson]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsResult.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
+      - how: Wire runtime orchestration to metadata ensure behavior through IOverrideDetailsService instead of duplicating seed/generate logic.
+        symbols: [IOverrideDetailsService, OverrideDetailsService]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideDetailsService.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
+    do_not_reimplement:
+      - Canonical ComicInfo strict-then-fallback parsing behavior; use ComicInfoMetadataParser.TryParse.
+      - Canonical details.json ensure flow (override check, source seed, ComicInfo fallback); use OverrideDetailsService.EnsureDetailsJson.
+      - Canonical details.json existence flag semantics returned to callers; use OverrideDetailsResult.DetailsJsonExists.
+      - Canonical details.json request validation and description-mode normalization; use OverrideDetailsRequest.
+      - Canonical runtime contract for details.json ensure operations; use IOverrideDetailsService.
+    related: [runtime-host, unit-test-suite]
   - id: infrastructure-mounts
     summary: findmnt-backed mount snapshots and deterministic planner-only reconciliation for mount/remount/unmount actions.
     tags: [infrastructure, mounts, reconciliation, runtime]
@@ -786,6 +845,8 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/RollingFileSinkTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/SsmLoggerFactoryTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/StructuredTextLogFormatterTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComicInfoMetadataParserTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeDiscoveryResultTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeDiscoveryServiceContractTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeDiscoveryServiceTests.cs

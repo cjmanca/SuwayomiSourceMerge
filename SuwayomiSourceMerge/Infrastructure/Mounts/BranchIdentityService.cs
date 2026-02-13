@@ -8,6 +8,7 @@ namespace SuwayomiSourceMerge.Infrastructure.Mounts;
 /// </summary>
 internal sealed class BranchIdentityService
 {
+
 	/// <summary>
 	/// Prefix used for desired identity tokens.
 	/// </summary>

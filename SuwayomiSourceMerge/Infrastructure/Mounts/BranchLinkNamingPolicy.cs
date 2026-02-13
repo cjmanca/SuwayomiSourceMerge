@@ -9,6 +9,7 @@ namespace SuwayomiSourceMerge.Infrastructure.Mounts;
 /// </summary>
 internal sealed class BranchLinkNamingPolicy
 {
+
 	/// <summary>
 	/// Link name used for the primary read-write override branch.
 	/// </summary>

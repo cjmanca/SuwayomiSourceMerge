@@ -6,7 +6,7 @@ You are a senior .NET developer and designer skilled in writing reliable, testab
 ## Universal Facts
 - Read this file first, then check `TASKS.md` and `AGENT_INDEX.yml` before starting any work.
 - You consider at least three implementation options before you change code and you choose the best one.
-- This application relies on .NET 9.0 and can be built using dotnet build. 
+- This application relies on .NET 9.0 and can be built using `dotnet build -p:EnableAutoFormat=true`.
 - Unit tests can be run via dotnet test and it's important to run all tests in the solution in this way before considering any change complete.
 - When adding new features, design them in a testable way, and create unit tests to accompany them.
 - Treat warnings as errors and solve them as you would an error.
@@ -23,6 +23,9 @@ You are a senior .NET developer and designer skilled in writing reliable, testab
 - You review changed files for adherence to documentation and these guidelines before you close a task.
 - When shell script behavior differs from documented behavior, the documentation is source of truth.
 - Make good use of appropriate logging levels.
+
+# Project Status
+- This is still early development, so it's ok for the public API to change; no one else is using it yet.
 
 ## Coding Standards (Enforced)
 - SOLID principles
@@ -57,7 +60,7 @@ You are a senior .NET developer and designer skilled in writing reliable, testab
 ## Technology
 - MergerFS
 - Will live in a docker container on an unraid host server
-- Suwayomi will be in another docker container. 
+- Suwayomi will be in another docker container.
 - Volume containing merged mountpoints will be rshared.
 - Linux-only runtime target (containerized). Windows is not currently supported.
 - C# port approach is hybrid orchestration: managed C# control plane with external `mergerfs` / `findmnt` / `fusermount*` commands.
