@@ -65,8 +65,8 @@ internal static class PathSafetyPolicy
 		ArgumentException.ThrowIfNullOrWhiteSpace(firstPath);
 		ArgumentException.ThrowIfNullOrWhiteSpace(secondPath);
 
-		string normalizedFirstPath = NormalizeAbsolutePath(firstPath, nameof(firstPath));
-		string normalizedSecondPath = NormalizeAbsolutePath(secondPath, nameof(secondPath));
+		string normalizedFirstPath = NormalizeFullyQualifiedPath(firstPath, nameof(firstPath));
+		string normalizedSecondPath = NormalizeFullyQualifiedPath(secondPath, nameof(secondPath));
 		return string.Equals(normalizedFirstPath, normalizedSecondPath, PATH_COMPARISON);
 	}
 
@@ -156,8 +156,8 @@ internal static class PathSafetyPolicy
 		ArgumentException.ThrowIfNullOrWhiteSpace(candidatePath);
 		ArgumentException.ThrowIfNullOrWhiteSpace(paramName);
 
-		string normalizedRootPath = NormalizeAbsolutePath(rootPath, nameof(rootPath));
-		string normalizedCandidatePath = NormalizeAbsolutePath(candidatePath, paramName);
+		string normalizedRootPath = NormalizeFullyQualifiedPath(rootPath, nameof(rootPath));
+		string normalizedCandidatePath = NormalizeFullyQualifiedPath(candidatePath, paramName);
 
 		if (string.Equals(normalizedRootPath, normalizedCandidatePath, PATH_COMPARISON))
 		{
@@ -178,14 +178,17 @@ internal static class PathSafetyPolicy
 	}
 
 	/// <summary>
-	/// Normalizes and validates one absolute path value.
+	/// Normalizes and validates one fully-qualified absolute path value.
 	/// </summary>
 	/// <param name="value">Path value to normalize.</param>
 	/// <param name="paramName">Parameter name to associate with argument exceptions.</param>
 	/// <returns>Normalized absolute path.</returns>
 	/// <exception cref="ArgumentException">Thrown when <paramref name="value"/> is not fully-qualified absolute.</exception>
-	private static string NormalizeAbsolutePath(string value, string paramName)
+	public static string NormalizeFullyQualifiedPath(string value, string paramName)
 	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(value);
+		ArgumentException.ThrowIfNullOrWhiteSpace(paramName);
+
 		string trimmedPath = value.Trim();
 		if (!Path.IsPathFullyQualified(trimmedPath))
 		{

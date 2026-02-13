@@ -394,7 +394,7 @@ modules:
       - symbol: BranchLinkNamingPolicy
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Mounts/BranchLinkNamingPolicy.cs
-        purpose: Produces deterministic filesystem-safe link names for primary override, extra override, and source branches.
+        purpose: Produces deterministic filesystem-safe link names with bounded label length and hash-truncation for override/source branches.
       - symbol: IMergerfsBranchPlanningService
         kind: interface
         path: SuwayomiSourceMerge/Infrastructure/Mounts/IMergerfsBranchPlanningService.cs
@@ -410,7 +410,7 @@ modules:
       - symbol: PathSafetyPolicy
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Mounts/PathSafetyPolicy.cs
-        purpose: Centralizes deterministic link-name safety, fully-qualified path normalization, dot-segment escaping, and strict child-only containment for planner paths.
+        purpose: Centralizes deterministic link-name safety, reusable fully-qualified path normalization, dot-segment escaping, and strict child-only containment for planner paths.
     extension_points:
       - how: Add alternate source-branch ordering and de-duplication policies by extending source ordering service behavior.
         symbols: [ISourcePriorityService, SourceBranchOrderingService, SourceBranchOrderingService.Order]
@@ -426,7 +426,7 @@ modules:
         paths: [SuwayomiSourceMerge/Infrastructure/Mounts/OverrideBranchSelectionService.cs]
     do_not_reimplement:
       - Canonical deterministic branch identity token generation; use BranchIdentityService.
-      - Canonical deterministic branch-link naming for override/source branches; use BranchLinkNamingPolicy.
+      - Canonical deterministic branch-link naming with component-length-safe hash-truncation for override/source branches; use BranchLinkNamingPolicy.
       - Canonical deterministic branch-link planning facade output (order, RW/RO, spec, identity); use MergerfsBranchPlanningService.Plan.
       - Canonical override preferred-volume selection with deterministic case-variant representative dedupe + additional-existing-override inclusion; use OverrideBranchSelectionService.
       - Canonical deterministic link-name invalid-character/trailing-dot-space validation plus fully-qualified path normalization, dot-segment escaping, path equality, and strict child-only containment; use PathSafetyPolicy.

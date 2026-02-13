@@ -8,7 +8,7 @@ internal sealed class OverrideBranchSelectionResult
 	/// <summary>
 	/// Initializes a new instance of the <see cref="OverrideBranchSelectionResult"/> class.
 	/// </summary>
-	/// <param name="preferredOverridePath">Absolute preferred override path used for new writes.</param>
+	/// <param name="preferredOverridePath">Fully-qualified absolute preferred override path used for new writes.</param>
 	/// <param name="orderedEntries">Ordered override entries with preferred entry first.</param>
 	/// <exception cref="ArgumentException">Thrown when required values are missing or invalid.</exception>
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="orderedEntries"/> is <see langword="null"/>.</exception>
@@ -19,12 +19,9 @@ internal sealed class OverrideBranchSelectionResult
 		ArgumentException.ThrowIfNullOrWhiteSpace(preferredOverridePath);
 		ArgumentNullException.ThrowIfNull(orderedEntries);
 
-		if (!Path.IsPathRooted(preferredOverridePath))
-		{
-			throw new ArgumentException(
-				"Preferred override path must be an absolute path.",
-				nameof(preferredOverridePath));
-		}
+		string normalizedPreferredOverridePath = PathSafetyPolicy.NormalizeFullyQualifiedPath(
+			preferredOverridePath,
+			nameof(preferredOverridePath));
 
 		if (orderedEntries.Count == 0)
 		{
@@ -54,19 +51,19 @@ internal sealed class OverrideBranchSelectionResult
 				nameof(orderedEntries));
 		}
 
-		if (!PathSafetyPolicy.ArePathsEqual(entryArray[0].TitlePath, preferredOverridePath))
+		if (!PathSafetyPolicy.ArePathsEqual(entryArray[0].TitlePath, normalizedPreferredOverridePath))
 		{
 			throw new ArgumentException(
 				"Preferred override path must match the first override entry title path.",
 				nameof(preferredOverridePath));
 		}
 
-		PreferredOverridePath = Path.GetFullPath(preferredOverridePath.Trim());
+		PreferredOverridePath = normalizedPreferredOverridePath;
 		OrderedEntries = entryArray;
 	}
 
 	/// <summary>
-	/// Gets the absolute preferred override path.
+	/// Gets the fully-qualified absolute preferred override path.
 	/// </summary>
 	public string PreferredOverridePath
 	{

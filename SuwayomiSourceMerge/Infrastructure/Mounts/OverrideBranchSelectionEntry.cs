@@ -8,8 +8,8 @@ internal sealed class OverrideBranchSelectionEntry
 	/// <summary>
 	/// Initializes a new instance of the <see cref="OverrideBranchSelectionEntry"/> class.
 	/// </summary>
-	/// <param name="volumeRootPath">Absolute override volume root path for this entry.</param>
-	/// <param name="titlePath">Absolute per-title path under the volume root.</param>
+	/// <param name="volumeRootPath">Fully-qualified absolute override volume root path for this entry.</param>
+	/// <param name="titlePath">Fully-qualified absolute per-title path under the volume root.</param>
 	/// <param name="isPreferred">Whether this entry is the preferred write branch.</param>
 	/// <exception cref="ArgumentException">Thrown when required values are missing or invalid.</exception>
 	public OverrideBranchSelectionEntry(string volumeRootPath, string titlePath, bool isPreferred)
@@ -17,27 +17,13 @@ internal sealed class OverrideBranchSelectionEntry
 		ArgumentException.ThrowIfNullOrWhiteSpace(volumeRootPath);
 		ArgumentException.ThrowIfNullOrWhiteSpace(titlePath);
 
-		if (!Path.IsPathRooted(volumeRootPath))
-		{
-			throw new ArgumentException(
-				"Volume root path must be an absolute path.",
-				nameof(volumeRootPath));
-		}
-
-		if (!Path.IsPathRooted(titlePath))
-		{
-			throw new ArgumentException(
-				"Title path must be an absolute path.",
-				nameof(titlePath));
-		}
-
-		VolumeRootPath = Path.GetFullPath(volumeRootPath.Trim());
-		TitlePath = Path.GetFullPath(titlePath.Trim());
+		VolumeRootPath = PathSafetyPolicy.NormalizeFullyQualifiedPath(volumeRootPath, nameof(volumeRootPath));
+		TitlePath = PathSafetyPolicy.NormalizeFullyQualifiedPath(titlePath, nameof(titlePath));
 		IsPreferred = isPreferred;
 	}
 
 	/// <summary>
-	/// Gets the absolute override volume root path.
+	/// Gets the fully-qualified absolute override volume root path.
 	/// </summary>
 	public string VolumeRootPath
 	{
@@ -45,7 +31,7 @@ internal sealed class OverrideBranchSelectionEntry
 	}
 
 	/// <summary>
-	/// Gets the absolute per-title override path.
+	/// Gets the fully-qualified absolute per-title override path.
 	/// </summary>
 	public string TitlePath
 	{

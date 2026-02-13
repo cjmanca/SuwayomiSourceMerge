@@ -60,7 +60,7 @@ public sealed class BranchLinkNamingPolicyTests
 	}
 
 	/// <summary>
-	/// Verifies very large labels sanitize without stack overflow and produce deterministic output.
+	/// Verifies very large source labels sanitize without stack overflow and fit filesystem component limits.
 	/// </summary>
 	[Fact]
 	public void BuildSourceLinkName_Edge_ShouldHandleVeryLargeLabelsWithoutStackOverflow()
@@ -69,10 +69,53 @@ public sealed class BranchLinkNamingPolicyTests
 		string largeLabel = new('A', 16_384);
 
 		string linkName = policy.BuildSourceLinkName(largeLabel, 5);
+		string repeatedLinkName = policy.BuildSourceLinkName(largeLabel, 5);
+		string sanitizedLabel = linkName["10_source_".Length..^4];
 
 		Assert.StartsWith("10_source_", linkName, StringComparison.Ordinal);
 		Assert.EndsWith("_005", linkName, StringComparison.Ordinal);
-		Assert.Contains(new string('A', 256), linkName, StringComparison.Ordinal);
+		Assert.Equal(repeatedLinkName, linkName);
+		Assert.True(linkName.Length <= 255);
+		Assert.Matches("^[A]+_[0-9a-f]{12}$", sanitizedLabel);
+	}
+
+	/// <summary>
+	/// Verifies very large override volume labels are hash-truncated deterministically to fit component limits.
+	/// </summary>
+	[Fact]
+	public void BuildAdditionalOverrideLinkName_Edge_ShouldHashTruncateVeryLargeVolumeLabels()
+	{
+		BranchLinkNamingPolicy policy = new();
+		string largeVolumePath = $"/ssm/override/{new string('b', 16_384)}";
+
+		string linkName = policy.BuildAdditionalOverrideLinkName(largeVolumePath, 9);
+		string repeatedLinkName = policy.BuildAdditionalOverrideLinkName(largeVolumePath, 9);
+		string sanitizedLabel = linkName["01_override_".Length..^4];
+
+		Assert.StartsWith("01_override_", linkName, StringComparison.Ordinal);
+		Assert.EndsWith("_009", linkName, StringComparison.Ordinal);
+		Assert.Equal(repeatedLinkName, linkName);
+		Assert.True(linkName.Length <= 255);
+		Assert.Matches("^[b]+_[0-9a-f]{12}$", sanitizedLabel);
+	}
+
+	/// <summary>
+	/// Verifies long labels sharing the same prefix but different tails produce different hash-truncated link names.
+	/// </summary>
+	[Fact]
+	public void BuildSourceLinkName_Edge_ShouldProduceDistinctHashTruncation_ForDifferentLongLabels()
+	{
+		BranchLinkNamingPolicy policy = new();
+		string sharedPrefix = new('X', 4_096);
+		string firstLabel = $"{sharedPrefix}A-tail";
+		string secondLabel = $"{sharedPrefix}B-tail";
+
+		string firstLinkName = policy.BuildSourceLinkName(firstLabel, 1);
+		string secondLinkName = policy.BuildSourceLinkName(secondLabel, 1);
+
+		Assert.NotEqual(firstLinkName, secondLinkName);
+		Assert.True(firstLinkName.Length <= 255);
+		Assert.True(secondLinkName.Length <= 255);
 	}
 
 	/// <summary>

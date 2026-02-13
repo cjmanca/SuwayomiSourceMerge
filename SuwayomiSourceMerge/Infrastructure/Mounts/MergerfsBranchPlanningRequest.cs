@@ -10,8 +10,8 @@ internal sealed class MergerfsBranchPlanningRequest
 	/// </summary>
 	/// <param name="groupKey">Stable group key used for branch-directory identity generation.</param>
 	/// <param name="canonicalTitle">Canonical title name used when resolving per-title override directories.</param>
-	/// <param name="branchLinksRootPath">Absolute root directory where branch-link directories are staged.</param>
-	/// <param name="overrideVolumePaths">Absolute override volume roots used for preferred and additional override selection.</param>
+	/// <param name="branchLinksRootPath">Fully-qualified absolute root directory where branch-link directories are staged.</param>
+	/// <param name="overrideVolumePaths">Fully-qualified absolute override volume roots used for preferred and additional override selection.</param>
 	/// <param name="sourceBranches">Source branch candidates to include as read-only branches.</param>
 	/// <exception cref="ArgumentException">Thrown when required values are missing or invalid.</exception>
 	/// <exception cref="ArgumentNullException">Thrown when collections are <see langword="null"/>.</exception>
@@ -36,13 +36,9 @@ internal sealed class MergerfsBranchPlanningRequest
 				nameof(canonicalTitle));
 		}
 
-		string trimmedBranchLinksRootPath = branchLinksRootPath.Trim();
-		if (!Path.IsPathRooted(trimmedBranchLinksRootPath))
-		{
-			throw new ArgumentException(
-				"Branch-links root path must be an absolute path.",
-				nameof(branchLinksRootPath));
-		}
+		string normalizedBranchLinksRootPath = PathSafetyPolicy.NormalizeFullyQualifiedPath(
+			branchLinksRootPath,
+			nameof(branchLinksRootPath));
 
 		if (overrideVolumePaths.Count == 0)
 		{
@@ -62,15 +58,9 @@ internal sealed class MergerfsBranchPlanningRequest
 					nameof(overrideVolumePaths));
 			}
 
-			string trimmedVolumePath = volumePath.Trim();
-			if (!Path.IsPathRooted(trimmedVolumePath))
-			{
-				throw new ArgumentException(
-					$"Override volume path at index {index} must be an absolute path.",
-					nameof(overrideVolumePaths));
-			}
-
-			overrideVolumePathArray[index] = Path.GetFullPath(trimmedVolumePath);
+			overrideVolumePathArray[index] = PathSafetyPolicy.NormalizeFullyQualifiedPath(
+				volumePath,
+				nameof(overrideVolumePaths));
 		}
 
 		MergerfsSourceBranchCandidate[] sourceBranchArray = new MergerfsSourceBranchCandidate[sourceBranches.Count];
@@ -89,7 +79,7 @@ internal sealed class MergerfsBranchPlanningRequest
 
 		GroupKey = groupKey.Trim();
 		CanonicalTitle = trimmedCanonicalTitle;
-		BranchLinksRootPath = Path.GetFullPath(trimmedBranchLinksRootPath);
+		BranchLinksRootPath = normalizedBranchLinksRootPath;
 		OverrideVolumePaths = overrideVolumePathArray;
 		SourceBranches = sourceBranchArray;
 	}
@@ -111,7 +101,7 @@ internal sealed class MergerfsBranchPlanningRequest
 	}
 
 	/// <summary>
-	/// Gets the absolute root directory for branch-link staging.
+	/// Gets the fully-qualified absolute root directory for branch-link staging.
 	/// </summary>
 	public string BranchLinksRootPath
 	{
@@ -119,7 +109,7 @@ internal sealed class MergerfsBranchPlanningRequest
 	}
 
 	/// <summary>
-	/// Gets the absolute override volume root paths used for override selection.
+	/// Gets the fully-qualified absolute override volume root paths used for override selection.
 	/// </summary>
 	public IReadOnlyList<string> OverrideVolumePaths
 	{

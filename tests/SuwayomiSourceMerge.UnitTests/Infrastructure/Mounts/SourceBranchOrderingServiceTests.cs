@@ -15,6 +15,11 @@ public sealed class SourceBranchOrderingServiceTests
 	[Fact]
 	public void Order_Expected_ShouldSortByPriorityThenSourceNameThenPath()
 	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string sourceBPath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "sources", "disk2", "source-b")).FullName;
+		string sourceAPath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "sources", "disk1", "source-a")).FullName;
+		string sourceCPath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "sources", "disk3", "source-c")).FullName;
+
 		SourceBranchOrderingService service = new();
 		FakeSourcePriorityService priorityService = new(
 			new Dictionary<string, int>(StringComparer.Ordinal)
@@ -25,9 +30,9 @@ public sealed class SourceBranchOrderingServiceTests
 
 		IReadOnlyList<MergerfsSourceBranchCandidate> ordered = service.Order(
 			[
-				new MergerfsSourceBranchCandidate("Source B", "/ssm/sources/disk2/source-b"),
-				new MergerfsSourceBranchCandidate("Source A", "/ssm/sources/disk1/source-a"),
-				new MergerfsSourceBranchCandidate("Source C", "/ssm/sources/disk3/source-c")
+				new MergerfsSourceBranchCandidate("Source B", sourceBPath),
+				new MergerfsSourceBranchCandidate("Source A", sourceAPath),
+				new MergerfsSourceBranchCandidate("Source C", sourceCPath)
 			],
 			priorityService);
 
@@ -42,6 +47,7 @@ public sealed class SourceBranchOrderingServiceTests
 	[Fact]
 	public void Order_Edge_ShouldDeduplicateBySourcePath_AfterSorting()
 	{
+		using TemporaryDirectory temporaryDirectory = new();
 		SourceBranchOrderingService service = new();
 		FakeSourcePriorityService priorityService = new(
 			new Dictionary<string, int>(StringComparer.Ordinal)
@@ -49,7 +55,7 @@ public sealed class SourceBranchOrderingServiceTests
 				["Preferred"] = 0,
 				["Secondary"] = 1
 			});
-		string sharedSourcePath = "/ssm/sources/disk1/shared-path";
+		string sharedSourcePath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "sources", "disk1", "shared-path")).FullName;
 
 		IReadOnlyList<MergerfsSourceBranchCandidate> ordered = service.Order(
 			[
@@ -69,6 +75,11 @@ public sealed class SourceBranchOrderingServiceTests
 	[Fact]
 	public void Order_Edge_ShouldUseFallbackPriorityForUnknownSources()
 	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string unknownZPath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "sources", "z")).FullName;
+		string knownPath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "sources", "a")).FullName;
+		string unknownAPath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "sources", "y")).FullName;
+
 		SourceBranchOrderingService service = new();
 		FakeSourcePriorityService priorityService = new(
 			new Dictionary<string, int>(StringComparer.Ordinal)
@@ -78,9 +89,9 @@ public sealed class SourceBranchOrderingServiceTests
 
 		IReadOnlyList<MergerfsSourceBranchCandidate> ordered = service.Order(
 			[
-				new MergerfsSourceBranchCandidate("Unknown Z", "/ssm/sources/z"),
-				new MergerfsSourceBranchCandidate("Known", "/ssm/sources/a"),
-				new MergerfsSourceBranchCandidate("Unknown A", "/ssm/sources/y")
+				new MergerfsSourceBranchCandidate("Unknown Z", unknownZPath),
+				new MergerfsSourceBranchCandidate("Known", knownPath),
+				new MergerfsSourceBranchCandidate("Unknown A", unknownAPath)
 			],
 			priorityService);
 

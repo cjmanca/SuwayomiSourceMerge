@@ -9,7 +9,7 @@ internal sealed class MergerfsSourceBranchCandidate
 	/// Initializes a new instance of the <see cref="MergerfsSourceBranchCandidate"/> class.
 	/// </summary>
 	/// <param name="sourceName">Logical source name used for ordering and link naming.</param>
-	/// <param name="sourcePath">Absolute source path to include as a mergerfs source branch.</param>
+	/// <param name="sourcePath">Fully-qualified absolute source path to include as a mergerfs source branch.</param>
 	/// <exception cref="ArgumentException">
 	/// Thrown when <paramref name="sourceName"/> or <paramref name="sourcePath"/> is null, empty, or invalid.
 	/// </exception>
@@ -26,16 +26,8 @@ internal sealed class MergerfsSourceBranchCandidate
 				nameof(sourceName));
 		}
 
-		string trimmedSourcePath = sourcePath.Trim();
-		if (!Path.IsPathRooted(trimmedSourcePath))
-		{
-			throw new ArgumentException(
-				"Source path must be an absolute path.",
-				nameof(sourcePath));
-		}
-
 		SourceName = trimmedSourceName;
-		SourcePath = Path.GetFullPath(trimmedSourcePath);
+		SourcePath = PathSafetyPolicy.NormalizeFullyQualifiedPath(sourcePath, nameof(sourcePath));
 	}
 
 	/// <summary>
@@ -47,7 +39,7 @@ internal sealed class MergerfsSourceBranchCandidate
 	}
 
 	/// <summary>
-	/// Gets the absolute source path.
+	/// Gets the fully-qualified absolute source path.
 	/// </summary>
 	public string SourcePath
 	{

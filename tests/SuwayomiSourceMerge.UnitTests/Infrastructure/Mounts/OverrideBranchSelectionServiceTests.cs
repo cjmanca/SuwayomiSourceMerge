@@ -223,9 +223,31 @@ public sealed class OverrideBranchSelectionServiceTests
 	public void Select_Failure_ShouldThrow_WhenInputIsInvalid()
 	{
 		OverrideBranchSelectionService service = new();
+		using TemporaryDirectory temporaryDirectory = new();
+		string validOverrideVolumePath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "override", "priority")).FullName;
 
-		Assert.ThrowsAny<ArgumentException>(() => service.Select(null!, ["/ssm/override/priority"]));
+		Assert.ThrowsAny<ArgumentException>(() => service.Select(null!, [validOverrideVolumePath]));
 		Assert.ThrowsAny<ArgumentException>(() => service.Select("Title", []));
 		Assert.ThrowsAny<ArgumentException>(() => service.Select("Title", [null!]));
+		Assert.ThrowsAny<ArgumentException>(() => service.Select("Bad/Title", [validOverrideVolumePath]));
+		Assert.ThrowsAny<ArgumentException>(() => service.Select(@"Bad\Title", [validOverrideVolumePath]));
+	}
+
+	/// <summary>
+	/// Verifies Windows rooted-but-not-fully-qualified override volume inputs are rejected.
+	/// </summary>
+	[Fact]
+	public void Select_Failure_ShouldThrow_WhenOverrideVolumePathsAreWindowsRootedButNotFullyQualified()
+	{
+		if (!OperatingSystem.IsWindows())
+		{
+			return;
+		}
+
+		OverrideBranchSelectionService service = new();
+		string driveRelativePath = $"{Path.GetPathRoot(Path.GetTempPath())![0]}:drive-relative";
+
+		Assert.ThrowsAny<ArgumentException>(() => service.Select("Title", [@"\root-relative"]));
+		Assert.ThrowsAny<ArgumentException>(() => service.Select("Title", [driveRelativePath]));
 	}
 }

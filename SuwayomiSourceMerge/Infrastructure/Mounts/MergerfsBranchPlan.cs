@@ -8,8 +8,8 @@ internal sealed class MergerfsBranchPlan
 	/// <summary>
 	/// Initializes a new instance of the <see cref="MergerfsBranchPlan"/> class.
 	/// </summary>
-	/// <param name="preferredOverridePath">Absolute preferred override directory path used for new writes.</param>
-	/// <param name="branchDirectoryPath">Absolute branch-link directory path derived from branch-links root and group id.</param>
+	/// <param name="preferredOverridePath">Fully-qualified absolute preferred override directory path used for new writes.</param>
+	/// <param name="branchDirectoryPath">Fully-qualified absolute branch-link directory path derived from branch-links root and group id.</param>
 	/// <param name="branchSpecification">Deterministic mergerfs branch specification string.</param>
 	/// <param name="desiredIdentity">Deterministic desired identity token for remount detection.</param>
 	/// <param name="groupId">Deterministic group id derived from the group key.</param>
@@ -31,19 +31,12 @@ internal sealed class MergerfsBranchPlan
 		ArgumentException.ThrowIfNullOrWhiteSpace(groupId);
 		ArgumentNullException.ThrowIfNull(branchLinks);
 
-		if (!Path.IsPathRooted(preferredOverridePath))
-		{
-			throw new ArgumentException(
-				"Preferred override path must be an absolute path.",
-				nameof(preferredOverridePath));
-		}
-
-		if (!Path.IsPathRooted(branchDirectoryPath))
-		{
-			throw new ArgumentException(
-				"Branch directory path must be an absolute path.",
-				nameof(branchDirectoryPath));
-		}
+		string normalizedPreferredOverridePath = PathSafetyPolicy.NormalizeFullyQualifiedPath(
+			preferredOverridePath,
+			nameof(preferredOverridePath));
+		string normalizedBranchDirectoryPath = PathSafetyPolicy.NormalizeFullyQualifiedPath(
+			branchDirectoryPath,
+			nameof(branchDirectoryPath));
 
 		if (branchLinks.Count == 0)
 		{
@@ -66,8 +59,8 @@ internal sealed class MergerfsBranchPlan
 			branchLinkArray[index] = definition;
 		}
 
-		PreferredOverridePath = Path.GetFullPath(preferredOverridePath.Trim());
-		BranchDirectoryPath = Path.GetFullPath(branchDirectoryPath.Trim());
+		PreferredOverridePath = normalizedPreferredOverridePath;
+		BranchDirectoryPath = normalizedBranchDirectoryPath;
 		BranchSpecification = branchSpecification;
 		DesiredIdentity = desiredIdentity;
 		GroupId = groupId;
@@ -83,7 +76,7 @@ internal sealed class MergerfsBranchPlan
 	}
 
 	/// <summary>
-	/// Gets the absolute branch-link directory path.
+	/// Gets the fully-qualified absolute branch-link directory path.
 	/// </summary>
 	public string BranchDirectoryPath
 	{

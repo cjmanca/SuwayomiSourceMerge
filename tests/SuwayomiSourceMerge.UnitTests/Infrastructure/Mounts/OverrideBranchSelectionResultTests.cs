@@ -81,4 +81,32 @@ public sealed class OverrideBranchSelectionResultTests
 				differentTitlePath,
 				[preferredEntry]));
 	}
+
+	/// <summary>
+	/// Verifies constructor rejects Windows rooted-but-not-fully-qualified preferred paths.
+	/// </summary>
+	[Fact]
+	public void Constructor_Failure_ShouldThrow_WhenPreferredPathIsWindowsRootedButNotFullyQualified()
+	{
+		if (!OperatingSystem.IsWindows())
+		{
+			return;
+		}
+
+		using TemporaryDirectory temporaryDirectory = new();
+		string overrideVolumePath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "override", "priority")).FullName;
+		string titlePath = Directory.CreateDirectory(Path.Combine(overrideVolumePath, "Manga Title")).FullName;
+		OverrideBranchSelectionEntry preferredEntry = new(overrideVolumePath, titlePath, isPreferred: true);
+		string driveRelativePath = $"{Path.GetPathRoot(Path.GetTempPath())![0]}:drive-relative";
+
+		Assert.ThrowsAny<ArgumentException>(
+			() => new OverrideBranchSelectionResult(
+				@"\root-relative",
+				[preferredEntry]));
+
+		Assert.ThrowsAny<ArgumentException>(
+			() => new OverrideBranchSelectionResult(
+				driveRelativePath,
+				[preferredEntry]));
+	}
 }

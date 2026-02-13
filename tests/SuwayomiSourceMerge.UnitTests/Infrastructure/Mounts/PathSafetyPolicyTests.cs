@@ -37,6 +37,42 @@ public sealed class PathSafetyPolicyTests
 	}
 
 	/// <summary>
+	/// Verifies fully-qualified path normalization trims and resolves canonical absolute paths.
+	/// </summary>
+	[Fact]
+	public void NormalizeFullyQualifiedPath_Expected_ShouldTrimAndNormalizePath()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string nestedPath = Path.Combine(temporaryDirectory.Path, "root", "child", "..", "title");
+		string expectedPath = Path.GetFullPath(Path.Combine(temporaryDirectory.Path, "root", "title"));
+
+		string normalizedPath = PathSafetyPolicy.NormalizeFullyQualifiedPath(
+			$"  {nestedPath}  ",
+			"pathValue");
+
+		Assert.Equal(expectedPath, normalizedPath);
+	}
+
+	/// <summary>
+	/// Verifies fully-qualified path normalization rejects Windows rooted-but-not-fully-qualified forms.
+	/// </summary>
+	[Fact]
+	public void NormalizeFullyQualifiedPath_Failure_ShouldThrow_ForWindowsRootedButNotFullyQualifiedPath()
+	{
+		if (!OperatingSystem.IsWindows())
+		{
+			return;
+		}
+
+		string driveRelativePath = $"{Path.GetPathRoot(Path.GetTempPath())![0]}:drive-relative";
+
+		Assert.Throws<ArgumentException>(
+			() => PathSafetyPolicy.NormalizeFullyQualifiedPath(@"\root-relative", "pathValue"));
+		Assert.Throws<ArgumentException>(
+			() => PathSafetyPolicy.NormalizeFullyQualifiedPath(driveRelativePath, "pathValue"));
+	}
+
+	/// <summary>
 	/// Verifies strict-child validation returns normalized child paths that stay under the root.
 	/// </summary>
 	[Fact]

@@ -19,7 +19,7 @@ internal sealed class OverrideBranchSelectionService
 	/// Selects deterministic override branch paths using the preferred-then-existing policy.
 	/// </summary>
 	/// <param name="canonicalTitle">Canonical title used for per-title override directory resolution.</param>
-	/// <param name="overrideVolumePaths">Absolute override volume roots.</param>
+	/// <param name="overrideVolumePaths">Fully-qualified absolute override volume roots.</param>
 	/// <returns>Deterministic override selection result with preferred entry first.</returns>
 	/// <exception cref="ArgumentException">Thrown when required values are missing or invalid.</exception>
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="overrideVolumePaths"/> is <see langword="null"/>.</exception>
@@ -30,9 +30,17 @@ internal sealed class OverrideBranchSelectionService
 		ArgumentException.ThrowIfNullOrWhiteSpace(canonicalTitle);
 		ArgumentNullException.ThrowIfNull(overrideVolumePaths);
 
+		string trimmedCanonicalTitle = canonicalTitle.Trim();
+		if (PathSafetyPolicy.ContainsDirectorySeparator(trimmedCanonicalTitle))
+		{
+			throw new ArgumentException(
+				"Canonical title must not contain directory separators.",
+				nameof(canonicalTitle));
+		}
+
 		string[] normalizedOverrideVolumes = NormalizeOverrideVolumes(overrideVolumePaths);
 		string preferredVolumePath = ResolvePreferredVolumePath(normalizedOverrideVolumes);
-		string preferredOverridePath = BuildTitlePath(preferredVolumePath, canonicalTitle);
+		string preferredOverridePath = BuildTitlePath(preferredVolumePath, trimmedCanonicalTitle);
 
 		List<OverrideBranchSelectionEntry> orderedEntries =
 		[
@@ -54,7 +62,7 @@ internal sealed class OverrideBranchSelectionService
 				continue;
 			}
 
-			string candidateTitlePath = BuildTitlePath(overrideVolumePath, canonicalTitle);
+			string candidateTitlePath = BuildTitlePath(overrideVolumePath, trimmedCanonicalTitle);
 			if (!Directory.Exists(candidateTitlePath))
 			{
 				continue;
@@ -100,15 +108,10 @@ internal sealed class OverrideBranchSelectionService
 					nameof(overrideVolumePaths));
 			}
 
-			string trimmedVolumePath = volumePath.Trim();
-			if (!Path.IsPathRooted(trimmedVolumePath))
-			{
-				throw new ArgumentException(
-					$"Override volume path at index {index} must be an absolute path.",
-					nameof(overrideVolumePaths));
-			}
-
-			normalizedPaths.Add(Path.GetFullPath(trimmedVolumePath));
+			normalizedPaths.Add(
+				PathSafetyPolicy.NormalizeFullyQualifiedPath(
+					volumePath,
+					nameof(overrideVolumePaths)));
 		}
 
 		string[] orderedPaths = normalizedPaths
@@ -153,9 +156,9 @@ internal sealed class OverrideBranchSelectionService
 	/// <summary>
 	/// Builds a normalized title path under one override volume.
 	/// </summary>
-	/// <param name="overrideVolumePath">Absolute override volume path.</param>
+	/// <param name="overrideVolumePath">Fully-qualified absolute override volume path.</param>
 	/// <param name="canonicalTitle">Canonical title segment.</param>
-	/// <returns>Absolute per-title override path.</returns>
+	/// <returns>Fully-qualified absolute per-title override path.</returns>
 	private static string BuildTitlePath(string overrideVolumePath, string canonicalTitle)
 	{
 		string escapedTitleSegment = PathSafetyPolicy.EscapeReservedSegment(canonicalTitle);

@@ -1,4 +1,6 @@
 using System.Buffers;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace SuwayomiSourceMerge.Infrastructure.Mounts;
 
@@ -33,6 +35,47 @@ internal sealed class BranchLinkNamingPolicy
 	private const int STACKALLOC_SANITIZE_THRESHOLD = 256;
 
 	/// <summary>
+	/// Maximum allowed filesystem path component length for generated link names.
+	/// </summary>
+	private const int MAX_LINK_NAME_COMPONENT_LENGTH = 255;
+
+	/// <summary>
+	/// Delimiter length used between link-name parts.
+	/// </summary>
+	private const int LINK_LABEL_DELIMITER_LENGTH = 1;
+
+	/// <summary>
+	/// Length of the zero-padded branch index token.
+	/// </summary>
+	private const int ZERO_PADDED_INDEX_LENGTH = 3;
+
+	/// <summary>
+	/// Length of the <c>_000</c>-style suffix in generated link names.
+	/// </summary>
+	private const int INDEX_SUFFIX_LENGTH = LINK_LABEL_DELIMITER_LENGTH + ZERO_PADDED_INDEX_LENGTH;
+
+	/// <summary>
+	/// Length of the hash suffix appended when long labels are truncated.
+	/// </summary>
+	private const int HASH_SUFFIX_HEX_LENGTH = 12;
+
+	/// <summary>
+	/// Maximum sanitized label length for additional-override link names.
+	/// </summary>
+	private static readonly int ADDITIONAL_OVERRIDE_LABEL_MAX_LENGTH = MAX_LINK_NAME_COMPONENT_LENGTH
+		- EXTRA_OVERRIDE_PREFIX.Length
+		- LINK_LABEL_DELIMITER_LENGTH
+		- INDEX_SUFFIX_LENGTH;
+
+	/// <summary>
+	/// Maximum sanitized label length for source link names.
+	/// </summary>
+	private static readonly int SOURCE_LABEL_MAX_LENGTH = MAX_LINK_NAME_COMPONENT_LENGTH
+		- SOURCE_PREFIX.Length
+		- LINK_LABEL_DELIMITER_LENGTH
+		- INDEX_SUFFIX_LENGTH;
+
+	/// <summary>
 	/// Builds the deterministic primary override link name.
 	/// </summary>
 	/// <returns>Primary override link name.</returns>
@@ -53,7 +96,7 @@ internal sealed class BranchLinkNamingPolicy
 		ArgumentOutOfRangeException.ThrowIfNegative(index);
 
 		string volumeLabel = Path.GetFileName(Path.TrimEndingDirectorySeparator(overrideVolumeRootPath.Trim()));
-		string sanitizedLabel = SanitizeSegment(volumeLabel);
+		string sanitizedLabel = SanitizeSegment(volumeLabel, ADDITIONAL_OVERRIDE_LABEL_MAX_LENGTH);
 		return $"{EXTRA_OVERRIDE_PREFIX}_{sanitizedLabel}_{index:000}";
 	}
 
@@ -68,7 +111,7 @@ internal sealed class BranchLinkNamingPolicy
 		ArgumentException.ThrowIfNullOrWhiteSpace(sourceName);
 		ArgumentOutOfRangeException.ThrowIfNegative(index);
 
-		string sanitizedLabel = SanitizeSegment(sourceName);
+		string sanitizedLabel = SanitizeSegment(sourceName, SOURCE_LABEL_MAX_LENGTH);
 		return $"{SOURCE_PREFIX}_{sanitizedLabel}_{index:000}";
 	}
 
@@ -76,9 +119,12 @@ internal sealed class BranchLinkNamingPolicy
 	/// Sanitizes link-label text using filesystem-safe ASCII-only behavior.
 	/// </summary>
 	/// <param name="value">Raw label text.</param>
+	/// <param name="maxLabelLength">Maximum allowed length of the sanitized label segment.</param>
 	/// <returns>Sanitized label value.</returns>
-	private static string SanitizeSegment(string value)
+	private static string SanitizeSegment(string value, int maxLabelLength)
 	{
+		ArgumentOutOfRangeException.ThrowIfLessThan(maxLabelLength, 1);
+
 		if (string.IsNullOrWhiteSpace(value))
 		{
 			return EMPTY_LABEL_FALLBACK;
@@ -118,17 +164,75 @@ internal sealed class BranchLinkNamingPolicy
 
 			string candidate = new(buffer[..outputIndex]);
 			string trimmedCandidate = candidate.Trim('_');
-			return trimmedCandidate.Length == 0
+			string normalizedLabel = trimmedCandidate.Length == 0
 				? EMPTY_LABEL_FALLBACK
 				: trimmedCandidate;
+			return EnsureLabelLength(normalizedLabel, maxLabelLength);
 		}
 		finally
 		{
 			if (rentedBuffer is not null)
 			{
-				ArrayPool<char>.Shared.Return(rentedBuffer, clearArray: true);
+				ArrayPool<char>.Shared.Return(rentedBuffer, clearArray: false);
 			}
 		}
+	}
+
+	/// <summary>
+	/// Ensures one sanitized label fits within the requested maximum length.
+	/// </summary>
+	/// <param name="label">Sanitized label text.</param>
+	/// <param name="maxLabelLength">Maximum allowed label length.</param>
+	/// <returns>Label text constrained to <paramref name="maxLabelLength"/> characters.</returns>
+	private static string EnsureLabelLength(string label, int maxLabelLength)
+	{
+		if (label.Length <= maxLabelLength)
+		{
+			return label;
+		}
+
+		string hashSuffix = ComputeHashPrefix(label, HASH_SUFFIX_HEX_LENGTH);
+		if (maxLabelLength <= HASH_SUFFIX_HEX_LENGTH)
+		{
+			return hashSuffix[..maxLabelLength];
+		}
+
+		int prefixBudget = maxLabelLength - LINK_LABEL_DELIMITER_LENGTH - HASH_SUFFIX_HEX_LENGTH;
+		string prefix = label[..prefixBudget].TrimEnd('_');
+		if (prefix.Length == 0)
+		{
+			prefix = EMPTY_LABEL_FALLBACK;
+		}
+
+		string candidate = $"{prefix}_{hashSuffix}";
+		if (candidate.Length <= maxLabelLength)
+		{
+			return candidate;
+		}
+
+		int overflowLength = candidate.Length - maxLabelLength;
+		if (overflowLength >= prefix.Length)
+		{
+			return hashSuffix[..maxLabelLength];
+		}
+
+		string truncatedPrefix = prefix[..(prefix.Length - overflowLength)];
+		return $"{truncatedPrefix}_{hashSuffix}";
+	}
+
+	/// <summary>
+	/// Computes a lowercase SHA-256 hash prefix for deterministic truncation suffixes.
+	/// </summary>
+	/// <param name="value">Input text to hash.</param>
+	/// <param name="length">Requested hash-prefix length.</param>
+	/// <returns>Lowercase hexadecimal hash prefix.</returns>
+	private static string ComputeHashPrefix(string value, int length)
+	{
+		ArgumentOutOfRangeException.ThrowIfLessThan(length, 1);
+
+		byte[] hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+		string hashText = Convert.ToHexString(hashBytes).ToLowerInvariant();
+		return hashText[..length];
 	}
 
 	/// <summary>

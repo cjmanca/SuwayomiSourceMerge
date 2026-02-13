@@ -9,15 +9,17 @@ using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 public sealed class MergerfsBranchPlanningModelsTests
 {
 	/// <summary>
-	/// Verifies source branch candidates preserve logical source names and normalize rooted paths.
+	/// Verifies source branch candidates preserve logical source names and normalize fully-qualified paths.
 	/// </summary>
 	[Fact]
 	public void MergerfsSourceBranchCandidate_Expected_ShouldStoreSourceNameAndPath()
 	{
-		MergerfsSourceBranchCandidate candidate = new("Source A", "/ssm/sources/disk1/source-a");
+		using TemporaryDirectory temporaryDirectory = new();
+		string sourcePath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "sources", "disk1", "source-a")).FullName;
+		MergerfsSourceBranchCandidate candidate = new("Source A", sourcePath);
 
 		Assert.Equal("Source A", candidate.SourceName);
-		Assert.Equal(Path.GetFullPath("/ssm/sources/disk1/source-a"), candidate.SourcePath);
+		Assert.Equal(Path.GetFullPath(sourcePath), candidate.SourcePath);
 	}
 
 	/// <summary>
@@ -44,13 +46,18 @@ public sealed class MergerfsBranchPlanningModelsTests
 	[Fact]
 	public void MergerfsBranchPlanningRequest_Expected_ShouldStoreRequestValues()
 	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string branchLinksRootPath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "state", ".mergerfs-branches")).FullName;
+		string overrideVolumePath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "override", "priority")).FullName;
+		string sourcePath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "sources", "disk1", "source-a")).FullName;
+
 		MergerfsBranchPlanningRequest request = new(
 			"group-1",
 			"Manga Title",
-			"/ssm/state/.mergerfs-branches",
-			["/ssm/override/priority"],
+			branchLinksRootPath,
+			[overrideVolumePath],
 			[
-				new MergerfsSourceBranchCandidate("Source A", "/ssm/sources/disk1/source-a")
+				new MergerfsSourceBranchCandidate("Source A", sourcePath)
 			]);
 
 		Assert.Equal("group-1", request.GroupKey);
@@ -91,27 +98,31 @@ public sealed class MergerfsBranchPlanningModelsTests
 	[Fact]
 	public void MergerfsBranchPlanningRequest_Failure_ShouldThrow_WhenInputIsInvalid()
 	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string branchLinksRootPath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "branchlinks")).FullName;
+		string overrideVolumePath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "override", "priority")).FullName;
+
 		Assert.ThrowsAny<ArgumentException>(
 			() => new MergerfsBranchPlanningRequest(
 				"group",
 				"Bad/Title",
-				"/ssm/branchlinks",
-				["/ssm/override/priority"],
+				branchLinksRootPath,
+				[overrideVolumePath],
 				[]));
 
 		Assert.ThrowsAny<ArgumentException>(
 			() => new MergerfsBranchPlanningRequest(
 				"group",
 				@"Bad\Title",
-				"/ssm/branchlinks",
-				["/ssm/override/priority"],
+				branchLinksRootPath,
+				[overrideVolumePath],
 				[]));
 
 		Assert.ThrowsAny<ArgumentException>(
 			() => new MergerfsBranchPlanningRequest(
 				"group",
 				"Title",
-				"/ssm/branchlinks",
+				branchLinksRootPath,
 				[],
 				[]));
 
@@ -119,7 +130,7 @@ public sealed class MergerfsBranchPlanningModelsTests
 			() => new MergerfsBranchPlanningRequest(
 				"group",
 				"Title",
-				"/ssm/branchlinks",
+				branchLinksRootPath,
 				[null!],
 				[]));
 
@@ -127,9 +138,28 @@ public sealed class MergerfsBranchPlanningModelsTests
 			() => new MergerfsBranchPlanningRequest(
 				"group",
 				"Title",
-				"/ssm/branchlinks",
-				["/ssm/override/priority"],
+				branchLinksRootPath,
+				[overrideVolumePath],
 				[null!]));
+	}
+
+	/// <summary>
+	/// Verifies source branch candidates reject Windows rooted-but-not-fully-qualified path inputs.
+	/// </summary>
+	[Fact]
+	public void MergerfsSourceBranchCandidate_Failure_ShouldThrow_WhenPathIsWindowsRootedButNotFullyQualified()
+	{
+		if (!OperatingSystem.IsWindows())
+		{
+			return;
+		}
+
+		string driveRelativePath = $"{Path.GetPathRoot(Path.GetTempPath())![0]}:drive-relative";
+
+		Assert.ThrowsAny<ArgumentException>(
+			() => new MergerfsSourceBranchCandidate("Source A", @"\root-relative"));
+		Assert.ThrowsAny<ArgumentException>(
+			() => new MergerfsSourceBranchCandidate("Source A", driveRelativePath));
 	}
 
 	/// <summary>
@@ -138,46 +168,79 @@ public sealed class MergerfsBranchPlanningModelsTests
 	[Fact]
 	public void MergerfsBranchLinkDefinition_Failure_ShouldThrow_WhenInputIsInvalid()
 	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string branchLinksRootPath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "branchlinks", "abc")).FullName;
+		string targetPath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "target")).FullName;
+		string safeLinkPath = Path.Combine(branchLinksRootPath, "safe_link");
+
 		Assert.ThrowsAny<ArgumentException>(
 			() => new MergerfsBranchLinkDefinition(
 				"bad/name",
-				"/ssm/branchlinks/abc/bad_name",
-				"/ssm/target",
+				Path.Combine(branchLinksRootPath, "bad_name"),
+				targetPath,
 				MergerfsBranchAccessMode.ReadWrite));
 
 		Assert.ThrowsAny<ArgumentException>(
 			() => new MergerfsBranchLinkDefinition(
 				@"bad\name",
-				"/ssm/branchlinks/abc/bad_name",
-				"/ssm/target",
+				Path.Combine(branchLinksRootPath, "bad_name"),
+				targetPath,
 				MergerfsBranchAccessMode.ReadWrite));
 
 		Assert.ThrowsAny<ArgumentException>(
 			() => new MergerfsBranchLinkDefinition(
 				"good_name",
 				"relative/link",
-				"/ssm/target",
+				targetPath,
 				MergerfsBranchAccessMode.ReadWrite));
 
 		Assert.ThrowsAny<ArgumentException>(
 			() => new MergerfsBranchLinkDefinition(
 				"good_name",
-				"/ssm/branchlinks/abc/good_name",
+				safeLinkPath,
 				"relative/target",
 				MergerfsBranchAccessMode.ReadWrite));
 
 		Assert.ThrowsAny<ArgumentException>(
 			() => new MergerfsBranchLinkDefinition(
 				".",
-				"/ssm/branchlinks/abc/current",
-				"/ssm/target",
+				Path.Combine(branchLinksRootPath, "current"),
+				targetPath,
 				MergerfsBranchAccessMode.ReadWrite));
 
 		Assert.ThrowsAny<ArgumentException>(
 			() => new MergerfsBranchLinkDefinition(
 				"..",
-				"/ssm/branchlinks/abc/parent",
-				"/ssm/target",
+				Path.Combine(branchLinksRootPath, "parent"),
+				targetPath,
+				MergerfsBranchAccessMode.ReadWrite));
+	}
+
+	/// <summary>
+	/// Verifies branch-link definitions reject Windows rooted-but-not-fully-qualified path inputs.
+	/// </summary>
+	[Fact]
+	public void MergerfsBranchLinkDefinition_Failure_ShouldThrow_WhenPathsAreWindowsRootedButNotFullyQualified()
+	{
+		if (!OperatingSystem.IsWindows())
+		{
+			return;
+		}
+
+		string driveRelativePath = $"{Path.GetPathRoot(Path.GetTempPath())![0]}:drive-relative";
+
+		Assert.ThrowsAny<ArgumentException>(
+			() => new MergerfsBranchLinkDefinition(
+				"good_name",
+				@"\root-relative",
+				@"\root-relative-target",
+				MergerfsBranchAccessMode.ReadWrite));
+
+		Assert.ThrowsAny<ArgumentException>(
+			() => new MergerfsBranchLinkDefinition(
+				"good_name",
+				driveRelativePath,
+				driveRelativePath,
 				MergerfsBranchAccessMode.ReadWrite));
 	}
 
@@ -199,11 +262,15 @@ public sealed class MergerfsBranchPlanningModelsTests
 	public void MergerfsBranchLinkDefinition_Failure_ShouldThrow_WhenLinkNameContainsInvalidCharactersOrSuffix(
 		string linkName)
 	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string linkPath = Path.Combine(Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "branchlinks", "abc")).FullName, "safe_link");
+		string targetPath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "target")).FullName;
+
 		Assert.ThrowsAny<ArgumentException>(
 			() => new MergerfsBranchLinkDefinition(
 				linkName,
-				"/ssm/branchlinks/abc/safe_link",
-				"/ssm/target",
+				linkPath,
+				targetPath,
 				MergerfsBranchAccessMode.ReadWrite));
 	}
 
@@ -213,14 +280,51 @@ public sealed class MergerfsBranchPlanningModelsTests
 	[Fact]
 	public void MergerfsBranchPlan_Failure_ShouldThrow_WhenBranchLinksMissing()
 	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string preferredOverridePath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "override", "priority", "Manga Title")).FullName;
+		string branchDirectoryPath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "state", ".mergerfs-branches", "abc")).FullName;
+
 		Assert.ThrowsAny<ArgumentException>(
 			() => new MergerfsBranchPlan(
-				"/ssm/override/priority/Manga Title",
-				"/ssm/state/.mergerfs-branches/abc",
-				"/ssm/state/.mergerfs-branches/abc/00_override_primary=RW",
+				preferredOverridePath,
+				branchDirectoryPath,
+				$"{Path.Combine(branchDirectoryPath, "00_override_primary")}=RW",
 				"suwayomi_abc_hash",
 				"abc",
 				[]));
+	}
+
+	/// <summary>
+	/// Verifies planning requests reject Windows rooted-but-not-fully-qualified path inputs.
+	/// </summary>
+	[Fact]
+	public void MergerfsBranchPlanningRequest_Failure_ShouldThrow_WhenPathsAreWindowsRootedButNotFullyQualified()
+	{
+		if (!OperatingSystem.IsWindows())
+		{
+			return;
+		}
+
+		using TemporaryDirectory temporaryDirectory = new();
+		string sourcePath = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "sources", "source-a")).FullName;
+		MergerfsSourceBranchCandidate sourceBranch = new("Source A", sourcePath);
+		string driveRelativePath = $"{Path.GetPathRoot(Path.GetTempPath())![0]}:drive-relative";
+
+		Assert.ThrowsAny<ArgumentException>(
+			() => new MergerfsBranchPlanningRequest(
+				"group",
+				"Title",
+				@"\branchlinks-root-relative",
+				[Path.GetFullPath(Path.Combine(temporaryDirectory.Path, "override", "priority"))],
+				[sourceBranch]));
+
+		Assert.ThrowsAny<ArgumentException>(
+			() => new MergerfsBranchPlanningRequest(
+				"group",
+				"Title",
+				driveRelativePath,
+				[driveRelativePath],
+				[sourceBranch]));
 	}
 
 	/// <summary>
@@ -252,5 +356,75 @@ public sealed class MergerfsBranchPlanningModelsTests
 		Assert.Equal(branchDirectoryPath, plan.BranchDirectoryPath);
 		Assert.Equal("groupid", plan.GroupId);
 		Assert.Single(plan.BranchLinks);
+	}
+
+	/// <summary>
+	/// Verifies override selection entries reject Windows rooted-but-not-fully-qualified path inputs.
+	/// </summary>
+	[Fact]
+	public void OverrideBranchSelectionEntry_Failure_ShouldThrow_WhenPathsAreWindowsRootedButNotFullyQualified()
+	{
+		if (!OperatingSystem.IsWindows())
+		{
+			return;
+		}
+
+		string driveRelativePath = $"{Path.GetPathRoot(Path.GetTempPath())![0]}:drive-relative";
+
+		Assert.ThrowsAny<ArgumentException>(
+			() => new OverrideBranchSelectionEntry(
+				@"\volume-root-relative",
+				@"\title-root-relative",
+				isPreferred: true));
+
+		Assert.ThrowsAny<ArgumentException>(
+			() => new OverrideBranchSelectionEntry(
+				driveRelativePath,
+				driveRelativePath,
+				isPreferred: true));
+	}
+
+	/// <summary>
+	/// Verifies branch plans reject Windows rooted-but-not-fully-qualified path inputs.
+	/// </summary>
+	[Fact]
+	public void MergerfsBranchPlan_Failure_ShouldThrow_WhenPathsAreWindowsRootedButNotFullyQualified()
+	{
+		if (!OperatingSystem.IsWindows())
+		{
+			return;
+		}
+
+		string driveRelativePath = $"{Path.GetPathRoot(Path.GetTempPath())![0]}:drive-relative";
+
+		Assert.ThrowsAny<ArgumentException>(
+			() => new MergerfsBranchPlan(
+				@"\preferred-root-relative",
+				@"\branch-dir-root-relative",
+				@"\branch-dir-root-relative\00_override_primary=RW",
+				"suwayomi_abc_hash",
+				"abc",
+				[
+					new MergerfsBranchLinkDefinition(
+						"00_override_primary",
+						Path.GetFullPath(Path.Combine(Path.GetTempPath(), "valid-link")),
+						Path.GetFullPath(Path.Combine(Path.GetTempPath(), "valid-target")),
+						MergerfsBranchAccessMode.ReadWrite)
+				]));
+
+		Assert.ThrowsAny<ArgumentException>(
+			() => new MergerfsBranchPlan(
+				driveRelativePath,
+				driveRelativePath,
+				$"{driveRelativePath}=RW",
+				"suwayomi_abc_hash",
+				"abc",
+				[
+					new MergerfsBranchLinkDefinition(
+						"00_override_primary",
+						Path.GetFullPath(Path.Combine(Path.GetTempPath(), "valid-link-two")),
+						Path.GetFullPath(Path.Combine(Path.GetTempPath(), "valid-target-two")),
+						MergerfsBranchAccessMode.ReadWrite)
+				]));
 	}
 }

@@ -9,8 +9,8 @@ internal sealed class MergerfsBranchLinkDefinition
 	/// Initializes a new instance of the <see cref="MergerfsBranchLinkDefinition"/> class.
 	/// </summary>
 	/// <param name="linkName">Filesystem-safe link name under the branch-link directory.</param>
-	/// <param name="linkPath">Absolute branch-link path.</param>
-	/// <param name="targetPath">Absolute target path represented by the branch-link.</param>
+	/// <param name="linkPath">Fully-qualified absolute branch-link path.</param>
+	/// <param name="targetPath">Fully-qualified absolute target path represented by the branch-link.</param>
 	/// <param name="accessMode">Access mode to emit in branch specifications.</param>
 	/// <exception cref="ArgumentException">Thrown when required values are missing or invalid.</exception>
 	public MergerfsBranchLinkDefinition(
@@ -25,25 +25,9 @@ internal sealed class MergerfsBranchLinkDefinition
 
 		PathSafetyPolicy.ValidateLinkNameSegment(linkName, nameof(linkName));
 
-		string trimmedLinkPath = linkPath.Trim();
-		if (!Path.IsPathRooted(trimmedLinkPath))
-		{
-			throw new ArgumentException(
-				"Link path must be an absolute path.",
-				nameof(linkPath));
-		}
-
-		string trimmedTargetPath = targetPath.Trim();
-		if (!Path.IsPathRooted(trimmedTargetPath))
-		{
-			throw new ArgumentException(
-				"Target path must be an absolute path.",
-				nameof(targetPath));
-		}
-
 		LinkName = linkName;
-		LinkPath = Path.GetFullPath(trimmedLinkPath);
-		TargetPath = Path.GetFullPath(trimmedTargetPath);
+		LinkPath = PathSafetyPolicy.NormalizeFullyQualifiedPath(linkPath, nameof(linkPath));
+		TargetPath = PathSafetyPolicy.NormalizeFullyQualifiedPath(targetPath, nameof(targetPath));
 		AccessMode = accessMode;
 	}
 
@@ -56,7 +40,7 @@ internal sealed class MergerfsBranchLinkDefinition
 	}
 
 	/// <summary>
-	/// Gets the absolute branch-link path.
+	/// Gets the fully-qualified absolute branch-link path.
 	/// </summary>
 	public string LinkPath
 	{
@@ -64,7 +48,7 @@ internal sealed class MergerfsBranchLinkDefinition
 	}
 
 	/// <summary>
-	/// Gets the absolute target path represented by the branch-link.
+	/// Gets the fully-qualified absolute target path represented by the branch-link.
 	/// </summary>
 	public string TargetPath
 	{
