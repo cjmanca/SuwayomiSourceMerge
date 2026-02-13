@@ -5,6 +5,7 @@ namespace SuwayomiSourceMerge.Infrastructure.Mounts;
 /// </summary>
 internal sealed class OverrideBranchSelectionService
 {
+
 	/// <summary>
 	/// Override volume directory name that has preferred-branch precedence.
 	/// </summary>

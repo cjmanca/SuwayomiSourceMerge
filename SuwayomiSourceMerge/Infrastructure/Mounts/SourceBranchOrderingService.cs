@@ -7,6 +7,7 @@ namespace SuwayomiSourceMerge.Infrastructure.Mounts;
 /// </summary>
 internal sealed class SourceBranchOrderingService
 {
+
 	/// <summary>
 	/// Path comparer used for source-path de-duplication and primary path tie-break ordering.
 	/// </summary>

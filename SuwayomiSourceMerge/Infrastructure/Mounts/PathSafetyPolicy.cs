@@ -5,6 +5,7 @@ namespace SuwayomiSourceMerge.Infrastructure.Mounts;
 /// </summary>
 internal static class PathSafetyPolicy
 {
+
 	/// <summary>
 	/// Invalid filename characters rejected by deterministic link-name validation.
 	/// </summary>

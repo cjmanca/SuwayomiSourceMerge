@@ -5,6 +5,7 @@ namespace SuwayomiSourceMerge.Infrastructure.Mounts;
 /// </summary>
 internal enum MergerfsBranchAccessMode
 {
+
 	/// <summary>
 	/// Branch is writable.
 	/// </summary>
