@@ -614,6 +614,76 @@ modules:
       - Canonical fail-open capture completion handling with trace diagnostics for unexpected non-fatal faults; use ExternalCommandExecutor.WaitForCaptureCompletion.
       - Canonical process-system adapter for real host execution; use SystemProcessFacade.
     related: [infrastructure-mounts, runtime-host, unit-test-suite]
+  - id: infrastructure-rename
+    summary: Shell-parity chapter rename sanitization and in-memory queue processing with explicit ordered storage, processor-boundary enumeration materialization, and quiet-window checks.
+    tags: [infrastructure, queue, rename, runtime]
+    paths:
+      - SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameFileSystem.cs
+      - SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameOptions.cs
+      - SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameProcessResult.cs
+      - SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameQueueEntry.cs
+      - SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameQueueProcessor.ProcessPass.cs
+      - SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameQueueProcessor.cs
+      - SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameRescanResult.cs
+      - SuwayomiSourceMerge/Infrastructure/Rename/IChapterRenameFileSystem.cs
+      - SuwayomiSourceMerge/Infrastructure/Rename/IChapterRenameQueueProcessor.cs
+      - SuwayomiSourceMerge/Infrastructure/Rename/IChapterRenameQueueStore.cs
+      - SuwayomiSourceMerge/Infrastructure/Rename/IChapterRenameSanitizer.cs
+      - SuwayomiSourceMerge/Infrastructure/Rename/InMemoryChapterRenameQueueStore.cs
+      - SuwayomiSourceMerge/Infrastructure/Rename/ShellParityChapterRenameSanitizer.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Rename/ChapterRenameModelsAndFileSystemTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Rename/ChapterRenameOptionsTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Rename/ChapterRenameQueueProcessorTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Rename/InMemoryChapterRenameQueueStoreTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Rename/ShellParityChapterRenameSanitizerTests.cs
+    entrypoints:
+      - symbol: ChapterRenameOptions
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameOptions.cs
+        purpose: Stores validated rename timing and excluded-source settings for queue processing flows.
+      - symbol: ChapterRenameOptions.FromSettings
+        kind: method
+        path: SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameOptions.cs
+        purpose: Builds chapter rename options from parsed settings with fail-fast required-field guards.
+      - symbol: ChapterRenameQueueProcessor
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameQueueProcessor.cs
+        purpose: Coordinates enqueue, process-once, and rescan behavior for chapter rename candidates.
+      - symbol: ChapterRenameQueueProcessor.ProcessOnce
+        kind: method
+        path: SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameQueueProcessor.cs
+        purpose: Applies allow-at, quiet-window, collision, and move semantics to queued chapter paths using extracted pass-computation helpers under the store transform lock for current shell-parity correctness.
+      - symbol: IChapterRenameQueueProcessor
+        kind: interface
+        path: SuwayomiSourceMerge/Infrastructure/Rename/IChapterRenameQueueProcessor.cs
+        purpose: Defines canonical queue APIs for enqueue, process-once, and rescan operations.
+      - symbol: IChapterRenameQueueStore.Transform
+        kind: method
+        path: SuwayomiSourceMerge/Infrastructure/Rename/IChapterRenameQueueStore.cs
+        purpose: Defines atomic queue snapshot-and-replace behavior under one store lock (including callback execution) and requires no queue mutation when transformation callbacks fail.
+      - symbol: ShellParityChapterRenameSanitizer
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Rename/ShellParityChapterRenameSanitizer.cs
+        purpose: Implements release-group numeric prefix rewrite heuristics for chapter directory names with centralized token sets for shell-boundary and docs-first embedded matching.
+    extension_points:
+      - how: Add persisted queue backends by implementing the queue-store interface and wiring the processor dependency.
+        symbols: [ChapterRenameQueueProcessor, IChapterRenameQueueStore, InMemoryChapterRenameQueueStore]
+        paths: [SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameQueueProcessor.cs, SuwayomiSourceMerge/Infrastructure/Rename/IChapterRenameQueueStore.cs, SuwayomiSourceMerge/Infrastructure/Rename/InMemoryChapterRenameQueueStore.cs]
+      - how: Extend chapter rename sanitization rules by updating sanitizer regex policy in one canonical implementation.
+        symbols: [IChapterRenameSanitizer, ShellParityChapterRenameSanitizer]
+        paths: [SuwayomiSourceMerge/Infrastructure/Rename/IChapterRenameSanitizer.cs, SuwayomiSourceMerge/Infrastructure/Rename/ShellParityChapterRenameSanitizer.cs]
+      - how: Wire daemon/watcher flows to queue semantics through the processor interface instead of reimplementing timing logic.
+        symbols: [ChapterRenameQueueProcessor, IChapterRenameQueueProcessor]
+        paths: [SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameQueueProcessor.cs, SuwayomiSourceMerge/Infrastructure/Rename/IChapterRenameQueueProcessor.cs]
+    do_not_reimplement:
+      - Canonical chapter path enqueue gating (depth-3 + excluded-source checks + allow-at delay); use ChapterRenameQueueProcessor.EnqueueChapterPath.
+      - Canonical chapter rename rule heuristics (shell-baseline with docs-first embedded chapter-token handling, including embedded abbreviated chapter/episode tokens); use ShellParityChapterRenameSanitizer.
+      - Canonical in-memory queue dedupe semantics keyed by normalized path with explicit deterministic ordered-path iteration; use InMemoryChapterRenameQueueStore.
+      - Canonical atomic queue transform contract used by processor/store concurrency boundaries, including no-mutation-on-failure semantics; use IChapterRenameQueueStore.Transform.
+      - Canonical filesystem adapter enumeration behavior (lazy enumeration with missing-path fast return and benign directory-not-found suppression); use ChapterRenameFileSystem.
+      - Canonical queue processing semantics for missing-path grace, quiet windows (including early non-quiet short-circuit and processor-boundary enumeration materialization/exception classification), collision suffixes, and best-effort moves under current shell-parity lock scope; use ChapterRenameQueueProcessor.ProcessOnce.
+      - Canonical rename rescan candidate discovery and enqueue merge behavior, including queued-path snapshot duplicate skipping before timestamp lookups; use ChapterRenameQueueProcessor.RescanAndEnqueue.
+    related: [config-schema-validation, logging-infrastructure, runtime-host, unit-test-suite]
   - id: infrastructure-volumes
     summary: Container volume discovery for source and override roots with deterministic ordering and warnings.
     tags: [filesystem, infrastructure, volumes]

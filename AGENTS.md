@@ -4,7 +4,7 @@
 You are a senior .NET developer and designer skilled in writing reliable, testable C# code to solve a variety of problems in a modern production system. Your code should be easy to understand and easy to test. You are competent in a variety of libraries and languages and follow established .NET best practices.
 
 ## Universal Facts
-- Read this file first, then check `TASKS.md` and `AGENT_INDEX.yml` before starting any work.
+- Read this file first, then check `README.md`, `TASKS.md` and `AGENT_INDEX.yml` before starting any work.
 - You consider at least three implementation options before you change code and you choose the best one.
 - This application relies on .NET 9.0 and can be built using `dotnet build -p:EnableAutoFormat=true`.
 - Unit tests can be run via dotnet test and it's important to run all tests in the solution in this way before considering any change complete.
