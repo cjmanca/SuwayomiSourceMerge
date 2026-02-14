@@ -20,9 +20,9 @@ internal sealed class MangaEquivalenceService : IMangaEquivalenceService
 	private readonly IReadOnlyDictionary<string, string> _canonicalByNormalizedTitle;
 
 	/// <summary>
-	/// Optional matcher used by normalization for trailing scene-tag suffix stripping.
+	/// Shared cached normalizer used for title-key lookups.
 	/// </summary>
-	private readonly ISceneTagMatcher? _sceneTagMatcher;
+	private readonly ITitleComparisonNormalizer _titleComparisonNormalizer;
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="MangaEquivalenceService"/> class.
@@ -39,8 +39,8 @@ internal sealed class MangaEquivalenceService : IMangaEquivalenceService
 	{
 		ArgumentNullException.ThrowIfNull(document);
 
-		_sceneTagMatcher = sceneTagMatcher;
-		_canonicalByNormalizedTitle = BuildLookup(document, sceneTagMatcher);
+		_titleComparisonNormalizer = TitleComparisonNormalizerProvider.Get(sceneTagMatcher);
+		_canonicalByNormalizedTitle = BuildLookup(document, _titleComparisonNormalizer);
 	}
 
 	/// <inheritdoc />
@@ -48,7 +48,7 @@ internal sealed class MangaEquivalenceService : IMangaEquivalenceService
 	{
 		ArgumentNullException.ThrowIfNull(inputTitle);
 
-		string normalizedKey = TitleKeyNormalizer.NormalizeTitleKey(inputTitle, _sceneTagMatcher);
+		string normalizedKey = _titleComparisonNormalizer.NormalizeTitleKey(inputTitle);
 		if (string.IsNullOrEmpty(normalizedKey))
 		{
 			canonicalTitle = string.Empty;
@@ -79,14 +79,14 @@ internal sealed class MangaEquivalenceService : IMangaEquivalenceService
 	/// Builds the normalized canonical mapping lookup from document groups.
 	/// </summary>
 	/// <param name="document">Document to index.</param>
-	/// <param name="sceneTagMatcher">Optional matcher used during title-key normalization.</param>
+	/// <param name="titleComparisonNormalizer">Cached normalizer used to derive title comparison keys.</param>
 	/// <returns>Immutable lookup from normalized title key to canonical title.</returns>
 	/// <exception cref="InvalidOperationException">
 	/// Thrown when document content is malformed, normalizes to empty keys, or maps one key to different canonicals.
 	/// </exception>
 	private static IReadOnlyDictionary<string, string> BuildLookup(
 		MangaEquivalentsDocument document,
-		ISceneTagMatcher? sceneTagMatcher)
+		ITitleComparisonNormalizer titleComparisonNormalizer)
 	{
 		if (document.Groups is null)
 		{
@@ -114,7 +114,7 @@ internal sealed class MangaEquivalenceService : IMangaEquivalenceService
 			string canonical = group.Canonical.Trim();
 			RegisterMapping(
 				lookup,
-				TitleKeyNormalizer.NormalizeTitleKey(canonical, sceneTagMatcher),
+				titleComparisonNormalizer.NormalizeTitleKey(canonical),
 				canonical,
 				$"groups[{groupIndex}].canonical");
 
@@ -129,7 +129,7 @@ internal sealed class MangaEquivalenceService : IMangaEquivalenceService
 
 				RegisterMapping(
 					lookup,
-					TitleKeyNormalizer.NormalizeTitleKey(alias, sceneTagMatcher),
+					titleComparisonNormalizer.NormalizeTitleKey(alias),
 					canonical,
 					$"groups[{groupIndex}].aliases[{aliasIndex}]");
 			}

@@ -19,6 +19,11 @@ internal sealed class SourcePriorityService : ISourcePriorityService
 	private readonly IReadOnlyDictionary<string, int> _priorityBySourceKey;
 
 	/// <summary>
+	/// Shared cached normalizer used for source token-key lookups.
+	/// </summary>
+	private readonly ITitleComparisonNormalizer _titleComparisonNormalizer;
+
+	/// <summary>
 	/// Initializes a new instance of the <see cref="SourcePriorityService"/> class.
 	/// </summary>
 	/// <param name="document">Parsed and validated source-priority document.</param>
@@ -30,7 +35,8 @@ internal sealed class SourcePriorityService : ISourcePriorityService
 	{
 		ArgumentNullException.ThrowIfNull(document);
 
-		_priorityBySourceKey = BuildLookup(document);
+		_titleComparisonNormalizer = TitleComparisonNormalizerProvider.Get(sceneTagMatcher: null);
+		_priorityBySourceKey = BuildLookup(document, _titleComparisonNormalizer);
 	}
 
 	/// <inheritdoc />
@@ -38,7 +44,7 @@ internal sealed class SourcePriorityService : ISourcePriorityService
 	{
 		ArgumentNullException.ThrowIfNull(sourceName);
 
-		string normalizedKey = TitleKeyNormalizer.NormalizeTokenKey(sourceName);
+		string normalizedKey = _titleComparisonNormalizer.NormalizeTokenKey(sourceName);
 		if (string.IsNullOrEmpty(normalizedKey))
 		{
 			priority = int.MaxValue;
@@ -69,11 +75,14 @@ internal sealed class SourcePriorityService : ISourcePriorityService
 	/// Builds the normalized source-priority lookup from the document source list.
 	/// </summary>
 	/// <param name="document">Document to index.</param>
+	/// <param name="titleComparisonNormalizer">Cached normalizer used to derive source token keys.</param>
 	/// <returns>Immutable lookup from normalized source keys to configured priority indexes.</returns>
 	/// <exception cref="InvalidOperationException">
 	/// Thrown when the document source list is missing, contains empty items, or contains duplicate normalized entries.
 	/// </exception>
-	private static IReadOnlyDictionary<string, int> BuildLookup(SourcePriorityDocument document)
+	private static IReadOnlyDictionary<string, int> BuildLookup(
+		SourcePriorityDocument document,
+		ITitleComparisonNormalizer titleComparisonNormalizer)
 	{
 		if (document.Sources is null)
 		{
@@ -91,7 +100,7 @@ internal sealed class SourcePriorityService : ISourcePriorityService
 					$"Source priority entry at index {index} is empty.");
 			}
 
-			string normalizedKey = TitleKeyNormalizer.NormalizeTokenKey(sourceName);
+			string normalizedKey = titleComparisonNormalizer.NormalizeTokenKey(sourceName);
 			if (string.IsNullOrEmpty(normalizedKey))
 			{
 				throw new InvalidOperationException(

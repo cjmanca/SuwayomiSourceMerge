@@ -12,6 +12,12 @@ namespace SuwayomiSourceMerge.Configuration.Validation;
 internal static class ValidationKeyNormalizer
 {
 	/// <summary>
+	/// Shared cached normalizer for call sites that do not require scene-tag-aware stripping.
+	/// </summary>
+	private static readonly ITitleComparisonNormalizer _normalizerWithoutMatcher =
+		TitleComparisonNormalizerProvider.Get(sceneTagMatcher: null);
+
+	/// <summary>
 	/// Normalizes a title into a compact alphanumeric key for equivalence comparisons.
 	/// </summary>
 	/// <param name="input">Raw title value.</param>
@@ -22,7 +28,7 @@ internal static class ValidationKeyNormalizer
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="input"/> is <see langword="null"/>.</exception>
 	public static string NormalizeTitleKey(string input)
 	{
-		return TitleKeyNormalizer.NormalizeTitleKey(input);
+		return _normalizerWithoutMatcher.NormalizeTitleKey(input);
 	}
 
 	/// <summary>
@@ -40,7 +46,9 @@ internal static class ValidationKeyNormalizer
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="input"/> is <see langword="null"/>.</exception>
 	public static string NormalizeTitleKey(string input, ISceneTagMatcher? sceneTagMatcher)
 	{
-		return TitleKeyNormalizer.NormalizeTitleKey(input, sceneTagMatcher);
+		return TitleComparisonNormalizerProvider
+			.Get(sceneTagMatcher)
+			.NormalizeTitleKey(input);
 	}
 
 	/// <summary>
@@ -51,6 +59,6 @@ internal static class ValidationKeyNormalizer
 	/// <exception cref="ArgumentNullException">Thrown when <paramref name="input"/> is <see langword="null"/>.</exception>
 	public static string NormalizeTokenKey(string input)
 	{
-		return TitleKeyNormalizer.NormalizeTokenKey(input);
+		return _normalizerWithoutMatcher.NormalizeTokenKey(input);
 	}
 }

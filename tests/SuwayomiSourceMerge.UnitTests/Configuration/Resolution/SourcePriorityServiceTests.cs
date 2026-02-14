@@ -31,6 +31,20 @@ public sealed class SourcePriorityServiceTests
 	}
 
 	[Fact]
+	public void TryGetPriority_ShouldRemainStable_ForRepeatedNormalizedLookups()
+	{
+		SourcePriorityService service = new(CreateDocument());
+
+		bool firstResolved = service.TryGetPriority("source-a", out int firstPriority);
+		bool secondResolved = service.TryGetPriority("source-a", out int secondPriority);
+
+		Assert.True(firstResolved);
+		Assert.True(secondResolved);
+		Assert.Equal(firstPriority, secondPriority);
+		Assert.Equal(0, firstPriority);
+	}
+
+	[Fact]
 	public void GetPriorityOrDefault_ShouldReturnFallback_WhenSourceIsNotConfigured()
 	{
 		SourcePriorityService service = new(CreateDocument());

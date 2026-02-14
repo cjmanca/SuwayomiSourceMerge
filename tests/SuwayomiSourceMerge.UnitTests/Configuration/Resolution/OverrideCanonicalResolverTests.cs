@@ -31,6 +31,24 @@ public sealed class OverrideCanonicalResolverTests
 	}
 
 	[Fact]
+	public void TryResolveOverrideCanonical_ShouldReuseCachedMatcherAwareNormalization_ForRepeatedInput()
+	{
+		CountingSceneTagMatcher matcher = new(["official"]);
+		OverrideCanonicalResolver resolver = new(["Manga Title"], matcher);
+
+		bool firstResolved = resolver.TryResolveOverrideCanonical("Manga Title [Official]", out string firstOverrideCanonicalTitle);
+		int countAfterFirst = matcher.MatchCallCount;
+		bool secondResolved = resolver.TryResolveOverrideCanonical("Manga Title [Official]", out string secondOverrideCanonicalTitle);
+
+		Assert.True(firstResolved);
+		Assert.True(secondResolved);
+		Assert.Equal("Manga Title", firstOverrideCanonicalTitle);
+		Assert.Equal(firstOverrideCanonicalTitle, secondOverrideCanonicalTitle);
+		Assert.True(countAfterFirst > 0);
+		Assert.Equal(countAfterFirst, matcher.MatchCallCount);
+	}
+
+	[Fact]
 	public void Constructor_ShouldKeepFirstTitle_WhenNormalizedCollisionsExist()
 	{
 		OverrideCanonicalResolver resolver = new(["Manga-Title", "Manga Title"]);
@@ -71,5 +89,23 @@ public sealed class OverrideCanonicalResolverTests
 		OverrideCanonicalResolver resolver = new(["Manga Title"]);
 
 		Assert.Throws<ArgumentNullException>(() => resolver.TryResolveOverrideCanonical(null!, out _));
+	}
+
+	private sealed class CountingSceneTagMatcher : ISceneTagMatcher
+	{
+		private readonly ISceneTagMatcher _innerMatcher;
+
+		public CountingSceneTagMatcher(IEnumerable<string> configuredTags)
+		{
+			_innerMatcher = new SceneTagMatcher(configuredTags);
+		}
+
+		public int MatchCallCount { get; private set; }
+
+		public bool IsMatch(string candidate)
+		{
+			MatchCallCount++;
+			return _innerMatcher.IsMatch(candidate);
+		}
 	}
 }

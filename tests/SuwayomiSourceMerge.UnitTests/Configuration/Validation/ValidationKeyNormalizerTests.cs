@@ -183,11 +183,78 @@ public sealed class ValidationKeyNormalizerTests
         Assert.Equal("matcher-failure", exception.Message);
     }
 
+    [Fact]
+    public void NormalizeTitleKey_ShouldReuseCachedMatcherAwareNormalization_ForRepeatedInput()
+    {
+        CountingSceneTagMatcher matcher = new(["official"]);
+
+        string first = ValidationKeyNormalizer.NormalizeTitleKey("Manga Title (Official)", matcher);
+        int countAfterFirst = matcher.MatchCallCount;
+
+        string second = ValidationKeyNormalizer.NormalizeTitleKey("Manga Title (Official)", matcher);
+
+        Assert.Equal("mangatitle", first);
+        Assert.Equal(first, second);
+        Assert.True(countAfterFirst > 0);
+        Assert.Equal(countAfterFirst, matcher.MatchCallCount);
+    }
+
+    [Fact]
+    public void NormalizeTitleKey_ShouldReuseFirstComputedValue_WhenMatcherBehaviorChanges()
+    {
+        FlippingSceneTagMatcher matcher = new(initialResult: true);
+
+        string first = ValidationKeyNormalizer.NormalizeTitleKey("Manga Title (Official)", matcher);
+        string second = ValidationKeyNormalizer.NormalizeTitleKey("Manga Title (Official)", matcher);
+
+        Assert.Equal("mangatitle", first);
+        Assert.Equal(first, second);
+        Assert.Equal(1, matcher.MatchCallCount);
+    }
+
     private sealed class ThrowingSceneTagMatcher : ISceneTagMatcher
     {
         public bool IsMatch(string candidate)
         {
             throw new InvalidOperationException("matcher-failure");
+        }
+    }
+
+    private sealed class CountingSceneTagMatcher : ISceneTagMatcher
+    {
+        private readonly ISceneTagMatcher _innerMatcher;
+
+        public CountingSceneTagMatcher(IEnumerable<string> configuredTags)
+        {
+            _innerMatcher = new SceneTagMatcher(configuredTags);
+        }
+
+        public int MatchCallCount { get; private set; }
+
+        public bool IsMatch(string candidate)
+        {
+            MatchCallCount++;
+            return _innerMatcher.IsMatch(candidate);
+        }
+    }
+
+    private sealed class FlippingSceneTagMatcher : ISceneTagMatcher
+    {
+        private bool _nextResult;
+
+        public FlippingSceneTagMatcher(bool initialResult)
+        {
+            _nextResult = initialResult;
+        }
+
+        public int MatchCallCount { get; private set; }
+
+        public bool IsMatch(string candidate)
+        {
+            MatchCallCount++;
+            bool current = _nextResult;
+            _nextResult = !current;
+            return current;
         }
     }
 

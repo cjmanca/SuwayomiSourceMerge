@@ -317,7 +317,7 @@ modules:
       - Per-file bootstrap orchestration and validation failure policy; use ConfigurationBootstrapService.Bootstrap.
     related: [config-schema-validation, domain-normalization, runtime-host, unit-test-suite]
   - id: config-resolution
-    summary: YAML-backed canonical title, source-priority, and override-title resolution services with frozen normalized lookups for runtime grouping flows.
+    summary: YAML-backed canonical title, source-priority, and override-title resolution services with shared cached normalized lookups.
     tags: [config, priority, resolution, titles]
     paths:
       - SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceService.cs
@@ -345,15 +345,15 @@ modules:
       - symbol: MangaEquivalenceService
         kind: class
         path: SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceService.cs
-        purpose: Builds frozen canonical title lookups from canonical and alias mappings with fail-fast conflict checks.
+        purpose: Builds frozen canonical title lookups from canonical and alias mappings with shared cached key normalization.
       - symbol: OverrideCanonicalResolver
         kind: class
         path: SuwayomiSourceMerge/Configuration/Resolution/OverrideCanonicalResolver.cs
-        purpose: Resolves normalized title keys to first-seen exact override titles via frozen lookup data.
+        purpose: Resolves normalized title keys to first-seen exact override titles via frozen lookup data and shared cached key normalization.
       - symbol: SourcePriorityService
         kind: class
         path: SuwayomiSourceMerge/Configuration/Resolution/SourcePriorityService.cs
-        purpose: Resolves normalized source keys to configured priority indexes with deterministic fallback handling and frozen lookups.
+        purpose: Resolves normalized source keys to configured priority indexes with deterministic fallback handling and shared cached normalization.
     extension_points:
       - how: Add additional resolution behavior by extending service interfaces and implementations in the resolution module.
         symbols: [IMangaEquivalenceService, IOverrideCanonicalResolver, ISourcePriorityService, MangaEquivalenceService, OverrideCanonicalResolver, SourcePriorityService]
@@ -422,17 +422,17 @@ modules:
       - how: Adjust default scene-tag coverage by updating the defaults factory consumed during bootstrap file creation.
         symbols: [SceneTagsDocumentDefaults.Create]
         paths: [SuwayomiSourceMerge/Configuration/Documents/SceneTagsDocumentDefaults.cs]
-      - how: Extend title-key normalization behavior by changing the domain normalizer and keeping the validation adapter in sync.
-        symbols: [TitleKeyNormalizer.NormalizeTitleKey, ValidationKeyNormalizer]
-        paths: [SuwayomiSourceMerge/Configuration/Validation/ValidationKeyNormalizer.cs, SuwayomiSourceMerge/Domain/Normalization/TitleKeyNormalizer.cs]
       - how: Extend settings shape by adding fields to document sections, defaults, and validator rules in lockstep.
         symbols: [SettingsDocument, SettingsDocumentDefaults.Create, SettingsDocumentValidator]
         paths: [SuwayomiSourceMerge/Configuration/Documents/SettingsDocument.cs, SuwayomiSourceMerge/Configuration/Documents/SettingsDocumentDefaults.cs, SuwayomiSourceMerge/Configuration/Validation/SettingsDocumentValidator.cs]
+      - how: Extend title-key normalization behavior by changing the domain normalizer and keeping the validation adapter in sync.
+        symbols: [TitleComparisonNormalizerProvider.Get, ValidationKeyNormalizer]
+        paths: [SuwayomiSourceMerge/Configuration/Validation/ValidationKeyNormalizer.cs, SuwayomiSourceMerge/Domain/Normalization/TitleComparisonNormalizerProvider.cs]
       - how: Update schema documentation and validation code catalog when rule sets change.
         symbols: [config-schema.md]
         paths: [docs/config-schema.md]
     do_not_reimplement:
-      - Canonical matcher-aware title key normalization with trailing scene-tag suffix stripping; use TitleKeyNormalizer.NormalizeTitleKey.
+      - Canonical cached matcher-aware title key normalization used by validators; use ValidationKeyNormalizer.NormalizeTitleKey.
       - Canonical default scene-tag list creation used for missing scene_tags.yml bootstrap; use SceneTagsDocumentDefaults.Create.
       - Canonical YAML parser behavior and parser error codes; use YamlDocumentParser.
       - Document-level parse-and-validate orchestration; use ConfigurationSchemaService.
@@ -444,16 +444,20 @@ modules:
       - YAML parser unknown-key tolerance for schema evolution; use YamlDocumentParser.
     related: [config-resolution, domain-normalization, logging-infrastructure, runtime-host, unit-test-suite]
   - id: domain-normalization
-    summary: Data-driven scene-tag phrase matching used by title normalization and cross-document validation flows.
+    summary: Data-driven scene-tag matching plus shared cached title/token normalization for runtime and validation flows.
     tags: [domain, normalization, titles]
     paths:
+      - SuwayomiSourceMerge/Domain/Normalization/CachedTitleComparisonNormalizer.cs
       - SuwayomiSourceMerge/Domain/Normalization/ComparisonTextNormalizer.cs
       - SuwayomiSourceMerge/Domain/Normalization/ISceneTagMatcher.cs
+      - SuwayomiSourceMerge/Domain/Normalization/ITitleComparisonNormalizer.cs
       - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKey.cs
       - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyBuilder.cs
       - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyKind.cs
       - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatcher.cs
+      - SuwayomiSourceMerge/Domain/Normalization/TitleComparisonNormalizerProvider.cs
       - SuwayomiSourceMerge/Domain/Normalization/TitleKeyNormalizer.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/CachedTitleComparisonNormalizerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/ComparisonTextNormalizerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/SceneTagMatcherTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/TitleKeyNormalizerTests.cs
@@ -474,10 +478,10 @@ modules:
         kind: class
         path: SuwayomiSourceMerge/Domain/Normalization/SceneTagMatcher.cs
         purpose: Normalizes configured scene tags into matcher-equivalent keys and performs deterministic candidate matching.
-      - symbol: SceneTagMatcher.IsMatch
+      - symbol: TitleComparisonNormalizerProvider.Get
         kind: method
-        path: SuwayomiSourceMerge/Domain/Normalization/SceneTagMatcher.cs
-        purpose: Returns whether a candidate phrase matches one normalized configured scene tag.
+        path: SuwayomiSourceMerge/Domain/Normalization/TitleComparisonNormalizerProvider.cs
+        purpose: Returns shared cached normalizers for matcherless and matcher-aware title/token comparison call sites.
       - symbol: TitleKeyNormalizer.NormalizeTitleKey
         kind: method
         path: SuwayomiSourceMerge/Domain/Normalization/TitleKeyNormalizer.cs
@@ -489,11 +493,15 @@ modules:
       - how: Extend scene-tag key classification and normalization semantics in one place via the shared key builder.
         symbols: [SceneTagMatchKeyBuilder.TryCreate, SceneTagMatcher, SceneTagsDocumentValidator]
         paths: [SuwayomiSourceMerge/Configuration/Validation/SceneTagsDocumentValidator.cs, SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyBuilder.cs, SuwayomiSourceMerge/Domain/Normalization/SceneTagMatcher.cs]
+      - how: Reuse shared cached title/token normalization across runtime and validation call sites via the provider.
+        symbols: [ITitleComparisonNormalizer, TitleComparisonNormalizerProvider.Get, CachedTitleComparisonNormalizer]
+        paths: [SuwayomiSourceMerge/Domain/Normalization/CachedTitleComparisonNormalizer.cs, SuwayomiSourceMerge/Domain/Normalization/ITitleComparisonNormalizer.cs, SuwayomiSourceMerge/Domain/Normalization/TitleComparisonNormalizerProvider.cs]
       - how: Reuse shared punctuation/ASCII/token normalization primitives across validators and domain matchers.
         symbols: [ComparisonTextNormalizer.NormalizeTokenKey, SceneTagMatchKeyBuilder.TryCreate, TitleKeyNormalizer.NormalizeTokenKey]
         paths: [SuwayomiSourceMerge/Domain/Normalization/ComparisonTextNormalizer.cs, SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyBuilder.cs, SuwayomiSourceMerge/Domain/Normalization/TitleKeyNormalizer.cs]
     do_not_reimplement:
       - Canonical ASCII-fold + punctuation-insensitive token key normalization; use ComparisonTextNormalizer.NormalizeTokenKey.
+      - Canonical cached matcher-aware and matcherless title/token key normalization provider; use TitleComparisonNormalizerProvider.Get.
       - Canonical configured scene-tag phrase matching implementation; use SceneTagMatcher.
       - Canonical matcher-equivalent scene-tag key derivation; use SceneTagMatchKeyBuilder.TryCreate.
       - Canonical scene-tag matcher contract for normalization consumers; use ISceneTagMatcher.
