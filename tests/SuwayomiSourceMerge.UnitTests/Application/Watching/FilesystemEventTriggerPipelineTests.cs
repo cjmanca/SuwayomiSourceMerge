@@ -4,6 +4,7 @@ using SuwayomiSourceMerge.Application.Watching;
 using SuwayomiSourceMerge.Infrastructure.Logging;
 using SuwayomiSourceMerge.Infrastructure.Rename;
 using SuwayomiSourceMerge.Infrastructure.Watching;
+using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 
 /// <summary>
 /// Verifies expected, edge, and failure behavior for <see cref="FilesystemEventTriggerPipeline"/>.
@@ -444,56 +445,6 @@ public sealed class FilesystemEventTriggerPipelineTests
 		public void RequestScan(string reason, bool force = false)
 		{
 			Requests.Add((reason, force));
-		}
-	}
-
-	/// <summary>
-	/// Minimal logger implementation for pipeline tests.
-	/// </summary>
-	private sealed class RecordingLogger : ISsmLogger
-	{
-		/// <summary>
-		/// Gets captured log events.
-		/// </summary>
-		public List<(LogLevel Level, string EventId, string Message)> Events
-		{
-			get;
-		} = [];
-
-		/// <inheritdoc />
-		public void Debug(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
-		{
-			Events.Add((LogLevel.Debug, eventId, message));
-		}
-
-		/// <inheritdoc />
-		public void Error(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
-		{
-			Events.Add((LogLevel.Error, eventId, message));
-		}
-
-		/// <inheritdoc />
-		public bool IsEnabled(LogLevel level)
-		{
-			return true;
-		}
-
-		/// <inheritdoc />
-		public void Log(LogLevel level, string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
-		{
-			Events.Add((level, eventId, message));
-		}
-
-		/// <inheritdoc />
-		public void Trace(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
-		{
-			Events.Add((LogLevel.Trace, eventId, message));
-		}
-
-		/// <inheritdoc />
-		public void Warning(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
-		{
-			Events.Add((LogLevel.Warning, eventId, message));
 		}
 	}
 }

@@ -18,6 +18,9 @@ internal sealed class ApplicationHost
 	/// <summary>Event id emitted when host shutdown completes.</summary>
 	private const string HOST_SHUTDOWN_EVENT = "host.shutdown";
 
+	/// <summary>Event id emitted when host runtime exits with failure.</summary>
+	private const string HOST_SHUTDOWN_FAILED_EVENT = "host.shutdown_failed";
+
 	/// <summary>Event id emitted when host startup completes.</summary>
 	private const string HOST_STARTUP_EVENT = "host.startup";
 
@@ -35,16 +38,24 @@ internal sealed class ApplicationHost
 	private readonly ISsmLoggerFactory _loggerFactory;
 
 	/// <summary>
+	/// Runtime supervision runner used after bootstrap and logger creation.
+	/// </summary>
+	private readonly IRuntimeSupervisorRunner _runtimeSupervisorRunner;
+
+	/// <summary>
 	/// Creates an application host with explicit bootstrap and logging dependencies.
 	/// </summary>
 	/// <param name="bootstrapService">Configuration bootstrap service.</param>
 	/// <param name="loggerFactory">Logger factory for runtime diagnostics.</param>
+	/// <param name="runtimeSupervisorRunner">Runtime supervisor runner.</param>
 	public ApplicationHost(
 		IConfigurationBootstrapService bootstrapService,
-		ISsmLoggerFactory loggerFactory)
+		ISsmLoggerFactory loggerFactory,
+		IRuntimeSupervisorRunner runtimeSupervisorRunner)
 	{
 		_bootstrapService = bootstrapService ?? throw new ArgumentNullException(nameof(bootstrapService));
 		_loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
+		_runtimeSupervisorRunner = runtimeSupervisorRunner ?? throw new ArgumentNullException(nameof(runtimeSupervisorRunner));
 	}
 
 	/// <summary>
@@ -58,7 +69,8 @@ internal sealed class ApplicationHost
 				new ConfigurationSchemaService(
 					new ConfigurationValidationPipeline(
 						new YamlDocumentParser()))),
-			new SsmLoggerFactory());
+			new SsmLoggerFactory(),
+			new DefaultRuntimeSupervisorRunner());
 	}
 
 	/// <summary>
@@ -117,6 +129,16 @@ internal sealed class ApplicationHost
 						("code", warning.Code),
 						("file", warning.File),
 						("line", warning.Line.ToString())));
+			}
+
+			int runtimeExitCode = _runtimeSupervisorRunner.Run(bootstrapResult.Documents, logger);
+			if (runtimeExitCode != 0)
+			{
+				logger.Error(
+					HOST_SHUTDOWN_FAILED_EVENT,
+					"Host runtime exited with failure.",
+					BuildContext(("runtime_exit_code", runtimeExitCode.ToString())));
+				return 1;
 			}
 
 			logger.Debug(HOST_SHUTDOWN_EVENT, "Host shutdown completed.");
