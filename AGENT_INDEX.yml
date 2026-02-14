@@ -196,6 +196,7 @@ modules:
     tags: [build, msbuild, quality]
     paths:
       - .editorconfig
+      - .gitattributes
       - Directory.Build.props
       - SuwayomiSourceMerge/AssemblyInfo.cs
       - SuwayomiSourceMerge/SuwayomiSourceMerge.csproj
@@ -204,6 +205,10 @@ modules:
         kind: file
         path: .editorconfig
         purpose: Defines canonical repository code style and naming conventions.
+      - symbol: .gitattributes
+        kind: file
+        path: .gitattributes
+        purpose: Defines canonical repository text normalization and LF line-ending policy.
       - symbol: CleanupFormatLock
         kind: method
         path: SuwayomiSourceMerge/SuwayomiSourceMerge.csproj
@@ -238,6 +243,7 @@ modules:
       - Global warnings-as-errors behavior; use Directory.Build.props.
       - Post-build formatting lock cleanup; use CleanupFormatLock.
       - Pre-build formatting orchestration; use FormatCode.
+      - Repository LF line-ending normalization policy; use .gitattributes.
       - Test assembly internal visibility policy; use SuwayomiSourceMerge/AssemblyInfo.cs.
     related: [runtime-host, unit-test-suite]
   - id: config-bootstrap-migration
@@ -1143,6 +1149,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/InotifyEventRecordTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/InotifywaitEventReaderTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/ProgramEntryPointTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Repository/LineEndingPolicyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/README.md
       - tests/SuwayomiSourceMerge.UnitTests/stryker-config.json
       - tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj
@@ -1160,6 +1167,10 @@ modules:
         kind: class
         path: tests/SuwayomiSourceMerge.UnitTests/Configuration/Loading/ConfigurationValidationPipelineTests.cs
         purpose: Verifies parse/validate orchestration, guard clauses, and validator exception propagation.
+      - symbol: LineEndingPolicyTests
+        kind: class
+        path: tests/SuwayomiSourceMerge.UnitTests/Repository/LineEndingPolicyTests.cs
+        purpose: Verifies tracked repository text blobs remain LF-only and fail on CRLF/lone-CR drift.
       - symbol: SettingsSchemaTests
         kind: class
         path: tests/SuwayomiSourceMerge.UnitTests/Configuration/SettingsSchemaTests.cs
@@ -1179,7 +1190,7 @@ modules:
     extension_points:
       - how: Add new deterministic unit tests in the unit test project and centralize reusable fixtures/helpers for reuse.
         symbols: [ProjectLayoutTests, SuwayomiSourceMerge.UnitTests.csproj]
-        paths: [tests/SuwayomiSourceMerge.UnitTests/Configuration/ConfigurationTestData.cs, tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/PathTestUtilities.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/RecordingLogger.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/SceneTagMatcherTestDoubles.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/TemporaryDirectory.cs, tests/SuwayomiSourceMerge.UnitTests/UnitTest1.cs]
+        paths: [tests/SuwayomiSourceMerge.UnitTests/Configuration/ConfigurationTestData.cs, tests/SuwayomiSourceMerge.UnitTests/Repository/LineEndingPolicyTests.cs, tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/PathTestUtilities.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/RecordingLogger.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/SceneTagMatcherTestDoubles.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/TemporaryDirectory.cs, tests/SuwayomiSourceMerge.UnitTests/UnitTest1.cs]
       - how: Adjust mutation-test scope and score gates in the stryker configuration file.
         symbols: [stryker-config.json]
         paths: [tests/SuwayomiSourceMerge.UnitTests/stryker-config.json]
@@ -1193,4 +1204,5 @@ modules:
       - Host lifecycle and stderr fallback coverage; extend ApplicationHostTests.
       - Logging formatter/filter/rolling behavior coverage; extend Infrastructure/Logging test classes.
       - Mutation-test scope and threshold gates; use stryker-config.json.
+      - Repository LF line-ending drift guard; extend LineEndingPolicyTests.
     related: [application-hosting, application-supervision, application-watching, build-and-quality, config-schema-validation, infrastructure-watching, logging-infrastructure, runtime-host, shared-test-support]
