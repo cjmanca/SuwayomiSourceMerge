@@ -77,7 +77,7 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 		ArgumentException.ThrowIfNullOrWhiteSpace(chapterPath);
 
 		string normalizedChapterPath = _fileSystem.GetFullPath(Path.TrimEndingDirectorySeparator(chapterPath));
-		if (!TryParseSourcePath(normalizedChapterPath, out string sourceName))
+		if (!TryParseSourcePath(normalizedChapterPath, out string sourceName, out _, expectedDepth: 3))
 		{
 			return false;
 		}
@@ -100,6 +100,59 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 		}
 
 		return queued;
+	}
+
+	/// <inheritdoc />
+	public int EnqueueChaptersUnderSourcePath(string sourcePath)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
+
+		string normalizedSourcePath = _fileSystem.GetFullPath(Path.TrimEndingDirectorySeparator(sourcePath));
+		if (!TryParseSourcePath(normalizedSourcePath, out string sourceName, out _, expectedDepth: 1))
+		{
+			return 0;
+		}
+
+		if (_options.IsExcludedSource(sourceName))
+		{
+			return 0;
+		}
+
+		int enqueued = 0;
+		foreach (string mangaPath in EnumerateDirectoriesSafe(normalizedSourcePath))
+		{
+			enqueued += EnqueueChaptersUnderMangaPath(mangaPath);
+		}
+
+		return enqueued;
+	}
+
+	/// <inheritdoc />
+	public int EnqueueChaptersUnderMangaPath(string mangaPath)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(mangaPath);
+
+		string normalizedMangaPath = _fileSystem.GetFullPath(Path.TrimEndingDirectorySeparator(mangaPath));
+		if (!TryParseSourcePath(normalizedMangaPath, out string sourceName, out _, expectedDepth: 2))
+		{
+			return 0;
+		}
+
+		if (_options.IsExcludedSource(sourceName))
+		{
+			return 0;
+		}
+
+		int enqueued = 0;
+		foreach (string chapterPath in EnumerateDirectoriesSafe(normalizedMangaPath))
+		{
+			if (EnqueueChapterPath(chapterPath))
+			{
+				enqueued++;
+			}
+		}
+
+		return enqueued;
 	}
 
 	/// <inheritdoc />
@@ -353,13 +406,21 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 	/// <summary>
 	/// Parses one chapter path relative to the configured source root.
 	/// </summary>
-	/// <param name="chapterPath">Full chapter path.</param>
+	/// <param name="path">Full path under the configured source root.</param>
 	/// <param name="sourceName">Resolved source name when parse succeeds.</param>
-	/// <returns><see langword="true"/> when path depth equals source/manga/chapter under the source root.</returns>
-	private bool TryParseSourcePath(string chapterPath, out string sourceName)
+	/// <param name="segments">Resolved relative path segments when parse succeeds.</param>
+	/// <param name="expectedDepth">Expected relative depth under source root.</param>
+	/// <returns><see langword="true"/> when path depth matches <paramref name="expectedDepth"/> under the source root.</returns>
+	private bool TryParseSourcePath(string path, out string sourceName, out string[] segments, int expectedDepth)
 	{
 		sourceName = string.Empty;
-		string relativePath = Path.GetRelativePath(_options.SourcesRootPath, chapterPath);
+		segments = [];
+		if (expectedDepth <= 0)
+		{
+			throw new ArgumentOutOfRangeException(nameof(expectedDepth), "Expected depth must be > 0.");
+		}
+
+		string relativePath = Path.GetRelativePath(_options.SourcesRootPath, path);
 		if (string.IsNullOrWhiteSpace(relativePath) ||
 			string.Equals(relativePath, ".", StringComparison.Ordinal) ||
 			Path.IsPathRooted(relativePath))
@@ -367,23 +428,25 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 			return false;
 		}
 
-		string[] segments = relativePath.Split(
+		string[] parsedSegments = relativePath.Split(
 			[Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
 			StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-		if (segments.Length != 3)
+		if (parsedSegments.Length != expectedDepth)
 		{
 			return false;
 		}
 
-		if (string.Equals(segments[0], "..", StringComparison.Ordinal) ||
-			string.Equals(segments[1], "..", StringComparison.Ordinal) ||
-			string.Equals(segments[2], "..", StringComparison.Ordinal))
+		for (int index = 0; index < parsedSegments.Length; index++)
 		{
-			return false;
+			if (string.Equals(parsedSegments[index], "..", StringComparison.Ordinal))
+			{
+				return false;
+			}
 		}
 
-		sourceName = segments[0];
+		sourceName = parsedSegments[0];
+		segments = parsedSegments;
 		return true;
 	}
 
