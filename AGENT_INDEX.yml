@@ -18,30 +18,43 @@ conventions:
   - Keep XMLDOC comments detailed for runtime and configuration APIs so intent/usage are clear in-code.
 modules:
   - id: application-hosting
-    summary: Runtime host orchestration that bootstraps configuration, initializes logging, and handles fatal paths.
+    summary: Runtime host orchestration that bootstraps configuration, initializes logging, and runs daemon supervision.
     tags: [application, hosting, runtime]
     paths:
       - SuwayomiSourceMerge/Application/Hosting/ApplicationHost.cs
+      - SuwayomiSourceMerge/Application/Hosting/DefaultRuntimeSupervisorRunner.cs
+      - SuwayomiSourceMerge/Application/Hosting/IRuntimeSupervisorRunner.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Hosting/ApplicationHostTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/ProgramEntryPointTests.cs
     entrypoints:
       - symbol: ApplicationHost
         kind: class
         path: SuwayomiSourceMerge/Application/Hosting/ApplicationHost.cs
-        purpose: Coordinates bootstrap, logger creation, lifecycle events, and failure handling.
+        purpose: Coordinates bootstrap, logger creation, runtime supervision invocation, and failure handling.
       - symbol: ApplicationHost.CreateDefault
         kind: method
         path: SuwayomiSourceMerge/Application/Hosting/ApplicationHost.cs
-        purpose: Builds the default production composition of bootstrap and logging services.
+        purpose: Builds the default production composition of bootstrap, logging, and runtime supervisor services.
       - symbol: ApplicationHost.Run
         kind: method
         path: SuwayomiSourceMerge/Application/Hosting/ApplicationHost.cs
-        purpose: Executes host startup/shutdown flow and writes stderr fallback diagnostics on failures.
+        purpose: Executes host startup/runtime/shutdown flow, emits distinct success/failure shutdown lifecycle events, and writes stderr fallback diagnostics on failures.
       - symbol: ApplicationHostTests
         kind: class
         path: tests/SuwayomiSourceMerge.UnitTests/Application/Hosting/ApplicationHostTests.cs
-        purpose: Verifies success, bootstrap failure, unhandled exception, and level-none host behavior.
+        purpose: Verifies bootstrap/runtime success paths, runner invocation, and fatal-path handling.
+      - symbol: DefaultRuntimeSupervisorRunner
+        kind: class
+        path: SuwayomiSourceMerge/Application/Hosting/DefaultRuntimeSupervisorRunner.cs
+        purpose: Composes watcher, rename, and supervisor dependencies and executes daemon runtime flow.
+      - symbol: IRuntimeSupervisorRunner
+        kind: interface
+        path: SuwayomiSourceMerge/Application/Hosting/IRuntimeSupervisorRunner.cs
+        purpose: Defines the runtime supervision execution contract consumed by the application host.
     extension_points:
+      - how: Add alternate runtime supervision implementations by injecting custom runner implementations.
+        symbols: [ApplicationHost, IRuntimeSupervisorRunner]
+        paths: [SuwayomiSourceMerge/Application/Hosting/ApplicationHost.cs, SuwayomiSourceMerge/Application/Hosting/IRuntimeSupervisorRunner.cs]
       - how: Add or adjust host lifecycle events and shutdown behavior in the run pipeline.
         symbols: [ApplicationHost.Run]
         paths: [SuwayomiSourceMerge/Application/Hosting/ApplicationHost.cs]
@@ -50,8 +63,69 @@ modules:
         paths: [SuwayomiSourceMerge/Application/Hosting/ApplicationHost.cs]
     do_not_reimplement:
       - Canonical host lifecycle orchestration and stderr fallback handling; use ApplicationHost.Run.
-      - Canonical runtime dependency composition for bootstrap and logging; use ApplicationHost.CreateDefault.
-    related: [logging-infrastructure, runtime-host, unit-test-suite]
+      - Canonical runtime failure lifecycle event emission (`host.shutdown_failed`) when runtime exits non-zero; use ApplicationHost.Run.
+      - Canonical runtime dependency composition for bootstrap, logging, and supervision; use ApplicationHost.CreateDefault.
+      - Canonical runtime supervisor dependency composition for production startup; use DefaultRuntimeSupervisorRunner.
+    related: [application-supervision, logging-infrastructure, runtime-host, unit-test-suite]
+  - id: application-supervision
+    summary: Daemon lifecycle supervision with state-file locking, PID tracking, and signal-driven graceful shutdown.
+    tags: [application, lifecycle, runtime, supervision]
+    paths:
+      - SuwayomiSourceMerge/Application/Supervision/ConsoleSupervisorSignalRegistrar.cs
+      - SuwayomiSourceMerge/Application/Supervision/DaemonSupervisor.cs
+      - SuwayomiSourceMerge/Application/Supervision/DaemonSupervisorOptions.cs
+      - SuwayomiSourceMerge/Application/Supervision/FilesystemEventDaemonWorker.cs
+      - SuwayomiSourceMerge/Application/Supervision/IDaemonSupervisor.cs
+      - SuwayomiSourceMerge/Application/Supervision/IDaemonWorker.cs
+      - SuwayomiSourceMerge/Application/Supervision/ISupervisorSignalRegistrar.cs
+      - SuwayomiSourceMerge/Application/Supervision/SupervisorFileLock.cs
+      - SuwayomiSourceMerge/Application/Supervision/SupervisorStatePaths.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorOptionsTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorTests.cs
+    entrypoints:
+      - symbol: ConsoleSupervisorSignalRegistrar
+        kind: class
+        path: SuwayomiSourceMerge/Application/Supervision/ConsoleSupervisorSignalRegistrar.cs
+        purpose: Registers console and process-exit callbacks that request daemon stop.
+      - symbol: DaemonSupervisor
+        kind: class
+        path: SuwayomiSourceMerge/Application/Supervision/DaemonSupervisor.cs
+        purpose: Coordinates single-instance start, coalesced concurrent startup, worker lifetime, startup-failure diagnostics, graceful stop, timeout fail-fast run exit, and state cleanup.
+      - symbol: DaemonSupervisor.RunAsync
+        kind: method
+        path: SuwayomiSourceMerge/Application/Supervision/DaemonSupervisor.cs
+        purpose: Runs the worker until stop signals or failures using stable run-state capture before callback registration and maps startup cancellation/failure to deterministic exit codes.
+      - symbol: DaemonSupervisorOptions
+        kind: class
+        path: SuwayomiSourceMerge/Application/Supervision/DaemonSupervisorOptions.cs
+        purpose: Maps validated settings to supervisor timeout and state-path configuration.
+      - symbol: FilesystemEventDaemonWorker
+        kind: class
+        path: SuwayomiSourceMerge/Application/Supervision/FilesystemEventDaemonWorker.cs
+        purpose: Executes continuous filesystem trigger ticks until cancellation.
+      - symbol: SupervisorFileLock
+        kind: class
+        path: SuwayomiSourceMerge/Application/Supervision/SupervisorFileLock.cs
+        purpose: Holds exclusive lock ownership over the supervisor state lock file.
+    extension_points:
+      - how: Add alternate signal providers by implementing signal registrar adapters used by the supervisor.
+        symbols: [ConsoleSupervisorSignalRegistrar, ISupervisorSignalRegistrar]
+        paths: [SuwayomiSourceMerge/Application/Supervision/ConsoleSupervisorSignalRegistrar.cs, SuwayomiSourceMerge/Application/Supervision/ISupervisorSignalRegistrar.cs]
+      - how: Swap or compose daemon worker loops by implementing IDaemonWorker and wiring it into DaemonSupervisor.
+        symbols: [DaemonSupervisor, FilesystemEventDaemonWorker, IDaemonWorker]
+        paths: [SuwayomiSourceMerge/Application/Supervision/DaemonSupervisor.cs, SuwayomiSourceMerge/Application/Supervision/FilesystemEventDaemonWorker.cs, SuwayomiSourceMerge/Application/Supervision/IDaemonWorker.cs]
+      - how: Tune state-path and stop-timeout policy by extending DaemonSupervisorOptions and SupervisorStatePaths mapping logic.
+        symbols: [DaemonSupervisorOptions, SupervisorStatePaths]
+        paths: [SuwayomiSourceMerge/Application/Supervision/DaemonSupervisorOptions.cs, SuwayomiSourceMerge/Application/Supervision/SupervisorStatePaths.cs]
+    do_not_reimplement:
+      - Canonical daemon lifecycle start/stop idempotency, timeout handling, and cleanup flow; use DaemonSupervisor.
+      - Canonical early-stop race handling by capturing worker/stop tasks before signal and cancellation registration; use DaemonSupervisor.RunAsync.
+      - Canonical startup exception exit-code mapping (cancellation=success, non-cancellation startup failure=error) and startup-failure diagnostics; use DaemonSupervisor.RunAsync.
+      - Canonical run-loop timeout liveness behavior (non-hanging fail-fast on stop timeout); use DaemonSupervisor.RunAsync.
+      - Canonical state-file path resolution for supervisor lock/pid files; use SupervisorStatePaths.
+      - Canonical worker-loop contract used by daemon supervision; use IDaemonWorker.
+      - Canonical exclusive supervisor lock-file acquisition and release semantics; use SupervisorFileLock.
+    related: [application-hosting, application-watching, unit-test-suite]
   - id: application-watching
     summary: Tick-based event trigger orchestration that routes inotify events and coalesces merge scan requests.
     tags: [application, orchestration, runtime, watching]
@@ -63,10 +137,12 @@ modules:
       - SuwayomiSourceMerge/Application/Watching/IMergeScanRequestHandler.cs
       - SuwayomiSourceMerge/Application/Watching/MergeScanDispatchOutcome.cs
       - SuwayomiSourceMerge/Application/Watching/MergeScanRequestCoalescer.cs
+      - SuwayomiSourceMerge/Application/Watching/NoOpMergeScanRequestHandler.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineIntegrationTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/MergeScanRequestCoalescerTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/NoOpMergeScanRequestHandlerTests.cs
     entrypoints:
       - symbol: FilesystemEventTriggerOptions
         kind: class
@@ -88,6 +164,10 @@ modules:
         kind: class
         path: SuwayomiSourceMerge/Application/Watching/MergeScanRequestCoalescer.cs
         purpose: Coalesces burst merge scan requests and enforces min-interval and retry-delay gates.
+      - symbol: NoOpMergeScanRequestHandler
+        kind: class
+        path: SuwayomiSourceMerge/Application/Watching/NoOpMergeScanRequestHandler.cs
+        purpose: Handles merge dispatch requests with deterministic success while merge-apply orchestration is deferred.
     extension_points:
       - how: Add alternate merge dispatch targets by implementing IMergeScanRequestHandler and injecting into coalescer construction.
         symbols: [IMergeScanRequestHandler, MergeScanRequestCoalescer]
@@ -95,6 +175,9 @@ modules:
       - how: Adjust source/override event routing semantics by editing trigger pipeline handlers and reason mapping.
         symbols: [FilesystemEventTriggerPipeline, FilesystemEventTriggerPipeline.Tick]
         paths: [SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerPipeline.cs]
+      - how: Keep lifecycle-only merge dispatch behavior stable via no-op handler defaults until mount-apply orchestration is introduced.
+        symbols: [IMergeScanRequestHandler, NoOpMergeScanRequestHandler]
+        paths: [SuwayomiSourceMerge/Application/Watching/IMergeScanRequestHandler.cs, SuwayomiSourceMerge/Application/Watching/NoOpMergeScanRequestHandler.cs]
       - how: Tune watcher cadence and startup-rescan behavior via options construction from settings.
         symbols: [FilesystemEventTriggerOptions, FilesystemEventTriggerOptions.FromSettings]
         paths: [SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerOptions.cs]
@@ -103,10 +186,11 @@ modules:
         paths: [SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerPipeline.cs]
     do_not_reimplement:
       - Canonical burst merge-request coalescing with latest-reason and latest-force replacement semantics; use MergeScanRequestCoalescer.
+      - Canonical lifecycle-scope merge dispatch success placeholder behavior; use NoOpMergeScanRequestHandler.
       - Canonical merge-request interval/retry gate decisions; use MergeScanRequestCoalescer.DispatchPending.
       - Canonical one-pass filesystem event routing plus periodic rename/merge fallback scheduling; use FilesystemEventTriggerPipeline.Tick.
       - Canonical watcher settings mapping from validated settings documents; use FilesystemEventTriggerOptions.FromSettings.
-    related: [infrastructure-rename, infrastructure-watching, runtime-host, unit-test-suite]
+    related: [application-supervision, infrastructure-rename, infrastructure-watching, runtime-host, unit-test-suite]
   - id: build-and-quality
     summary: Central build defaults and formatting behavior for the solution.
     tags: [build, msbuild, quality]
@@ -994,10 +1078,13 @@ modules:
     tags: [tests, xunit, validation]
     paths:
       - tests/SuwayomiSourceMerge.UnitTests/Application/Hosting/ApplicationHostTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorOptionsTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineIntegrationTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/MergeScanRequestCoalescerTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/NoOpMergeScanRequestHandlerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapExceptionTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapGuardTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapServiceTests.cs
@@ -1051,6 +1138,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/stryker-config.json
       - tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj
       - tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/PathTestUtilities.cs
+      - tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/RecordingLogger.cs
       - tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/TemporaryDirectory.cs
       - tests/SuwayomiSourceMerge.UnitTests/UnitTest1.cs
     entrypoints:
@@ -1081,7 +1169,7 @@ modules:
     extension_points:
       - how: Add new deterministic unit tests in the unit test project and centralize reusable fixtures/helpers for reuse.
         symbols: [ProjectLayoutTests, SuwayomiSourceMerge.UnitTests.csproj]
-        paths: [tests/SuwayomiSourceMerge.UnitTests/Configuration/ConfigurationTestData.cs, tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/PathTestUtilities.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/TemporaryDirectory.cs, tests/SuwayomiSourceMerge.UnitTests/UnitTest1.cs]
+        paths: [tests/SuwayomiSourceMerge.UnitTests/Configuration/ConfigurationTestData.cs, tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/PathTestUtilities.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/RecordingLogger.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/TemporaryDirectory.cs, tests/SuwayomiSourceMerge.UnitTests/UnitTest1.cs]
       - how: Adjust mutation-test scope and score gates in the stryker configuration file.
         symbols: [stryker-config.json]
         paths: [tests/SuwayomiSourceMerge.UnitTests/stryker-config.json]
@@ -1095,4 +1183,4 @@ modules:
       - Host lifecycle and stderr fallback coverage; extend ApplicationHostTests.
       - Logging formatter/filter/rolling behavior coverage; extend Infrastructure/Logging test classes.
       - Mutation-test scope and threshold gates; use stryker-config.json.
-    related: [application-hosting, application-watching, build-and-quality, config-schema-validation, infrastructure-watching, logging-infrastructure, runtime-host, shared-test-support]
+    related: [application-hosting, application-supervision, application-watching, build-and-quality, config-schema-validation, infrastructure-watching, logging-infrastructure, runtime-host, shared-test-support]
