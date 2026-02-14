@@ -100,8 +100,9 @@ internal sealed class MergeScanRequestCoalescer : IMergeScanRequestCoalescer
 
 		lock (_syncRoot)
 		{
+			// Latest request semantics: newest reason and force replace older pending values.
 			_pendingReason = reason;
-			_pendingForce = _pendingForce || force;
+			_pendingForce = force;
 			_pendingVersion++;
 		}
 	}

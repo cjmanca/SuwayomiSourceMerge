@@ -102,7 +102,7 @@ modules:
         symbols: [FilesystemEventTriggerPipeline, FilesystemEventTriggerPipeline.Tick]
         paths: [SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerPipeline.cs]
     do_not_reimplement:
-      - Canonical burst merge-request coalescing with latest-reason replacement and sticky force semantics; use MergeScanRequestCoalescer.
+      - Canonical burst merge-request coalescing with latest-reason and latest-force replacement semantics; use MergeScanRequestCoalescer.
       - Canonical merge-request interval/retry gate decisions; use MergeScanRequestCoalescer.DispatchPending.
       - Canonical one-pass filesystem event routing plus periodic rename/merge fallback scheduling; use FilesystemEventTriggerPipeline.Tick.
       - Canonical watcher settings mapping from validated settings documents; use FilesystemEventTriggerOptions.FromSettings.

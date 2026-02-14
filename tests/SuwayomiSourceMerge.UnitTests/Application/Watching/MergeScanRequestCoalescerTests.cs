@@ -27,7 +27,7 @@ public sealed class MergeScanRequestCoalescerTests
 	}
 
 	/// <summary>
-	/// Verifies burst requests coalesce to one pending request with latest reason and force stickiness.
+	/// Verifies burst requests coalesce to one pending request with latest reason and latest force.
 	/// </summary>
 	[Fact]
 	public void RequestScan_Edge_ShouldCoalesceLatestReasonAndForce_WhenBurstRequestsArrive()
@@ -43,7 +43,7 @@ public sealed class MergeScanRequestCoalescerTests
 		Assert.Equal(MergeScanDispatchOutcome.Success, outcome);
 		Assert.Single(handler.Calls);
 		Assert.Equal("third", handler.Calls[0].Reason);
-		Assert.True(handler.Calls[0].Force);
+		Assert.False(handler.Calls[0].Force);
 	}
 
 	/// <summary>
@@ -105,7 +105,7 @@ public sealed class MergeScanRequestCoalescerTests
 	}
 
 	/// <summary>
-	/// Verifies requests queued during an in-flight dispatch remain pending for a follow-up dispatch.
+	/// Verifies requests queued during an in-flight dispatch remain pending and use latest force semantics.
 	/// </summary>
 	[Fact]
 	public async Task DispatchPending_Edge_ShouldRetainLatestPending_WhenRequestArrivesDuringDispatch()
@@ -114,11 +114,11 @@ public sealed class MergeScanRequestCoalescerTests
 		MergeScanRequestCoalescer coalescer = new(handler, minSecondsBetweenScans: 0, retryDelaySeconds: 5);
 		DateTimeOffset now = DateTimeOffset.UtcNow;
 
-		coalescer.RequestScan("initial", force: false);
+		coalescer.RequestScan("initial", force: true);
 		Task<MergeScanDispatchOutcome> firstDispatchTask = Task.Run(() => coalescer.DispatchPending(now));
 		Assert.True(handler.DispatchStarted.Wait(TimeSpan.FromSeconds(5)));
 
-		coalescer.RequestScan("latest", force: true);
+		coalescer.RequestScan("latest", force: false);
 		handler.AllowDispatch.Set();
 
 		MergeScanDispatchOutcome firstOutcome = await firstDispatchTask.WaitAsync(TimeSpan.FromSeconds(5));
@@ -130,8 +130,9 @@ public sealed class MergeScanRequestCoalescerTests
 		Assert.False(coalescer.HasPendingRequest);
 		Assert.Equal(2, handler.Calls.Count);
 		Assert.Equal("initial", handler.Calls[0].Reason);
+		Assert.True(handler.Calls[0].Force);
 		Assert.Equal("latest", handler.Calls[1].Reason);
-		Assert.True(handler.Calls[1].Force);
+		Assert.False(handler.Calls[1].Force);
 	}
 
 	/// <summary>
