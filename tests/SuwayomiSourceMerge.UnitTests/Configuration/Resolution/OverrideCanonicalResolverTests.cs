@@ -2,6 +2,7 @@ namespace SuwayomiSourceMerge.UnitTests.Configuration.Resolution;
 
 using SuwayomiSourceMerge.Configuration.Resolution;
 using SuwayomiSourceMerge.Domain.Normalization;
+using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 
 /// <summary>
 /// Tests override canonical title resolution from existing override directory names.
@@ -28,6 +29,24 @@ public sealed class OverrideCanonicalResolverTests
 
 		Assert.True(wasResolved);
 		Assert.Equal("Manga Title", overrideCanonicalTitle);
+	}
+
+	[Fact]
+	public void TryResolveOverrideCanonical_ShouldReuseCachedMatcherAwareNormalization_ForRepeatedInput()
+	{
+		CountingSceneTagMatcher matcher = new(["official"]);
+		OverrideCanonicalResolver resolver = new(["Manga Title"], matcher);
+
+		bool firstResolved = resolver.TryResolveOverrideCanonical("Manga Title [Official]", out string firstOverrideCanonicalTitle);
+		int countAfterFirst = matcher.MatchCallCount;
+		bool secondResolved = resolver.TryResolveOverrideCanonical("Manga Title [Official]", out string secondOverrideCanonicalTitle);
+
+		Assert.True(firstResolved);
+		Assert.True(secondResolved);
+		Assert.Equal("Manga Title", firstOverrideCanonicalTitle);
+		Assert.Equal(firstOverrideCanonicalTitle, secondOverrideCanonicalTitle);
+		Assert.True(countAfterFirst > 0);
+		Assert.Equal(countAfterFirst, matcher.MatchCallCount);
 	}
 
 	[Fact]

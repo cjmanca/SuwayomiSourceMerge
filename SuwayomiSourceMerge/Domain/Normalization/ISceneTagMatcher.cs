@@ -3,6 +3,11 @@ namespace SuwayomiSourceMerge.Domain.Normalization;
 /// <summary>
 /// Defines canonical scene-tag phrase matching behavior for normalized title processing.
 /// </summary>
+/// <remarks>
+/// Implementations are expected to be deterministic and side-effect free for identical candidate
+/// inputs during one process lifetime. Cached title-comparison pipelines rely on this contract
+/// when reusing matcher-aware normalization results.
+/// </remarks>
 public interface ISceneTagMatcher
 {
 	/// <summary>

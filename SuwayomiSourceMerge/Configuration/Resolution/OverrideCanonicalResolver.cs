@@ -18,9 +18,9 @@ internal sealed class OverrideCanonicalResolver : IOverrideCanonicalResolver
 	private readonly IReadOnlyDictionary<string, string> _overrideTitleByNormalizedKey;
 
 	/// <summary>
-	/// Optional matcher used during title normalization for trailing scene-tag suffix stripping.
+	/// Shared cached normalizer used for title-key lookups.
 	/// </summary>
-	private readonly ISceneTagMatcher? _sceneTagMatcher;
+	private readonly ITitleComparisonNormalizer _titleComparisonNormalizer;
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="OverrideCanonicalResolver"/> class.
@@ -43,8 +43,8 @@ internal sealed class OverrideCanonicalResolver : IOverrideCanonicalResolver
 	{
 		ArgumentNullException.ThrowIfNull(existingOverrideTitles);
 
-		_sceneTagMatcher = sceneTagMatcher;
-		_overrideTitleByNormalizedKey = BuildLookup(existingOverrideTitles, sceneTagMatcher);
+		_titleComparisonNormalizer = TitleComparisonNormalizerProvider.Get(sceneTagMatcher);
+		_overrideTitleByNormalizedKey = BuildLookup(existingOverrideTitles, _titleComparisonNormalizer);
 	}
 
 	/// <inheritdoc />
@@ -52,7 +52,7 @@ internal sealed class OverrideCanonicalResolver : IOverrideCanonicalResolver
 	{
 		ArgumentNullException.ThrowIfNull(inputTitle);
 
-		string normalizedKey = TitleKeyNormalizer.NormalizeTitleKey(inputTitle, _sceneTagMatcher);
+		string normalizedKey = _titleComparisonNormalizer.NormalizeTitleKey(inputTitle);
 		if (string.IsNullOrEmpty(normalizedKey))
 		{
 			overrideCanonicalTitle = string.Empty;
@@ -73,14 +73,14 @@ internal sealed class OverrideCanonicalResolver : IOverrideCanonicalResolver
 	/// Builds a normalized lookup from existing override titles.
 	/// </summary>
 	/// <param name="existingOverrideTitles">Titles to index in priority order.</param>
-	/// <param name="sceneTagMatcher">Optional matcher used during title-key normalization.</param>
+	/// <param name="titleComparisonNormalizer">Cached normalizer used to derive title comparison keys.</param>
 	/// <returns>Immutable lookup from normalized keys to exact override titles.</returns>
 	/// <exception cref="ArgumentException">
 	/// Thrown when any entry is null/whitespace or normalizes to an empty key.
 	/// </exception>
 	private static IReadOnlyDictionary<string, string> BuildLookup(
 		IEnumerable<string> existingOverrideTitles,
-		ISceneTagMatcher? sceneTagMatcher)
+		ITitleComparisonNormalizer titleComparisonNormalizer)
 	{
 		Dictionary<string, string> lookup = new(StringComparer.Ordinal);
 		int index = 0;
@@ -94,7 +94,7 @@ internal sealed class OverrideCanonicalResolver : IOverrideCanonicalResolver
 					nameof(existingOverrideTitles));
 			}
 
-			string normalizedKey = TitleKeyNormalizer.NormalizeTitleKey(title, sceneTagMatcher);
+			string normalizedKey = titleComparisonNormalizer.NormalizeTitleKey(title);
 			if (string.IsNullOrEmpty(normalizedKey))
 			{
 				throw new ArgumentException(

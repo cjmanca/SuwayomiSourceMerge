@@ -3,6 +3,7 @@ namespace SuwayomiSourceMerge.UnitTests.Configuration.Validation;
 using SuwayomiSourceMerge.Configuration.Documents;
 using SuwayomiSourceMerge.Configuration.Validation;
 using SuwayomiSourceMerge.Domain.Normalization;
+using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 
 public sealed class ValidationKeyNormalizerTests
 {
@@ -183,12 +184,33 @@ public sealed class ValidationKeyNormalizerTests
         Assert.Equal("matcher-failure", exception.Message);
     }
 
-    private sealed class ThrowingSceneTagMatcher : ISceneTagMatcher
+    [Fact]
+    public void NormalizeTitleKey_ShouldReuseCachedMatcherAwareNormalization_ForRepeatedInput()
     {
-        public bool IsMatch(string candidate)
-        {
-            throw new InvalidOperationException("matcher-failure");
-        }
+        CountingSceneTagMatcher matcher = new(["official"]);
+
+        string first = ValidationKeyNormalizer.NormalizeTitleKey("Manga Title (Official)", matcher);
+        int countAfterFirst = matcher.MatchCallCount;
+
+        string second = ValidationKeyNormalizer.NormalizeTitleKey("Manga Title (Official)", matcher);
+
+        Assert.Equal("mangatitle", first);
+        Assert.Equal(first, second);
+        Assert.True(countAfterFirst > 0);
+        Assert.Equal(countAfterFirst, matcher.MatchCallCount);
+    }
+
+    [Fact]
+    public void NormalizeTitleKey_ShouldReuseFirstComputedValue_WhenMatcherBehaviorChanges()
+    {
+        FlippingSceneTagMatcher matcher = new(initialResult: true);
+
+        string first = ValidationKeyNormalizer.NormalizeTitleKey("Manga Title (Official)", matcher);
+        string second = ValidationKeyNormalizer.NormalizeTitleKey("Manga Title (Official)", matcher);
+
+        Assert.Equal("mangatitle", first);
+        Assert.Equal(first, second);
+        Assert.Equal(1, matcher.MatchCallCount);
     }
 
     [Theory]

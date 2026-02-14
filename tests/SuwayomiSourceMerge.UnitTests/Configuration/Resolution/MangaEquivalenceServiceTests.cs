@@ -3,6 +3,7 @@ namespace SuwayomiSourceMerge.UnitTests.Configuration.Resolution;
 using SuwayomiSourceMerge.Configuration.Documents;
 using SuwayomiSourceMerge.Configuration.Resolution;
 using SuwayomiSourceMerge.Domain.Normalization;
+using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 
 /// <summary>
 /// Tests canonical title resolution from YAML-backed manga-equivalence mappings.
@@ -62,6 +63,36 @@ public sealed class MangaEquivalenceServiceTests
 
 		Assert.True(wasResolved);
 		Assert.Equal("Manga Alpha", canonicalTitle);
+	}
+
+	[Fact]
+	public void TryResolveCanonicalTitle_ShouldReuseCachedMatcherAwareNormalization_ForRepeatedInput()
+	{
+		CountingSceneTagMatcher matcher = new(["official"]);
+		MangaEquivalenceService service = new(
+			new MangaEquivalentsDocument
+			{
+				Groups =
+				[
+					new MangaEquivalentGroup
+					{
+						Canonical = "Manga Alpha",
+						Aliases = ["Manga Alpha"]
+					}
+				]
+			},
+			matcher);
+
+		bool firstResolved = service.TryResolveCanonicalTitle("Manga Alpha [Official]", out string firstCanonicalTitle);
+		int countAfterFirst = matcher.MatchCallCount;
+		bool secondResolved = service.TryResolveCanonicalTitle("Manga Alpha [Official]", out string secondCanonicalTitle);
+
+		Assert.True(firstResolved);
+		Assert.True(secondResolved);
+		Assert.Equal("Manga Alpha", firstCanonicalTitle);
+		Assert.Equal(firstCanonicalTitle, secondCanonicalTitle);
+		Assert.True(countAfterFirst > 0);
+		Assert.Equal(countAfterFirst, matcher.MatchCallCount);
 	}
 
 	[Fact]

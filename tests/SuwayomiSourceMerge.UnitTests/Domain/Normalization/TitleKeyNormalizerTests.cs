@@ -1,6 +1,7 @@
 namespace SuwayomiSourceMerge.UnitTests.Domain.Normalization;
 
 using SuwayomiSourceMerge.Domain.Normalization;
+using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 
 /// <summary>
 /// Verifies title-key normalization behavior used by runtime and validation flows.
@@ -59,13 +60,5 @@ public sealed class TitleKeyNormalizerTests
 	public void NormalizeTokenKey_ShouldThrow_WhenInputIsNull()
 	{
 		Assert.Throws<ArgumentNullException>(() => TitleKeyNormalizer.NormalizeTokenKey(null!));
-	}
-
-	private sealed class ThrowingSceneTagMatcher : ISceneTagMatcher
-	{
-		public bool IsMatch(string candidate)
-		{
-			throw new InvalidOperationException("matcher-failure");
-		}
 	}
 }
