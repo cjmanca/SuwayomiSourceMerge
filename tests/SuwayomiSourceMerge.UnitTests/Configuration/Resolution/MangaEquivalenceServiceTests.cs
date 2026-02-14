@@ -3,6 +3,7 @@ namespace SuwayomiSourceMerge.UnitTests.Configuration.Resolution;
 using SuwayomiSourceMerge.Configuration.Documents;
 using SuwayomiSourceMerge.Configuration.Resolution;
 using SuwayomiSourceMerge.Domain.Normalization;
+using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 
 /// <summary>
 /// Tests canonical title resolution from YAML-backed manga-equivalence mappings.
@@ -162,23 +163,5 @@ public sealed class MangaEquivalenceServiceTests
 				}
 			]
 		};
-	}
-
-	private sealed class CountingSceneTagMatcher : ISceneTagMatcher
-	{
-		private readonly ISceneTagMatcher _innerMatcher;
-
-		public CountingSceneTagMatcher(IEnumerable<string> configuredTags)
-		{
-			_innerMatcher = new SceneTagMatcher(configuredTags);
-		}
-
-		public int MatchCallCount { get; private set; }
-
-		public bool IsMatch(string candidate)
-		{
-			MatchCallCount++;
-			return _innerMatcher.IsMatch(candidate);
-		}
 	}
 }

@@ -1,6 +1,7 @@
 namespace SuwayomiSourceMerge.UnitTests.Domain.Normalization;
 
 using SuwayomiSourceMerge.Domain.Normalization;
+using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 
 /// <summary>
 /// Verifies cached title/token comparison-key normalization behavior.
@@ -126,43 +127,5 @@ public sealed class CachedTitleComparisonNormalizerTests
 		ITitleComparisonNormalizer second = TitleComparisonNormalizerProvider.Get(secondMatcher);
 
 		Assert.NotSame(first, second);
-	}
-
-	private sealed class CountingSceneTagMatcher : ISceneTagMatcher
-	{
-		private readonly ISceneTagMatcher _innerMatcher;
-
-		public CountingSceneTagMatcher(IEnumerable<string> configuredTags)
-		{
-			_innerMatcher = new SceneTagMatcher(configuredTags);
-		}
-
-		public int MatchCallCount { get; private set; }
-
-		public bool IsMatch(string candidate)
-		{
-			MatchCallCount++;
-			return _innerMatcher.IsMatch(candidate);
-		}
-	}
-
-	private sealed class FlippingSceneTagMatcher : ISceneTagMatcher
-	{
-		private bool _nextResult;
-
-		public FlippingSceneTagMatcher(bool initialResult)
-		{
-			_nextResult = initialResult;
-		}
-
-		public int MatchCallCount { get; private set; }
-
-		public bool IsMatch(string candidate)
-		{
-			MatchCallCount++;
-			bool current = _nextResult;
-			_nextResult = !current;
-			return current;
-		}
 	}
 }

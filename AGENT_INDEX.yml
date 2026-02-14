@@ -1123,6 +1123,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/ValidationResultTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/YamlDocumentParserPropertyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/YamlDocumentParserTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/CachedTitleComparisonNormalizerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/ComparisonTextNormalizerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/SceneTagMatcherTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/TitleKeyNormalizerTests.cs
@@ -1147,6 +1148,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj
       - tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/PathTestUtilities.cs
       - tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/RecordingLogger.cs
+      - tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/SceneTagMatcherTestDoubles.cs
       - tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/TemporaryDirectory.cs
       - tests/SuwayomiSourceMerge.UnitTests/UnitTest1.cs
     entrypoints:
@@ -1177,7 +1179,7 @@ modules:
     extension_points:
       - how: Add new deterministic unit tests in the unit test project and centralize reusable fixtures/helpers for reuse.
         symbols: [ProjectLayoutTests, SuwayomiSourceMerge.UnitTests.csproj]
-        paths: [tests/SuwayomiSourceMerge.UnitTests/Configuration/ConfigurationTestData.cs, tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/PathTestUtilities.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/RecordingLogger.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/TemporaryDirectory.cs, tests/SuwayomiSourceMerge.UnitTests/UnitTest1.cs]
+        paths: [tests/SuwayomiSourceMerge.UnitTests/Configuration/ConfigurationTestData.cs, tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/PathTestUtilities.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/RecordingLogger.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/SceneTagMatcherTestDoubles.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/TemporaryDirectory.cs, tests/SuwayomiSourceMerge.UnitTests/UnitTest1.cs]
       - how: Adjust mutation-test scope and score gates in the stryker configuration file.
         symbols: [stryker-config.json]
         paths: [tests/SuwayomiSourceMerge.UnitTests/stryker-config.json]

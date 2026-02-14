@@ -2,6 +2,7 @@ namespace SuwayomiSourceMerge.UnitTests.Configuration.Resolution;
 
 using SuwayomiSourceMerge.Configuration.Resolution;
 using SuwayomiSourceMerge.Domain.Normalization;
+using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 
 /// <summary>
 /// Tests override canonical title resolution from existing override directory names.
@@ -89,23 +90,5 @@ public sealed class OverrideCanonicalResolverTests
 		OverrideCanonicalResolver resolver = new(["Manga Title"]);
 
 		Assert.Throws<ArgumentNullException>(() => resolver.TryResolveOverrideCanonical(null!, out _));
-	}
-
-	private sealed class CountingSceneTagMatcher : ISceneTagMatcher
-	{
-		private readonly ISceneTagMatcher _innerMatcher;
-
-		public CountingSceneTagMatcher(IEnumerable<string> configuredTags)
-		{
-			_innerMatcher = new SceneTagMatcher(configuredTags);
-		}
-
-		public int MatchCallCount { get; private set; }
-
-		public bool IsMatch(string candidate)
-		{
-			MatchCallCount++;
-			return _innerMatcher.IsMatch(candidate);
-		}
 	}
 }
