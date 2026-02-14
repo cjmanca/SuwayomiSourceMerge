@@ -17,6 +17,7 @@ Requirements baseline for the C# port:
 - Normalization follows docs strictly, including leading-article stripping and trailing-`s` stripping per word.
 - Source priority matching is normalized-only (case/punctuation-insensitive token comparison).
 - Chapter rename behavior stays aligned with the existing shell script for v1.
+- For chapter rename rules, shell parity is the baseline; when docs/examples conflict, documented behavior wins (for example, embedded `MangaChapter6` chapter-token matching).
 - `details.json` auto-generation from `ComicInfo.xml` is included in v1.
 - Runtime discovery in container mode treats all directories directly under `sources` as source volumes and under `override` as override volumes.
 - Runtime settings come from `settings.yml`; missing settings must be auto-added with defaults.
