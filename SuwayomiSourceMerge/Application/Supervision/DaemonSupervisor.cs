@@ -24,6 +24,9 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 	/// <summary>Event id emitted when worker exits with an unhandled exception.</summary>
 	private const string SUPERVISOR_WORKER_FAULT_EVENT = "supervisor.worker_fault";
 
+	/// <summary>Event id emitted when startup fails before run-loop execution begins.</summary>
+	private const string SUPERVISOR_STARTUP_FAILURE_EVENT = "supervisor.startup_failure";
+
 	/// <summary>Event id emitted when graceful stop timeout expires.</summary>
 	private const string SUPERVISOR_STOP_TIMEOUT_EVENT = "supervisor.stop_timeout";
 
@@ -126,6 +129,7 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 	/// <inheritdoc />
 	public Task StartAsync(CancellationToken cancellationToken = default)
 	{
+		// Startup cancellation is observed before startup work begins.
 		cancellationToken.ThrowIfCancellationRequested();
 
 		TaskCompletionSource<bool>? startCompletionSource = null;
@@ -193,11 +197,28 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 	/// <inheritdoc />
 	public async Task<int> RunAsync(CancellationToken cancellationToken = default)
 	{
-		await StartAsync(cancellationToken).ConfigureAwait(false);
-
 		int exitCode = 1;
 		try
 		{
+			try
+			{
+				await StartAsync(cancellationToken).ConfigureAwait(false);
+			}
+			catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+			{
+				return 0;
+			}
+			catch (Exception exception)
+			{
+				_logger.Error(
+					SUPERVISOR_STARTUP_FAILURE_EVENT,
+					"Daemon supervisor startup failed.",
+					BuildContext(
+						("exception_type", exception.GetType().FullName ?? exception.GetType().Name),
+						("message", exception.Message)));
+				return 1;
+			}
+
 			Task workerTask;
 			Task<bool> stopCompletionTask;
 			try
@@ -351,7 +372,7 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 			Directory.CreateDirectory(_options.StatePaths.StateRootPath);
 			acquiredLock = SupervisorFileLock.Acquire(_options.StatePaths.SupervisorLockFilePath);
 			workerCancellationSource = new CancellationTokenSource();
-			workerTask = Task.Run(() => _worker.RunAsync(workerCancellationSource.Token), CancellationToken.None);
+			workerTask = _worker.RunAsync(workerCancellationSource.Token);
 			File.WriteAllText(
 				_options.StatePaths.DaemonPidFilePath,
 				Environment.ProcessId.ToString(CultureInfo.InvariantCulture));

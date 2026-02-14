@@ -34,6 +34,26 @@ public sealed class DaemonSupervisorTests
 	}
 
 	/// <summary>
+	/// Verifies run loop returns success when cancellation is requested before startup begins.
+	/// </summary>
+	[Fact]
+	public async Task RunAsync_Edge_ShouldReturnSuccess_WhenCancellationRequestedBeforeStartup()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		DaemonSupervisor supervisor = CreateSupervisor(
+			temporaryDirectory.Path,
+			new CooperativeWorker(),
+			TimeSpan.FromSeconds(1));
+		using CancellationTokenSource cancellationTokenSource = new();
+		cancellationTokenSource.Cancel();
+
+		int exitCode = await supervisor.RunAsync(cancellationTokenSource.Token);
+
+		Assert.Equal(0, exitCode);
+		Assert.False(supervisor.IsRunning);
+	}
+
+	/// <summary>
 	/// Verifies run loop returns success when cancellation requests stop.
 	/// </summary>
 	[Fact]
@@ -146,6 +166,36 @@ public sealed class DaemonSupervisorTests
 		await first.StartAsync();
 
 		await Assert.ThrowsAsync<IOException>(() => second.StartAsync());
+		await first.StopAsync();
+	}
+
+	/// <summary>
+	/// Verifies startup lock failures return failure and emit startup-failure diagnostics.
+	/// </summary>
+	[Fact]
+	public async Task RunAsync_Failure_ShouldReturnFailureAndLogStartupFailure_WhenStartupLockFails()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		RecordingLogger logger = new();
+		DaemonSupervisor first = CreateSupervisor(
+			temporaryDirectory.Path,
+			new CooperativeWorker(),
+			TimeSpan.FromSeconds(1));
+		DaemonSupervisor second = new(
+			new CooperativeWorker(),
+			new DaemonSupervisorOptions(
+				new SupervisorStatePaths(temporaryDirectory.Path),
+				TimeSpan.FromSeconds(1)),
+			logger,
+			new StubSignalRegistrar());
+
+		await first.StartAsync();
+		int exitCode = await second.RunAsync();
+
+		Assert.Equal(1, exitCode);
+		Assert.Contains(
+			logger.Events,
+			static entry => entry.EventId == "supervisor.startup_failure" && entry.Level == LogLevel.Error);
 		await first.StopAsync();
 	}
 

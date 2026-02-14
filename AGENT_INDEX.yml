@@ -90,11 +90,11 @@ modules:
       - symbol: DaemonSupervisor
         kind: class
         path: SuwayomiSourceMerge/Application/Supervision/DaemonSupervisor.cs
-        purpose: Coordinates single-instance start, coalesced concurrent startup, worker lifetime, graceful stop, timeout fail-fast run exit, and state cleanup.
+        purpose: Coordinates single-instance start, coalesced concurrent startup, worker lifetime, startup-failure diagnostics, graceful stop, timeout fail-fast run exit, and state cleanup.
       - symbol: DaemonSupervisor.RunAsync
         kind: method
         path: SuwayomiSourceMerge/Application/Supervision/DaemonSupervisor.cs
-        purpose: Runs the worker until stop signals or failures using stable run-state capture before callback registration and returns deterministic exit codes.
+        purpose: Runs the worker until stop signals or failures using stable run-state capture before callback registration and maps startup cancellation/failure to deterministic exit codes.
       - symbol: DaemonSupervisorOptions
         kind: class
         path: SuwayomiSourceMerge/Application/Supervision/DaemonSupervisorOptions.cs
@@ -120,6 +120,7 @@ modules:
     do_not_reimplement:
       - Canonical daemon lifecycle start/stop idempotency, timeout handling, and cleanup flow; use DaemonSupervisor.
       - Canonical early-stop race handling by capturing worker/stop tasks before signal and cancellation registration; use DaemonSupervisor.RunAsync.
+      - Canonical startup exception exit-code mapping (cancellation=success, non-cancellation startup failure=error) and startup-failure diagnostics; use DaemonSupervisor.RunAsync.
       - Canonical run-loop timeout liveness behavior (non-hanging fail-fast on stop timeout); use DaemonSupervisor.RunAsync.
       - Canonical state-file path resolution for supervisor lock/pid files; use SupervisorStatePaths.
       - Canonical worker-loop contract used by daemon supervision; use IDaemonWorker.

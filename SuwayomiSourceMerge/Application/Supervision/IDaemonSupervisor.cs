@@ -16,7 +16,9 @@ internal interface IDaemonSupervisor
 	/// <summary>
 	/// Starts the supervisor if it is not already running.
 	/// </summary>
-	/// <param name="cancellationToken">Cancellation token used to abort startup.</param>
+	/// <param name="cancellationToken">
+	/// Cancellation token checked before startup begins. Once startup work has started, cancellation is best-effort.
+	/// </param>
 	/// <returns>A task that completes when startup has finished.</returns>
 	Task StartAsync(CancellationToken cancellationToken = default);
 
