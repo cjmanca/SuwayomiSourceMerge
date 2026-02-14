@@ -17,16 +17,16 @@ internal sealed class ChapterRenameFileSystem : IChapterRenameFileSystem
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
+		if (!Directory.Exists(path))
+		{
+			return [];
+		}
+
 		try
 		{
-			if (!Directory.Exists(path))
-			{
-				return [];
-			}
-
 			return Directory.EnumerateDirectories(path, "*", SearchOption.TopDirectoryOnly);
 		}
-		catch
+		catch (DirectoryNotFoundException)
 		{
 			return [];
 		}
@@ -37,16 +37,16 @@ internal sealed class ChapterRenameFileSystem : IChapterRenameFileSystem
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
+		if (!Directory.Exists(path))
+		{
+			return [];
+		}
+
 		try
 		{
-			if (!Directory.Exists(path))
-			{
-				return [];
-			}
-
 			return Directory.EnumerateFileSystemEntries(path, "*", SearchOption.AllDirectories);
 		}
-		catch
+		catch (DirectoryNotFoundException)
 		{
 			return [];
 		}
@@ -111,4 +111,3 @@ internal sealed class ChapterRenameFileSystem : IChapterRenameFileSystem
 		}
 	}
 }
-

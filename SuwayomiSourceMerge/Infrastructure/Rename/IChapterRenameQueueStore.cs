@@ -31,7 +31,8 @@ internal interface IChapterRenameQueueStore
 	/// </summary>
 	/// <param name="transformer">
 	/// Callback that receives the current queue snapshot and returns replacement entries.
-	/// The callback executes while the queue lock is held.
+	/// The callback executes while the queue lock is held; the current processor intentionally uses this
+	/// to preserve shell-parity correctness over throughput.
 	/// </param>
 	void Transform(Func<IReadOnlyList<ChapterRenameQueueEntry>, IReadOnlyList<ChapterRenameQueueEntry>> transformer);
 }

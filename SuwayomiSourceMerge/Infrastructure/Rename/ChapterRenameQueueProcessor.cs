@@ -107,6 +107,8 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 	{
 		long now = GetCurrentUnixSeconds();
 		ChapterRenameProcessResult? processResult = null;
+		// Shell-parity v1 keeps one full pass under the queue-store lock to avoid read/replace races.
+		// Throughput-focused lock-scope reductions are intentionally deferred to a future task.
 		_queueStore.Transform(entries =>
 		{
 			ProcessPassComputation computation = ComputeProcessPass(entries, now);
@@ -218,13 +220,23 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 	/// <returns><see langword="true"/> when quiet requirements are met; otherwise <see langword="false"/>.</returns>
 	private bool IsQuietEnough(string chapterPath, long nowUnixSeconds)
 	{
+		long quietCutoffUnixSeconds = nowUnixSeconds - _options.RenameQuietSeconds;
 		long latestWriteUnixSeconds = 0;
 
 		foreach (string childPath in EnumerateFileSystemEntriesSafe(chapterPath))
 		{
 			if (_fileSystem.TryGetLastWriteTimeUtc(childPath, out DateTimeOffset childWriteTime))
 			{
-				latestWriteUnixSeconds = Math.Max(latestWriteUnixSeconds, childWriteTime.ToUnixTimeSeconds());
+				long childWriteUnixSeconds = childWriteTime.ToUnixTimeSeconds();
+				if (childWriteUnixSeconds > quietCutoffUnixSeconds)
+				{
+					return false;
+				}
+
+				if (childWriteUnixSeconds > latestWriteUnixSeconds)
+				{
+					latestWriteUnixSeconds = childWriteUnixSeconds;
+				}
 			}
 		}
 
@@ -280,9 +292,14 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 	/// <returns>Array of direct child directory paths.</returns>
 	private string[] EnumerateDirectoriesSafe(string path)
 	{
+		// Materialize at the processor boundary so iteration failures are handled and logged consistently.
 		try
 		{
 			return _fileSystem.EnumerateDirectories(path).ToArray();
+		}
+		catch (DirectoryNotFoundException)
+		{
+			return [];
 		}
 		catch (Exception exception)
 		{
@@ -303,9 +320,14 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 	/// <returns>Array of nested filesystem entry paths.</returns>
 	private string[] EnumerateFileSystemEntriesSafe(string path)
 	{
+		// Materialize at the processor boundary so iteration failures are handled and logged consistently.
 		try
 		{
 			return _fileSystem.EnumerateFileSystemEntries(path).ToArray();
+		}
+		catch (DirectoryNotFoundException)
+		{
+			return [];
 		}
 		catch (Exception exception)
 		{

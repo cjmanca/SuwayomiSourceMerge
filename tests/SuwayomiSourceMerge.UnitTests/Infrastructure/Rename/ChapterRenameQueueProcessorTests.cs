@@ -179,6 +179,69 @@ public sealed class ChapterRenameQueueProcessorTests
 	}
 
 	/// <summary>
+	/// Verifies quiet checks short-circuit once one recent child timestamp proves the entry is not quiet.
+	/// </summary>
+	[Fact]
+	public void ProcessOnce_Edge_ShouldShortCircuitQuietCheck_WhenRecentChildIsFound()
+	{
+		string sourcesRootPath = Path.GetFullPath("/ssm/sources");
+		string chapterPath = Path.Combine(sourcesRootPath, "SourceA", "MangaA", "Asura1 Chapter 7");
+		string recentChildPath = Path.Combine(chapterPath, "recent.jpg");
+		string olderChildPath = Path.Combine(chapterPath, "older.jpg");
+
+		int childTimestampLookups = 0;
+		FakeChapterRenameFileSystem fileSystem = new()
+		{
+			DirectoryExistsHandler = path => string.Equals(path, chapterPath, StringComparison.Ordinal),
+			EnumerateFileSystemEntriesHandler = static _ => [],
+			TryMoveDirectoryHandler = static (_, _) => false,
+			PathExistsHandler = static _ => false
+		};
+		fileSystem.EnumerateFileSystemEntriesHandler = path =>
+		{
+			if (string.Equals(path, chapterPath, StringComparison.Ordinal))
+			{
+				return [recentChildPath, olderChildPath];
+			}
+
+			return [];
+		};
+		fileSystem.TryGetLastWriteTimeUtcHandler = path =>
+		{
+			if (string.Equals(path, recentChildPath, StringComparison.Ordinal))
+			{
+				Interlocked.Increment(ref childTimestampLookups);
+				return (true, DateTimeOffset.UtcNow);
+			}
+
+			if (string.Equals(path, olderChildPath, StringComparison.Ordinal))
+			{
+				Interlocked.Increment(ref childTimestampLookups);
+				return (true, DateTimeOffset.UtcNow.AddHours(-2));
+			}
+
+			return (true, DateTimeOffset.UtcNow.AddHours(-3));
+		};
+
+		InMemoryChapterRenameQueueStore store = new();
+		store.TryEnqueue(new ChapterRenameQueueEntry(DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 60, chapterPath));
+		ChapterRenameQueueProcessor processor = CreateProcessor(
+			sourcesRootPath,
+			store,
+			fileSystem,
+			new RecordingLogger(),
+			renameDelaySeconds: 0,
+			renameQuietSeconds: 120,
+			renameRescanSeconds: 300);
+
+		ChapterRenameProcessResult result = processor.ProcessOnce();
+
+		Assert.Equal(1, result.DeferredNotQuietEntries);
+		Assert.Equal(1, result.RemainingQueuedEntries);
+		Assert.Equal(1, childTimestampLookups);
+	}
+
+	/// <summary>
 	/// Verifies missing paths are kept in queue within grace windows and dropped after grace expiration.
 	/// </summary>
 	[Fact]
@@ -554,6 +617,31 @@ public sealed class ChapterRenameQueueProcessorTests
 		Assert.Equal(0, result.EnqueuedEntries);
 		Assert.Equal(0, timestampLookupCalls);
 		Assert.Single(store.ReadAll());
+	}
+
+	/// <summary>
+	/// Verifies rescan treats directory-not-found races as benign without warning logs.
+	/// </summary>
+	[Fact]
+	public void RescanAndEnqueue_Edge_ShouldSuppressDirectoryNotFoundFailuresWithoutWarning()
+	{
+		FakeChapterRenameFileSystem fileSystem = new()
+		{
+			EnumerateDirectoriesHandler = static _ => throw new DirectoryNotFoundException("gone")
+		};
+		RecordingLogger logger = new();
+		InMemoryChapterRenameQueueStore store = new();
+		ChapterRenameQueueProcessor processor = CreateProcessor(
+			"/ssm/sources",
+			store,
+			fileSystem,
+			logger);
+
+		ChapterRenameRescanResult result = processor.RescanAndEnqueue();
+
+		Assert.Equal(0, result.CandidateEntries);
+		Assert.Equal(0, result.EnqueuedEntries);
+		Assert.DoesNotContain(logger.Events, entry => entry.EventId == "rename.enumeration_failed");
 	}
 
 	/// <summary>

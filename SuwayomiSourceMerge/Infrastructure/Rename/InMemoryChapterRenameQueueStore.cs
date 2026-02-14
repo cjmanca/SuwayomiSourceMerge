@@ -11,9 +11,14 @@ internal sealed class InMemoryChapterRenameQueueStore : IChapterRenameQueueStore
 	private readonly Lock _syncRoot = new();
 
 	/// <summary>
-	/// Queue entries keyed by full path. Dictionary insertion order is used for deterministic processing order.
+	/// Queue entries keyed by full path.
 	/// </summary>
 	private readonly Dictionary<string, ChapterRenameQueueEntry> _entriesByPath = new(StringComparer.Ordinal);
+
+	/// <summary>
+	/// Explicit queue ordering for deterministic processing independent of dictionary iteration behavior.
+	/// </summary>
+	private readonly List<string> _orderedPaths = [];
 
 	/// <inheritdoc />
 	public int Count
@@ -40,6 +45,7 @@ internal sealed class InMemoryChapterRenameQueueStore : IChapterRenameQueueStore
 			}
 
 			_entriesByPath.Add(entry.Path, entry);
+			_orderedPaths.Add(entry.Path);
 			return true;
 		}
 	}
@@ -49,7 +55,7 @@ internal sealed class InMemoryChapterRenameQueueStore : IChapterRenameQueueStore
 	{
 		lock (_syncRoot)
 		{
-			return _entriesByPath.Values.ToArray();
+			return SnapshotOrderedEntriesUnsafe();
 		}
 	}
 
@@ -60,11 +66,12 @@ internal sealed class InMemoryChapterRenameQueueStore : IChapterRenameQueueStore
 
 		lock (_syncRoot)
 		{
-			IReadOnlyList<ChapterRenameQueueEntry> snapshot = _entriesByPath.Values.ToArray();
+			IReadOnlyList<ChapterRenameQueueEntry> snapshot = SnapshotOrderedEntriesUnsafe();
 			IReadOnlyList<ChapterRenameQueueEntry>? replacementEntries = transformer(snapshot);
 			ArgumentNullException.ThrowIfNull(replacementEntries);
 
 			Dictionary<string, ChapterRenameQueueEntry> validatedEntriesByPath = new(StringComparer.Ordinal);
+			List<string> validatedOrderedPaths = new(replacementEntries.Count);
 			for (int index = 0; index < replacementEntries.Count; index++)
 			{
 				ChapterRenameQueueEntry? entry = replacementEntries[index];
@@ -73,14 +80,33 @@ internal sealed class InMemoryChapterRenameQueueStore : IChapterRenameQueueStore
 				if (!validatedEntriesByPath.ContainsKey(entry.Path))
 				{
 					validatedEntriesByPath.Add(entry.Path, entry);
+					validatedOrderedPaths.Add(entry.Path);
 				}
 			}
 
 			_entriesByPath.Clear();
-			foreach (KeyValuePair<string, ChapterRenameQueueEntry> pair in validatedEntriesByPath)
+			_orderedPaths.Clear();
+			for (int index = 0; index < validatedOrderedPaths.Count; index++)
 			{
-				_entriesByPath.Add(pair.Key, pair.Value);
+				string path = validatedOrderedPaths[index];
+				_entriesByPath.Add(path, validatedEntriesByPath[path]);
+				_orderedPaths.Add(path);
 			}
 		}
+	}
+
+	/// <summary>
+	/// Builds one ordered snapshot of queued entries. Caller must hold <see cref="_syncRoot"/>.
+	/// </summary>
+	/// <returns>Queued entries ordered by enqueue/transform insertion order.</returns>
+	private ChapterRenameQueueEntry[] SnapshotOrderedEntriesUnsafe()
+	{
+		ChapterRenameQueueEntry[] snapshot = new ChapterRenameQueueEntry[_orderedPaths.Count];
+		for (int index = 0; index < _orderedPaths.Count; index++)
+		{
+			snapshot[index] = _entriesByPath[_orderedPaths[index]];
+		}
+
+		return snapshot;
 	}
 }

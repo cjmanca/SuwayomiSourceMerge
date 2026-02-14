@@ -99,6 +99,38 @@ public sealed class InMemoryChapterRenameQueueStoreTests
 	}
 
 	/// <summary>
+	/// Verifies transform replacement ordering is explicit and deterministic after de-duplication.
+	/// </summary>
+	[Fact]
+	public void Transform_Edge_ShouldPreserveReplacementOrder_WhenEntriesAreDeduped()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		InMemoryChapterRenameQueueStore store = new();
+		ChapterRenameQueueEntry first = new(1, Path.Combine(temporaryDirectory.Path, "a"));
+		ChapterRenameQueueEntry second = new(2, Path.Combine(temporaryDirectory.Path, "b"));
+		ChapterRenameQueueEntry third = new(3, Path.Combine(temporaryDirectory.Path, "c"));
+		store.TryEnqueue(first);
+		store.TryEnqueue(second);
+		store.TryEnqueue(third);
+
+		ChapterRenameQueueEntry replacementC = new(10, third.Path);
+		ChapterRenameQueueEntry replacementA = new(20, first.Path);
+		ChapterRenameQueueEntry replacementCDuplicate = new(30, third.Path);
+		ChapterRenameQueueEntry replacementB = new(40, second.Path);
+
+		store.Transform(_ => [replacementC, replacementA, replacementCDuplicate, replacementB]);
+		IReadOnlyList<ChapterRenameQueueEntry> snapshot = store.ReadAll();
+
+		Assert.Equal(3, snapshot.Count);
+		Assert.Equal(third.Path, snapshot[0].Path);
+		Assert.Equal(10, snapshot[0].AllowAtUnixSeconds);
+		Assert.Equal(first.Path, snapshot[1].Path);
+		Assert.Equal(20, snapshot[1].AllowAtUnixSeconds);
+		Assert.Equal(second.Path, snapshot[2].Path);
+		Assert.Equal(40, snapshot[2].AllowAtUnixSeconds);
+	}
+
+	/// <summary>
 	/// Verifies null arguments and invalid transformation results are rejected.
 	/// </summary>
 	[Fact]
