@@ -1,0 +1,23 @@
+* text=auto eol=lf
+
+# Explicit binary file extensions.
+*.7z -text
+*.bmp -text
+*.dll -text
+*.exe -text
+*.gif -text
+*.gz -text
+*.ico -text
+*.jpeg -text
+*.jpg -text
+*.mp3 -text
+*.mp4 -text
+*.pdf -text
+*.png -text
+*.rar -text
+*.snk -text
+*.so -text
+*.tar -text
+*.tgz -text
+*.webp -text
+*.zip -text
