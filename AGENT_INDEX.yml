@@ -52,6 +52,61 @@ modules:
       - Canonical host lifecycle orchestration and stderr fallback handling; use ApplicationHost.Run.
       - Canonical runtime dependency composition for bootstrap and logging; use ApplicationHost.CreateDefault.
     related: [logging-infrastructure, runtime-host, unit-test-suite]
+  - id: application-watching
+    summary: Tick-based event trigger orchestration that routes inotify events and coalesces merge scan requests.
+    tags: [application, orchestration, runtime, watching]
+    paths:
+      - SuwayomiSourceMerge/Application/Watching/FilesystemEventTickResult.cs
+      - SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerOptions.cs
+      - SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerPipeline.cs
+      - SuwayomiSourceMerge/Application/Watching/IMergeScanRequestCoalescer.cs
+      - SuwayomiSourceMerge/Application/Watching/IMergeScanRequestHandler.cs
+      - SuwayomiSourceMerge/Application/Watching/MergeScanDispatchOutcome.cs
+      - SuwayomiSourceMerge/Application/Watching/MergeScanRequestCoalescer.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerOptionsTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineIntegrationTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/MergeScanRequestCoalescerTests.cs
+    entrypoints:
+      - symbol: FilesystemEventTriggerOptions
+        kind: class
+        path: SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerOptions.cs
+        purpose: Stores validated watcher, rename, and merge trigger settings including settings-model mapping.
+      - symbol: FilesystemEventTriggerPipeline
+        kind: class
+        path: SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerPipeline.cs
+        purpose: Runs one tick that polls inotify events, routes rename/merge triggers, executes periodic fallbacks, and dispatches coalesced requests.
+      - symbol: FilesystemEventTriggerPipeline.Tick
+        kind: method
+        path: SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerPipeline.cs
+        purpose: Executes one full watcher pass and returns deterministic tick summary metrics.
+      - symbol: IMergeScanRequestCoalescer
+        kind: interface
+        path: SuwayomiSourceMerge/Application/Watching/IMergeScanRequestCoalescer.cs
+        purpose: Defines canonical pending-request coalescing and gated dispatch behavior for merge scans.
+      - symbol: MergeScanRequestCoalescer
+        kind: class
+        path: SuwayomiSourceMerge/Application/Watching/MergeScanRequestCoalescer.cs
+        purpose: Coalesces burst merge scan requests and enforces min-interval and retry-delay gates.
+    extension_points:
+      - how: Add alternate merge dispatch targets by implementing IMergeScanRequestHandler and injecting into coalescer construction.
+        symbols: [IMergeScanRequestHandler, MergeScanRequestCoalescer]
+        paths: [SuwayomiSourceMerge/Application/Watching/IMergeScanRequestHandler.cs, SuwayomiSourceMerge/Application/Watching/MergeScanRequestCoalescer.cs]
+      - how: Adjust source/override event routing semantics by editing trigger pipeline handlers and reason mapping.
+        symbols: [FilesystemEventTriggerPipeline, FilesystemEventTriggerPipeline.Tick]
+        paths: [SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerPipeline.cs]
+      - how: Tune watcher cadence and startup-rescan behavior via options construction from settings.
+        symbols: [FilesystemEventTriggerOptions, FilesystemEventTriggerOptions.FromSettings]
+        paths: [SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerOptions.cs]
+      - how: Wire long-running daemon loops to one-tick pipeline execution instead of duplicating event-routing and periodic fallback logic.
+        symbols: [FilesystemEventTriggerPipeline, FilesystemEventTriggerPipeline.Tick]
+        paths: [SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerPipeline.cs]
+    do_not_reimplement:
+      - Canonical burst merge-request coalescing with latest-reason and latest-force replacement semantics; use MergeScanRequestCoalescer.
+      - Canonical merge-request interval/retry gate decisions; use MergeScanRequestCoalescer.DispatchPending.
+      - Canonical one-pass filesystem event routing plus periodic rename/merge fallback scheduling; use FilesystemEventTriggerPipeline.Tick.
+      - Canonical watcher settings mapping from validated settings documents; use FilesystemEventTriggerOptions.FromSettings.
+    related: [infrastructure-rename, infrastructure-watching, runtime-host, unit-test-suite]
   - id: build-and-quality
     summary: Central build defaults and formatting behavior for the solution.
     tags: [build, msbuild, quality]
@@ -634,6 +689,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Rename/ChapterRenameModelsAndFileSystemTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Rename/ChapterRenameOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Rename/ChapterRenameQueueProcessorTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Rename/ChapterRenameQueueProcessorTraversalTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Rename/InMemoryChapterRenameQueueStoreTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Rename/ShellParityChapterRenameSanitizerTests.cs
     entrypoints:
@@ -656,7 +712,7 @@ modules:
       - symbol: IChapterRenameQueueProcessor
         kind: interface
         path: SuwayomiSourceMerge/Infrastructure/Rename/IChapterRenameQueueProcessor.cs
-        purpose: Defines canonical queue APIs for enqueue, process-once, and rescan operations.
+        purpose: Defines canonical queue APIs for direct and recursive chapter enqueue plus process-once and rescan operations.
       - symbol: IChapterRenameQueueStore.Transform
         kind: method
         path: SuwayomiSourceMerge/Infrastructure/Rename/IChapterRenameQueueStore.cs
@@ -677,6 +733,7 @@ modules:
         paths: [SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameQueueProcessor.cs, SuwayomiSourceMerge/Infrastructure/Rename/IChapterRenameQueueProcessor.cs]
     do_not_reimplement:
       - Canonical chapter path enqueue gating (depth-3 + excluded-source checks + allow-at delay); use ChapterRenameQueueProcessor.EnqueueChapterPath.
+      - Canonical targeted recursive chapter enqueue for source/manga directory events; use IChapterRenameQueueProcessor.EnqueueChaptersUnderSourcePath and IChapterRenameQueueProcessor.EnqueueChaptersUnderMangaPath.
       - Canonical chapter rename rule heuristics (shell-baseline with docs-first embedded chapter-token handling, including embedded abbreviated chapter/episode tokens); use ShellParityChapterRenameSanitizer.
       - Canonical in-memory queue dedupe semantics keyed by normalized path with explicit deterministic ordered-path iteration; use InMemoryChapterRenameQueueStore.
       - Canonical atomic queue transform contract used by processor/store concurrency boundaries, including no-mutation-on-failure semantics; use IChapterRenameQueueStore.Transform.
@@ -741,6 +798,61 @@ modules:
       - Canonical source/override direct-child enumeration and ordering; use ContainerVolumeDiscoveryService.Discover.
       - Canonical volume discovery filesystem operations contract; use IContainerVolumeFileSystem.
     related: [runtime-host, unit-test-suite]
+  - id: infrastructure-watching
+    summary: One-shot inotifywait polling models and parser-backed event reader for typed watcher orchestration.
+    tags: [filesystem, infrastructure, inotify, runtime]
+    paths:
+      - SuwayomiSourceMerge/Infrastructure/Watching/IInotifyEventReader.cs
+      - SuwayomiSourceMerge/Infrastructure/Watching/InotifyEventMask.cs
+      - SuwayomiSourceMerge/Infrastructure/Watching/InotifyEventRecord.cs
+      - SuwayomiSourceMerge/Infrastructure/Watching/InotifyPollResult.cs
+      - SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/InotifyEventRecordTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/InotifywaitEventReaderTests.cs
+    entrypoints:
+      - symbol: IInotifyEventReader
+        kind: interface
+        path: SuwayomiSourceMerge/Infrastructure/Watching/IInotifyEventReader.cs
+        purpose: Defines canonical one-shot inotify polling contract over watch roots.
+      - symbol: InotifyEventRecord
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Watching/InotifyEventRecord.cs
+        purpose: Stores one parsed inotify output line and normalized event-mask flags.
+      - symbol: InotifyEventRecord.TryParse
+        kind: method
+        path: SuwayomiSourceMerge/Infrastructure/Watching/InotifyEventRecord.cs
+        purpose: Parses one %w%f|%e output line into a typed event record with unknown-token detection.
+      - symbol: InotifyPollResult
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Watching/InotifyPollResult.cs
+        purpose: Returns poll outcome, parsed events, and non-fatal polling/parsing warnings.
+      - symbol: InotifywaitEventReader
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs
+        purpose: Invokes inotifywait one-shot polls and maps command outcomes to typed poll classifications.
+      - symbol: InotifywaitEventReader.Poll
+        kind: method
+        path: SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs
+        purpose: Executes one inotify poll request with shell-parity event set and parses returned lines.
+    extension_points:
+      - how: Add event-token classification by extending event-mask parsing in record parser.
+        symbols: [InotifyEventMask, InotifyEventRecord.TryParse]
+        paths: [SuwayomiSourceMerge/Infrastructure/Watching/InotifyEventMask.cs, SuwayomiSourceMerge/Infrastructure/Watching/InotifyEventRecord.cs]
+      - how: Adjust inotify command arguments, timeout policy, and output parsing in the concrete reader.
+        symbols: [InotifywaitEventReader, InotifywaitEventReader.Poll]
+        paths: [SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs]
+      - how: Swap watcher backends in tests or alternate hosts by implementing IInotifyEventReader.
+        symbols: [IInotifyEventReader, InotifywaitEventReader]
+        paths: [SuwayomiSourceMerge/Infrastructure/Watching/IInotifyEventReader.cs, SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs]
+      - how: Wire poll consumers to typed outcome/warning contracts rather than re-parsing raw command output.
+        symbols: [InotifyPollResult, InotifywaitEventReader.Poll]
+        paths: [SuwayomiSourceMerge/Infrastructure/Watching/InotifyPollResult.cs, SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs]
+    do_not_reimplement:
+      - Canonical %w%f|%e line parsing and unknown-token detection; use InotifyEventRecord.TryParse.
+      - Canonical inotify event token flag model; use InotifyEventMask.
+      - Canonical one-shot inotify command invocation and timeout classification; use InotifywaitEventReader.Poll.
+      - Canonical typed poll outcome and warning contract; use InotifyPollResult.
+    related: [application-watching, infrastructure-processes, runtime-host, unit-test-suite]
   - id: logging-infrastructure
     summary: Structured log formatting, level filtering, and file rolling/retention for runtime diagnostics.
     tags: [diagnostics, logging, runtime]
@@ -878,10 +990,14 @@ modules:
       - Shared test helper project root; use SuwayomiSourceMerge.Testing.csproj.
     related: [runtime-host, unit-test-suite]
   - id: unit-test-suite
-    summary: Primary xUnit project covering config, host lifecycle, and logging behavior with mutation scaffolding.
+    summary: Primary xUnit project covering config, runtime orchestration, and infrastructure behavior with mutation scaffolding.
     tags: [tests, xunit, validation]
     paths:
       - tests/SuwayomiSourceMerge.UnitTests/Application/Hosting/ApplicationHostTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerOptionsTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineIntegrationTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/MergeScanRequestCoalescerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapExceptionTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapGuardTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapServiceTests.cs
@@ -928,6 +1044,8 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeDiscoveryServiceContractTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeDiscoveryServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeFileSystemTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/InotifyEventRecordTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/InotifywaitEventReaderTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/ProgramEntryPointTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/README.md
       - tests/SuwayomiSourceMerge.UnitTests/stryker-config.json
@@ -977,4 +1095,4 @@ modules:
       - Host lifecycle and stderr fallback coverage; extend ApplicationHostTests.
       - Logging formatter/filter/rolling behavior coverage; extend Infrastructure/Logging test classes.
       - Mutation-test scope and threshold gates; use stryker-config.json.
-    related: [application-hosting, build-and-quality, config-schema-validation, logging-infrastructure, runtime-host, shared-test-support]
+    related: [application-hosting, application-watching, build-and-quality, config-schema-validation, infrastructure-watching, logging-infrastructure, runtime-host, shared-test-support]

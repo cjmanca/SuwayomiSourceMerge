@@ -13,6 +13,20 @@ internal interface IChapterRenameQueueProcessor
 	bool EnqueueChapterPath(string chapterPath);
 
 	/// <summary>
+	/// Enqueues chapter paths under one source directory.
+	/// </summary>
+	/// <param name="sourcePath">Source directory path.</param>
+	/// <returns>Number of chapter paths newly enqueued.</returns>
+	int EnqueueChaptersUnderSourcePath(string sourcePath);
+
+	/// <summary>
+	/// Enqueues chapter paths under one manga directory.
+	/// </summary>
+	/// <param name="mangaPath">Manga directory path.</param>
+	/// <returns>Number of chapter paths newly enqueued.</returns>
+	int EnqueueChaptersUnderMangaPath(string mangaPath);
+
+	/// <summary>
 	/// Processes the current queue once.
 	/// </summary>
 	/// <returns>Processing summary.</returns>
@@ -24,4 +38,3 @@ internal interface IChapterRenameQueueProcessor
 	/// <returns>Rescan summary.</returns>
 	ChapterRenameRescanResult RescanAndEnqueue();
 }
-
