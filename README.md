@@ -26,3 +26,50 @@ Requirements baseline for the C# port:
 - All permissions on created files/directories will be set the same, based on either the docker container PUID/PGID environment variables or equivalent in command switches if not running in a container.
 
 Configuration schema reference: `docs/config-schema.md`.
+
+## Container runtime assets
+
+Build image:
+
+```bash
+docker build -t suwayomi-source-merge:local -f Dockerfile .
+```
+
+Run image with host bind mounts:
+
+```bash
+docker run --rm \
+  -e PUID=99 \
+  -e PGID=100 \
+  -v /host/ssm/config:/ssm/config \
+  -v /host/ssm/sources:/ssm/sources \
+  -v /host/ssm/override:/ssm/override \
+  -v /host/ssm/merged:/ssm/merged \
+  -v /host/ssm/state:/ssm/state \
+  suwayomi-source-merge:local
+```
+
+Container defaults and paths:
+- `PUID` default: `99`
+- `PGID` default: `100`
+- Required mount paths: `/ssm/config`, `/ssm/sources`, `/ssm/override`, `/ssm/merged`, `/ssm/state`
+- If default `ssm` user/group names are already present with different IDs, entrypoint uses deterministic fallback names while still honoring requested `PUID`/`PGID`.
+
+For real FUSE/mergerfs runtime behavior (not mocked test mode), the container host/runtime must provide `/dev/fuse` and required capabilities (commonly `SYS_ADMIN` plus relaxed seccomp/apparmor constraints appropriate for FUSE).
+
+## Docker end-to-end integration tests
+
+Run all tests (includes Docker E2E):
+
+```bash
+dotnet test
+```
+
+Run only Docker E2E suite:
+
+```bash
+dotnet test tests/SuwayomiSourceMerge.IntegrationTests/SuwayomiSourceMerge.IntegrationTests.csproj
+```
+
+The Docker E2E suite requires a reachable Docker daemon and intentionally fails when Docker is unavailable.
+The suite uses a mocked tool profile inside Docker (`/ssm/mock-bin`) so CI does not require privileged FUSE mounts.

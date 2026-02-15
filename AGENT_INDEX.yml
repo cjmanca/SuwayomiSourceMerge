@@ -246,6 +246,46 @@ modules:
       - Repository LF line-ending normalization policy; use .gitattributes.
       - Test assembly internal visibility policy; use SuwayomiSourceMerge/AssemblyInfo.cs.
     related: [runtime-host, unit-test-suite]
+  - id: container-runtime-assets
+    summary: Container image, entrypoint identity mapping, and docker-context filtering for runtime deployment.
+    tags: [container, docker, runtime]
+    paths:
+      - .dockerignore
+      - Dockerfile
+      - docker/entrypoint.sh
+      - tests/SuwayomiSourceMerge.IntegrationTests/README.md
+    entrypoints:
+      - symbol: .dockerignore
+        kind: file
+        path: .dockerignore
+        purpose: Defines canonical Docker build-context exclusions for deterministic and fast container builds.
+      - symbol: Dockerfile
+        kind: file
+        path: Dockerfile
+        purpose: Defines canonical multi-stage .NET build/runtime image and required runtime package dependencies.
+      - symbol: docker/entrypoint.sh
+        kind: file
+        path: docker/entrypoint.sh
+        purpose: Applies PUID/PGID runtime identity mapping, warns on name/id mismatches, falls back to deterministic user/group names on collisions, and launches the daemon.
+      - symbol: tests/SuwayomiSourceMerge.IntegrationTests/README.md
+        kind: file
+        path: tests/SuwayomiSourceMerge.IntegrationTests/README.md
+        purpose: Documents container E2E test execution profile and Docker daemon prerequisites.
+    extension_points:
+      - how: Adapt runtime package set and image-stage composition by editing Dockerfile stages and apt package list.
+        symbols: [Dockerfile]
+        paths: [Dockerfile]
+      - how: Change startup identity defaults and ownership behavior by extending the container entrypoint script.
+        symbols: [docker/entrypoint.sh]
+        paths: [docker/entrypoint.sh]
+      - how: Tune build-context transfer performance by adjusting ignored files in .dockerignore.
+        symbols: [.dockerignore]
+        paths: [.dockerignore]
+    do_not_reimplement:
+      - Canonical container build context exclusion policy; use .dockerignore.
+      - Canonical container runtime package and multi-stage image definition; use Dockerfile.
+      - Canonical container startup PUID/PGID identity mapping and daemon launch; use docker/entrypoint.sh.
+    related: [integration-test-suite, runtime-host, unit-test-suite]
   - id: config-bootstrap-migration
     summary: Bootstrap orchestration that creates missing YAML, migrates legacy text, and self-heals settings values.
     tags: [bootstrap, config, migration, yaml]
@@ -951,6 +991,59 @@ modules:
       - Canonical one-shot inotify command invocation and timeout classification; use InotifywaitEventReader.Poll.
       - Canonical typed poll outcome and warning contract; use InotifyPollResult.
     related: [application-watching, infrastructure-processes, runtime-host, unit-test-suite]
+  - id: integration-test-suite
+    summary: Docker-based end-to-end integration suite validating container runtime startup and failure semantics.
+    tags: [docker, integration-tests, runtime, xunit]
+    paths:
+      - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs
+      - tests/SuwayomiSourceMerge.IntegrationTests/README.md
+      - tests/SuwayomiSourceMerge.IntegrationTests/SuwayomiSourceMerge.IntegrationTests.csproj
+      - tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/ContainerFixtureWorkspace.cs
+      - tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerAssertions.cs
+      - tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerCommandResult.cs
+      - tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerCommandRunner.cs
+      - tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerIntegrationCollection.cs
+      - tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerIntegrationFixture.cs
+    entrypoints:
+      - symbol: ContainerRuntimeEndToEndTests
+        kind: class
+        path: tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs
+        purpose: Verifies expected, edge, and failure Docker runtime behavior for the daemon container image.
+      - symbol: DockerAssertions
+        kind: class
+        path: tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerAssertions.cs
+        purpose: Provides deterministic polling assertions for file/log/state checks during container tests.
+      - symbol: DockerCommandRunner
+        kind: class
+        path: tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerCommandRunner.cs
+        purpose: Wraps Docker CLI build/run/inspect/logs commands with typed failure diagnostics, bounded timeout teardown, and full output-drain handling after confirmed process exit.
+      - symbol: DockerIntegrationFixture
+        kind: class
+        path: tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerIntegrationFixture.cs
+        purpose: Ensures Docker daemon availability, builds one shared image, and performs best-effort image cleanup on teardown.
+      - symbol: SuwayomiSourceMerge.IntegrationTests.csproj
+        kind: file
+        path: tests/SuwayomiSourceMerge.IntegrationTests/SuwayomiSourceMerge.IntegrationTests.csproj
+        purpose: Defines integration test project dependencies and test-framework wiring.
+    extension_points:
+      - how: Add new end-to-end runtime scenarios by extending container test cases in ContainerRuntimeEndToEndTests.
+        symbols: [ContainerRuntimeEndToEndTests]
+        paths: [tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs]
+      - how: Expand Docker CLI orchestration coverage by adding helpers to DockerCommandRunner and DockerCommandResult.
+        symbols: [DockerCommandResult, DockerCommandRunner]
+        paths: [tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerCommandResult.cs, tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerCommandRunner.cs]
+      - how: Tune shared image-build lifecycle and daemon preflight behavior through DockerIntegrationFixture.
+        symbols: [DockerIntegrationFixture]
+        paths: [tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerIntegrationFixture.cs]
+      - how: Tune wait/retry assertion behavior for eventual log/state checks in DockerAssertions.
+        symbols: [DockerAssertions]
+        paths: [tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerAssertions.cs]
+    do_not_reimplement:
+      - Canonical container test workspace and mock-tool filesystem layout; use ContainerFixtureWorkspace.
+      - Canonical deterministic wait-loop assertions for integration checks; use DockerAssertions.
+      - Canonical Docker CLI command execution and diagnostics wrapper; use DockerCommandRunner.
+      - Canonical Docker integration image build, daemon preflight, and teardown image cleanup fixture setup; use DockerIntegrationFixture.
+    related: [container-runtime-assets, infrastructure-watching, runtime-host, unit-test-suite]
   - id: logging-infrastructure
     summary: Structured log formatting, level filtering, and file rolling/retention for runtime diagnostics.
     tags: [diagnostics, logging, runtime]
