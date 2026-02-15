@@ -19,6 +19,11 @@ internal sealed class DockerCommandRunner
 	private static readonly TimeSpan DOCKER_STOP_COMPLETION_GRACE_PERIOD = TimeSpan.FromSeconds(10);
 
 	/// <summary>
+	/// Additional wait budget after a timeout-triggered kill attempt before declaring command timeout.
+	/// </summary>
+	private static readonly TimeSpan PROCESS_TERMINATION_GRACE_PERIOD = TimeSpan.FromSeconds(5);
+
+	/// <summary>
 	/// Ensures Docker daemon is reachable.
 	/// </summary>
 	public void EnsureDockerDaemonAvailable()
@@ -261,22 +266,37 @@ internal sealed class DockerCommandRunner
 		Task<string> standardOutputTask = process.StandardOutput.ReadToEndAsync();
 		Task<string> standardErrorTask = process.StandardError.ReadToEndAsync();
 		TimeSpan effectiveTimeout = timeout ?? DEFAULT_TIMEOUT;
-		bool exited = process.WaitForExit((int)effectiveTimeout.TotalMilliseconds);
+		bool completedWithinTimeout = process.WaitForExit((int)effectiveTimeout.TotalMilliseconds);
+		bool exited = completedWithinTimeout;
 
-		if (!exited)
+		if (!completedWithinTimeout)
 		{
 			TryKillProcess(process);
-			process.WaitForExit();
+			exited = process.WaitForExit((int)PROCESS_TERMINATION_GRACE_PERIOD.TotalMilliseconds) || process.HasExited;
 		}
 
-		// Process has exited (naturally or after kill); now fully drain output readers before consuming results.
-		Task.WaitAll([standardOutputTask, standardErrorTask]);
+		string standardOutput;
+		string standardError;
+		if (exited)
+		{
+			// Process has exited (naturally or after kill); fully drain output readers before consuming results.
+			Task.WaitAll([standardOutputTask, standardErrorTask]);
+			standardOutput = standardOutputTask.Result;
+			standardError = standardErrorTask.Result;
+		}
+		else
+		{
+			// Process did not confirm exit after timeout and kill attempt; avoid unbounded waits on stream readers.
+			standardOutput = TryGetCompletedTaskResult(standardOutputTask);
+			standardError = TryGetCompletedTaskResult(standardErrorTask);
+		}
+
 		return new DockerCommandResult(
 			RenderCommand(arguments),
 			exited ? process.ExitCode : -1,
-			standardOutputTask.Result,
-			standardErrorTask.Result,
-			!exited);
+			standardOutput,
+			standardError,
+			!completedWithinTimeout);
 	}
 
 	/// <summary>
@@ -353,5 +373,22 @@ internal sealed class DockerCommandRunner
 		{
 			// Best-effort test cleanup.
 		}
+	}
+
+	/// <summary>
+	/// Gets completed task result without waiting; returns empty string when not completed or faulted.
+	/// </summary>
+	/// <param name="task">Task to inspect.</param>
+	/// <returns>Completed task result, or empty string when unavailable.</returns>
+	private static string TryGetCompletedTaskResult(Task<string> task)
+	{
+		ArgumentNullException.ThrowIfNull(task);
+
+		if (task.Status == TaskStatus.RanToCompletion)
+		{
+			return task.Result;
+		}
+
+		return string.Empty;
 	}
 }

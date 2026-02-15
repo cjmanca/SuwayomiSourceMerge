@@ -53,6 +53,7 @@ Container defaults and paths:
 - `PUID` default: `99`
 - `PGID` default: `100`
 - Required mount paths: `/ssm/config`, `/ssm/sources`, `/ssm/override`, `/ssm/merged`, `/ssm/state`
+- If default `ssm` user/group names are already present with different IDs, entrypoint uses deterministic fallback names while still honoring requested `PUID`/`PGID`.
 
 For real FUSE/mergerfs runtime behavior (not mocked test mode), the container host/runtime must provide `/dev/fuse` and required capabilities (commonly `SYS_ADMIN` plus relaxed seccomp/apparmor constraints appropriate for FUSE).
 

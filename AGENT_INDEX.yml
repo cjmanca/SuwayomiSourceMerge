@@ -266,7 +266,7 @@ modules:
       - symbol: docker/entrypoint.sh
         kind: file
         path: docker/entrypoint.sh
-        purpose: Applies PUID/PGID runtime identity mapping, warns on existing-group name mismatch, and launches the daemon.
+        purpose: Applies PUID/PGID runtime identity mapping, warns on name/id mismatches, falls back to deterministic user/group names on collisions, and launches the daemon.
       - symbol: tests/SuwayomiSourceMerge.IntegrationTests/README.md
         kind: file
         path: tests/SuwayomiSourceMerge.IntegrationTests/README.md
@@ -1016,7 +1016,7 @@ modules:
       - symbol: DockerCommandRunner
         kind: class
         path: tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerCommandRunner.cs
-        purpose: Wraps Docker CLI build/run/inspect/logs commands with typed failure diagnostics and full output-drain handling.
+        purpose: Wraps Docker CLI build/run/inspect/logs commands with typed failure diagnostics, bounded timeout teardown, and full output-drain handling after confirmed process exit.
       - symbol: DockerIntegrationFixture
         kind: class
         path: tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerIntegrationFixture.cs
