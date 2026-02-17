@@ -355,7 +355,7 @@ modules:
       - symbol: Dockerfile
         kind: file
         path: Dockerfile
-        purpose: Defines canonical multi-stage .NET build/runtime image and required runtime package dependencies.
+        purpose: Defines canonical multi-stage .NET build/runtime image, required runtime packages, and baked `cap_sys_admin` file capabilities for mergerfs/fusermount3.
       - symbol: docker/entrypoint.sh
         kind: file
         path: docker/entrypoint.sh
@@ -381,6 +381,7 @@ modules:
       - Canonical container build context exclusion policy; use .dockerignore.
       - Canonical container entrypoint bash test/readability policy (`[[ ... ]]` conditionals and inline fuse write stderr capture); use docker/entrypoint.sh.
       - Canonical container runtime package and multi-stage image definition; use Dockerfile.
+      - Canonical container runtime file-capability baking for non-root mergerfs/fusermount3 command execution; use Dockerfile.
       - Canonical container startup fuse policy: skip fuse.conf edits when PUID=0 and fail non-root startup with remediation guidance when /etc/fuse.conf cannot be updated; use docker/entrypoint.sh.
       - Canonical container startup non-root FUSE device access preflight under runtime identity (skip in mock-tool mode, warning when device is absent, fail-fast when present but inaccessible); use docker/entrypoint.sh.
       - Canonical container startup fuse write-failure diagnostics with root-cause details and manual `sh -c` remediation guidance; use docker/entrypoint.sh.
@@ -1159,10 +1160,13 @@ modules:
     summary: Docker-based end-to-end integration suite validating container runtime startup and failure semantics.
     tags: [docker, integration-tests, runtime, xunit]
     paths:
-      - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs
+      - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.Capabilities.cs
+      - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointFuseDevice.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointLogPath.cs
+      - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/DockerAssertionsBehaviorTests.cs
+      - tests/SuwayomiSourceMerge.IntegrationTests/DockerCommandRunnerBehaviorTests.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/README.md
       - tests/SuwayomiSourceMerge.IntegrationTests/SuwayomiSourceMerge.IntegrationTests.csproj
       - tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/ContainerFixtureWorkspace.cs
@@ -1175,7 +1179,7 @@ modules:
       - symbol: ContainerRuntimeEndToEndTests
         kind: class
         path: tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs
-        purpose: Verifies expected, edge, and failure Docker runtime behavior for the daemon container image, including entrypoint log-path mirroring parsing/safety regressions.
+        purpose: Verifies expected, edge, and failure Docker runtime behavior for the daemon container image, including entrypoint and capability regression scenarios.
       - symbol: DockerAssertions
         kind: class
         path: tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerAssertions.cs
@@ -1203,7 +1207,7 @@ modules:
     extension_points:
       - how: Add new end-to-end runtime scenarios by extending container test cases in ContainerRuntimeEndToEndTests.
         symbols: [ContainerRuntimeEndToEndTests]
-        paths: [tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointFuseDevice.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointLogPath.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs]
+        paths: [tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.Capabilities.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointFuseDevice.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointLogPath.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs]
       - how: Expand Docker CLI orchestration coverage by adding helpers to DockerCommandRunner and DockerCommandResult.
         symbols: [DockerCommandResult, DockerCommandRunner]
         paths: [tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerCommandResult.cs, tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerCommandRunner.cs]
@@ -1220,6 +1224,7 @@ modules:
       - Canonical entrypoint non-root FUSE-device-access fail-fast harness; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
       - Canonical entrypoint non-root FUSE preflight validation that rejects non-character-device `FUSE_DEVICE_PATH` values; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
       - Canonical entrypoint trusted-root log ownership guard that skips privileged chown outside `/ssm/config`; use ContainerRuntimeEndToEndTests.EntrypointLogPath.
+      - Canonical image capability regression harness validating baked cap_sys_admin on mergerfs/fusermount3 plus stripped-image negative controls; use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.Capabilities.cs`.
       - Canonical deterministic wait-loop assertions for integration checks; use DockerAssertions.
       - Canonical Docker CLI command execution and diagnostics wrapper; use DockerCommandRunner.
       - Canonical Docker integration image build, daemon preflight, and teardown image cleanup fixture setup; use DockerIntegrationFixture.
