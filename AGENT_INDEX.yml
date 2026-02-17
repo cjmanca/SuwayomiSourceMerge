@@ -336,6 +336,7 @@ modules:
     tags: [container, docker, runtime]
     paths:
       - .dockerignore
+      - .github/workflows/docker-publish.yml
       - Dockerfile
       - docker/entrypoint.sh
       - tests/SuwayomiSourceMerge.IntegrationTests/README.md
@@ -344,6 +345,10 @@ modules:
         kind: file
         path: .dockerignore
         purpose: Defines canonical Docker build-context exclusions for deterministic and fast container builds.
+      - symbol: .github/workflows/docker-publish.yml
+        kind: file
+        path: .github/workflows/docker-publish.yml
+        purpose: Defines canonical GitHub Actions workflow that builds/publishes to GHCR for all branches with clear branch-prefixed tags.
       - symbol: Dockerfile
         kind: file
         path: Dockerfile
@@ -363,6 +368,9 @@ modules:
       - how: Change startup identity defaults and ownership behavior by extending the container entrypoint script.
         symbols: [docker/entrypoint.sh]
         paths: [docker/entrypoint.sh]
+      - how: Publish container images to GHCR for branch testing by tuning workflow triggers, branch tag prefixes, metadata tags, and buildx settings.
+        symbols: [.github/workflows/docker-publish.yml]
+        paths: [.github/workflows/docker-publish.yml]
       - how: Tune build-context transfer performance by adjusting ignored files in .dockerignore.
         symbols: [.dockerignore]
         paths: [.dockerignore]
@@ -370,6 +378,7 @@ modules:
       - Canonical container build context exclusion policy; use .dockerignore.
       - Canonical container runtime package and multi-stage image definition; use Dockerfile.
       - Canonical container startup PUID/PGID identity mapping and daemon launch; use docker/entrypoint.sh.
+      - Canonical GHCR image build/publish GitHub Actions pipeline; use .github/workflows/docker-publish.yml.
     related: [integration-test-suite, runtime-host, unit-test-suite]
   - id: config-bootstrap-migration
     summary: Bootstrap orchestration that creates missing YAML, migrates legacy text, and self-heals settings values.
