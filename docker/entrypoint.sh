@@ -435,6 +435,11 @@ ensure_merged_root_ownership() {
       break
     fi
 
+    if [[ -L "$merged_child_path" ]]; then
+      entrypoint_log "WARN: Skipping symlinked merged child '$merged_child_path' during ownership repair."
+      continue
+    fi
+
     if [[ ! -d "$merged_child_path" ]]; then
       continue
     fi
@@ -446,7 +451,7 @@ ensure_merged_root_ownership() {
     fi
 
     local child_chown_error
-    if ! child_chown_error="$(chown "$PUID:$PGID" "$merged_child_path" 2>&1)"; then
+    if ! child_chown_error="$(chown -h "$PUID:$PGID" "$merged_child_path" 2>&1)"; then
       entrypoint_log "WARN: Failed to chown existing merged child '$merged_child_path' to '$PUID:$PGID'. Continuing without recursive repair. Detail: $child_chown_error"
     fi
   done
@@ -457,7 +462,12 @@ ensure_entrypoint_log_file_ownership() {
     return
   fi
 
-  chown "$PUID:$PGID" "$ENTRYPOINT_LOG_FILE" >/dev/null 2>&1 || true
+  if [[ -L "$ENTRYPOINT_LOG_FILE" ]]; then
+    entrypoint_log "WARN: Skipping chown for symlinked entrypoint log path '$ENTRYPOINT_LOG_FILE'."
+    return
+  fi
+
+  chown -h "$PUID:$PGID" "$ENTRYPOINT_LOG_FILE" >/dev/null 2>&1 || true
 }
 
 mkdir -p /ssm/config /ssm/state "$MERGED_ROOT_PATH"

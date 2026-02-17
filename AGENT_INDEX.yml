@@ -1097,12 +1097,14 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Watching/InotifyWatchStartupMode.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.cs
+      - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Reconciliation.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Paths.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Progressive.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Session.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/InotifyEventRecordTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/InotifywaitEventReaderTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/PersistentInotifywaitEventReaderTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/PersistentInotifywaitEventReaderTests.ReconciliationAndTiming.cs
     entrypoints:
       - symbol: IInotifyEventReader
         kind: interface
@@ -1137,7 +1139,7 @@ modules:
         paths: [SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs]
       - how: Extend persistent monitor behavior (progressive deep-root discovery, restart backoff, and session batching) in the persistent reader partials.
         symbols: [PersistentInotifywaitEventReader]
-        paths: [SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.cs, SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Paths.cs, SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Progressive.cs, SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Session.cs]
+        paths: [SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.cs, SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Reconciliation.cs, SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Paths.cs, SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Progressive.cs, SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Session.cs]
       - how: Swap watcher backends in tests or alternate hosts by implementing IInotifyEventReader.
         symbols: [IInotifyEventReader, InotifywaitEventReader, PersistentInotifywaitEventReader]
         paths: [SuwayomiSourceMerge/Infrastructure/Watching/IInotifyEventReader.cs, SuwayomiSourceMerge/Infrastructure/Watching/IPersistentInotifyMonitorSession.cs, SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs, SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.cs]
@@ -1148,7 +1150,7 @@ modules:
       - Canonical %w%f|%e line parsing and unknown-token detection; use InotifyEventRecord.TryParse.
       - Canonical inotify event token flag model; use InotifyEventMask.
       - Canonical one-shot inotify command invocation and timeout classification; use InotifywaitEventReader.Poll.
-      - Canonical persistent inotify monitor session orchestration with progressive deep-watch startup and bounded restart backoff; use PersistentInotifywaitEventReader.
+      - Canonical persistent inotify monitor orchestration with progressive deep-watch startup, desired-session pruning, and bounded restart backoff; use PersistentInotifywaitEventReader.
       - Canonical watcher startup mode contract (`full` and `progressive`); use InotifyWatchStartupMode.
       - Canonical typed poll outcome and warning contract; use InotifyPollResult.
     related: [application-watching, infrastructure-processes, runtime-host, unit-test-suite]
@@ -1156,6 +1158,7 @@ modules:
     summary: Docker-based end-to-end integration suite validating container runtime startup and failure semantics.
     tags: [docker, integration-tests, runtime, xunit]
     paths:
+      - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointLogPath.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/DockerAssertionsBehaviorTests.cs
@@ -1199,7 +1202,7 @@ modules:
     extension_points:
       - how: Add new end-to-end runtime scenarios by extending container test cases in ContainerRuntimeEndToEndTests.
         symbols: [ContainerRuntimeEndToEndTests]
-        paths: [tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointFuseDevice.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointLogPath.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs]
+        paths: [tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointFuseDevice.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointLogPath.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs]
       - how: Expand Docker CLI orchestration coverage by adding helpers to DockerCommandRunner and DockerCommandResult.
         symbols: [DockerCommandResult, DockerCommandRunner]
         paths: [tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerCommandResult.cs, tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerCommandRunner.cs]
@@ -1212,6 +1215,7 @@ modules:
     do_not_reimplement:
       - Canonical container test workspace and mock-tool filesystem layout; use ContainerFixtureWorkspace.
       - Canonical stale-merged ownership startup-regression harness (recursive-avoidance plus warning-only child-repair failures) using argv-aware mock argument matching; use ContainerRuntimeEndToEndTests.
+      - Canonical entrypoint symlink-safety ownership hardening harness (merged-child and daemon-log chown skips); use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs`.
       - Canonical entrypoint non-root FUSE-device-access fail-fast harness; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
       - Canonical deterministic wait-loop assertions for integration checks; use DockerAssertions.
       - Canonical Docker CLI command execution and diagnostics wrapper; use DockerCommandRunner.

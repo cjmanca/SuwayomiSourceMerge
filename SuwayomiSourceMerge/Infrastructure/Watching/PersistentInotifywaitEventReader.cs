@@ -101,6 +101,11 @@ internal sealed partial class PersistentInotifywaitEventReader : IInotifyEventRe
 	private readonly Func<DateTimeOffset> _utcNowProvider;
 
 	/// <summary>
+	/// Sleep delegate used by poll wait loop.
+	/// </summary>
+	private readonly Action<TimeSpan> _sleep;
+
+	/// <summary>
 	/// Tracks whether this reader has been disposed.
 	/// </summary>
 	private bool _disposed;
@@ -110,7 +115,11 @@ internal sealed partial class PersistentInotifywaitEventReader : IInotifyEventRe
 	/// </summary>
 	/// <param name="startupMode">Watcher startup mode controlling full versus progressive monitor initialization.</param>
 	public PersistentInotifywaitEventReader(InotifyWatchStartupMode startupMode = InotifyWatchStartupMode.Progressive)
-		: this(startupMode, TryStartSession, static () => DateTimeOffset.UtcNow)
+		: this(
+			startupMode,
+			TryStartSession,
+			static () => DateTimeOffset.UtcNow,
+			static duration => Thread.Sleep(duration))
 	{
 	}
 
@@ -124,10 +133,31 @@ internal sealed partial class PersistentInotifywaitEventReader : IInotifyEventRe
 		InotifyWatchStartupMode startupMode,
 		Func<string, bool, (bool Started, bool ToolNotFound, string Warning, IPersistentInotifyMonitorSession? Session)> tryStartSession,
 		Func<DateTimeOffset> utcNowProvider)
+		: this(
+			startupMode,
+			tryStartSession,
+			utcNowProvider,
+			static duration => Thread.Sleep(duration))
+	{
+	}
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="PersistentInotifywaitEventReader"/> class.
+	/// </summary>
+	/// <param name="startupMode">Watcher startup mode controlling full versus progressive monitor initialization.</param>
+	/// <param name="tryStartSession">Session-start factory delegate.</param>
+	/// <param name="utcNowProvider">Clock provider used for restart gates.</param>
+	/// <param name="sleep">Sleep delegate used by poll wait loop.</param>
+	internal PersistentInotifywaitEventReader(
+		InotifyWatchStartupMode startupMode,
+		Func<string, bool, (bool Started, bool ToolNotFound, string Warning, IPersistentInotifyMonitorSession? Session)> tryStartSession,
+		Func<DateTimeOffset> utcNowProvider,
+		Action<TimeSpan> sleep)
 	{
 		_startupMode = startupMode;
 		_tryStartSession = tryStartSession ?? throw new ArgumentNullException(nameof(tryStartSession));
 		_utcNowProvider = utcNowProvider ?? throw new ArgumentNullException(nameof(utcNowProvider));
+		_sleep = sleep ?? throw new ArgumentNullException(nameof(sleep));
 	}
 
 	/// <inheritdoc />
@@ -146,6 +176,12 @@ internal sealed partial class PersistentInotifywaitEventReader : IInotifyEventRe
 		string[] normalizedRoots = NormalizeWatchRoots(watchRoots, warnings);
 		if (normalizedRoots.Length == 0)
 		{
+			lock (_syncRoot)
+			{
+				ThrowIfDisposed();
+				ReconcileDesiredMonitorState([]);
+			}
+
 			return new InotifyPollResult(InotifyPollOutcome.Success, [], warnings);
 		}
 
@@ -163,10 +199,10 @@ internal sealed partial class PersistentInotifywaitEventReader : IInotifyEventRe
 			}
 		}
 
-		if (existingRoots.Count == 0)
+		bool hasExistingRoots = existingRoots.Count > 0;
+		if (!hasExistingRoots)
 		{
 			warnings.Add("No existing watch roots were available for inotify polling.");
-			return new InotifyPollResult(InotifyPollOutcome.Success, [], warnings);
 		}
 
 		bool toolNotFound = false;
@@ -175,9 +211,18 @@ internal sealed partial class PersistentInotifywaitEventReader : IInotifyEventRe
 		lock (_syncRoot)
 		{
 			ThrowIfDisposed();
-			EnsureSessions(existingRoots, nowUtc, warnings, ref toolNotFound, ref commandFailed);
-			ReconcileProgressiveDeepSessionHealth();
-			StartPendingProgressiveDeepSessions(nowUtc, warnings, ref toolNotFound, ref commandFailed);
+			ReconcileDesiredMonitorState(existingRoots);
+			if (hasExistingRoots)
+			{
+				EnsureSessions(existingRoots, nowUtc, warnings, ref toolNotFound, ref commandFailed);
+				ReconcileProgressiveDeepSessionHealth();
+				StartPendingProgressiveDeepSessions(nowUtc, warnings, ref toolNotFound, ref commandFailed);
+			}
+		}
+
+		if (!hasExistingRoots)
+		{
+			return new InotifyPollResult(InotifyPollOutcome.Success, [], warnings);
 		}
 
 		List<InotifyEventRecord> events = [];
@@ -189,7 +234,16 @@ internal sealed partial class PersistentInotifywaitEventReader : IInotifyEventRe
 			while (wait.Elapsed < timeout)
 			{
 				cancellationToken.ThrowIfCancellationRequested();
-				Thread.Sleep(_pollWaitInterval);
+				TimeSpan remaining = timeout - wait.Elapsed;
+				if (remaining <= TimeSpan.Zero)
+				{
+					break;
+				}
+
+				TimeSpan sleepDuration = remaining < _pollWaitInterval
+					? remaining
+					: _pollWaitInterval;
+				_sleep(sleepDuration);
 				DrainSessionQueues(events, warnings, queueDeepRoots: true);
 				if (events.Count > 0)
 				{

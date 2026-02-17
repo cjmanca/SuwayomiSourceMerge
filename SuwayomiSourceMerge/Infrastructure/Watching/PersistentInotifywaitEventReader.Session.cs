@@ -99,8 +99,17 @@ internal sealed partial class PersistentInotifywaitEventReader
 			}
 			catch (Win32Exception exception)
 			{
-				failureKind = SessionStartFailureKind.ToolNotFound;
-				warning = $"inotifywait executable was not found while starting monitor for '{watchPath}': {exception.Message}";
+				if (IsToolNotFoundStartFailure(exception))
+				{
+					failureKind = SessionStartFailureKind.ToolNotFound;
+					warning = $"inotifywait executable was not found while starting monitor for '{watchPath}': {exception.Message}";
+				}
+				else
+				{
+					failureKind = SessionStartFailureKind.CommandFailed;
+					warning = $"inotifywait monitor startup failed for '{watchPath}': {exception.GetType().Name}: {exception.Message}";
+				}
+
 				process.Dispose();
 				return false;
 			}
@@ -247,6 +256,24 @@ internal sealed partial class PersistentInotifywaitEventReader
 				// Best-effort background task wait.
 			}
 		}
+	}
+
+	/// <summary>
+	/// Returns whether one process-start Win32 failure indicates a missing executable.
+	/// </summary>
+	/// <param name="exception">Win32 startup exception.</param>
+	/// <returns><see langword="true"/> when startup failure indicates missing executable.</returns>
+	internal static bool IsToolNotFoundStartFailure(Win32Exception exception)
+	{
+		ArgumentNullException.ThrowIfNull(exception);
+		if (exception.NativeErrorCode == 2)
+		{
+			return true;
+		}
+
+		return exception.Message.Contains("No such file or directory", StringComparison.OrdinalIgnoreCase)
+			|| exception.Message.Contains("cannot find the file", StringComparison.OrdinalIgnoreCase)
+			|| exception.Message.Contains("cannot find the path", StringComparison.OrdinalIgnoreCase);
 	}
 
 	/// <summary>

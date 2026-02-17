@@ -29,7 +29,7 @@ internal sealed partial class PersistentInotifywaitEventReader
 			}
 		}
 
-		return roots.OrderBy(static path => path, StringComparer.Ordinal).ToArray();
+		return roots.OrderBy(static path => path, _pathComparer).ToArray();
 	}
 
 	/// <summary>

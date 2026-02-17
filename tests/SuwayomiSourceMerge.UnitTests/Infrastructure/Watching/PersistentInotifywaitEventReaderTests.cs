@@ -6,7 +6,7 @@ using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 /// <summary>
 /// Verifies expected, edge, and failure behavior for <see cref="PersistentInotifywaitEventReader"/>.
 /// </summary>
-public sealed class PersistentInotifywaitEventReaderTests
+public sealed partial class PersistentInotifywaitEventReaderTests
 {
 	/// <summary>
 	/// Verifies failed progressive deep-session starts are requeued and retried on later polls.
@@ -161,6 +161,12 @@ public sealed class PersistentInotifywaitEventReaderTests
 		public void EnqueueEvent(InotifyEventRecord record)
 		{
 			_events.Enqueue(record);
+		}
+
+		public void EnqueueWarning(string warning)
+		{
+			ArgumentNullException.ThrowIfNull(warning);
+			_warnings.Enqueue(warning);
 		}
 
 		public void Dispose()
