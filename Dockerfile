@@ -14,8 +14,13 @@ RUN apt-get update \
         fuse3 \
         gosu \
         inotify-tools \
+        libcap2-bin \
         mergerfs \
         util-linux \
+    && setcap cap_sys_admin+ep /usr/bin/fusermount3 \
+    && setcap cap_sys_admin+ep "$(command -v mergerfs)" \
+    && getcap /usr/bin/fusermount3 | grep -F "cap_sys_admin=ep" >/dev/null \
+    && getcap "$(command -v mergerfs)" | grep -F "cap_sys_admin=ep" >/dev/null \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/publish/ /app/

@@ -90,6 +90,23 @@ Branch builds are also published for testing with explicit branch tags:
 - `ghcr.io/cjmanca/suwayomisourcemerge:sha-<short-sha>`
 - `ghcr.io/cjmanca/suwayomisourcemerge:v<version>` (tag pushes)
 
+Published images already bake file capabilities required for non-root mergerfs mounts:
+
+- `/usr/bin/fusermount3` -> `cap_sys_admin+ep`
+- `$(command -v mergerfs)` -> `cap_sys_admin+ep`
+
+If you build a custom or derived image and replace packages, re-apply and verify capabilities:
+
+```bash
+apt-get update && apt-get install -y libcap2-bin
+setcap cap_sys_admin+ep /usr/bin/fusermount3
+setcap cap_sys_admin+ep "$(command -v mergerfs)"
+getcap /usr/bin/fusermount3
+getcap "$(command -v mergerfs)"
+```
+
+These file capabilities are in addition to runtime container requirements like `/dev/fuse`, `SYS_ADMIN`, and relaxed seccomp/apparmor options shown below.
+
 #### Run the container
 
 ```bash
