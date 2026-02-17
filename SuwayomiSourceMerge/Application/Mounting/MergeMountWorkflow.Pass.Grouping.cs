@@ -245,8 +245,14 @@ internal sealed partial class MergeMountWorkflow
 			for (int directoryIndex = 0; directoryIndex < directories.Length; directoryIndex++)
 			{
 				cancellationToken.ThrowIfCancellationRequested();
-				string title = Path.GetFileName(directories[directoryIndex]);
+				string titleDirectoryPath = directories[directoryIndex];
+				string title = Path.GetFileName(titleDirectoryPath);
 				if (string.IsNullOrWhiteSpace(title))
+				{
+					continue;
+				}
+
+				if (!IsValidOverrideResolverTitle(title, titleDirectoryPath))
 				{
 					continue;
 				}
@@ -334,5 +340,46 @@ internal sealed partial class MergeMountWorkflow
 		}
 
 		return false;
+	}
+
+	/// <summary>
+	/// Returns whether one discovered override title should be included in resolver lookup construction.
+	/// </summary>
+	/// <param name="title">Discovered override title directory name.</param>
+	/// <param name="titleDirectoryPath">Absolute override title directory path.</param>
+	/// <returns><see langword="true"/> when title is valid for resolver lookup construction.</returns>
+	private bool IsValidOverrideResolverTitle(string title, string titleDirectoryPath)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(title);
+		ArgumentException.ThrowIfNullOrWhiteSpace(titleDirectoryPath);
+
+		try
+		{
+			string normalizedKey = _titleComparisonNormalizer.NormalizeTitleKey(title);
+			if (!string.IsNullOrWhiteSpace(normalizedKey))
+			{
+				return true;
+			}
+
+			_logger.Warning(
+				MergePassWarningEvent,
+				"Skipped override title that normalizes to an empty comparison key.",
+				BuildContext(
+					("path", titleDirectoryPath),
+					("title", title)));
+			return false;
+		}
+		catch (Exception exception)
+		{
+			_logger.Warning(
+				MergePassWarningEvent,
+				"Skipped override title because normalization failed.",
+				BuildContext(
+					("path", titleDirectoryPath),
+					("title", title),
+					("exception_type", exception.GetType().FullName ?? exception.GetType().Name),
+					("message", exception.Message)));
+			return false;
+		}
 	}
 }

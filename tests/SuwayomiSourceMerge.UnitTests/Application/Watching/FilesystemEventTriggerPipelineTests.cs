@@ -123,6 +123,52 @@ public sealed class FilesystemEventTriggerPipelineTests
 	}
 
 	/// <summary>
+	/// Verifies first tick queues one startup merge request when no event-driven requests are present.
+	/// </summary>
+	[Fact]
+	public void Tick_Expected_ShouldQueueStartupMergeRequest_OnFirstTickWithoutEvents()
+	{
+		RecordingMergeScanRequestCoalescer coalescer = new(MergeScanDispatchOutcome.Success);
+		FilesystemEventTriggerPipeline pipeline = new(
+			CreateOptions(startupRenameRescanEnabled: false),
+			new StubInotifyEventReader(new InotifyPollResult(InotifyPollOutcome.Success, [], [])),
+			new RecordingChapterRenameQueueProcessor(),
+			coalescer,
+			new RecordingLogger());
+
+		FilesystemEventTickResult result = pipeline.Tick(DateTimeOffset.UtcNow);
+
+		Assert.Equal(1, result.MergeRequestsQueued);
+		Assert.Single(coalescer.Requests);
+		Assert.Equal("startup", coalescer.Requests[0].Reason);
+		Assert.False(coalescer.Requests[0].Force);
+	}
+
+	/// <summary>
+	/// Verifies startup merge scheduling only occurs once and is not repeated on subsequent ticks.
+	/// </summary>
+	[Fact]
+	public void Tick_Edge_ShouldNotQueueStartupMergeRequestMoreThanOnce_WhenNoEventsArrive()
+	{
+		DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
+		RecordingMergeScanRequestCoalescer coalescer = new(MergeScanDispatchOutcome.NoPendingRequest);
+		FilesystemEventTriggerPipeline pipeline = new(
+			CreateOptions(startupRenameRescanEnabled: false),
+			new StubInotifyEventReader(new InotifyPollResult(InotifyPollOutcome.Success, [], [])),
+			new RecordingChapterRenameQueueProcessor(),
+			coalescer,
+			new RecordingLogger());
+
+		FilesystemEventTickResult first = pipeline.Tick(nowUtc);
+		FilesystemEventTickResult second = pipeline.Tick(nowUtc.AddSeconds(1));
+
+		Assert.Equal(1, first.MergeRequestsQueued);
+		Assert.Equal(0, second.MergeRequestsQueued);
+		Assert.Single(coalescer.Requests);
+		Assert.Equal("startup", coalescer.Requests[0].Reason);
+	}
+
+	/// <summary>
 	/// Verifies excluded sources are ignored for enqueue and merge-request routing.
 	/// </summary>
 	[Fact]
@@ -150,11 +196,12 @@ public sealed class FilesystemEventTriggerPipelineTests
 		FilesystemEventTickResult result = pipeline.Tick(DateTimeOffset.UtcNow);
 
 		Assert.Equal(0, result.EnqueuedChapterPaths);
-		Assert.Equal(0, result.MergeRequestsQueued);
+		Assert.Equal(1, result.MergeRequestsQueued);
 		Assert.Empty(renameProcessor.EnqueuedPaths);
 		Assert.Empty(renameProcessor.EnqueuedSourcePaths);
 		Assert.Empty(renameProcessor.EnqueuedMangaPaths);
-		Assert.Empty(coalescer.Requests);
+		Assert.Single(coalescer.Requests);
+		Assert.Equal("startup", coalescer.Requests[0].Reason);
 	}
 
 	/// <summary>

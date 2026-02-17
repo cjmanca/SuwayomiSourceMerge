@@ -2,6 +2,8 @@ namespace SuwayomiSourceMerge.UnitTests.Repository;
 
 using System.Text.RegularExpressions;
 
+using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
+
 /// <summary>
 /// Verifies repository member naming conventions for const and private static readonly fields.
 /// </summary>
@@ -13,7 +15,7 @@ public sealed class NamingConventionPolicyTests
 	[Fact]
 	public void MemberConstFields_ShouldNotUseScreamingSnakeCase()
 	{
-		string repositoryRoot = FindRepositoryRoot();
+		string repositoryRoot = RepositoryRootLocator.FindRepositoryRoot();
 		IReadOnlyList<(string File, int Line, string Name)> violations = FindMemberConstScreamingSnakeViolations(repositoryRoot);
 		Assert.True(violations.Count == 0, BuildFailureMessage(
 			"Detected member const identifiers using screaming-snake naming.",
@@ -26,36 +28,11 @@ public sealed class NamingConventionPolicyTests
 	[Fact]
 	public void PrivateStaticReadonlyFields_ShouldNotUseUppercaseIdentifiers()
 	{
-		string repositoryRoot = FindRepositoryRoot();
+		string repositoryRoot = RepositoryRootLocator.FindRepositoryRoot();
 		IReadOnlyList<(string File, int Line, string Name)> violations = FindPrivateStaticReadonlyUppercaseViolations(repositoryRoot);
 		Assert.True(violations.Count == 0, BuildFailureMessage(
 			"Detected private static readonly identifiers using uppercase naming.",
 			violations));
-	}
-
-	/// <summary>
-	/// Resolves the repository root by walking upward from the test output directory.
-	/// </summary>
-	/// <returns>Absolute path to repository root.</returns>
-	/// <exception cref="InvalidOperationException">Thrown when repository markers cannot be resolved.</exception>
-	private static string FindRepositoryRoot()
-	{
-		DirectoryInfo? directory = new(AppContext.BaseDirectory);
-		while (directory is not null)
-		{
-			string candidateRoot = directory.FullName;
-			bool hasSolution = File.Exists(Path.Combine(candidateRoot, "SuwayomiSourceMerge.slnx"));
-			bool hasGitDirectory = Directory.Exists(Path.Combine(candidateRoot, ".git"));
-			bool hasGitFile = File.Exists(Path.Combine(candidateRoot, ".git"));
-			if (hasSolution && (hasGitDirectory || hasGitFile))
-			{
-				return candidateRoot;
-			}
-
-			directory = directory.Parent;
-		}
-
-		throw new InvalidOperationException("Could not locate repository root from test output directory.");
 	}
 
 	/// <summary>

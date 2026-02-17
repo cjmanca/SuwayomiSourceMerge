@@ -13,6 +13,68 @@ using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 public sealed partial class MergeMountWorkflowTests
 {
 	/// <summary>
+	/// Verifies override titles with empty normalized keys are skipped with warning diagnostics.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Edge_ShouldSkipInvalidOverrideTitles_AndLogWarning()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		Directory.CreateDirectory(Path.Combine(fixture.VolumeDiscoveryService.OverrideVolumePaths[0], "!!!"));
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("interval elapsed", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Success, outcome);
+		Assert.Contains(
+			fixture.Logger.Events,
+			static entry => entry.EventId == "merge.workflow.warning"
+				&& entry.Level == LogLevel.Warning
+				&& entry.Message.Contains("empty comparison key", StringComparison.Ordinal));
+	}
+
+	/// <summary>
+	/// Verifies override-only grouping excludes override directory names that normalize to empty keys.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Edge_ShouldExcludeInvalidOverrideOnlyTitles_FromDesiredGrouping()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		fixture.VolumeDiscoveryService.SourceVolumePaths = [];
+		Directory.CreateDirectory(Path.Combine(fixture.VolumeDiscoveryService.OverrideVolumePaths[0], "!!!"));
+		Directory.CreateDirectory(Path.Combine(fixture.VolumeDiscoveryService.OverrideVolumePaths[0], "Valid Override"));
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("interval elapsed", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Success, outcome);
+		Assert.NotNull(fixture.ReconciliationService.LastInput);
+		Assert.Single(fixture.ReconciliationService.LastInput!.DesiredMounts);
+		Assert.Equal(
+			Path.Combine(fixture.Options.MergedRootPath, "Valid Override"),
+			fixture.ReconciliationService.LastInput.DesiredMounts[0].MountPoint);
+	}
+
+	/// <summary>
+	/// Verifies invalid override-title filtering does not mask downstream mount apply failures.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Failure_ShouldReturnFailure_WhenApplyFailsAndOverrideTitlesContainInvalidEntries()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		Directory.CreateDirectory(Path.Combine(fixture.VolumeDiscoveryService.OverrideVolumePaths[0], "!!!"));
+		fixture.MountCommandService.ApplyOutcome = MountActionApplyOutcome.Failure;
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("interval elapsed", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Failure, outcome);
+		Assert.NotEmpty(fixture.MountCommandService.AppliedActions);
+	}
+
+	/// <summary>
 	/// Verifies source-discovery warnings suppress stale-unmount apply actions.
 	/// </summary>
 	[Fact]

@@ -63,6 +63,11 @@ internal sealed class FilesystemEventTriggerPipeline
 	private bool _startupRenameRescanCompleted;
 
 	/// <summary>
+	/// Tracks whether startup merge request scheduling has been evaluated.
+	/// </summary>
+	private bool _startupMergeRequestCompleted;
+
+	/// <summary>
 	/// Next scheduled rename queue process time.
 	/// </summary>
 	private DateTimeOffset _nextRenameProcessUtc;
@@ -137,6 +142,17 @@ internal sealed class FilesystemEventTriggerPipeline
 			(int enqueuedCount, int mergeCount) = RouteEvent(eventRecord);
 			enqueuedChapterPaths += enqueuedCount;
 			mergeRequestsQueued += mergeCount;
+		}
+
+		if (!_startupMergeRequestCompleted)
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+			if (mergeRequestsQueued == 0)
+			{
+				mergeRequestsQueued += QueueMergeRequest("startup", force: false);
+			}
+
+			_startupMergeRequestCompleted = true;
 		}
 
 		int renameProcessRuns = 0;

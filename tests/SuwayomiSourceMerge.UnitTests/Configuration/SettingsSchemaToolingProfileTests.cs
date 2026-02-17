@@ -12,7 +12,7 @@ public sealed class SettingsSchemaToolingProfileTests
     {
         ConfigurationSchemaService service = ConfigurationSchemaServiceFactory.Create();
 
-      ParsedDocument<SuwayomiSourceMerge.Configuration.Documents.SettingsDocument> parsed = service.ParseSettingsForRuntime(
+        ParsedDocument<SuwayomiSourceMerge.Configuration.Documents.SettingsDocument> parsed = service.ParseSettingsForRuntime(
             "settings.yml",
             CreateSettingsYamlWithoutProfileFields());
 
