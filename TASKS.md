@@ -96,4 +96,6 @@
 - [x] 2026-02-16 - Fix supervisor stop-timeout boundary race by rechecking worker completion before hard-stop, and add deterministic expected/edge/failure regression tests for timeout classification and graceful stop behavior.
 - [x] 2026-02-17 - Normalize naming conventions repo-wide by migrating SCREAMING_SNAKE const fields to PascalCase, migrating private static readonly fields to `_camelCase`, updating `.editorconfig` naming rules, and adding repository guard tests for member-level naming drift.
 - [x] 2026-02-17 - Address PR #18 AI review follow-up: dedupe repository-root test locator helper, fix tooling-profile indentation drift, queue initial startup merge requests in watcher pipeline, and skip invalid override titles with warning-level diagnostics while preserving merge-pass resilience.
+- [x] 2026-02-17 - Create a GitHub Actions workflow that builds the Docker image and publishes it to GitHub Container Registry (GHCR).
+- [x] 2026-02-17 - Expand Docker publish workflow to run on all branch pushes and tag branch builds with clear `branch-<name>` image tags for testing.
 - [ ] 2026-02-09 - Finalize docs and developer index after implementation (`README.md`, `AGENTS.md`, `AGENT_INDEX.yml`, migration notes, operation guide). DoD: docs match shipped behavior, migration path is documented, and `AGENT_INDEX.yml` is updated per `AGENT_INDEX_PROMPT.md`.
