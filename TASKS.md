@@ -104,4 +104,9 @@
 - [x] 2026-02-17 - Clarify README Docker requirements so the merged bind mount uses `rshared` for both `docker run` and Docker Compose examples.
 - [x] 2026-02-17 - Create an Unraid Community Apps Docker template XML with required FUSE/security flags, rshared merged bind mode, and baseline source/override path mappings.
 - [x] 2026-02-17 - Expand the Unraid Community Apps template to include optional source and override disk mappings through `/ssm/sources/disk10` and `/ssm/override/disk10`.
+- [x] 2026-02-17 - Silence benign Unraid startup identity warnings by gating PGID mismatch diagnostics to true `ssm` group-ID conflicts and overriding `useradd` UID policy keys for out-of-range requested UIDs, with integration regression coverage.
+- [x] 2026-02-17 - Reclassify benign executor-level inotify poll timeouts (without stderr) as non-fatal timed-out outcomes, expand inotify executor timeout headroom, and add watcher-reader regression tests for timeout edge/failure paths.
+- [x] 2026-02-17 - Add configurable `scan.merge_trigger_request_timeout_buffer_seconds` with default `300`, wire it through watcher options into `InotifywaitEventReader`, and update schema/self-healing/validation/docs/tests.
+- [x] 2026-02-17 - Add unit-test coverage verifying `InotifywaitEventReader` applies the default `requestTimeoutBufferSeconds` value (`300`) when constructor argument is omitted.
+- [x] 2026-02-17 - Seed generated default `manga_equivalents.yml` and `source_priority.yml` with one starter example entry each (while retaining existing populated `scene_tags.yml` defaults) and update bootstrap/docs/tests accordingly.
 - [ ] 2026-02-09 - Finalize docs and developer index after implementation (`README.md`, `AGENTS.md`, `AGENT_INDEX.yml`, migration notes, operation guide). DoD: docs match shipped behavior, migration path is documented, and `AGENT_INDEX.yml` is updated per `AGENT_INDEX_PROMPT.md`.

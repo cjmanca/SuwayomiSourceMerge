@@ -25,6 +25,7 @@ public sealed class FilesystemEventTriggerOptionsTests
 		Assert.Equal(3600, options.MergeIntervalSeconds);
 		Assert.Equal(15, options.MergeMinSecondsBetweenScans);
 		Assert.Equal(30, options.MergeLockRetrySeconds);
+		Assert.Equal(300, options.InotifyRequestTimeoutBufferSeconds);
 		Assert.True(options.StartupRenameRescanEnabled);
 	}
 
@@ -51,6 +52,7 @@ public sealed class FilesystemEventTriggerOptionsTests
 			startupRenameRescanEnabled: false);
 
 		Assert.Equal(0, options.MergeMinSecondsBetweenScans);
+		Assert.Equal(300, options.InotifyRequestTimeoutBufferSeconds);
 		Assert.False(options.StartupRenameRescanEnabled);
 	}
 
@@ -74,6 +76,7 @@ public sealed class FilesystemEventTriggerOptionsTests
 		Assert.Throws<ArgumentOutOfRangeException>(() => new FilesystemEventTriggerOptions(renameOptions, "/ssm/override", 1, 0, 0, 1, true));
 		Assert.Throws<ArgumentOutOfRangeException>(() => new FilesystemEventTriggerOptions(renameOptions, "/ssm/override", 1, 1, -1, 1, true));
 		Assert.Throws<ArgumentOutOfRangeException>(() => new FilesystemEventTriggerOptions(renameOptions, "/ssm/override", 1, 1, 0, 0, true));
+		Assert.Throws<ArgumentOutOfRangeException>(() => new FilesystemEventTriggerOptions(renameOptions, "/ssm/override", 1, 1, 0, 1, true, 0));
 
 		SettingsDocument invalidSettings = new()
 		{
@@ -83,7 +86,28 @@ public sealed class FilesystemEventTriggerOptionsTests
 			}
 		};
 
+		SettingsDocument defaults = SettingsDocumentDefaults.Create();
+		SettingsDocument invalidSettingsMissingTimeoutBuffer = new()
+		{
+			Paths = defaults.Paths,
+			Scan = new SettingsScanSection
+			{
+				MergeIntervalSeconds = 3600,
+				MergeTriggerPollSeconds = 5,
+				MergeMinSecondsBetweenScans = 15,
+				MergeLockRetrySeconds = 30,
+				MergeTriggerRequestTimeoutBufferSeconds = null
+			},
+			Rename = defaults.Rename,
+			Diagnostics = defaults.Diagnostics,
+			Shutdown = defaults.Shutdown,
+			Permissions = defaults.Permissions,
+			Runtime = defaults.Runtime,
+			Logging = defaults.Logging
+		};
+
 		Assert.Throws<ArgumentException>(() => FilesystemEventTriggerOptions.FromSettings(invalidSettings));
+		Assert.Throws<ArgumentException>(() => FilesystemEventTriggerOptions.FromSettings(invalidSettingsMissingTimeoutBuffer));
 		Assert.Throws<ArgumentNullException>(() => FilesystemEventTriggerOptions.FromSettings(null!));
 	}
 }

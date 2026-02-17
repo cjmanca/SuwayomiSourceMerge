@@ -9,6 +9,11 @@ namespace SuwayomiSourceMerge.Application.Watching;
 internal sealed class FilesystemEventTriggerOptions
 {
 	/// <summary>
+	/// Default additional timeout buffer in seconds for each inotify command request.
+	/// </summary>
+	private const int DefaultInotifyRequestTimeoutBufferSeconds = 300;
+
+	/// <summary>
 	/// Initializes a new instance of the <see cref="FilesystemEventTriggerOptions"/> class.
 	/// </summary>
 	/// <param name="renameOptions">Rename queue options and excluded-source behavior.</param>
@@ -18,6 +23,7 @@ internal sealed class FilesystemEventTriggerOptions
 	/// <param name="mergeMinSecondsBetweenScans">Minimum seconds between successful merge dispatches.</param>
 	/// <param name="mergeLockRetrySeconds">Retry delay in seconds after busy/failure dispatch outcomes.</param>
 	/// <param name="startupRenameRescanEnabled">Whether startup rename rescan should run once.</param>
+	/// <param name="inotifyRequestTimeoutBufferSeconds">Additional timeout buffer in seconds for each inotify command request.</param>
 	public FilesystemEventTriggerOptions(
 		ChapterRenameOptions renameOptions,
 		string overrideRootPath,
@@ -25,7 +31,8 @@ internal sealed class FilesystemEventTriggerOptions
 		int mergeIntervalSeconds,
 		int mergeMinSecondsBetweenScans,
 		int mergeLockRetrySeconds,
-		bool startupRenameRescanEnabled)
+		bool startupRenameRescanEnabled,
+		int inotifyRequestTimeoutBufferSeconds = DefaultInotifyRequestTimeoutBufferSeconds)
 	{
 		RenameOptions = renameOptions ?? throw new ArgumentNullException(nameof(renameOptions));
 		ArgumentException.ThrowIfNullOrWhiteSpace(overrideRootPath);
@@ -50,12 +57,18 @@ internal sealed class FilesystemEventTriggerOptions
 			throw new ArgumentOutOfRangeException(nameof(mergeLockRetrySeconds), "Merge lock retry seconds must be > 0.");
 		}
 
+		if (inotifyRequestTimeoutBufferSeconds <= 0)
+		{
+			throw new ArgumentOutOfRangeException(nameof(inotifyRequestTimeoutBufferSeconds), "Inotify request timeout buffer seconds must be > 0.");
+		}
+
 		OverrideRootPath = Path.GetFullPath(overrideRootPath);
 		InotifyPollSeconds = inotifyPollSeconds;
 		MergeIntervalSeconds = mergeIntervalSeconds;
 		MergeMinSecondsBetweenScans = mergeMinSecondsBetweenScans;
 		MergeLockRetrySeconds = mergeLockRetrySeconds;
 		StartupRenameRescanEnabled = startupRenameRescanEnabled;
+		InotifyRequestTimeoutBufferSeconds = inotifyRequestTimeoutBufferSeconds;
 	}
 
 	/// <summary>
@@ -118,6 +131,14 @@ internal sealed class FilesystemEventTriggerOptions
 	}
 
 	/// <summary>
+	/// Gets additional timeout buffer in seconds for each inotify command request.
+	/// </summary>
+	public int InotifyRequestTimeoutBufferSeconds
+	{
+		get;
+	}
+
+	/// <summary>
 	/// Gets a value indicating whether startup rename rescan should run once.
 	/// </summary>
 	public bool StartupRenameRescanEnabled
@@ -153,7 +174,8 @@ internal sealed class FilesystemEventTriggerOptions
 		if (!scan.MergeTriggerPollSeconds.HasValue ||
 			!scan.MergeIntervalSeconds.HasValue ||
 			!scan.MergeMinSecondsBetweenScans.HasValue ||
-			!scan.MergeLockRetrySeconds.HasValue)
+			!scan.MergeLockRetrySeconds.HasValue ||
+			!scan.MergeTriggerRequestTimeoutBufferSeconds.HasValue)
 		{
 			throw new ArgumentException("Settings scan section contains missing values.", nameof(settings));
 		}
@@ -166,6 +188,7 @@ internal sealed class FilesystemEventTriggerOptions
 			scan.MergeIntervalSeconds.Value,
 			scan.MergeMinSecondsBetweenScans.Value,
 			scan.MergeLockRetrySeconds.Value,
-			settings.Runtime.RescanNow.Value);
+			settings.Runtime.RescanNow.Value,
+			scan.MergeTriggerRequestTimeoutBufferSeconds.Value);
 	}
 }

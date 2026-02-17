@@ -123,6 +123,7 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
 			ValidatePositive(document.Scan.MergeTriggerPollSeconds, file, "$.scan.merge_trigger_poll_seconds", result);
 			ValidateNonNegative(document.Scan.MergeMinSecondsBetweenScans, file, "$.scan.merge_min_seconds_between_scans", result);
 			ValidatePositive(document.Scan.MergeLockRetrySeconds, file, "$.scan.merge_lock_retry_seconds", result);
+			ValidatePositive(document.Scan.MergeTriggerRequestTimeoutBufferSeconds, file, "$.scan.merge_trigger_request_timeout_buffer_seconds", result);
 		}
 
 		if (document.Rename is not null)

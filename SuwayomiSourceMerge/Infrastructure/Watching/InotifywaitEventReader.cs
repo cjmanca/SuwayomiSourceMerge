@@ -15,9 +15,9 @@ internal sealed class InotifywaitEventReader : IInotifyEventReader
 	private static readonly TimeSpan _executorPollInterval = TimeSpan.FromMilliseconds(100);
 
 	/// <summary>
-	/// Additional timeout budget applied above inotify timeout.
+	/// Default additional timeout buffer applied above inotify timeout.
 	/// </summary>
-	private static readonly TimeSpan _requestTimeoutBuffer = TimeSpan.FromSeconds(2);
+	private const int DefaultRequestTimeoutBufferSeconds = 300;
 
 	/// <summary>
 	/// Maximum captured output characters per stream for one poll.
@@ -48,12 +48,27 @@ internal sealed class InotifywaitEventReader : IInotifyEventReader
 	private readonly IExternalCommandExecutor _commandExecutor;
 
 	/// <summary>
+	/// Additional timeout buffer applied above requested inotify timeout.
+	/// </summary>
+	private readonly TimeSpan _requestTimeoutBuffer;
+
+	/// <summary>
 	/// Initializes a new instance of the <see cref="InotifywaitEventReader"/> class.
 	/// </summary>
 	/// <param name="commandExecutor">Process executor used to invoke <c>inotifywait</c>.</param>
-	public InotifywaitEventReader(IExternalCommandExecutor commandExecutor)
+	/// <param name="requestTimeoutBufferSeconds">Additional timeout buffer in seconds for each inotify command request.</param>
+	public InotifywaitEventReader(
+		IExternalCommandExecutor commandExecutor,
+		int requestTimeoutBufferSeconds = DefaultRequestTimeoutBufferSeconds)
 	{
 		_commandExecutor = commandExecutor ?? throw new ArgumentNullException(nameof(commandExecutor));
+
+		if (requestTimeoutBufferSeconds <= 0)
+		{
+			throw new ArgumentOutOfRangeException(nameof(requestTimeoutBufferSeconds), "Request timeout buffer seconds must be > 0.");
+		}
+
+		_requestTimeoutBuffer = TimeSpan.FromSeconds(requestTimeoutBufferSeconds);
 	}
 
 	/// <inheritdoc />
@@ -123,7 +138,7 @@ internal sealed class InotifywaitEventReader : IInotifyEventReader
 	/// <param name="watchRoots">Normalized watch roots.</param>
 	/// <param name="timeout">Requested inotify timeout.</param>
 	/// <returns>External command request.</returns>
-	private static ExternalCommandRequest BuildRequest(string[] watchRoots, TimeSpan timeout)
+	private ExternalCommandRequest BuildRequest(string[] watchRoots, TimeSpan timeout)
 	{
 		int timeoutSeconds = (int)Math.Ceiling(timeout.TotalSeconds);
 		if (timeoutSeconds <= 0)
@@ -178,6 +193,12 @@ internal sealed class InotifywaitEventReader : IInotifyEventReader
 		if (commandResult.Outcome == ExternalCommandOutcome.NonZeroExit &&
 			commandResult.ExitCode == InotifyTimeoutExitCode &&
 			events.Count == 0)
+		{
+			return new InotifyPollResult(InotifyPollOutcome.TimedOut, events, warnings);
+		}
+
+		if (commandResult.Outcome == ExternalCommandOutcome.TimedOut &&
+			string.IsNullOrWhiteSpace(commandResult.StandardError))
 		{
 			return new InotifyPollResult(InotifyPollOutcome.TimedOut, events, warnings);
 		}

@@ -32,7 +32,8 @@ public sealed class SettingsDocumentValidatorTests
                 MergeIntervalSeconds = 1,
                 MergeTriggerPollSeconds = 1,
                 MergeMinSecondsBetweenScans = 0,
-                MergeLockRetrySeconds = 1
+                MergeLockRetrySeconds = 1,
+                MergeTriggerRequestTimeoutBufferSeconds = 1
             },
             Rename = new SettingsRenameSection
             {
@@ -155,7 +156,8 @@ public sealed class SettingsDocumentValidatorTests
                 MergeIntervalSeconds = null,
                 MergeTriggerPollSeconds = 0,
                 MergeMinSecondsBetweenScans = null,
-                MergeLockRetrySeconds = 1
+                MergeLockRetrySeconds = 1,
+                MergeTriggerRequestTimeoutBufferSeconds = 0
             },
             Rename = new SettingsRenameSection
             {
@@ -220,6 +222,7 @@ public sealed class SettingsDocumentValidatorTests
         Assert.Contains(result.Errors, error => error.Path == "$.paths.sources_root_path" && error.Code == "CFG-SET-003");
         Assert.Contains(result.Errors, error => error.Path == "$.scan.merge_interval_seconds" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.scan.merge_trigger_poll_seconds" && error.Code == "CFG-SET-004");
+        Assert.Contains(result.Errors, error => error.Path == "$.scan.merge_trigger_request_timeout_buffer_seconds" && error.Code == "CFG-SET-004");
         Assert.Contains(result.Errors, error => error.Path == "$.rename.rename_delay_seconds" && error.Code == "CFG-SET-004");
         Assert.Contains(result.Errors, error => error.Path == "$.shutdown.cleanup_apply_high_priority" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.shutdown.cleanup_priority_ionice_class" && error.Code == "CFG-SET-002");

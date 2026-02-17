@@ -29,7 +29,7 @@ scan:
   merge_trigger_poll_seconds: 5
   merge_min_seconds_between_scans: 15
   merge_lock_retry_seconds: 30
-
+  merge_trigger_request_timeout_buffer_seconds: 300
 rename:
   rename_delay_seconds: 300
   rename_quiet_seconds: 120
@@ -206,3 +206,5 @@ sources:
   - Lines become ordered `sources` entries
 - `scene_tags.yml` and `settings.yml`:
   - If missing, generate defaults from in-app defaults
+- If `manga_equivalents.yml` or `source_priority.yml` is missing and no legacy txt exists:
+  - Generated defaults include one starter example entry to make manual editing easier

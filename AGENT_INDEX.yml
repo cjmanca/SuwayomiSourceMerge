@@ -229,7 +229,7 @@ modules:
       - symbol: FilesystemEventTriggerOptions
         kind: class
         path: SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerOptions.cs
-        purpose: Stores validated watcher, rename, and merge trigger settings including settings-model mapping.
+        purpose: Stores validated watcher, rename, merge trigger, and inotify request-timeout-buffer settings mapped from settings.
       - symbol: FilesystemEventTriggerPipeline
         kind: class
         path: SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerPipeline.cs
@@ -356,7 +356,7 @@ modules:
       - symbol: docker/entrypoint.sh
         kind: file
         path: docker/entrypoint.sh
-        purpose: Applies PUID/PGID runtime identity mapping, warns on name/id mismatches, falls back to deterministic user/group names on collisions, and launches the daemon.
+        purpose: Applies PUID/PGID identity mapping, warns only for true ssm name/id conflicts, adjusts useradd UID policy keys for out-of-range IDs, and launches the daemon.
       - symbol: tests/SuwayomiSourceMerge.IntegrationTests/README.md
         kind: file
         path: tests/SuwayomiSourceMerge.IntegrationTests/README.md
@@ -567,9 +567,9 @@ modules:
       - how: Add new configuration files by introducing typed documents plus dedicated validators wired through the schema service.
         symbols: [ConfigurationSchemaService, IConfigValidator]
         paths: [SuwayomiSourceMerge/Configuration/Loading/ConfigurationSchemaService.cs, SuwayomiSourceMerge/Configuration/Validation/IConfigValidator.cs]
-      - how: Adjust default scene-tag coverage by updating the defaults factory consumed during bootstrap file creation.
-        symbols: [SceneTagsDocumentDefaults.Create]
-        paths: [SuwayomiSourceMerge/Configuration/Documents/SceneTagsDocumentDefaults.cs]
+      - how: Adjust generated starter defaults for scene tags, source priority, or manga equivalents by updating their defaults factories consumed during bootstrap creation.
+        symbols: [MangaEquivalentsDocumentDefaults.Create, SceneTagsDocumentDefaults.Create, SourcePriorityDocumentDefaults.Create]
+        paths: [SuwayomiSourceMerge/Configuration/Documents/MangaEquivalentsDocumentDefaults.cs, SuwayomiSourceMerge/Configuration/Documents/SceneTagsDocumentDefaults.cs, SuwayomiSourceMerge/Configuration/Documents/SourcePriorityDocumentDefaults.cs]
       - how: Extend settings shape by adding fields to document sections, defaults, and validator rules in lockstep.
         symbols: [SettingsDocument, SettingsDocumentDefaults.Create, SettingsDocumentValidator]
         paths: [SuwayomiSourceMerge/Configuration/Documents/SettingsDocument.cs, SuwayomiSourceMerge/Configuration/Documents/SettingsDocumentDefaults.cs, SuwayomiSourceMerge/Configuration/Validation/SettingsDocumentValidator.cs]
@@ -582,6 +582,8 @@ modules:
     do_not_reimplement:
       - Canonical cached matcher-aware title key normalization used by validators; use ValidationKeyNormalizer.NormalizeTitleKey.
       - Canonical default scene-tag list creation used for missing scene_tags.yml bootstrap; use SceneTagsDocumentDefaults.Create.
+      - Canonical default starter manga-equivalents mapping for missing manga_equivalents.yml bootstrap; use MangaEquivalentsDocumentDefaults.Create.
+      - Canonical default starter source-priority list for missing source_priority.yml bootstrap; use SourcePriorityDocumentDefaults.Create.
       - Canonical YAML parser behavior and parser error codes; use YamlDocumentParser.
       - Document-level parse-and-validate orchestration; use ConfigurationSchemaService.
       - Manga equivalents conflict detection rules; use MangaEquivalentsDocumentValidator.
@@ -1096,7 +1098,7 @@ modules:
       - symbol: InotifywaitEventReader
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs
-        purpose: Invokes inotifywait one-shot polls and maps command outcomes to typed poll classifications.
+        purpose: Invokes inotifywait one-shot polls with configurable request-timeout buffer and maps command outcomes (including benign executor timeouts) to typed classifications.
       - symbol: InotifywaitEventReader.Poll
         kind: method
         path: SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs
@@ -1367,6 +1369,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/LegacySourcePriorityMigratorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/SettingsSelfHealingServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/YamlDocumentWriterTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/ConfigurationDocumentDefaultsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/ConfigurationSchemaServiceFactory.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/ConfigurationTestData.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Loading/ConfigurationSchemaServiceTests.cs

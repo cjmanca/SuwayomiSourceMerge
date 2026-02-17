@@ -104,7 +104,8 @@ internal sealed class SettingsSelfHealingService
 				MergeIntervalSeconds = existingScan?.MergeIntervalSeconds ?? UseDefault(defaultScan.MergeIntervalSeconds, ref wasHealed),
 				MergeTriggerPollSeconds = existingScan?.MergeTriggerPollSeconds ?? UseDefault(defaultScan.MergeTriggerPollSeconds, ref wasHealed),
 				MergeMinSecondsBetweenScans = existingScan?.MergeMinSecondsBetweenScans ?? UseDefault(defaultScan.MergeMinSecondsBetweenScans, ref wasHealed),
-				MergeLockRetrySeconds = existingScan?.MergeLockRetrySeconds ?? UseDefault(defaultScan.MergeLockRetrySeconds, ref wasHealed)
+				MergeLockRetrySeconds = existingScan?.MergeLockRetrySeconds ?? UseDefault(defaultScan.MergeLockRetrySeconds, ref wasHealed),
+				MergeTriggerRequestTimeoutBufferSeconds = existingScan?.MergeTriggerRequestTimeoutBufferSeconds ?? UseDefault(defaultScan.MergeTriggerRequestTimeoutBufferSeconds, ref wasHealed)
 			},
 			Rename = new SettingsRenameSection
 			{

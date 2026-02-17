@@ -182,6 +182,14 @@ public sealed class SettingsScanSection
 	{
 		get; init;
 	}
+
+	/// <summary>
+	/// Gets or sets additional timeout buffer in seconds added to each inotifywait command request.
+	/// </summary>
+	public int? MergeTriggerRequestTimeoutBufferSeconds
+	{
+		get; init;
+	}
 }
 
 /// <summary>

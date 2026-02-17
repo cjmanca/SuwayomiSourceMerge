@@ -73,7 +73,9 @@ public sealed class ConfigurationBootstrapServiceTests
 
         Assert.Equal(["custom"], result.Documents.SceneTags.Tags);
         Assert.Equal(["Existing Source"], result.Documents.SourcePriority.Sources);
-        Assert.Empty(result.Documents.MangaEquivalents.Groups!);
+        Assert.Single(result.Documents.MangaEquivalents.Groups!);
+        Assert.Equal("Example Manga Title", result.Documents.MangaEquivalents.Groups![0].Canonical);
+        Assert.Equal(["Example Manga Alt Title"], result.Documents.MangaEquivalents.Groups[0].Aliases);
         Assert.NotNull(result.Documents.Settings.Paths);
 
         ConfigurationBootstrapFileState sceneState = Assert.Single(result.Files, file => file.FileName == "scene_tags.yml");
@@ -121,6 +123,7 @@ public sealed class ConfigurationBootstrapServiceTests
               merge_trigger_poll_seconds: 5
               merge_min_seconds_between_scans: 15
               merge_lock_retry_seconds: 30
+              merge_trigger_request_timeout_buffer_seconds: 300
             rename:
               rename_delay_seconds: 300
               rename_quiet_seconds: 120
@@ -261,8 +264,10 @@ public sealed class ConfigurationBootstrapServiceTests
         ConfigurationBootstrapResult result = service.Bootstrap(tempDirectory.Path);
 
         Assert.Empty(result.Warnings);
-        Assert.Empty(result.Documents.MangaEquivalents.Groups!);
-        Assert.Empty(result.Documents.SourcePriority.Sources!);
+        Assert.Single(result.Documents.MangaEquivalents.Groups!);
+        Assert.Equal("Example Manga Title", result.Documents.MangaEquivalents.Groups![0].Canonical);
+        Assert.Equal(["Example Manga Alt Title"], result.Documents.MangaEquivalents.Groups[0].Aliases);
+        Assert.Equal(["Example Source Name"], result.Documents.SourcePriority.Sources!);
 
         ConfigurationBootstrapFileState mangaState = Assert.Single(result.Files, file => file.FileName == "manga_equivalents.yml");
         Assert.True(mangaState.UsedDefaults);
@@ -316,6 +321,7 @@ public sealed class ConfigurationBootstrapServiceTests
         Assert.Equal(false, result.Documents.Settings.Runtime!.LowPriority);
         Assert.Equal("/ssm/sources", result.Documents.Settings.Paths!.SourcesRootPath);
         Assert.Equal(5, result.Documents.Settings.Scan!.MergeTriggerPollSeconds);
+        Assert.Equal(300, result.Documents.Settings.Scan!.MergeTriggerRequestTimeoutBufferSeconds);
         Assert.Equal("warning", result.Documents.Settings.Logging!.Level);
     }
 
@@ -342,6 +348,7 @@ public sealed class ConfigurationBootstrapServiceTests
               merge_trigger_poll_seconds: 5
               merge_min_seconds_between_scans: 15
               merge_lock_retry_seconds: 30
+              merge_trigger_request_timeout_buffer_seconds: 300
             rename:
               rename_delay_seconds: 300
               rename_quiet_seconds: 120
@@ -405,6 +412,7 @@ public sealed class ConfigurationBootstrapServiceTests
               merge_trigger_poll_seconds: 5
               merge_min_seconds_between_scans: 15
               merge_lock_retry_seconds: 30
+              merge_trigger_request_timeout_buffer_seconds: 300
             rename:
               rename_delay_seconds: 300
               rename_quiet_seconds: 120
@@ -488,6 +496,7 @@ public sealed class ConfigurationBootstrapServiceTests
               merge_trigger_poll_seconds: 5
               merge_min_seconds_between_scans: 15
               merge_lock_retry_seconds: 30
+              merge_trigger_request_timeout_buffer_seconds: 300
             rename:
               rename_delay_seconds: 300
               rename_quiet_seconds: 120

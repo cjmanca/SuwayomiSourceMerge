@@ -70,6 +70,110 @@ public sealed class InotifywaitEventReaderTests
 	}
 
 	/// <summary>
+	/// Verifies executor timeout budget includes setup/completion headroom above requested inotify timeout.
+	/// </summary>
+	[Theory]
+	[InlineData(5, 300, 305)]
+	[InlineData(20, 15, 35)]
+	public void Poll_Edge_ShouldApplyConfiguredExecutorTimeoutBuffer(
+		int pollSeconds,
+		int requestTimeoutBufferSeconds,
+		int expectedExecutorTimeoutSeconds)
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string sourcesRoot = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "sources")).FullName;
+		FakeExternalCommandExecutor executor = new(
+			new ExternalCommandResult(
+				ExternalCommandOutcome.NonZeroExit,
+				ExternalCommandFailureKind.None,
+				2,
+				string.Empty,
+				string.Empty,
+				isStandardOutputTruncated: false,
+				isStandardErrorTruncated: false,
+				TimeSpan.FromSeconds(pollSeconds)));
+		InotifywaitEventReader reader = new(executor, requestTimeoutBufferSeconds);
+
+		_ = reader.Poll([sourcesRoot], TimeSpan.FromSeconds(pollSeconds));
+
+		Assert.NotNull(executor.LastRequest);
+		Assert.Equal(TimeSpan.FromSeconds(expectedExecutorTimeoutSeconds), executor.LastRequest!.Timeout);
+	}
+
+	/// <summary>
+	/// Verifies default constructor timeout buffer is applied to executor timeout.
+	/// </summary>
+	[Fact]
+	public void Poll_Edge_ShouldApplyDefaultExecutorTimeoutBuffer_WhenNotConfigured()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string sourcesRoot = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "sources")).FullName;
+		FakeExternalCommandExecutor executor = new(
+			new ExternalCommandResult(
+				ExternalCommandOutcome.NonZeroExit,
+				ExternalCommandFailureKind.None,
+				2,
+				string.Empty,
+				string.Empty,
+				isStandardOutputTruncated: false,
+				isStandardErrorTruncated: false,
+				TimeSpan.FromSeconds(5)));
+		InotifywaitEventReader reader = new(executor);
+
+		_ = reader.Poll([sourcesRoot], TimeSpan.FromSeconds(5));
+
+		Assert.NotNull(executor.LastRequest);
+		Assert.Equal(TimeSpan.FromSeconds(305), executor.LastRequest!.Timeout);
+	}
+
+	/// <summary>
+	/// Verifies invalid constructor timeout-buffer values are rejected.
+	/// </summary>
+	[Fact]
+	public void Constructor_Failure_ShouldThrow_WhenRequestTimeoutBufferSecondsIsInvalid()
+	{
+		FakeExternalCommandExecutor executor = new(
+			new ExternalCommandResult(
+				ExternalCommandOutcome.Success,
+				ExternalCommandFailureKind.None,
+				0,
+				string.Empty,
+				string.Empty,
+				isStandardOutputTruncated: false,
+				isStandardErrorTruncated: false,
+				TimeSpan.Zero));
+
+		Assert.Throws<ArgumentOutOfRangeException>(() => new InotifywaitEventReader(executor, 0));
+	}
+
+	/// <summary>
+	/// Verifies executor timeout without stderr is treated as non-fatal timed-out poll.
+	/// </summary>
+	[Fact]
+	public void Poll_Edge_ShouldReturnTimedOut_WhenExecutorTimeoutOccursWithoutStandardError()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string sourcesRoot = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "sources")).FullName;
+		FakeExternalCommandExecutor executor = new(
+			new ExternalCommandResult(
+				ExternalCommandOutcome.TimedOut,
+				ExternalCommandFailureKind.None,
+				null,
+				string.Empty,
+				string.Empty,
+				isStandardOutputTruncated: false,
+				isStandardErrorTruncated: false,
+				TimeSpan.FromSeconds(7)));
+		InotifywaitEventReader reader = new(executor);
+
+		InotifyPollResult result = reader.Poll([sourcesRoot], TimeSpan.FromSeconds(5));
+
+		Assert.Equal(InotifyPollOutcome.TimedOut, result.Outcome);
+		Assert.Empty(result.Events);
+		Assert.Empty(result.Warnings);
+	}
+
+	/// <summary>
 	/// Verifies missing inotifywait tool maps to tool-not-found poll outcome.
 	/// </summary>
 	[Fact]
@@ -94,6 +198,35 @@ public sealed class InotifywaitEventReaderTests
 		Assert.Equal(InotifyPollOutcome.ToolNotFound, result.Outcome);
 		Assert.Empty(result.Events);
 		Assert.NotEmpty(result.Warnings);
+	}
+
+	/// <summary>
+	/// Verifies executor timeout with stderr is treated as command failure with warnings.
+	/// </summary>
+	[Fact]
+	public void Poll_Failure_ShouldReturnCommandFailed_WhenExecutorTimeoutIncludesStandardError()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string sourcesRoot = Directory.CreateDirectory(Path.Combine(temporaryDirectory.Path, "sources")).FullName;
+		FakeExternalCommandExecutor executor = new(
+			new ExternalCommandResult(
+				ExternalCommandOutcome.TimedOut,
+				ExternalCommandFailureKind.None,
+				null,
+				string.Empty,
+				"timed out while initializing watches",
+				isStandardOutputTruncated: false,
+				isStandardErrorTruncated: false,
+				TimeSpan.FromSeconds(7)));
+		InotifywaitEventReader reader = new(executor);
+
+		InotifyPollResult result = reader.Poll([sourcesRoot], TimeSpan.FromSeconds(5));
+
+		Assert.Equal(InotifyPollOutcome.CommandFailed, result.Outcome);
+		Assert.Empty(result.Events);
+		Assert.Equal(2, result.Warnings.Count);
+		Assert.Contains(result.Warnings, warning => warning.Contains("inotifywait poll failed", StringComparison.Ordinal));
+		Assert.Contains(result.Warnings, warning => warning.Contains("timed out while initializing watches", StringComparison.Ordinal));
 	}
 
 	/// <summary>

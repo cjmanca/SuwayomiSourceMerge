@@ -38,6 +38,7 @@ public sealed class SettingsSelfHealingServiceTests
         Assert.Equal("/ssm/sources", result.Document.Paths.SourcesRootPath);
         Assert.Equal(60, result.Document.Scan!.MergeIntervalSeconds);
         Assert.Equal(5, result.Document.Scan.MergeTriggerPollSeconds);
+        Assert.Equal(300, result.Document.Scan.MergeTriggerRequestTimeoutBufferSeconds);
         Assert.NotNull(result.Document.Runtime);
         Assert.NotNull(result.Document.Shutdown);
         Assert.Equal("daemon.log", result.Document.Logging!.FileName);
@@ -134,6 +135,7 @@ public sealed class SettingsSelfHealingServiceTests
               merge_trigger_poll_seconds: 5
               merge_min_seconds_between_scans: 15
               merge_lock_retry_seconds: 30
+              merge_trigger_request_timeout_buffer_seconds: 300
             rename:
               rename_delay_seconds: 300
               rename_quiet_seconds: 120

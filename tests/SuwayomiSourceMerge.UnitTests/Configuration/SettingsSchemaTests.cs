@@ -29,6 +29,7 @@ public sealed class SettingsSchemaTests
               merge_trigger_poll_seconds: 5
               merge_min_seconds_between_scans: 15
               merge_lock_retry_seconds: 30
+              merge_trigger_request_timeout_buffer_seconds: 300
             rename:
               rename_delay_seconds: 300
               rename_quiet_seconds: 120
@@ -101,6 +102,7 @@ public sealed class SettingsSchemaTests
               merge_trigger_poll_seconds: 5
               merge_min_seconds_between_scans: 0
               merge_lock_retry_seconds: 30
+              merge_trigger_request_timeout_buffer_seconds: 300
             rename:
               rename_delay_seconds: 0
               rename_quiet_seconds: 0
@@ -172,6 +174,7 @@ public sealed class SettingsSchemaTests
               merge_trigger_poll_seconds: 5
               merge_min_seconds_between_scans: 15
               merge_lock_retry_seconds: 30
+              merge_trigger_request_timeout_buffer_seconds: 300
             rename:
               rename_delay_seconds: 300
               rename_quiet_seconds: 120
@@ -245,6 +248,7 @@ public sealed class SettingsSchemaTests
               merge_trigger_poll_seconds: 5
               merge_min_seconds_between_scans: 15
               merge_lock_retry_seconds: 30
+              merge_trigger_request_timeout_buffer_seconds: 300
             rename:
               rename_delay_seconds: 300
               rename_quiet_seconds: 120
@@ -318,6 +322,7 @@ public sealed class SettingsSchemaTests
               merge_trigger_poll_seconds: 5
               merge_min_seconds_between_scans: 15
               merge_lock_retry_seconds: 30
+              merge_trigger_request_timeout_buffer_seconds: 300
             rename:
               rename_delay_seconds: 300
               rename_quiet_seconds: 120
@@ -391,6 +396,7 @@ public sealed class SettingsSchemaTests
               merge_trigger_poll_seconds: 5
               merge_min_seconds_between_scans: 15
               merge_lock_retry_seconds: 30
+              merge_trigger_request_timeout_buffer_seconds: 300
             rename:
               rename_delay_seconds: 300
               rename_quiet_seconds: 120
@@ -459,6 +465,7 @@ public sealed class SettingsSchemaTests
               merge_trigger_poll_seconds: 5
               merge_min_seconds_between_scans: 15
               merge_lock_retry_seconds: 30
+              merge_trigger_request_timeout_buffer_seconds: 300
             rename:
               rename_delay_seconds: 300
               rename_quiet_seconds: 120
@@ -532,6 +539,7 @@ public sealed class SettingsSchemaTests
               merge_trigger_poll_seconds: 5
               merge_min_seconds_between_scans: 15
               merge_lock_retry_seconds: 30
+              merge_trigger_request_timeout_buffer_seconds: 300
             rename:
               rename_delay_seconds: 300
               rename_quiet_seconds: 120

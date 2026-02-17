@@ -28,7 +28,9 @@ internal sealed class DefaultRuntimeSupervisorRunner : IRuntimeSupervisorRunner
 		FilesystemEventTriggerOptions triggerOptions = FilesystemEventTriggerOptions.FromSettings(documents.Settings);
 		ChapterRenameOptions renameOptions = ChapterRenameOptions.FromSettings(documents.Settings);
 
-		IInotifyEventReader inotifyReader = new InotifywaitEventReader(new ExternalCommandExecutor());
+		IInotifyEventReader inotifyReader = new InotifywaitEventReader(
+			new ExternalCommandExecutor(),
+			triggerOptions.InotifyRequestTimeoutBufferSeconds);
 		IChapterRenameQueueProcessor renameQueueProcessor = new ChapterRenameQueueProcessor(
 			renameOptions,
 			new ShellParityChapterRenameSanitizer(),

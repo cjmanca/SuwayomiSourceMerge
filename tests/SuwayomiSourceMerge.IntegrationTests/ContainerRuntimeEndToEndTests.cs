@@ -52,6 +52,9 @@ public sealed class ContainerRuntimeEndToEndTests
 			DockerAssertions.WaitForFileContains(daemonLogPath, "event=\"watcher.tick.summary\"", TimeSpan.FromSeconds(60));
 			DockerAssertions.WaitForFileContains(daemonLogPath, "event=\"merge.dispatch.completed\"", TimeSpan.FromSeconds(60));
 			DockerAssertions.WaitForFileContains(commandLogPath, "mergerfs ", TimeSpan.FromSeconds(60));
+			string startupLogs = _fixture.Runner.GetContainerLogs(containerName);
+			Assert.DoesNotContain("already maps to group 'users' (expected 'ssm')", startupLogs, StringComparison.Ordinal);
+			Assert.DoesNotContain("uid 99 outside of the UID_MIN", startupLogs, StringComparison.Ordinal);
 
 			int unmountCommandCountBeforeStop = CountUnmountCommandLines(commandLogPath);
 
