@@ -61,7 +61,10 @@ public sealed class SettingsDocumentValidatorTests
                 ChildExitGraceSeconds = 1,
                 UnmountCommandTimeoutSeconds = 1,
                 UnmountDetachWaitSeconds = 1,
-                CleanupHighPriority = true
+                CleanupHighPriority = true,
+                CleanupApplyHighPriority = false,
+                CleanupPriorityIoniceClass = 1,
+                CleanupPriorityNiceValue = 19
             },
             Permissions = baseline.Permissions,
             Runtime = baseline.Runtime,
@@ -181,7 +184,10 @@ public sealed class SettingsDocumentValidatorTests
                 ChildExitGraceSeconds = 1,
                 UnmountCommandTimeoutSeconds = 1,
                 UnmountDetachWaitSeconds = 1,
-                CleanupHighPriority = true
+                CleanupHighPriority = true,
+                CleanupApplyHighPriority = null,
+                CleanupPriorityIoniceClass = null,
+                CleanupPriorityNiceValue = 25
             },
             Permissions = new SettingsPermissionsSection
             {
@@ -215,6 +221,9 @@ public sealed class SettingsDocumentValidatorTests
         Assert.Contains(result.Errors, error => error.Path == "$.scan.merge_interval_seconds" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.scan.merge_trigger_poll_seconds" && error.Code == "CFG-SET-004");
         Assert.Contains(result.Errors, error => error.Path == "$.rename.rename_delay_seconds" && error.Code == "CFG-SET-004");
+        Assert.Contains(result.Errors, error => error.Path == "$.shutdown.cleanup_apply_high_priority" && error.Code == "CFG-SET-002");
+        Assert.Contains(result.Errors, error => error.Path == "$.shutdown.cleanup_priority_ionice_class" && error.Code == "CFG-SET-002");
+        Assert.Contains(result.Errors, error => error.Path == "$.shutdown.cleanup_priority_nice_value" && error.Code == "CFG-SET-004");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.details_description_mode" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.excluded_sources" && error.Code == "CFG-SET-002");
     }

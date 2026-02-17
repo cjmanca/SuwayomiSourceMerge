@@ -32,7 +32,7 @@ internal sealed partial class ChapterRenameQueueProcessor
 				{
 					droppedMissing++;
 					_logger.Debug(
-						MISSING_PATH_DROPPED_EVENT,
+						MissingPathDroppedEvent,
 						"Dropped missing chapter path after grace window.",
 						BuildContext(("path", entry.Path)));
 				}
@@ -72,7 +72,7 @@ internal sealed partial class ChapterRenameQueueProcessor
 			{
 				moveFailed++;
 				_logger.Warning(
-					MOVE_FAILED_EVENT,
+					MoveWarningEvent,
 					"Could not determine parent path for queued entry.",
 					BuildContext(("path", entry.Path)));
 				continue;
@@ -83,7 +83,7 @@ internal sealed partial class ChapterRenameQueueProcessor
 			{
 				collisionSkipped++;
 				_logger.Warning(
-					COLLISION_EXHAUSTED_EVENT,
+					CollisionExhaustedEvent,
 					"Collision suffix options exhausted; rename skipped.",
 					BuildContext(
 						("path", entry.Path),
@@ -96,7 +96,7 @@ internal sealed partial class ChapterRenameQueueProcessor
 			{
 				moveFailed++;
 				_logger.Warning(
-					MOVE_FAILED_EVENT,
+					MoveWarningEvent,
 					"Rename move failed; leaving entry as-is.",
 					BuildContext(
 						("source_path", entry.Path),
@@ -106,7 +106,7 @@ internal sealed partial class ChapterRenameQueueProcessor
 
 			renamed++;
 			_logger.Debug(
-				RENAMED_EVENT,
+				RenamedEvent,
 				"Renamed chapter directory.",
 				BuildContext(
 					("source_name", chapterName),

@@ -8,7 +8,7 @@ public sealed class DockerIntegrationFixture : IAsyncLifetime
 	/// <summary>
 	/// Gets collection name for this fixture.
 	/// </summary>
-	public const string COLLECTION_NAME = "docker-integration";
+	public const string CollectionName = "docker-integration";
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="DockerIntegrationFixture"/> class.

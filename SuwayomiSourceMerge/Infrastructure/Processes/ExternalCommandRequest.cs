@@ -8,17 +8,17 @@ internal sealed class ExternalCommandRequest
 	/// <summary>
 	/// Default timeout used when no explicit timeout is provided.
 	/// </summary>
-	private static readonly TimeSpan DEFAULT_TIMEOUT = TimeSpan.FromSeconds(30);
+	private static readonly TimeSpan _defaultTimeout = TimeSpan.FromSeconds(30);
 
 	/// <summary>
 	/// Default polling interval used while supervising process completion.
 	/// </summary>
-	private static readonly TimeSpan DEFAULT_POLL_INTERVAL = TimeSpan.FromMilliseconds(100);
+	private static readonly TimeSpan _defaultPollInterval = TimeSpan.FromMilliseconds(100);
 
 	/// <summary>
 	/// Default maximum number of characters captured per output stream.
 	/// </summary>
-	private const int DEFAULT_MAX_OUTPUT_CHARACTERS = 65536;
+	private const int DefaultMaxOutputCharacters = 65536;
 
 	/// <summary>
 	/// Gets or sets the executable file name or path.
@@ -45,7 +45,7 @@ internal sealed class ExternalCommandRequest
 	{
 		get;
 		init;
-	} = DEFAULT_TIMEOUT;
+	} = _defaultTimeout;
 
 	/// <summary>
 	/// Gets or sets the polling interval used while waiting for command completion.
@@ -54,7 +54,7 @@ internal sealed class ExternalCommandRequest
 	{
 		get;
 		init;
-	} = DEFAULT_POLL_INTERVAL;
+	} = _defaultPollInterval;
 
 	/// <summary>
 	/// Gets or sets the maximum number of characters captured for each output stream.
@@ -63,5 +63,5 @@ internal sealed class ExternalCommandRequest
 	{
 		get;
 		init;
-	} = DEFAULT_MAX_OUTPUT_CHARACTERS;
+	} = DefaultMaxOutputCharacters;
 }

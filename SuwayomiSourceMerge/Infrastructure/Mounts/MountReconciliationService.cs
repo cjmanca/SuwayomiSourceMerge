@@ -8,12 +8,12 @@ internal sealed class MountReconciliationService : IMountReconciliationService
 	/// <summary>
 	/// Token used to identify mergerfs filesystem types.
 	/// </summary>
-	private const string MERGERFS_TOKEN = "mergerfs";
+	private const string MergerfsToken = "mergerfs";
 
 	/// <summary>
 	/// Path separator used for normalization and descendant checks.
 	/// </summary>
-	private const char PATH_SEPARATOR = '/';
+	private const char PathSeparator = '/';
 
 	/// <inheritdoc />
 	public MountReconciliationPlan Reconcile(MountReconciliationInput input)
@@ -282,7 +282,7 @@ internal sealed class MountReconciliationService : IMountReconciliationService
 	/// <returns><see langword="true"/> when mergerfs; otherwise <see langword="false"/>.</returns>
 	private static bool IsMergerfsFileSystem(string fileSystemType)
 	{
-		return fileSystemType.Contains(MERGERFS_TOKEN, StringComparison.OrdinalIgnoreCase);
+		return fileSystemType.Contains(MergerfsToken, StringComparison.OrdinalIgnoreCase);
 	}
 
 	/// <summary>
@@ -314,8 +314,8 @@ internal sealed class MountReconciliationService : IMountReconciliationService
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-		string normalizedPath = path.Replace('\\', PATH_SEPARATOR);
-		while (normalizedPath.Length > 1 && normalizedPath.EndsWith(PATH_SEPARATOR))
+		string normalizedPath = path.Replace('\\', PathSeparator);
+		while (normalizedPath.Length > 1 && normalizedPath.EndsWith(PathSeparator))
 		{
 			normalizedPath = normalizedPath[..^1];
 		}
@@ -341,13 +341,13 @@ internal sealed class MountReconciliationService : IMountReconciliationService
 			return false;
 		}
 
-		if (normalizedRoot == PATH_SEPARATOR.ToString())
+		if (normalizedRoot == PathSeparator.ToString())
 		{
 			return true;
 		}
 
 		return normalizedPath.Length > normalizedRoot.Length
-			&& normalizedPath[normalizedRoot.Length] == PATH_SEPARATOR;
+			&& normalizedPath[normalizedRoot.Length] == PathSeparator;
 	}
 
 	/// <summary>
@@ -358,13 +358,13 @@ internal sealed class MountReconciliationService : IMountReconciliationService
 	private static int GetPathDepth(string path)
 	{
 		string normalizedPath = NormalizePath(path);
-		if (normalizedPath == PATH_SEPARATOR.ToString())
+		if (normalizedPath == PathSeparator.ToString())
 		{
 			return 0;
 		}
 
 		return normalizedPath
-			.Split(PATH_SEPARATOR, StringSplitOptions.RemoveEmptyEntries)
+			.Split(PathSeparator, StringSplitOptions.RemoveEmptyEntries)
 			.Length;
 	}
 }

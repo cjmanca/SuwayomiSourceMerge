@@ -27,14 +27,42 @@ public sealed class ConfigurationSchemaService
 	}
 
 	/// <summary>
-	/// Parses and validates <c>settings.yml</c> content.
+	/// Parses and validates <c>settings.yml</c> content for runtime/bootstrap call sites.
+	/// </summary>
+	/// <param name="file">Logical file name to include in validation errors.</param>
+	/// <param name="yamlContent">Raw YAML content for the settings document.</param>
+	/// <returns>A parsed settings document and any parse/validation errors.</returns>
+	public ParsedDocument<SettingsDocument> ParseSettingsForRuntime(string file, string yamlContent)
+	{
+		return _pipeline.ParseAndValidate(
+			file,
+			yamlContent,
+			new SettingsDocumentValidator(SettingsValidationProfile.StrictRuntime));
+	}
+
+	/// <summary>
+	/// Parses and validates <c>settings.yml</c> content using strict runtime rules.
 	/// </summary>
 	/// <param name="file">Logical file name to include in validation errors.</param>
 	/// <param name="yamlContent">Raw YAML content for the settings document.</param>
 	/// <returns>A parsed settings document and any parse/validation errors.</returns>
 	public ParsedDocument<SettingsDocument> ParseSettings(string file, string yamlContent)
 	{
-		return _pipeline.ParseAndValidate(file, yamlContent, new SettingsDocumentValidator());
+		return ParseSettingsForRuntime(file, yamlContent);
+	}
+
+	/// <summary>
+	/// Parses settings content using tooling-relaxed validation rules.
+	/// </summary>
+	/// <param name="file">Logical file name to include in validation errors.</param>
+	/// <param name="yamlContent">Raw YAML content for the settings document.</param>
+	/// <returns>A parsed settings document and any parse/validation errors.</returns>
+	public ParsedDocument<SettingsDocument> ParseSettingsForTooling(string file, string yamlContent)
+	{
+		return _pipeline.ParseAndValidate(
+			file,
+			yamlContent,
+			new SettingsDocumentValidator(SettingsValidationProfile.RelaxedTooling));
 	}
 
 	/// <summary>

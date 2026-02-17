@@ -10,17 +10,17 @@ internal sealed class MergerfsBranchPlanningService : IMergerfsBranchPlanningSer
 	/// <summary>
 	/// Mergerfs read-write mode token.
 	/// </summary>
-	private const string READ_WRITE_MODE_TOKEN = "RW";
+	private const string ReadWriteModeToken = "RW";
 
 	/// <summary>
 	/// Mergerfs read-only mode token.
 	/// </summary>
-	private const string READ_ONLY_MODE_TOKEN = "RO";
+	private const string ReadOnlyModeToken = "RO";
 
 	/// <summary>
 	/// Delimiter used between branch specifications.
 	/// </summary>
-	private const char BRANCH_SPECIFICATION_DELIMITER = ':';
+	private const char BranchSpecificationDelimiter = ':';
 
 	/// <summary>
 	/// Source-priority service used for deterministic source ordering.
@@ -202,7 +202,7 @@ internal sealed class MergerfsBranchPlanningService : IMergerfsBranchPlanningSer
 	private static string BuildBranchSpecification(IReadOnlyList<MergerfsBranchLinkDefinition> branchLinks)
 	{
 		return string.Join(
-			BRANCH_SPECIFICATION_DELIMITER,
+			BranchSpecificationDelimiter,
 			branchLinks.Select(
 				link => $"{link.LinkPath}={ResolveModeToken(link.AccessMode)}"));
 	}
@@ -216,8 +216,8 @@ internal sealed class MergerfsBranchPlanningService : IMergerfsBranchPlanningSer
 	{
 		return accessMode switch
 		{
-			MergerfsBranchAccessMode.ReadWrite => READ_WRITE_MODE_TOKEN,
-			MergerfsBranchAccessMode.ReadOnly => READ_ONLY_MODE_TOKEN,
+			MergerfsBranchAccessMode.ReadWrite => ReadWriteModeToken,
+			MergerfsBranchAccessMode.ReadOnly => ReadOnlyModeToken,
 			_ => throw new ArgumentOutOfRangeException(
 				nameof(accessMode),
 				accessMode,

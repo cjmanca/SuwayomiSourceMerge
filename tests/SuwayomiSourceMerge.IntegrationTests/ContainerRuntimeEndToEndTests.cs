@@ -5,7 +5,7 @@ namespace SuwayomiSourceMerge.IntegrationTests;
 /// <summary>
 /// End-to-end Docker runtime tests for container assets and daemon orchestration.
 /// </summary>
-[Collection(DockerIntegrationFixture.COLLECTION_NAME)]
+[Collection(DockerIntegrationFixture.CollectionName)]
 public sealed class ContainerRuntimeEndToEndTests
 {
 	/// <summary>
@@ -23,30 +23,37 @@ public sealed class ContainerRuntimeEndToEndTests
 	}
 
 	/// <summary>
-	/// Verifies healthy container startup, deferred-merge dispatch logging, and graceful stop.
+	/// Verifies healthy container startup, production merge dispatch, and graceful stop cleanup.
 	/// </summary>
 	[Fact]
 	public void Run_Expected_ShouldBootstrapDispatchAndStopGracefully()
 	{
 		using ContainerFixtureWorkspace workspace = new();
 		workspace.CreateMockToolScripts();
-		Directory.CreateDirectory(Path.Combine(workspace.SourcesRootPath, "SourceA", "MangaA"));
-		Directory.CreateDirectory(Path.Combine(workspace.OverrideRootPath, "MangaA"));
+		Directory.CreateDirectory(Path.Combine(workspace.SourcesRootPath, "disk1", "SourceA", "MangaA"));
+		Directory.CreateDirectory(Path.Combine(workspace.OverrideRootPath, "priority", "MangaA"));
 		workspace.WriteSettingsFile("/ssm/sources", "/ssm/override", "debug");
 
 		string containerName = BuildContainerName("expected");
 		try
 		{
+			string findmntOutput = "TARGET=\"/ssm/merged/MangaA\" FSTYPE=\"fuse.mergerfs\" SOURCE=\"mock\" OPTIONS=\"rw\"\\n";
 			_fixture.Runner.RunContainerDetached(
 				_fixture.ImageTag,
 				containerName,
-				CreateEnvironmentVariables("/ssm/override/MangaA/details.json|CLOSE_WRITE\n"),
+				CreateEnvironmentVariables(
+					"/ssm/override/priority/MangaA/details.json|CLOSE_WRITE\n",
+					findmntOutput),
 				CreateBindMounts(workspace));
 
 			string daemonLogPath = Path.Combine(workspace.ConfigRootPath, "daemon.log");
+			string commandLogPath = Path.Combine(workspace.StateRootPath, "mock-commands.log");
 			DockerAssertions.WaitForFileContains(daemonLogPath, "event=\"host.startup\"", TimeSpan.FromSeconds(60));
 			DockerAssertions.WaitForFileContains(daemonLogPath, "event=\"watcher.tick.summary\"", TimeSpan.FromSeconds(60));
-			DockerAssertions.WaitForFileContains(daemonLogPath, "event=\"merge.dispatch.deferred\"", TimeSpan.FromSeconds(60));
+			DockerAssertions.WaitForFileContains(daemonLogPath, "event=\"merge.dispatch.completed\"", TimeSpan.FromSeconds(60));
+			DockerAssertions.WaitForFileContains(commandLogPath, "mergerfs ", TimeSpan.FromSeconds(60));
+
+			int unmountCommandCountBeforeStop = CountUnmountCommandLines(commandLogPath);
 
 			Assert.True(File.Exists(Path.Combine(workspace.ConfigRootPath, "manga_equivalents.yml")));
 			Assert.True(File.Exists(Path.Combine(workspace.ConfigRootPath, "scene_tags.yml")));
@@ -55,6 +62,11 @@ public sealed class ContainerRuntimeEndToEndTests
 			_fixture.Runner.SendSignal(containerName, "SIGINT");
 			int exitCode = _fixture.Runner.WaitContainerExitCode(containerName, TimeSpan.FromSeconds(30));
 			Assert.Equal(0, exitCode);
+
+			DockerAssertions.WaitForCondition(
+				() => CountUnmountCommandLines(commandLogPath) > unmountCommandCountBeforeStop,
+				TimeSpan.FromSeconds(30),
+				"Expected shutdown sweep to invoke at least one additional unmount command.");
 		}
 		finally
 		{
@@ -138,8 +150,8 @@ public sealed class ContainerRuntimeEndToEndTests
 	{
 		using ContainerFixtureWorkspace workspace = new();
 		workspace.CreateMockToolScripts();
-		Directory.CreateDirectory(Path.Combine(workspace.SourcesRootPath, "SourceA", "MangaA"));
-		Directory.CreateDirectory(Path.Combine(workspace.OverrideRootPath, "MangaA"));
+		Directory.CreateDirectory(Path.Combine(workspace.SourcesRootPath, "disk1", "SourceA", "MangaA"));
+		Directory.CreateDirectory(Path.Combine(workspace.OverrideRootPath, "priority", "MangaA"));
 		workspace.WriteSettingsFile("/ssm/sources", "/ssm/override", "debug");
 
 		const string collidingSsmGroupId = "59980";
@@ -160,7 +172,7 @@ public sealed class ContainerRuntimeEndToEndTests
 				collisionImageTag,
 				containerName,
 				CreateEnvironmentVariables(
-					"/ssm/override/MangaA/details.json|CLOSE_WRITE\n",
+					"/ssm/override/priority/MangaA/details.json|CLOSE_WRITE\n",
 					puid: requestedUserId,
 					pgid: requestedGroupId),
 				CreateBindMounts(workspace));
@@ -190,10 +202,12 @@ public sealed class ContainerRuntimeEndToEndTests
 	/// <returns>Environment variable map.</returns>
 	private static IReadOnlyDictionary<string, string> CreateEnvironmentVariables(
 		string inotifyOutput,
+		string findmntOutput = "",
 		string puid = "99",
 		string pgid = "100")
 	{
 		ArgumentNullException.ThrowIfNull(inotifyOutput);
+		ArgumentNullException.ThrowIfNull(findmntOutput);
 		ArgumentException.ThrowIfNullOrWhiteSpace(puid);
 		ArgumentException.ThrowIfNullOrWhiteSpace(pgid);
 
@@ -202,7 +216,8 @@ public sealed class ContainerRuntimeEndToEndTests
 			["PUID"] = puid,
 			["PGID"] = pgid,
 			["PATH"] = "/ssm/mock-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-			["INOTIFYWAIT_STDOUT"] = inotifyOutput
+			["INOTIFYWAIT_STDOUT"] = inotifyOutput,
+			["FINDMNT_STDOUT"] = findmntOutput
 		};
 	}
 
@@ -323,5 +338,21 @@ public sealed class ContainerRuntimeEndToEndTests
 		{
 			// Best-effort image cleanup.
 		}
+	}
+
+	/// <summary>
+	/// Counts recorded unmount command invocations in the mock command log.
+	/// </summary>
+	/// <param name="commandLogPath">Mock command log path.</param>
+	/// <returns>Unmount command line count.</returns>
+	private static int CountUnmountCommandLines(string commandLogPath)
+	{
+		return DockerAssertions.CountFileLinesMatching(
+			commandLogPath,
+			static line => line.StartsWith("fusermount3 ", StringComparison.Ordinal) ||
+				line.StartsWith("fusermount ", StringComparison.Ordinal) ||
+				line.StartsWith("umount ", StringComparison.Ordinal),
+			TimeSpan.FromSeconds(5),
+			$"Timed out reading unmount commands from '{commandLogPath}'.");
 	}
 }

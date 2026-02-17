@@ -41,13 +41,12 @@ dotnet_naming_rule.private_fields_must_be_underscore.symbols = private_fields
 dotnet_naming_rule.private_fields_must_be_underscore.style = private_field_style
 dotnet_naming_rule.private_fields_must_be_underscore.severity = warning
 
-# Naming rules: const fields must be ALL_CAPS.
+# Naming rules: const fields must be PascalCase.
 dotnet_naming_symbols.const_fields.applicable_kinds = field
 dotnet_naming_symbols.const_fields.required_modifiers = const
 
-dotnet_naming_style.const_field_style.capitalization = all_upper
-dotnet_naming_style.const_field_style.word_separator = _
+dotnet_naming_style.const_field_style.capitalization = pascal_case
 
-dotnet_naming_rule.const_fields_must_be_all_caps.symbols = const_fields
-dotnet_naming_rule.const_fields_must_be_all_caps.style = const_field_style
-dotnet_naming_rule.const_fields_must_be_all_caps.severity = warning
+dotnet_naming_rule.const_fields_must_be_pascal_case.symbols = const_fields
+dotnet_naming_rule.const_fields_must_be_pascal_case.style = const_field_style
+dotnet_naming_rule.const_fields_must_be_pascal_case.severity = warning

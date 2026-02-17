@@ -8,12 +8,12 @@ internal sealed class SupervisorStatePaths
 	/// <summary>
 	/// Canonical supervisor PID file name.
 	/// </summary>
-	public const string DAEMON_PID_FILE_NAME = "daemon.pid";
+	public const string DaemonPidFileName = "daemon.pid";
 
 	/// <summary>
 	/// Canonical supervisor lock file name.
 	/// </summary>
-	public const string SUPERVISOR_LOCK_FILE_NAME = "supervisor.lock";
+	public const string SupervisorLockFileName = "supervisor.lock";
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="SupervisorStatePaths"/> class.
@@ -24,8 +24,8 @@ internal sealed class SupervisorStatePaths
 		ArgumentException.ThrowIfNullOrWhiteSpace(stateRootPath);
 
 		StateRootPath = Path.GetFullPath(stateRootPath);
-		DaemonPidFilePath = Path.Combine(StateRootPath, DAEMON_PID_FILE_NAME);
-		SupervisorLockFilePath = Path.Combine(StateRootPath, SUPERVISOR_LOCK_FILE_NAME);
+		DaemonPidFilePath = Path.Combine(StateRootPath, DaemonPidFileName);
+		SupervisorLockFilePath = Path.Combine(StateRootPath, SupervisorLockFileName);
 	}
 
 	/// <summary>

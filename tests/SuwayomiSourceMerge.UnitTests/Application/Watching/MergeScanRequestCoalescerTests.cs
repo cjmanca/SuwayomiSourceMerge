@@ -86,6 +86,26 @@ public sealed class MergeScanRequestCoalescerTests
 	}
 
 	/// <summary>
+	/// Verifies mixed results keep pending work and enforce retry delay before next attempt.
+	/// </summary>
+	[Fact]
+	public void DispatchPending_Failure_ShouldApplyRetryDelay_WhenHandlerReturnsMixed()
+	{
+		RecordingMergeScanRequestHandler handler = new([MergeScanDispatchOutcome.Mixed, MergeScanDispatchOutcome.Success]);
+		MergeScanRequestCoalescer coalescer = new(handler, minSecondsBetweenScans: 0, retryDelaySeconds: 30);
+		DateTimeOffset now = DateTimeOffset.UtcNow;
+
+		coalescer.RequestScan("mixed-path", force: false);
+		Assert.Equal(MergeScanDispatchOutcome.Mixed, coalescer.DispatchPending(now));
+		Assert.True(coalescer.HasPendingRequest);
+
+		Assert.Equal(MergeScanDispatchOutcome.SkippedDueToRetryDelay, coalescer.DispatchPending(now.AddSeconds(5)));
+		Assert.Equal(MergeScanDispatchOutcome.Success, coalescer.DispatchPending(now.AddSeconds(31)));
+		Assert.False(coalescer.HasPendingRequest);
+		Assert.Equal(2, handler.Calls.Count);
+	}
+
+	/// <summary>
 	/// Verifies handler exceptions are contained as failure outcomes and retried after delay.
 	/// </summary>
 	[Fact]
@@ -102,6 +122,47 @@ public sealed class MergeScanRequestCoalescerTests
 		Assert.Equal(MergeScanDispatchOutcome.Success, coalescer.DispatchPending(now.AddSeconds(6)));
 		Assert.False(coalescer.HasPendingRequest);
 		Assert.Equal(2, handler.DispatchCalls);
+	}
+
+	/// <summary>
+	/// Verifies token-mismatched cancellation exceptions are treated as failures even when caller token is canceled during dispatch.
+	/// </summary>
+	[Fact]
+	public void DispatchPending_Failure_ShouldMapFailure_WhenCallerTokenCancelledButExceptionTokenDiffers()
+	{
+		using CancellationTokenSource callerTokenSource = new();
+		using CancellationTokenSource differentTokenSource = new();
+		differentTokenSource.Cancel();
+		DelegatingMergeScanRequestHandler handler = new((_, _, _) =>
+		{
+			callerTokenSource.Cancel();
+			throw new OperationCanceledException("mismatched token", differentTokenSource.Token);
+		});
+		MergeScanRequestCoalescer coalescer = new(handler, minSecondsBetweenScans: 0, retryDelaySeconds: 5);
+		DateTimeOffset now = DateTimeOffset.UtcNow;
+
+		coalescer.RequestScan("mismatch", force: false);
+		Assert.Equal(MergeScanDispatchOutcome.Failure, coalescer.DispatchPending(now, callerTokenSource.Token));
+		Assert.True(coalescer.HasPendingRequest);
+	}
+
+	/// <summary>
+	/// Verifies tokenless cancellation is treated as cooperative when caller token is canceled during dispatch.
+	/// </summary>
+	[Fact]
+	public void DispatchPending_Edge_ShouldRethrowCancellation_WhenCallerTokenCancelledAndExceptionIsTokenless()
+	{
+		using CancellationTokenSource callerTokenSource = new();
+		DelegatingMergeScanRequestHandler handler = new((_, _, _) =>
+		{
+			callerTokenSource.Cancel();
+			throw new OperationCanceledException("tokenless cancellation");
+		});
+		MergeScanRequestCoalescer coalescer = new(handler, minSecondsBetweenScans: 0, retryDelaySeconds: 5);
+
+		coalescer.RequestScan("tokenless", force: false);
+		Assert.Throws<OperationCanceledException>(() => coalescer.DispatchPending(DateTimeOffset.UtcNow, callerTokenSource.Token));
+		Assert.True(coalescer.HasPendingRequest);
 	}
 
 	/// <summary>
@@ -255,6 +316,32 @@ public sealed class MergeScanRequestCoalescerTests
 			DispatchStarted.Set();
 			AllowDispatch.Wait(cancellationToken);
 			return MergeScanDispatchOutcome.Success;
+		}
+	}
+
+	/// <summary>
+	/// Handler that delegates dispatch to one callback.
+	/// </summary>
+	private sealed class DelegatingMergeScanRequestHandler : IMergeScanRequestHandler
+	{
+		/// <summary>
+		/// Dispatch callback.
+		/// </summary>
+		private readonly Func<string, bool, CancellationToken, MergeScanDispatchOutcome> _callback;
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="DelegatingMergeScanRequestHandler"/> class.
+		/// </summary>
+		/// <param name="callback">Dispatch callback.</param>
+		public DelegatingMergeScanRequestHandler(Func<string, bool, CancellationToken, MergeScanDispatchOutcome> callback)
+		{
+			_callback = callback ?? throw new ArgumentNullException(nameof(callback));
+		}
+
+		/// <inheritdoc />
+		public MergeScanDispatchOutcome DispatchMergeScan(string reason, bool force, CancellationToken cancellationToken = default)
+		{
+			return _callback(reason, force, cancellationToken);
 		}
 	}
 }

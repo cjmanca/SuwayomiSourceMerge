@@ -66,7 +66,10 @@ public static class SettingsDocumentDefaults
 				ChildExitGraceSeconds = 5,
 				UnmountCommandTimeoutSeconds = 8,
 				UnmountDetachWaitSeconds = 5,
-				CleanupHighPriority = true
+				CleanupHighPriority = true,
+				CleanupApplyHighPriority = false,
+				CleanupPriorityIoniceClass = 3,
+				CleanupPriorityNiceValue = -20
 			},
 			Permissions = new SettingsPermissionsSection
 			{

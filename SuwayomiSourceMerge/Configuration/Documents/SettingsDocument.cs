@@ -360,6 +360,30 @@ public sealed class SettingsShutdownSection
 	{
 		get; init;
 	}
+
+	/// <summary>
+	/// Gets or sets whether apply-path mount actions should run with high-priority wrapper commands.
+	/// </summary>
+	public bool? CleanupApplyHighPriority
+	{
+		get; init;
+	}
+
+	/// <summary>
+	/// Gets or sets ionice scheduling class used when high-priority cleanup wrappers are enabled.
+	/// </summary>
+	public int? CleanupPriorityIoniceClass
+	{
+		get; init;
+	}
+
+	/// <summary>
+	/// Gets or sets nice priority value used when high-priority cleanup wrappers are enabled.
+	/// </summary>
+	public int? CleanupPriorityNiceValue
+	{
+		get; init;
+	}
 }
 
 /// <summary>

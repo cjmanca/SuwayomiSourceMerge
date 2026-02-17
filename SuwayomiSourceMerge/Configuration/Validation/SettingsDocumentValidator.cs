@@ -16,6 +16,25 @@ namespace SuwayomiSourceMerge.Configuration.Validation;
 public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocument>
 {
 	/// <summary>
+	/// Validation profile used by this validator instance.
+	/// </summary>
+	private readonly SettingsValidationProfile _profile;
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="SettingsDocumentValidator"/> class.
+	/// </summary>
+	/// <param name="profile">Validation profile controlling strictness for profile-gated fields.</param>
+	public SettingsDocumentValidator(SettingsValidationProfile profile = SettingsValidationProfile.StrictRuntime)
+	{
+		if (!Enum.IsDefined(profile))
+		{
+			throw new ArgumentOutOfRangeException(nameof(profile), profile, "Validation profile must be a defined value.");
+		}
+
+		_profile = profile;
+	}
+
+	/// <summary>
 	/// Validation code emitted when an entire required settings section is missing.
 	/// </summary>
 	private const string MissingSectionCode = "CFG-SET-001";
@@ -136,6 +155,18 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
 			ValidatePositive(document.Shutdown.UnmountCommandTimeoutSeconds, file, "$.shutdown.unmount_command_timeout_seconds", result);
 			ValidatePositive(document.Shutdown.UnmountDetachWaitSeconds, file, "$.shutdown.unmount_detach_wait_seconds", result);
 			ValidateRequired(document.Shutdown.CleanupHighPriority, file, "$.shutdown.cleanup_high_priority", result);
+
+			if (_profile == SettingsValidationProfile.StrictRuntime)
+			{
+				ValidateRequired(document.Shutdown.CleanupApplyHighPriority, file, "$.shutdown.cleanup_apply_high_priority", result);
+				ValidateRange(document.Shutdown.CleanupPriorityIoniceClass, 1, 3, file, "$.shutdown.cleanup_priority_ionice_class", result);
+				ValidateRange(document.Shutdown.CleanupPriorityNiceValue, -20, 19, file, "$.shutdown.cleanup_priority_nice_value", result);
+			}
+			else
+			{
+				ValidateOptionalRange(document.Shutdown.CleanupPriorityIoniceClass, 1, 3, file, "$.shutdown.cleanup_priority_ionice_class", result);
+				ValidateOptionalRange(document.Shutdown.CleanupPriorityNiceValue, -20, 19, file, "$.shutdown.cleanup_priority_nice_value", result);
+			}
 		}
 
 		if (document.Permissions is not null)
@@ -278,6 +309,50 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
 	}
 
 	/// <summary>
+	/// Ensures a numeric field exists and is within the inclusive range.
+	/// </summary>
+	/// <param name="value">Numeric value to validate.</param>
+	/// <param name="minimum">Inclusive minimum allowed value.</param>
+	/// <param name="maximum">Inclusive maximum allowed value.</param>
+	/// <param name="file">File name associated with the validation result.</param>
+	/// <param name="path">JSON path-like location for the field in validation output.</param>
+	/// <param name="result">Collector that receives validation errors.</param>
+	private static void ValidateRange(int? value, int minimum, int maximum, string file, string path, ValidationResult result)
+	{
+		if (!value.HasValue)
+		{
+			result.Add(new ValidationError(file, path, MissingFieldCode, "Required numeric field is missing."));
+			return;
+		}
+
+		if (value.Value < minimum || value.Value > maximum)
+		{
+			result.Add(new ValidationError(file, path, InvalidRangeCode, $"Value must be between {minimum} and {maximum}."));
+		}
+	}
+
+	/// <summary>
+	/// Ensures an optional numeric field, when present, is within the inclusive range.
+	/// </summary>
+	/// <param name="value">Numeric value to validate.</param>
+	/// <param name="minimum">Inclusive minimum allowed value.</param>
+	/// <param name="maximum">Inclusive maximum allowed value.</param>
+	/// <param name="file">File name associated with the validation result.</param>
+	/// <param name="path">JSON path-like location for the field in validation output.</param>
+	/// <param name="result">Collector that receives validation errors.</param>
+	private static void ValidateOptionalRange(int? value, int minimum, int maximum, string file, string path, ValidationResult result)
+	{
+		if (!value.HasValue)
+		{
+			return;
+		}
+
+		if (value.Value < minimum || value.Value > maximum)
+		{
+			result.Add(new ValidationError(file, path, InvalidRangeCode, $"Value must be between {minimum} and {maximum}."));
+		}
+	}
+	/// <summary>
 	/// Validates <c>runtime.details_description_mode</c> against the supported rendering modes.
 	/// </summary>
 	/// <param name="value">Mode value read from settings.</param>
@@ -381,4 +456,20 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
 			}
 		}
 	}
+}
+
+/// <summary>
+/// Selects settings validation strictness for runtime and tooling call sites.
+/// </summary>
+public enum SettingsValidationProfile
+{
+	/// <summary>
+	/// Enforces all runtime-required fields as mandatory.
+	/// </summary>
+	StrictRuntime,
+
+	/// <summary>
+	/// Allows self-healed runtime fields to be omitted for tooling/schema-only parsing.
+	/// </summary>
+	RelaxedTooling
 }

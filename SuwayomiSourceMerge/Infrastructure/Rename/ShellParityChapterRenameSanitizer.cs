@@ -10,7 +10,7 @@ internal sealed class ShellParityChapterRenameSanitizer : IChapterRenameSanitize
 	/// <summary>
 	/// Blacklisted prefix patterns that must never be rewritten.
 	/// </summary>
-	private static readonly Regex[] BlacklistedPrefixPatterns =
+	private static readonly Regex[] _blacklistedPrefixPatterns =
 	[
 		CreatePattern("^(ch|ch\\.|chapter)$"),
 		CreatePattern("^(ep|ep\\.|episode)$"),
@@ -29,7 +29,7 @@ internal sealed class ShellParityChapterRenameSanitizer : IChapterRenameSanitize
 	/// <summary>
 	/// Whitelisted prefix patterns eligible for numeric stripping.
 	/// </summary>
-	private static readonly Regex[] WhitelistedPrefixPatterns =
+	private static readonly Regex[] _whitelistedPrefixPatterns =
 	[
 		CreatePattern("^team[A-Za-z0-9]*$"),
 		CreatePattern(".*scan.*"),
@@ -43,7 +43,7 @@ internal sealed class ShellParityChapterRenameSanitizer : IChapterRenameSanitize
 	/// <summary>
 	/// Boundary-token chapter markers aligned with shell baseline matching.
 	/// </summary>
-	private static readonly string[] BoundaryChapterTokens =
+	private static readonly string[] _boundaryChapterTokens =
 	[
 		"ch\\.",
 		"chapter",
@@ -60,7 +60,7 @@ internal sealed class ShellParityChapterRenameSanitizer : IChapterRenameSanitize
 	/// <summary>
 	/// Embedded chapter-token markers used by docs-first compact-name matching.
 	/// </summary>
-	private static readonly string[] EmbeddedChapterTokens =
+	private static readonly string[] _embeddedChapterTokens =
 	[
 		"ch\\.",
 		"chapter",
@@ -77,8 +77,8 @@ internal sealed class ShellParityChapterRenameSanitizer : IChapterRenameSanitize
 	/// <summary>
 	/// Boundary-based chapter token detector.
 	/// </summary>
-	private static readonly Regex ChapterTokenRegex = CreatePattern(
-		$"(^|[^a-z])({BuildTokenAlternation(BoundaryChapterTokens)})([^a-z]|$)");
+	private static readonly Regex _chapterTokenRegex = CreatePattern(
+		$"(^|[^a-z])({BuildTokenAlternation(_boundaryChapterTokens)})([^a-z]|$)");
 
 	/// <summary>
 	/// Fallback detector for embedded chapter tokens in compact names (for example, <c>MangaChapter6</c>).
@@ -89,19 +89,19 @@ internal sealed class ShellParityChapterRenameSanitizer : IChapterRenameSanitize
 	/// Embedded matching also includes abbreviated chapter and episode tokens (<c>ch.</c>, <c>ep.</c>)
 	/// so compact names keep consistent docs-first normalization behavior.
 	/// </remarks>
-	private static readonly Regex EmbeddedChapterTokenRegex = CreatePattern(
-		$"({BuildTokenAlternation(EmbeddedChapterTokens)})([0-9]|$)");
+	private static readonly Regex _embeddedChapterTokenRegex = CreatePattern(
+		$"({BuildTokenAlternation(_embeddedChapterTokens)})([0-9]|$)");
 
 	/// <summary>
 	/// Case-2 prefix matcher for names like <c>Group123 Chapter 45</c>.
 	/// </summary>
-	private static readonly Regex PrefixSpaceChapterPattern = CreatePattern(
+	private static readonly Regex _prefixSpaceChapterPattern = CreatePattern(
 		"^([A-Za-z][A-Za-z0-9]*[0-9][A-Za-z0-9]*)\\s+(.+)$");
 
 	/// <summary>
 	/// Case-2 rest matcher for chapter-like text.
 	/// </summary>
-	private static readonly Regex CaseTwoChapterStartPattern = CreatePattern(
+	private static readonly Regex _caseTwoChapterStartPattern = CreatePattern(
 		"^(ch\\.|chapter|ep\\.|episode|issue|special|extra|side|season|volume|vol\\.)");
 
 	/// <inheritdoc />
@@ -177,7 +177,7 @@ internal sealed class ShellParityChapterRenameSanitizer : IChapterRenameSanitize
 	private static bool TrySanitizePrefixSpacePattern(string name, out string sanitizedName)
 	{
 		sanitizedName = name;
-		Match match = PrefixSpaceChapterPattern.Match(name);
+		Match match = _prefixSpaceChapterPattern.Match(name);
 		if (!match.Success)
 		{
 			return false;
@@ -191,7 +191,7 @@ internal sealed class ShellParityChapterRenameSanitizer : IChapterRenameSanitize
 		}
 
 		bool allowed = IsWhitelistedPrefix(prefix) || LooksLikeGroupPrefix(prefix);
-		if (!allowed || !CaseTwoChapterStartPattern.IsMatch(rest))
+		if (!allowed || !_caseTwoChapterStartPattern.IsMatch(rest))
 		{
 			return false;
 		}
@@ -231,7 +231,7 @@ internal sealed class ShellParityChapterRenameSanitizer : IChapterRenameSanitize
 	/// <returns><see langword="true"/> when the prefix is blacklisted.</returns>
 	private static bool IsBlacklistedPrefix(string prefix)
 	{
-		return MatchesAnyPattern(prefix, BlacklistedPrefixPatterns);
+		return MatchesAnyPattern(prefix, _blacklistedPrefixPatterns);
 	}
 
 	/// <summary>
@@ -241,7 +241,7 @@ internal sealed class ShellParityChapterRenameSanitizer : IChapterRenameSanitize
 	/// <returns><see langword="true"/> when the prefix is whitelisted.</returns>
 	private static bool IsWhitelistedPrefix(string prefix)
 	{
-		return MatchesAnyPattern(prefix, WhitelistedPrefixPatterns);
+		return MatchesAnyPattern(prefix, _whitelistedPrefixPatterns);
 	}
 
 	/// <summary>
@@ -285,7 +285,7 @@ internal sealed class ShellParityChapterRenameSanitizer : IChapterRenameSanitize
 	/// <returns><see langword="true"/> when chapter-like markers are present.</returns>
 	private static bool IsChapterish(string value)
 	{
-		return ChapterTokenRegex.IsMatch(value) || EmbeddedChapterTokenRegex.IsMatch(value);
+		return _chapterTokenRegex.IsMatch(value) || _embeddedChapterTokenRegex.IsMatch(value);
 	}
 
 	/// <summary>

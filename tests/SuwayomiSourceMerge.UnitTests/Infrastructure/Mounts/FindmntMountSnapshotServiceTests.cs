@@ -77,6 +77,7 @@ public sealed class FindmntMountSnapshotServiceTests
 		Assert.Single(snapshot.Entries);
 		Assert.Single(snapshot.Warnings);
 		Assert.Equal("MOUNT-SNAP-002", snapshot.Warnings[0].Code);
+		Assert.Equal(MountSnapshotWarningSeverity.DegradedVisibility, snapshot.Warnings[0].Severity);
 		Assert.Equal("/ssm/merged/Space Title", snapshot.Entries[0].MountPoint);
 		Assert.Equal("mergerfs#disk one", snapshot.Entries[0].Source);
 		Assert.Equal("rw,fsname=suwayomi abc", snapshot.Entries[0].Options);
@@ -214,6 +215,7 @@ public sealed class FindmntMountSnapshotServiceTests
 		Assert.Empty(snapshot.Entries);
 		Assert.Single(snapshot.Warnings);
 		Assert.Equal("MOUNT-SNAP-001", snapshot.Warnings[0].Code);
+		Assert.Equal(MountSnapshotWarningSeverity.DegradedVisibility, snapshot.Warnings[0].Severity);
 		Assert.Contains(parsedOutcome.ToString(), snapshot.Warnings[0].Message, StringComparison.Ordinal);
 		Assert.Contains("diagnostic stderr", snapshot.Warnings[0].Message, StringComparison.Ordinal);
 	}

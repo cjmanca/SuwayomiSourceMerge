@@ -5,7 +5,7 @@ namespace SuwayomiSourceMerge.IntegrationTests;
 /// <summary>
 /// Verifies timeout and process-lifecycle behavior for <see cref="DockerCommandRunner"/>.
 /// </summary>
-[Collection(DockerIntegrationFixture.COLLECTION_NAME)]
+[Collection(DockerIntegrationFixture.CollectionName)]
 public sealed class DockerCommandRunnerBehaviorTests
 {
 	/// <summary>

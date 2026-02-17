@@ -14,7 +14,7 @@ internal sealed class RollingFileSink : ILogSink
 	/// <summary>
 	/// UTF-8 encoding without BOM for deterministic log file output.
 	/// </summary>
-	private static readonly UTF8Encoding Utf8EncodingWithoutBom = new(false);
+	private static readonly UTF8Encoding _utf8EncodingWithoutBom = new(false);
 
 	/// <summary>
 	/// Process-local lock used to serialize rotation and write operations.
@@ -74,7 +74,7 @@ internal sealed class RollingFileSink : ILogSink
 	{
 		ArgumentNullException.ThrowIfNull(line);
 
-		byte[] payload = Utf8EncodingWithoutBom.GetBytes(line + "\n");
+		byte[] payload = _utf8EncodingWithoutBom.GetBytes(line + "\n");
 
 		lock (_syncRoot)
 		{

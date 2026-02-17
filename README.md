@@ -1,4 +1,4 @@
-This application relies on .NET 9.0 and can be built using dotnet build. Unit tests can be run via dotnet test and it's important to run all tests in the solution in this way before considering any change complete.
+This application relies on .NET 9.0.
 Mutation testing for configuration code is configured at `tests/SuwayomiSourceMerge.UnitTests/stryker-config.json` (target threshold break: 80).
 When adding new features, design them in a testable way, and create unit tests to accompany them.
 

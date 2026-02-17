@@ -3,6 +3,8 @@ namespace SuwayomiSourceMerge.UnitTests.Repository;
 using System.Diagnostics;
 using System.Text;
 
+using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
+
 /// <summary>
 /// Verifies tracked repository text content remains LF-only.
 /// </summary>
@@ -11,7 +13,7 @@ public sealed class LineEndingPolicyTests
 	/// <summary>
 	/// Binary extensions excluded from line-ending checks.
 	/// </summary>
-	private static readonly HashSet<string> BinaryExtensions = new(StringComparer.OrdinalIgnoreCase)
+	private static readonly HashSet<string> _binaryExtensions = new(StringComparer.OrdinalIgnoreCase)
 	{
 		".7z",
 		".bmp",
@@ -41,7 +43,7 @@ public sealed class LineEndingPolicyTests
 	[Fact]
 	public void TrackedTextFiles_ShouldUseLfLineEndingsOnly()
 	{
-		string repositoryRoot = FindRepositoryRoot();
+		string repositoryRoot = RepositoryRootLocator.FindRepositoryRoot();
 		IReadOnlyList<TrackedFileBlob> trackedFiles = GetTrackedFiles(repositoryRoot);
 
 		Assert.NotEmpty(trackedFiles);
@@ -53,7 +55,7 @@ public sealed class LineEndingPolicyTests
 		foreach (TrackedFileBlob trackedFile in trackedFiles)
 		{
 			string extension = Path.GetExtension(trackedFile.Path);
-			if (BinaryExtensions.Contains(extension))
+			if (_binaryExtensions.Contains(extension))
 			{
 				continue;
 			}
@@ -83,33 +85,6 @@ public sealed class LineEndingPolicyTests
 
 		bool hasViolations = filesContainingCrLf.Count > 0 || filesContainingLoneCr.Count > 0;
 		Assert.True(!hasViolations, BuildFailureMessage(filesContainingCrLf, filesContainingLoneCr));
-	}
-
-	/// <summary>
-	/// Locates the repository root by walking upward from the test output directory.
-	/// </summary>
-	/// <returns>Absolute repository root path.</returns>
-	/// <exception cref="InvalidOperationException">Thrown when repository root markers are not found.</exception>
-	private static string FindRepositoryRoot()
-	{
-		DirectoryInfo? directory = new(AppContext.BaseDirectory);
-
-		while (directory is not null)
-		{
-			string candidateRoot = directory.FullName;
-			bool hasSolution = File.Exists(Path.Combine(candidateRoot, "SuwayomiSourceMerge.slnx"));
-			bool hasGitDirectory = Directory.Exists(Path.Combine(candidateRoot, ".git"));
-			bool hasGitFile = File.Exists(Path.Combine(candidateRoot, ".git"));
-
-			if (hasSolution && (hasGitDirectory || hasGitFile))
-			{
-				return candidateRoot;
-			}
-
-			directory = directory.Parent;
-		}
-
-		throw new InvalidOperationException("Could not locate repository root from test output directory.");
 	}
 
 	/// <summary>

@@ -12,18 +12,18 @@ namespace SuwayomiSourceMerge.Application.Watching;
 internal sealed class FilesystemEventTriggerPipeline
 {
 	/// <summary>Event id emitted for malformed or failed inotify polling operations.</summary>
-	private const string INOTIFY_WARNING_EVENT = "watcher.inotify.warning";
+	private const string InotifyWarningEvent = "watcher.inotify.warning";
 
 	/// <summary>Event id emitted when one merge request is queued.</summary>
-	private const string MERGE_REQUEST_EVENT = "watcher.merge.requested";
+	private const string MergeRequestEvent = "watcher.merge.requested";
 
 	/// <summary>Event id emitted for one per-tick summary line.</summary>
-	private const string TICK_SUMMARY_EVENT = "watcher.tick.summary";
+	private const string TickSummaryEvent = "watcher.tick.summary";
 
 	/// <summary>
 	/// Path comparison mode used by root containment checks.
 	/// </summary>
-	private static readonly StringComparison PATH_COMPARISON = OperatingSystem.IsWindows()
+	private static readonly StringComparison _pathComparison = OperatingSystem.IsWindows()
 		? StringComparison.OrdinalIgnoreCase
 		: StringComparison.Ordinal;
 
@@ -61,6 +61,11 @@ internal sealed class FilesystemEventTriggerPipeline
 	/// Tracks whether startup rename rescan has already run.
 	/// </summary>
 	private bool _startupRenameRescanCompleted;
+
+	/// <summary>
+	/// Tracks whether startup merge request scheduling has been evaluated.
+	/// </summary>
+	private bool _startupMergeRequestCompleted;
 
 	/// <summary>
 	/// Next scheduled rename queue process time.
@@ -139,6 +144,17 @@ internal sealed class FilesystemEventTriggerPipeline
 			mergeRequestsQueued += mergeCount;
 		}
 
+		if (!_startupMergeRequestCompleted)
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+			if (mergeRequestsQueued == 0)
+			{
+				mergeRequestsQueued += QueueMergeRequest("startup", force: false);
+			}
+
+			_startupMergeRequestCompleted = true;
+		}
+
 		int renameProcessRuns = 0;
 		int renameRescanRuns = 0;
 
@@ -186,7 +202,7 @@ internal sealed class FilesystemEventTriggerPipeline
 			dispatchOutcome);
 
 		_logger.Debug(
-			TICK_SUMMARY_EVENT,
+			TickSummaryEvent,
 			"Completed filesystem event trigger tick.",
 			BuildContext(
 				("poll_outcome", result.PollOutcome.ToString()),
@@ -227,7 +243,7 @@ internal sealed class FilesystemEventTriggerPipeline
 		for (int index = 0; index < pollResult.Warnings.Count; index++)
 		{
 			_logger.Warning(
-				INOTIFY_WARNING_EVENT,
+				InotifyWarningEvent,
 				pollResult.Warnings[index],
 				BuildContext(("outcome", pollResult.Outcome.ToString())));
 		}
@@ -372,7 +388,7 @@ internal sealed class FilesystemEventTriggerPipeline
 	{
 		_mergeScanRequestCoalescer.RequestScan(reason, force);
 		_logger.Debug(
-			MERGE_REQUEST_EVENT,
+			MergeRequestEvent,
 			"Queued merge scan request.",
 			BuildContext(("reason", reason), ("force", force ? "true" : "false")));
 		return 1;
@@ -424,13 +440,13 @@ internal sealed class FilesystemEventTriggerPipeline
 		relativePath = string.Empty;
 		string normalizedRoot = NormalizePath(rootPath);
 		string normalizedCandidate = NormalizePath(candidatePath);
-		if (string.Equals(normalizedRoot, normalizedCandidate, PATH_COMPARISON))
+		if (string.Equals(normalizedRoot, normalizedCandidate, _pathComparison))
 		{
 			return true;
 		}
 
 		string prefix = normalizedRoot + Path.DirectorySeparatorChar;
-		if (!normalizedCandidate.StartsWith(prefix, PATH_COMPARISON))
+		if (!normalizedCandidate.StartsWith(prefix, _pathComparison))
 		{
 			return false;
 		}

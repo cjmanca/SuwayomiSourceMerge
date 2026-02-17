@@ -11,11 +11,11 @@ public sealed class ConfigurationSchemaServiceTests
     }
 
     [Fact]
-    public void ParseSettings_ShouldFail_WhenYamlShapeIsInvalid()
+    public void ParseSettingsForRuntime_ShouldFail_WhenYamlShapeIsInvalid()
     {
         ConfigurationSchemaService service = new(new ConfigurationValidationPipeline(new YamlDocumentParser()));
 
-        ParsedDocument<SuwayomiSourceMerge.Configuration.Documents.SettingsDocument> parsed = service.ParseSettings(
+        ParsedDocument<SuwayomiSourceMerge.Configuration.Documents.SettingsDocument> parsed = service.ParseSettingsForRuntime(
             "settings.yml",
             """
             paths:
@@ -24,6 +24,28 @@ public sealed class ConfigurationSchemaServiceTests
 
         Assert.False(parsed.Validation.IsValid);
         Assert.Contains(parsed.Validation.Errors, error => error.Code == "CFG-YAML-001");
+    }
+
+    [Fact]
+    public void ParseSettings_ShouldMatchParseSettingsForRuntime_WhenCalledWithSameYaml()
+    {
+        ConfigurationSchemaService service = new(new ConfigurationValidationPipeline(new YamlDocumentParser()));
+
+        ParsedDocument<SuwayomiSourceMerge.Configuration.Documents.SettingsDocument> aliasParsed = service.ParseSettings(
+            "settings.yml",
+            """
+            paths:
+              - invalid
+            """);
+        ParsedDocument<SuwayomiSourceMerge.Configuration.Documents.SettingsDocument> runtimeParsed = service.ParseSettingsForRuntime(
+            "settings.yml",
+            """
+            paths:
+              - invalid
+            """);
+
+        Assert.Equal(aliasParsed.Validation.IsValid, runtimeParsed.Validation.IsValid);
+        Assert.Equal(aliasParsed.Validation.Errors.Count, runtimeParsed.Validation.Errors.Count);
     }
 
     [Fact]

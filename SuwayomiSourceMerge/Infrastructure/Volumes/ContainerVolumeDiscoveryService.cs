@@ -9,7 +9,7 @@ namespace SuwayomiSourceMerge.Infrastructure.Volumes;
 /// </remarks>
 internal sealed class ContainerVolumeDiscoveryService : IContainerVolumeDiscoveryService
 {
-	private const string MISSING_ROOT_WARNING_CODE = "VOL-DISC-001";
+	private const string MissingRootWarningCode = "VOL-DISC-001";
 	private readonly IContainerVolumeFileSystem _fileSystem;
 
 	/// <summary>
@@ -53,7 +53,7 @@ internal sealed class ContainerVolumeDiscoveryService : IContainerVolumeDiscover
 		{
 			warnings.Add(
 				new ContainerVolumeDiscoveryWarning(
-					MISSING_ROOT_WARNING_CODE,
+					MissingRootWarningCode,
 					normalizedRootPath,
 					$"Container volume root path does not exist: {normalizedRootPath}"));
 			return [];

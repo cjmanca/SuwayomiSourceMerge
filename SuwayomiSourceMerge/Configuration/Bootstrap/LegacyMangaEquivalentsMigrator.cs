@@ -14,7 +14,7 @@ internal sealed class LegacyMangaEquivalentsMigrator
 	/// <summary>
 	/// Warning code emitted when a legacy line does not contain a canonical title.
 	/// </summary>
-	private const string MISSING_CANONICAL_WARNING_CODE = "CFG-MIG-001";
+	private const string MissingCanonicalWarningCode = "CFG-MIG-001";
 
 	/// <summary>
 	/// Reads and converts a legacy manga equivalence file into a typed document.
@@ -57,7 +57,7 @@ internal sealed class LegacyMangaEquivalentsMigrator
 			{
 				warnings.Add(
 					new ConfigurationBootstrapWarning(
-						MISSING_CANONICAL_WARNING_CODE,
+						MissingCanonicalWarningCode,
 						fileName,
 						lineIndex + 1,
 						"Skipped legacy line because canonical value is empty."));

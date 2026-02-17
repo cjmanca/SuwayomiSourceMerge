@@ -133,7 +133,10 @@ internal sealed class SettingsSelfHealingService
 				ChildExitGraceSeconds = existingShutdown?.ChildExitGraceSeconds ?? UseDefault(defaultShutdown.ChildExitGraceSeconds, ref wasHealed),
 				UnmountCommandTimeoutSeconds = existingShutdown?.UnmountCommandTimeoutSeconds ?? UseDefault(defaultShutdown.UnmountCommandTimeoutSeconds, ref wasHealed),
 				UnmountDetachWaitSeconds = existingShutdown?.UnmountDetachWaitSeconds ?? UseDefault(defaultShutdown.UnmountDetachWaitSeconds, ref wasHealed),
-				CleanupHighPriority = existingShutdown?.CleanupHighPriority ?? UseDefault(defaultShutdown.CleanupHighPriority, ref wasHealed)
+				CleanupHighPriority = existingShutdown?.CleanupHighPriority ?? UseDefault(defaultShutdown.CleanupHighPriority, ref wasHealed),
+				CleanupApplyHighPriority = existingShutdown?.CleanupApplyHighPriority ?? UseDefault(defaultShutdown.CleanupApplyHighPriority, ref wasHealed),
+				CleanupPriorityIoniceClass = existingShutdown?.CleanupPriorityIoniceClass ?? UseDefault(defaultShutdown.CleanupPriorityIoniceClass, ref wasHealed),
+				CleanupPriorityNiceValue = existingShutdown?.CleanupPriorityNiceValue ?? UseDefault(defaultShutdown.CleanupPriorityNiceValue, ref wasHealed)
 			},
 			Permissions = new SettingsPermissionsSection
 			{

@@ -12,7 +12,7 @@ internal static class LogLevelParser
 	/// <summary>
 	/// Canonical token-to-level mapping used for parsing and display.
 	/// </summary>
-	private static readonly (string Token, LogLevel Level)[] SupportedTokens =
+	private static readonly (string Token, LogLevel Level)[] _supportedTokens =
 	[
 		("trace", LogLevel.Trace),
 		("debug", LogLevel.Debug),
@@ -28,7 +28,7 @@ internal static class LogLevelParser
 	{
 		get
 		{
-			return string.Join(", ", SupportedTokens.Select(static token => token.Token));
+			return string.Join(", ", _supportedTokens.Select(static token => token.Token));
 		}
 	}
 
@@ -47,7 +47,7 @@ internal static class LogLevelParser
 		}
 
 		string normalized = Normalize(value);
-		foreach ((string token, LogLevel parsedLevel) in SupportedTokens)
+		foreach ((string token, LogLevel parsedLevel) in _supportedTokens)
 		{
 			if (!string.Equals(token, normalized, StringComparison.Ordinal))
 			{

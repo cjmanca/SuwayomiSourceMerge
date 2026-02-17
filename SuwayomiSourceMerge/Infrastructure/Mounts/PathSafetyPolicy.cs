@@ -8,39 +8,39 @@ internal static class PathSafetyPolicy
 	/// <summary>
 	/// Invalid filename characters rejected by deterministic link-name validation.
 	/// </summary>
-	private static readonly char[] INVALID_LINK_NAME_CHARACTERS = ['<', '>', ':', '"', '|', '?', '*'];
+	private static readonly char[] _invalidLinkNameCharacters = ['<', '>', ':', '"', '|', '?', '*'];
 
 	/// <summary>
 	/// Reserved current-directory segment token.
 	/// </summary>
-	private const string CURRENT_DIRECTORY_SEGMENT = ".";
+	private const string CurrentDirectorySegment = ".";
 
 	/// <summary>
 	/// Reserved parent-directory segment token.
 	/// </summary>
-	private const string PARENT_DIRECTORY_SEGMENT = "..";
+	private const string ParentDirectorySegment = "..";
 
 	/// <summary>
 	/// Escaped replacement for the current-directory segment.
 	/// </summary>
-	private const string ESCAPED_CURRENT_DIRECTORY_SEGMENT = "_ssm_dot_";
+	private const string EscapedCurrentDirectorySegment = "_ssm_dot_";
 
 	/// <summary>
 	/// Escaped replacement for the parent-directory segment.
 	/// </summary>
-	private const string ESCAPED_PARENT_DIRECTORY_SEGMENT = "_ssm_dotdot_";
+	private const string EscapedParentDirectorySegment = "_ssm_dotdot_";
 
 	/// <summary>
 	/// Path comparer used for path-equality and ordering checks.
 	/// </summary>
-	private static readonly StringComparer PATH_COMPARER = OperatingSystem.IsWindows()
+	private static readonly StringComparer _pathComparer = OperatingSystem.IsWindows()
 		? StringComparer.OrdinalIgnoreCase
 		: StringComparer.Ordinal;
 
 	/// <summary>
 	/// Path comparison used for containment checks.
 	/// </summary>
-	private static readonly StringComparison PATH_COMPARISON = OperatingSystem.IsWindows()
+	private static readonly StringComparison _pathComparison = OperatingSystem.IsWindows()
 		? StringComparison.OrdinalIgnoreCase
 		: StringComparison.Ordinal;
 
@@ -50,7 +50,7 @@ internal static class PathSafetyPolicy
 	/// <returns>OS-aware path comparer.</returns>
 	public static StringComparer GetPathComparer()
 	{
-		return PATH_COMPARER;
+		return _pathComparer;
 	}
 
 	/// <summary>
@@ -67,7 +67,7 @@ internal static class PathSafetyPolicy
 
 		string normalizedFirstPath = NormalizeFullyQualifiedPath(firstPath, nameof(firstPath));
 		string normalizedSecondPath = NormalizeFullyQualifiedPath(secondPath, nameof(secondPath));
-		return string.Equals(normalizedFirstPath, normalizedSecondPath, PATH_COMPARISON);
+		return string.Equals(normalizedFirstPath, normalizedSecondPath, _pathComparison);
 	}
 
 	/// <summary>
@@ -136,8 +136,8 @@ internal static class PathSafetyPolicy
 
 		return segment switch
 		{
-			CURRENT_DIRECTORY_SEGMENT => ESCAPED_CURRENT_DIRECTORY_SEGMENT,
-			PARENT_DIRECTORY_SEGMENT => ESCAPED_PARENT_DIRECTORY_SEGMENT,
+			CurrentDirectorySegment => EscapedCurrentDirectorySegment,
+			ParentDirectorySegment => EscapedParentDirectorySegment,
 			_ => segment
 		};
 	}
@@ -159,7 +159,7 @@ internal static class PathSafetyPolicy
 		string normalizedRootPath = NormalizeFullyQualifiedPath(rootPath, nameof(rootPath));
 		string normalizedCandidatePath = NormalizeFullyQualifiedPath(candidatePath, paramName);
 
-		if (string.Equals(normalizedRootPath, normalizedCandidatePath, PATH_COMPARISON))
+		if (string.Equals(normalizedRootPath, normalizedCandidatePath, _pathComparison))
 		{
 			throw new ArgumentException(
 				"Path must be a strict child of the root path and must not equal the root path.",
@@ -167,7 +167,7 @@ internal static class PathSafetyPolicy
 		}
 
 		string rootPrefix = AppendTrailingDirectorySeparator(normalizedRootPath);
-		if (!normalizedCandidatePath.StartsWith(rootPrefix, PATH_COMPARISON))
+		if (!normalizedCandidatePath.StartsWith(rootPrefix, _pathComparison))
 		{
 			throw new ArgumentException(
 				"Path must remain under the provided root path.",
@@ -219,8 +219,8 @@ internal static class PathSafetyPolicy
 	/// <returns><see langword="true"/> when reserved; otherwise <see langword="false"/>.</returns>
 	private static bool IsDangerousDotSegment(string value)
 	{
-		return string.Equals(value, CURRENT_DIRECTORY_SEGMENT, StringComparison.Ordinal)
-			|| string.Equals(value, PARENT_DIRECTORY_SEGMENT, StringComparison.Ordinal);
+		return string.Equals(value, CurrentDirectorySegment, StringComparison.Ordinal)
+			|| string.Equals(value, ParentDirectorySegment, StringComparison.Ordinal);
 	}
 
 	/// <summary>
@@ -254,9 +254,9 @@ internal static class PathSafetyPolicy
 	/// <returns><see langword="true"/> when invalid; otherwise <see langword="false"/>.</returns>
 	private static bool IsInvalidLinkNameCharacter(char character)
 	{
-		for (int index = 0; index < INVALID_LINK_NAME_CHARACTERS.Length; index++)
+		for (int index = 0; index < _invalidLinkNameCharacters.Length; index++)
 		{
-			if (INVALID_LINK_NAME_CHARACTERS[index] == character)
+			if (_invalidLinkNameCharacters[index] == character)
 			{
 				return true;
 			}

@@ -31,6 +31,11 @@ internal enum MergeScanDispatchOutcome
 	Busy,
 
 	/// <summary>
+	/// Dispatch target reported both busy and non-busy failure conditions.
+	/// </summary>
+	Mixed,
+
+	/// <summary>
 	/// Dispatch target reported a non-busy failure.
 	/// </summary>
 	Failure

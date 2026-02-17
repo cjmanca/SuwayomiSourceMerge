@@ -1,4 +1,5 @@
 using SuwayomiSourceMerge.Configuration.Documents;
+using SuwayomiSourceMerge.Domain.Normalization;
 
 namespace SuwayomiSourceMerge.Infrastructure.Rename;
 
@@ -67,7 +68,7 @@ internal sealed class ChapterRenameOptions
 				continue;
 			}
 
-			_excludedSourceKeys.Add(NormalizeSourceKey(sourceName));
+			_excludedSourceKeys.Add(SourceNameKeyNormalizer.NormalizeSourceKey(sourceName));
 		}
 
 		ExcludedSources = excludedSources.Where(static sourceName => !string.IsNullOrWhiteSpace(sourceName))
@@ -170,17 +171,7 @@ internal sealed class ChapterRenameOptions
 	public bool IsExcludedSource(string sourceName)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(sourceName);
-		return _excludedSourceKeys.Contains(NormalizeSourceKey(sourceName));
-	}
-
-	/// <summary>
-	/// Normalizes one source name into lookup-key form.
-	/// </summary>
-	/// <param name="sourceName">Source name.</param>
-	/// <returns>Normalized source key.</returns>
-	private static string NormalizeSourceKey(string sourceName)
-	{
-		return sourceName.Trim().ToLowerInvariant();
+		return _excludedSourceKeys.Contains(SourceNameKeyNormalizer.NormalizeSourceKey(sourceName));
 	}
 }
 

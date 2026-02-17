@@ -11,17 +11,17 @@ internal sealed class DockerCommandRunner
 	/// <summary>
 	/// Default command timeout used by Docker invocations.
 	/// </summary>
-	private static readonly TimeSpan DEFAULT_TIMEOUT = TimeSpan.FromSeconds(120);
+	private static readonly TimeSpan _defaultTimeout = TimeSpan.FromSeconds(120);
 
 	/// <summary>
 	/// Additional wait budget for docker stop command completion after requested timeout.
 	/// </summary>
-	private static readonly TimeSpan DOCKER_STOP_COMPLETION_GRACE_PERIOD = TimeSpan.FromSeconds(10);
+	private static readonly TimeSpan _dockerStopCompletionGracePeriod = TimeSpan.FromSeconds(10);
 
 	/// <summary>
 	/// Additional wait budget after a timeout-triggered kill attempt before declaring command timeout.
 	/// </summary>
-	private static readonly TimeSpan PROCESS_TERMINATION_GRACE_PERIOD = TimeSpan.FromSeconds(5);
+	private static readonly TimeSpan _processTerminationGracePeriod = TimeSpan.FromSeconds(5);
 
 	/// <summary>
 	/// Ensures Docker daemon is reachable.
@@ -128,7 +128,7 @@ internal sealed class DockerCommandRunner
 		int timeoutSeconds = Math.Max(1, (int)Math.Ceiling(timeout.TotalSeconds));
 		DockerCommandResult result = Execute(
 			["stop", "--time", timeoutSeconds.ToString(), containerName],
-			timeout: timeout + DOCKER_STOP_COMPLETION_GRACE_PERIOD);
+			timeout: timeout + _dockerStopCompletionGracePeriod);
 		EnsureSuccess("Container stop failed.", result);
 	}
 
@@ -265,14 +265,14 @@ internal sealed class DockerCommandRunner
 
 		Task<string> standardOutputTask = process.StandardOutput.ReadToEndAsync();
 		Task<string> standardErrorTask = process.StandardError.ReadToEndAsync();
-		TimeSpan effectiveTimeout = timeout ?? DEFAULT_TIMEOUT;
+		TimeSpan effectiveTimeout = timeout ?? _defaultTimeout;
 		bool completedWithinTimeout = process.WaitForExit((int)effectiveTimeout.TotalMilliseconds);
 		bool exited = completedWithinTimeout;
 
 		if (!completedWithinTimeout)
 		{
 			TryKillProcess(process);
-			exited = process.WaitForExit((int)PROCESS_TERMINATION_GRACE_PERIOD.TotalMilliseconds) || process.HasExited;
+			exited = process.WaitForExit((int)_processTerminationGracePeriod.TotalMilliseconds) || process.HasExited;
 		}
 
 		string standardOutput;

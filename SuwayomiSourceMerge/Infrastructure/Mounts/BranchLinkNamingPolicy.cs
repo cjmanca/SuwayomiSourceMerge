@@ -12,68 +12,68 @@ internal sealed class BranchLinkNamingPolicy
 	/// <summary>
 	/// Link name used for the primary read-write override branch.
 	/// </summary>
-	private const string PRIMARY_OVERRIDE_LINK_NAME = "00_override_primary";
+	private const string PrimaryOverrideLinkName = "00_override_primary";
 
 	/// <summary>
 	/// Prefix used for additional read-write override branches.
 	/// </summary>
-	private const string EXTRA_OVERRIDE_PREFIX = "01_override";
+	private const string ExtraOverridePrefix = "01_override";
 
 	/// <summary>
 	/// Prefix used for read-only source branches.
 	/// </summary>
-	private const string SOURCE_PREFIX = "10_source";
+	private const string SourcePrefix = "10_source";
 
 	/// <summary>
 	/// Placeholder label used when sanitization produces an empty value.
 	/// </summary>
-	private const string EMPTY_LABEL_FALLBACK = "x";
+	private const string EmptyLabelFallback = "x";
 
 	/// <summary>
 	/// Maximum label length processed on the stack before falling back to pooled buffers.
 	/// </summary>
-	private const int STACKALLOC_SANITIZE_THRESHOLD = 256;
+	private const int StackallocSanitizeThreshold = 256;
 
 	/// <summary>
 	/// Maximum allowed filesystem path component length for generated link names.
 	/// </summary>
-	private const int MAX_LINK_NAME_COMPONENT_LENGTH = 255;
+	private const int MaxLinkNameComponentLength = 255;
 
 	/// <summary>
 	/// Delimiter length used between link-name parts.
 	/// </summary>
-	private const int LINK_LABEL_DELIMITER_LENGTH = 1;
+	private const int LinkLabelDelimiterLength = 1;
 
 	/// <summary>
 	/// Length of the zero-padded branch index token.
 	/// </summary>
-	private const int ZERO_PADDED_INDEX_LENGTH = 3;
+	private const int ZeroPaddedIndexLength = 3;
 
 	/// <summary>
 	/// Length of the <c>_000</c>-style suffix in generated link names.
 	/// </summary>
-	private const int INDEX_SUFFIX_LENGTH = LINK_LABEL_DELIMITER_LENGTH + ZERO_PADDED_INDEX_LENGTH;
+	private const int IndexSuffixLength = LinkLabelDelimiterLength + ZeroPaddedIndexLength;
 
 	/// <summary>
 	/// Length of the hash suffix appended when long labels are truncated.
 	/// </summary>
-	private const int HASH_SUFFIX_HEX_LENGTH = 12;
+	private const int HashSuffixHexLength = 12;
 
 	/// <summary>
 	/// Maximum sanitized label length for additional-override link names.
 	/// </summary>
-	private static readonly int ADDITIONAL_OVERRIDE_LABEL_MAX_LENGTH = MAX_LINK_NAME_COMPONENT_LENGTH
-		- EXTRA_OVERRIDE_PREFIX.Length
-		- LINK_LABEL_DELIMITER_LENGTH
-		- INDEX_SUFFIX_LENGTH;
+	private static readonly int _additionalOverrideLabelMaxLength = MaxLinkNameComponentLength
+		- ExtraOverridePrefix.Length
+		- LinkLabelDelimiterLength
+		- IndexSuffixLength;
 
 	/// <summary>
 	/// Maximum sanitized label length for source link names.
 	/// </summary>
-	private static readonly int SOURCE_LABEL_MAX_LENGTH = MAX_LINK_NAME_COMPONENT_LENGTH
-		- SOURCE_PREFIX.Length
-		- LINK_LABEL_DELIMITER_LENGTH
-		- INDEX_SUFFIX_LENGTH;
+	private static readonly int _sourceLabelMaxLength = MaxLinkNameComponentLength
+		- SourcePrefix.Length
+		- LinkLabelDelimiterLength
+		- IndexSuffixLength;
 
 	/// <summary>
 	/// Builds the deterministic primary override link name.
@@ -81,7 +81,7 @@ internal sealed class BranchLinkNamingPolicy
 	/// <returns>Primary override link name.</returns>
 	public string BuildPrimaryOverrideLinkName()
 	{
-		return PRIMARY_OVERRIDE_LINK_NAME;
+		return PrimaryOverrideLinkName;
 	}
 
 	/// <summary>
@@ -96,8 +96,8 @@ internal sealed class BranchLinkNamingPolicy
 		ArgumentOutOfRangeException.ThrowIfNegative(index);
 
 		string volumeLabel = Path.GetFileName(Path.TrimEndingDirectorySeparator(overrideVolumeRootPath.Trim()));
-		string sanitizedLabel = SanitizeSegment(volumeLabel, ADDITIONAL_OVERRIDE_LABEL_MAX_LENGTH);
-		return $"{EXTRA_OVERRIDE_PREFIX}_{sanitizedLabel}_{index:000}";
+		string sanitizedLabel = SanitizeSegment(volumeLabel, _additionalOverrideLabelMaxLength);
+		return $"{ExtraOverridePrefix}_{sanitizedLabel}_{index:000}";
 	}
 
 	/// <summary>
@@ -111,8 +111,8 @@ internal sealed class BranchLinkNamingPolicy
 		ArgumentException.ThrowIfNullOrWhiteSpace(sourceName);
 		ArgumentOutOfRangeException.ThrowIfNegative(index);
 
-		string sanitizedLabel = SanitizeSegment(sourceName, SOURCE_LABEL_MAX_LENGTH);
-		return $"{SOURCE_PREFIX}_{sanitizedLabel}_{index:000}";
+		string sanitizedLabel = SanitizeSegment(sourceName, _sourceLabelMaxLength);
+		return $"{SourcePrefix}_{sanitizedLabel}_{index:000}";
 	}
 
 	/// <summary>
@@ -127,11 +127,11 @@ internal sealed class BranchLinkNamingPolicy
 
 		if (string.IsNullOrWhiteSpace(value))
 		{
-			return EMPTY_LABEL_FALLBACK;
+			return EmptyLabelFallback;
 		}
 
 		char[]? rentedBuffer = null;
-		Span<char> buffer = value.Length <= STACKALLOC_SANITIZE_THRESHOLD
+		Span<char> buffer = value.Length <= StackallocSanitizeThreshold
 			? stackalloc char[value.Length]
 			: new Span<char>(
 				rentedBuffer = ArrayPool<char>.Shared.Rent(value.Length),
@@ -165,7 +165,7 @@ internal sealed class BranchLinkNamingPolicy
 			string candidate = new(buffer[..outputIndex]);
 			string trimmedCandidate = candidate.Trim('_');
 			string normalizedLabel = trimmedCandidate.Length == 0
-				? EMPTY_LABEL_FALLBACK
+				? EmptyLabelFallback
 				: trimmedCandidate;
 			return EnsureLabelLength(normalizedLabel, maxLabelLength);
 		}
@@ -191,17 +191,17 @@ internal sealed class BranchLinkNamingPolicy
 			return label;
 		}
 
-		string hashSuffix = ComputeHashPrefix(label, HASH_SUFFIX_HEX_LENGTH);
-		if (maxLabelLength <= HASH_SUFFIX_HEX_LENGTH)
+		string hashSuffix = ComputeHashPrefix(label, HashSuffixHexLength);
+		if (maxLabelLength <= HashSuffixHexLength)
 		{
 			return hashSuffix[..maxLabelLength];
 		}
 
-		int prefixBudget = maxLabelLength - LINK_LABEL_DELIMITER_LENGTH - HASH_SUFFIX_HEX_LENGTH;
+		int prefixBudget = maxLabelLength - LinkLabelDelimiterLength - HashSuffixHexLength;
 		string prefix = label[..prefixBudget].TrimEnd('_');
 		if (prefix.Length == 0)
 		{
-			prefix = EMPTY_LABEL_FALLBACK;
+			prefix = EmptyLabelFallback;
 		}
 
 		string candidate = $"{prefix}_{hashSuffix}";

@@ -8,12 +8,12 @@ internal sealed class OverrideBranchSelectionService
 	/// <summary>
 	/// Override volume directory name that has preferred-branch precedence.
 	/// </summary>
-	private const string PRIORITY_VOLUME_NAME = "priority";
+	private const string PriorityVolumeName = "priority";
 
 	/// <summary>
 	/// Path comparer used for de-duplication and equality checks.
 	/// </summary>
-	private static readonly StringComparer PATH_COMPARER = PathSafetyPolicy.GetPathComparer();
+	private static readonly StringComparer _pathComparer = PathSafetyPolicy.GetPathComparer();
 
 	/// <summary>
 	/// Selects deterministic override branch paths using the preferred-then-existing policy.
@@ -50,14 +50,14 @@ internal sealed class OverrideBranchSelectionService
 				isPreferred: true)
 		];
 
-		HashSet<string> seenTitlePaths = new(PATH_COMPARER)
+		HashSet<string> seenTitlePaths = new(_pathComparer)
 		{
 			preferredOverridePath
 		};
 
 		foreach (string overrideVolumePath in normalizedOverrideVolumes)
 		{
-			if (PATH_COMPARER.Equals(overrideVolumePath, preferredVolumePath))
+			if (_pathComparer.Equals(overrideVolumePath, preferredVolumePath))
 			{
 				continue;
 			}
@@ -115,11 +115,11 @@ internal sealed class OverrideBranchSelectionService
 		}
 
 		string[] orderedPaths = normalizedPaths
-			.OrderBy(path => path, PATH_COMPARER)
+			.OrderBy(path => path, _pathComparer)
 			.ThenBy(path => path, StringComparer.Ordinal)
 			.ToArray();
 
-		HashSet<string> seenPaths = new(PATH_COMPARER);
+		HashSet<string> seenPaths = new(_pathComparer);
 		List<string> deduplicatedPaths = new(orderedPaths.Length);
 		foreach (string path in orderedPaths)
 		{
@@ -144,7 +144,7 @@ internal sealed class OverrideBranchSelectionService
 		foreach (string volumePath in orderedOverrideVolumes)
 		{
 			string volumeName = Path.GetFileName(Path.TrimEndingDirectorySeparator(volumePath));
-			if (string.Equals(volumeName, PRIORITY_VOLUME_NAME, StringComparison.OrdinalIgnoreCase))
+			if (string.Equals(volumeName, PriorityVolumeName, StringComparison.OrdinalIgnoreCase))
 			{
 				return volumePath;
 			}

@@ -11,17 +11,17 @@ internal sealed class BranchIdentityService
 	/// <summary>
 	/// Prefix used for desired identity tokens.
 	/// </summary>
-	private const string IDENTITY_PREFIX = "suwayomi";
+	private const string IdentityPrefix = "suwayomi";
 
 	/// <summary>
 	/// Number of hexadecimal characters in the generated group id.
 	/// </summary>
-	private const int GROUP_ID_LENGTH = 16;
+	private const int GroupIdLength = 16;
 
 	/// <summary>
 	/// Number of hexadecimal characters in the generated branch hash.
 	/// </summary>
-	private const int BRANCH_HASH_LENGTH = 12;
+	private const int BranchHashLength = 12;
 
 	/// <summary>
 	/// Builds the deterministic group id from the provided group key.
@@ -31,7 +31,7 @@ internal sealed class BranchIdentityService
 	public string BuildGroupId(string groupKey)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(groupKey);
-		return BuildShortHash(groupKey, GROUP_ID_LENGTH);
+		return BuildShortHash(groupKey, GroupIdLength);
 	}
 
 	/// <summary>
@@ -42,7 +42,7 @@ internal sealed class BranchIdentityService
 	public string BuildBranchHash(string branchSpecification)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(branchSpecification);
-		return BuildShortHash(branchSpecification, BRANCH_HASH_LENGTH);
+		return BuildShortHash(branchSpecification, BranchHashLength);
 	}
 
 	/// <summary>
@@ -58,7 +58,7 @@ internal sealed class BranchIdentityService
 
 		string groupId = BuildGroupId(groupKey);
 		string branchHash = BuildBranchHash(branchSpecification);
-		return $"{IDENTITY_PREFIX}_{groupId}_{branchHash}";
+		return $"{IdentityPrefix}_{groupId}_{branchHash}";
 	}
 
 	/// <summary>

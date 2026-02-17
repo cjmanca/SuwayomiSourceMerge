@@ -39,7 +39,11 @@ public sealed class SettingsSelfHealingServiceTests
         Assert.Equal(60, result.Document.Scan!.MergeIntervalSeconds);
         Assert.Equal(5, result.Document.Scan.MergeTriggerPollSeconds);
         Assert.NotNull(result.Document.Runtime);
+        Assert.NotNull(result.Document.Shutdown);
         Assert.Equal("daemon.log", result.Document.Logging!.FileName);
+        Assert.False(result.Document.Shutdown!.CleanupApplyHighPriority);
+        Assert.Equal(3, result.Document.Shutdown!.CleanupPriorityIoniceClass);
+        Assert.Equal(-20, result.Document.Shutdown.CleanupPriorityNiceValue);
     }
 
     [Fact]
@@ -153,6 +157,9 @@ public sealed class SettingsSelfHealingServiceTests
               unmount_command_timeout_seconds: 8
               unmount_detach_wait_seconds: 5
               cleanup_high_priority: true
+              cleanup_apply_high_priority: false
+              cleanup_priority_ionice_class: 3
+              cleanup_priority_nice_value: -20
             permissions:
               inherit_from_parent: true
               enforce_existing: false

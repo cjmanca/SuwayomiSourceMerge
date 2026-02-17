@@ -60,7 +60,7 @@ public sealed class ConfigurationBootstrapService : IConfigurationBootstrapServi
 		EnsureSceneTagsYaml(paths, files);
 		EnsureSourcePriorityYaml(paths, warnings, files);
 
-		ParsedDocument<SettingsDocument> settings = ParseDocument(paths.SettingsYamlPath, _schemaService.ParseSettings);
+		ParsedDocument<SettingsDocument> settings = ParseDocument(paths.SettingsYamlPath, _schemaService.ParseSettingsForRuntime);
 		ParsedDocument<MangaEquivalentsDocument> mangaEquivalents = ParseDocument(paths.MangaEquivalentsYamlPath, _schemaService.ParseMangaEquivalents);
 		ParsedDocument<SceneTagsDocument> sceneTags = ParseDocument(paths.SceneTagsYamlPath, _schemaService.ParseSceneTags);
 		ParsedDocument<SourcePriorityDocument> sourcePriority = ParseDocument(paths.SourcePriorityYamlPath, _schemaService.ParseSourcePriority);
