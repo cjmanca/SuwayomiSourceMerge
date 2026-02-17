@@ -333,7 +333,7 @@ modules:
       - Test assembly internal visibility policy; use SuwayomiSourceMerge/AssemblyInfo.cs.
     related: [runtime-host, unit-test-suite]
   - id: container-runtime-assets
-    summary: Container image, entrypoint identity mapping, and docker-context filtering for runtime deployment.
+    summary: Container image, entrypoint identity/fuse policy, and docker-context filtering for runtime deployment.
     tags: [container, docker, runtime]
     paths:
       - .dockerignore
@@ -357,7 +357,7 @@ modules:
       - symbol: docker/entrypoint.sh
         kind: file
         path: docker/entrypoint.sh
-        purpose: Applies PUID/PGID identity mapping, warns only for true ssm name/id conflicts, adjusts useradd UID policy keys for out-of-range IDs, and launches the daemon.
+        purpose: Applies PUID/PGID identity mapping, uses consistent bash `[[ ... ]]` tests, parses settings scalars with YAML-aware inline-comment handling (including embedded `#` plain scalars) and escaped-backslash-aware quote handling for log mirroring, enforces runtime-parity logging.file_name safety checks (rooted/segmented, invalid/control chars, trailing dots/spaces, reserved device names) with fallback warnings, uses top-level fuse write-failure diagnostics helper flow, avoids recursive merged-root chown, and launches the daemon.
       - symbol: tests/SuwayomiSourceMerge.IntegrationTests/README.md
         kind: file
         path: tests/SuwayomiSourceMerge.IntegrationTests/README.md
@@ -377,7 +377,13 @@ modules:
         paths: [.dockerignore]
     do_not_reimplement:
       - Canonical container build context exclusion policy; use .dockerignore.
+      - Canonical container entrypoint bash test/readability policy (`[[ ... ]]` conditionals and inline fuse write stderr capture); use docker/entrypoint.sh.
       - Canonical container runtime package and multi-stage image definition; use Dockerfile.
+      - Canonical container startup fuse policy: skip fuse.conf edits when PUID=0 and fail non-root startup with remediation guidance when /etc/fuse.conf cannot be updated; use docker/entrypoint.sh.
+      - Canonical container startup fuse write-failure diagnostics with root-cause details and manual `sh -c` remediation guidance; use docker/entrypoint.sh.
+      - Canonical container startup log mirroring that parses settings scalars with YAML-aware inline-comment handling (embedded plain-scalar `#` values are preserved) plus escaped-backslash-aware quote handling, then writes entrypoint diagnostics into runtime log file path derived from settings/defaults; use docker/entrypoint.sh.
+      - Canonical container startup logging.file_name safety gate that rejects rooted/segmented values, trailing dots/spaces, invalid/control characters, and reserved Windows device names, then falls back to default daemon.log with warning diagnostics; use docker/entrypoint.sh.
+      - Canonical container startup ownership policy that avoids recursive chown under /ssm/merged to prevent stale FUSE endpoint startup failures; use docker/entrypoint.sh.
       - Canonical container startup PUID/PGID identity mapping and daemon launch; use docker/entrypoint.sh.
       - Canonical GHCR image build/publish GitHub Actions pipeline; use .github/workflows/docker-publish.yml.
     related: [integration-test-suite, runtime-host, unit-test-suite]
@@ -853,7 +859,7 @@ modules:
       - symbol: MergerfsMountCommandService
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Mounts/MergerfsMountCommandService.cs
-        purpose: Applies mount/remount/unmount actions using mergerfs and fusermount fallback chains with mountpoint-ensure and cleanup-wrapper priorities.
+        purpose: Applies mount/remount/unmount actions using mergerfs and fusermount fallback chains with mountpoint-ensure, bad-mountpoint retry, and cleanup-wrapper priorities.
       - symbol: MountReconciliationService
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationService.cs
@@ -887,6 +893,7 @@ modules:
       - Canonical findmnt snapshot capture and parse-warning behavior (including non-throwing parser guards and escape decoding); use FindmntMountSnapshotService.
       - Canonical legacy shell findmnt pairs-mode compatibility wrapper; use findmnt_pairs.
       - Canonical mount action precondition that ensures mountpoint directories exist before invoking mergerfs; use MergerfsMountCommandService.
+      - Canonical bad-mountpoint retry flow with explicit two-sentence labeled mountpoint-directory-creation failure diagnostics; use MergerfsMountCommandService.
       - Canonical mount/unmount/remount command fallback chains (`fusermount3`, `fusermount`, `umount`); use MergerfsMountCommandService.
       - Canonical normalized mountpoint key matching across desired/actual/forced/stale checks; use MountReconciliationService.Reconcile.
       - Canonical timed legacy shell findmnt pairs-mode wrapper; use ro_timeout_findmnt_pairs.
@@ -1134,6 +1141,7 @@ modules:
     summary: Docker-based end-to-end integration suite validating container runtime startup and failure semantics.
     tags: [docker, integration-tests, runtime, xunit]
     paths:
+      - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointLogPath.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/DockerAssertionsBehaviorTests.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/README.md
@@ -1148,7 +1156,7 @@ modules:
       - symbol: ContainerRuntimeEndToEndTests
         kind: class
         path: tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs
-        purpose: Verifies expected, edge, and failure Docker runtime behavior for the daemon container image.
+        purpose: Verifies expected, edge, and failure Docker runtime behavior for the daemon container image, including entrypoint log-path mirroring parsing/safety regressions.
       - symbol: DockerAssertions
         kind: class
         path: tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerAssertions.cs
@@ -1176,7 +1184,7 @@ modules:
     extension_points:
       - how: Add new end-to-end runtime scenarios by extending container test cases in ContainerRuntimeEndToEndTests.
         symbols: [ContainerRuntimeEndToEndTests]
-        paths: [tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs]
+        paths: [tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointLogPath.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs]
       - how: Expand Docker CLI orchestration coverage by adding helpers to DockerCommandRunner and DockerCommandResult.
         symbols: [DockerCommandResult, DockerCommandRunner]
         paths: [tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerCommandResult.cs, tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerCommandRunner.cs]
@@ -1188,6 +1196,7 @@ modules:
         paths: [tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerAssertions.cs]
     do_not_reimplement:
       - Canonical container test workspace and mock-tool filesystem layout; use ContainerFixtureWorkspace.
+      - Canonical stale-merged chown startup-regression harness using argv-aware mock argument matching; use ContainerRuntimeEndToEndTests.
       - Canonical deterministic wait-loop assertions for integration checks; use DockerAssertions.
       - Canonical Docker CLI command execution and diagnostics wrapper; use DockerCommandRunner.
       - Canonical Docker integration image build, daemon preflight, and teardown image cleanup fixture setup; use DockerIntegrationFixture.

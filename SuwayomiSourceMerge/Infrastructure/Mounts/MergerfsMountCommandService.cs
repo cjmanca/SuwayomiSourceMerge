@@ -38,6 +38,14 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 	];
 
 	/// <summary>
+	/// Error tokens indicating mountpoint-not-found failures reported by mergerfs/fuse.
+	/// </summary>
+	private static readonly string[] _badMountPointTokens =
+	[
+		"bad mount point"
+	];
+
+	/// <summary>
 	/// Command executor dependency.
 	/// </summary>
 	private readonly IExternalCommandExecutor _commandExecutor;
@@ -222,7 +230,47 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 
 		ExternalCommandResult commandResult = _commandExecutor.Execute(request, cancellationToken);
 		(MountActionApplyOutcome outcome, string diagnostic) = ClassifyCommandResult(commandResult);
+		if (ShouldRetryMountAfterBadMountPoint(commandResult))
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+			if (!TryEnsureMountPointDirectory(action.MountPoint, out string retryEnsureDiagnostic))
+			{
+				return new MountActionApplyResult(
+					action,
+					MountActionApplyOutcome.Failure,
+					$"Initial mount failed with bad mount point. Retry mountpoint directory creation also failed. initial_mount='{diagnostic}' retry_directory_creation='{retryEnsureDiagnostic}'");
+			}
+
+			ExternalCommandResult retryResult = _commandExecutor.Execute(request, cancellationToken);
+			(MountActionApplyOutcome retryOutcome, string retryDiagnostic) = ClassifyCommandResult(retryResult);
+			if (retryOutcome == MountActionApplyOutcome.Success)
+			{
+				return new MountActionApplyResult(action, MountActionApplyOutcome.Success, "Command succeeded after bad-mountpoint retry.");
+			}
+
+			return new MountActionApplyResult(
+				action,
+				retryOutcome,
+				$"Mount failed after bad-mountpoint retry. initial='{diagnostic}' retry='{retryDiagnostic}'");
+		}
+
 		return new MountActionApplyResult(action, outcome, diagnostic);
+	}
+
+	/// <summary>
+	/// Determines whether a mount command should be retried after a bad-mountpoint failure.
+	/// </summary>
+	/// <param name="commandResult">Command result to inspect.</param>
+	/// <returns><see langword="true"/> when a retry should be attempted; otherwise <see langword="false"/>.</returns>
+	private static bool ShouldRetryMountAfterBadMountPoint(ExternalCommandResult commandResult)
+	{
+		ArgumentNullException.ThrowIfNull(commandResult);
+		if (commandResult.Outcome != ExternalCommandOutcome.NonZeroExit)
+		{
+			return false;
+		}
+
+		return ContainsAnyToken(commandResult.StandardError, _badMountPointTokens);
 	}
 
 	/// <summary>

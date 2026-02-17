@@ -6,7 +6,7 @@ namespace SuwayomiSourceMerge.IntegrationTests;
 /// End-to-end Docker runtime tests for container assets and daemon orchestration.
 /// </summary>
 [Collection(DockerIntegrationFixture.CollectionName)]
-public sealed class ContainerRuntimeEndToEndTests
+public sealed partial class ContainerRuntimeEndToEndTests
 {
 	/// <summary>
 	/// Shared Docker fixture.
@@ -182,6 +182,8 @@ public sealed class ContainerRuntimeEndToEndTests
 
 			string daemonLogPath = Path.Combine(workspace.ConfigRootPath, "daemon.log");
 			DockerAssertions.WaitForFileContains(daemonLogPath, "event=\"host.startup\"", TimeSpan.FromSeconds(60));
+			DockerAssertions.WaitForFileContains(daemonLogPath, "using fallback group name", TimeSpan.FromSeconds(60));
+			DockerAssertions.WaitForFileContains(daemonLogPath, "using fallback user name", TimeSpan.FromSeconds(60));
 
 			string logs = _fixture.Runner.GetContainerLogs(containerName);
 			Assert.Contains("using fallback group name", logs, StringComparison.Ordinal);
@@ -196,6 +198,143 @@ public sealed class ContainerRuntimeEndToEndTests
 			_fixture.Runner.RemoveContainerForce(containerName);
 			RemoveImageBestEffort(collisionImageTag);
 		}
+	}
+
+	/// <summary>
+	/// Verifies the entrypoint enables <c>user_allow_other</c> so non-root mergerfs mounts can use allow_other.
+	/// </summary>
+	[Fact]
+	public void Run_Expected_ShouldEnableUserAllowOtherInFuseConfig_BeforeDroppingPrivileges()
+	{
+		DockerCommandResult result = _fixture.Runner.Execute(
+		[
+			"run",
+			"--rm",
+			"--env",
+			"PUID=99",
+			"--env",
+			"PGID=100",
+			_fixture.ImageTag,
+			"bash",
+			"-lc",
+			"grep -Eq '^[[:space:]]*user_allow_other([[:space:]]*#.*)?$' /etc/fuse.conf"
+		],
+		timeout: TimeSpan.FromMinutes(2));
+
+		Assert.False(result.TimedOut);
+		Assert.Equal(0, result.ExitCode);
+	}
+
+	/// <summary>
+	/// Verifies root runtime skips fuse.conf edit attempts.
+	/// </summary>
+	[Fact]
+	public void Run_Edge_ShouldSkipFuseConfigEdit_WhenPuidIsRoot()
+	{
+		DockerCommandResult result = _fixture.Runner.Execute(
+		[
+			"run",
+			"--rm",
+			"--env",
+			"PUID=0",
+			"--env",
+			"PGID=0",
+			"--env",
+			"FUSE_CONF_PATH=/proc/1/mem",
+			_fixture.ImageTag,
+			"bash",
+			"-lc",
+			"true"
+		],
+		timeout: TimeSpan.FromMinutes(2));
+
+		Assert.False(result.TimedOut);
+		Assert.Equal(0, result.ExitCode);
+		Assert.DoesNotContain("Failed to update '/proc/1/mem'", result.StandardError, StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// Verifies non-root runtime fails fast with remediation guidance when fuse.conf cannot be edited.
+	/// </summary>
+	[Fact]
+	public void Run_Failure_ShouldFailWithGuidance_WhenNonRootCannotEditFuseConfig()
+	{
+		DockerCommandResult result = _fixture.Runner.Execute(
+		[
+			"run",
+			"--rm",
+			"--env",
+			"PUID=99",
+			"--env",
+			"PGID=100",
+			"--env",
+			"FUSE_CONF_PATH=/proc/1/mem",
+			_fixture.ImageTag,
+			"bash",
+			"-lc",
+			"true"
+		],
+		timeout: TimeSpan.FromMinutes(2));
+
+		Assert.False(result.TimedOut);
+		Assert.NotEqual(0, result.ExitCode);
+		Assert.Contains("Failed to update '/proc/1/mem' with 'user_allow_other'", result.StandardError, StringComparison.Ordinal);
+		Assert.Contains("Root cause detail:", result.StandardError, StringComparison.Ordinal);
+		Assert.Contains("Manual edit", result.StandardError, StringComparison.Ordinal);
+		Assert.Contains("sh -c", result.StandardError, StringComparison.Ordinal);
+		Assert.Contains("PUID=0", result.StandardError, StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// Verifies entrypoint ownership setup does not recursively chown <c>/ssm/merged</c>, which can fail on stale FUSE mountpoints.
+	/// </summary>
+	[Fact]
+	public void Run_Edge_ShouldNotRecursivelyChownMergedRoot_WhenRecursiveMergedChownWouldFail()
+	{
+		using ContainerFixtureWorkspace workspace = new();
+		workspace.WriteMockToolScript(
+			"chown",
+			"""
+			#!/usr/bin/env sh
+			has_recursive=0
+			targets_merged=0
+			for argument in "$@"; do
+			  if [ "$argument" = "-R" ]; then
+			    has_recursive=1
+			  fi
+			  if [ "$argument" = "/ssm/merged" ]; then
+			    targets_merged=1
+			  fi
+			done
+			if [ "$has_recursive" -eq 1 ] && [ "$targets_merged" -eq 1 ]; then
+			  echo "chown: cannot access '/ssm/merged/Stale': Transport endpoint is not connected" >&2
+			  exit 1
+			fi
+			exit 0
+			""");
+
+		DockerCommandResult result = _fixture.Runner.Execute(
+		[
+			"run",
+			"--rm",
+			"--volume",
+			$"{workspace.MockBinPath}:/ssm/mock-bin:ro",
+			"--env",
+			"PATH=/ssm/mock-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+			"--env",
+			"PUID=99",
+			"--env",
+			"PGID=100",
+			_fixture.ImageTag,
+			"bash",
+			"-lc",
+			"true"
+		],
+		timeout: TimeSpan.FromMinutes(2));
+
+		Assert.False(result.TimedOut);
+		Assert.Equal(0, result.ExitCode);
+		Assert.DoesNotContain("Transport endpoint is not connected", result.StandardError, StringComparison.Ordinal);
 	}
 
 	/// <summary>

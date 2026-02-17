@@ -245,6 +245,18 @@ internal sealed class ContainerFixtureWorkspace : IDisposable
 	}
 
 	/// <summary>
+	/// Writes one custom mock tool script under <see cref="MockBinPath"/>.
+	/// </summary>
+	/// <param name="name">Script file name.</param>
+	/// <param name="content">Script content.</param>
+	public void WriteMockToolScript(string name, string content)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(name);
+		ArgumentNullException.ThrowIfNull(content);
+		WriteExecutableScript(name, content);
+	}
+
+	/// <summary>
 	/// Disposes workspace directories.
 	/// </summary>
 	public void Dispose()
