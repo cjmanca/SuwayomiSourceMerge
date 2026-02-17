@@ -358,6 +358,13 @@ ensure_runtime_fuse_device_access() {
     return
   fi
 
+  if [[ ! -c "$FUSE_DEVICE_PATH" ]]; then
+    local fuse_file_type_detail
+    fuse_file_type_detail="$(stat -c 'type=%F mode=%a owner=%u group=%g' "$FUSE_DEVICE_PATH" 2>/dev/null || echo "type unavailable")"
+    entrypoint_log "ERROR: '$FUSE_DEVICE_PATH' is not a character device ($fuse_file_type_detail). Configure FUSE_DEVICE_PATH to point to a mapped '/dev/fuse' device."
+    exit 70
+  fi
+
   local runtime_user_name
   runtime_user_name="$(getent passwd "$PUID" | cut -d: -f1 || true)"
   local fuse_device_group_id
@@ -467,7 +474,24 @@ ensure_entrypoint_log_file_ownership() {
     return
   fi
 
-  chown -h "$PUID:$PGID" "$ENTRYPOINT_LOG_FILE" >/dev/null 2>&1 || true
+  local trusted_log_root
+  trusted_log_root="$(readlink -f "$DEFAULT_LOG_ROOT_PATH" 2>/dev/null || printf '%s' "$DEFAULT_LOG_ROOT_PATH")"
+  local resolved_log_file_path
+  resolved_log_file_path="$(readlink -f "$ENTRYPOINT_LOG_FILE" 2>/dev/null || true)"
+  if [[ -z "$resolved_log_file_path" ]]; then
+    entrypoint_log "WARN: Skipping chown for entrypoint log path '$ENTRYPOINT_LOG_FILE' because the canonical path could not be resolved."
+    return
+  fi
+
+  case "$resolved_log_file_path" in
+    "$trusted_log_root"|"$trusted_log_root"/*) ;;
+    *)
+      entrypoint_log "WARN: Skipping chown for entrypoint log path '$ENTRYPOINT_LOG_FILE' because resolved path '$resolved_log_file_path' is outside trusted root '$trusted_log_root'."
+      return
+      ;;
+  esac
+
+  chown -h "$PUID:$PGID" "$resolved_log_file_path" >/dev/null 2>&1 || true
 }
 
 mkdir -p /ssm/config /ssm/state "$MERGED_ROOT_PATH"

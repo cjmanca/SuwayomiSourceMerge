@@ -19,9 +19,11 @@ internal sealed partial class PersistentInotifywaitEventReader : IInotifyEventRe
 	private static readonly TimeSpan _sessionRestartDelay = TimeSpan.FromSeconds(5);
 
 	/// <summary>
-	/// Maximum number of progressive deep-watch sessions started per poll.
+	/// Maximum number of progressive deep-watch sessions started per start phase.
+	/// One <see cref="Poll"/> invocation may execute two start phases (pre-wait and post-wait),
+	/// allowing up to twice this number of deep sessions to start per poll.
 	/// </summary>
-	private const int MaxDeepSessionsStartedPerPoll = 3;
+	private const int MaxDeepSessionsStartedPerStartPhase = 3;
 
 	/// <summary>
 	/// Event names passed to inotifywait.

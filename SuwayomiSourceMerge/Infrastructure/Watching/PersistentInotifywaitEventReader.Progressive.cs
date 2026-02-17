@@ -38,7 +38,7 @@ internal sealed partial class PersistentInotifywaitEventReader
 	}
 
 	/// <summary>
-	/// Starts queued progressive deep-watch sessions under a bounded per-poll budget.
+	/// Starts queued progressive deep-watch sessions under a bounded per-start-phase budget.
 	/// </summary>
 	/// <param name="nowUtc">Current timestamp used by restart gates.</param>
 	/// <param name="warnings">Warning sink.</param>
@@ -58,7 +58,7 @@ internal sealed partial class PersistentInotifywaitEventReader
 		int started = 0;
 		int processed = 0;
 		int pendingSnapshotCount = _pendingProgressiveDeepRoots.Count;
-		while (processed < pendingSnapshotCount && _pendingProgressiveDeepRoots.Count > 0 && started < MaxDeepSessionsStartedPerPoll)
+		while (processed < pendingSnapshotCount && _pendingProgressiveDeepRoots.Count > 0 && started < MaxDeepSessionsStartedPerStartPhase)
 		{
 			string deepRoot = _pendingProgressiveDeepRoots.Dequeue();
 			_queuedProgressiveDeepRoots.Remove(deepRoot);

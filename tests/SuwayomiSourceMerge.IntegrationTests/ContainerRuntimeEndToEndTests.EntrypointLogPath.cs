@@ -152,6 +152,42 @@ public sealed partial class ContainerRuntimeEndToEndTests
 	}
 
 	/// <summary>
+	/// Verifies entrypoint log ownership chown is skipped when configured log root resolves outside trusted config root.
+	/// </summary>
+	[Fact]
+	public void Run_Edge_ShouldSkipLogOwnershipChown_WhenConfiguredLogPathIsOutsideTrustedRoot()
+	{
+		using ContainerFixtureWorkspace workspace = new();
+		string outsideLogRootPath = "/ssm/state/outside-log-root";
+		string outsideLogRootHostPath = Path.Combine(workspace.StateRootPath, "outside-log-root");
+		Directory.CreateDirectory(outsideLogRootHostPath);
+		workspace.WriteConfigFile(
+			"settings.yml",
+			$"""
+			paths:
+			  log_root_path: {outsideLogRootPath}
+			logging:
+			  file_name: daemon.log
+			""");
+
+		DockerCommandResult result = RunEntrypointOnlyContainer(
+			workspace,
+			new Dictionary<string, string>(StringComparer.Ordinal)
+			{
+				["PUID"] = "99",
+				["PGID"] = "100",
+				["FUSE_DEVICE_PATH"] = "/ssm/does-not-exist"
+			});
+
+		Assert.False(result.TimedOut);
+		Assert.Equal(0, result.ExitCode);
+		Assert.Contains("outside trusted root", result.StandardError, StringComparison.Ordinal);
+
+		string externalLogPath = Path.Combine(outsideLogRootHostPath, "daemon.log");
+		DockerAssertions.WaitForFileContains(externalLogPath, "outside trusted root", TimeSpan.FromSeconds(30));
+	}
+
+	/// <summary>
 	/// Builds one environment map for entrypoint-only container command validation.
 	/// </summary>
 	/// <param name="puid">PUID value.</param>

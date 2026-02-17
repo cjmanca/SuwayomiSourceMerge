@@ -103,6 +103,7 @@ logging:
 - `logging.file_name` must not contain cross-platform strict invalid file-name characters (`U+0000`-`U+001F`, `<`, `>`, `:`, `"`, `/`, `\`, `|`, `?`, `*`)
 - `logging.file_name` must not end with `.` or space
 - On Windows hosts, `logging.file_name` must not resolve to a reserved device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1`-`COM9`, `LPT1`-`LPT9`)
+- Entrypoint privileged log-file ownership adjustment is restricted to paths resolved under `/ssm/config`; custom absolute `paths.log_root_path` values remain valid but skip root-run ownership updates when outside that trusted root.
 - `logging.level` allowed values: `trace`, `debug`, `warning`, `error`, `none`
 - `excluded_sources` cannot contain empty items or duplicates after normalization
 
