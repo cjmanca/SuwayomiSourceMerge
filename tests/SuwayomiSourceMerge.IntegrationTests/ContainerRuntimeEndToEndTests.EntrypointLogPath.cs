@@ -119,6 +119,39 @@ public sealed partial class ContainerRuntimeEndToEndTests
 	}
 
 	/// <summary>
+	/// Verifies FUSE preflight warnings are mirrored into the resolved daemon log path.
+	/// </summary>
+	[Fact]
+	public void Run_Edge_ShouldMirrorFusePreflightWarningToDaemonLog_WhenFuseDevicePathIsMissing()
+	{
+		using ContainerFixtureWorkspace workspace = new();
+		workspace.WriteConfigFile(
+			"settings.yml",
+			"""
+			paths:
+			  log_root_path: /ssm/config
+			logging:
+			  file_name: daemon.log
+			""");
+
+		DockerCommandResult result = RunEntrypointOnlyContainer(
+			workspace,
+			new Dictionary<string, string>(StringComparer.Ordinal)
+			{
+				["PUID"] = "99",
+				["PGID"] = "100",
+				["FUSE_DEVICE_PATH"] = "/ssm/does-not-exist"
+			});
+
+		Assert.False(result.TimedOut);
+		Assert.Equal(0, result.ExitCode);
+		Assert.Contains("does-not-exist", result.StandardError, StringComparison.Ordinal);
+
+		string daemonLogPath = Path.Combine(workspace.ConfigRootPath, "daemon.log");
+		DockerAssertions.WaitForFileContains(daemonLogPath, "does-not-exist", TimeSpan.FromSeconds(30));
+	}
+
+	/// <summary>
 	/// Builds one environment map for entrypoint-only container command validation.
 	/// </summary>
 	/// <param name="puid">PUID value.</param>

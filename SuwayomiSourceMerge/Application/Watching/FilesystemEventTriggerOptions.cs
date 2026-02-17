@@ -1,5 +1,6 @@
 using SuwayomiSourceMerge.Configuration.Documents;
 using SuwayomiSourceMerge.Infrastructure.Rename;
+using SuwayomiSourceMerge.Infrastructure.Watching;
 
 namespace SuwayomiSourceMerge.Application.Watching;
 
@@ -24,6 +25,7 @@ internal sealed class FilesystemEventTriggerOptions
 	/// <param name="mergeLockRetrySeconds">Retry delay in seconds after busy/failure dispatch outcomes.</param>
 	/// <param name="startupRenameRescanEnabled">Whether startup rename rescan should run once.</param>
 	/// <param name="inotifyRequestTimeoutBufferSeconds">Additional timeout buffer in seconds for each inotify command request.</param>
+	/// <param name="watchStartupMode">Watcher startup mode controlling full vs progressive inotify session initialization.</param>
 	public FilesystemEventTriggerOptions(
 		ChapterRenameOptions renameOptions,
 		string overrideRootPath,
@@ -32,7 +34,8 @@ internal sealed class FilesystemEventTriggerOptions
 		int mergeMinSecondsBetweenScans,
 		int mergeLockRetrySeconds,
 		bool startupRenameRescanEnabled,
-		int inotifyRequestTimeoutBufferSeconds = DefaultInotifyRequestTimeoutBufferSeconds)
+		int inotifyRequestTimeoutBufferSeconds = DefaultInotifyRequestTimeoutBufferSeconds,
+		InotifyWatchStartupMode watchStartupMode = InotifyWatchStartupMode.Progressive)
 	{
 		RenameOptions = renameOptions ?? throw new ArgumentNullException(nameof(renameOptions));
 		ArgumentException.ThrowIfNullOrWhiteSpace(overrideRootPath);
@@ -69,6 +72,7 @@ internal sealed class FilesystemEventTriggerOptions
 		MergeLockRetrySeconds = mergeLockRetrySeconds;
 		StartupRenameRescanEnabled = startupRenameRescanEnabled;
 		InotifyRequestTimeoutBufferSeconds = inotifyRequestTimeoutBufferSeconds;
+		WatchStartupMode = watchStartupMode;
 	}
 
 	/// <summary>
@@ -139,6 +143,14 @@ internal sealed class FilesystemEventTriggerOptions
 	}
 
 	/// <summary>
+	/// Gets watcher startup mode.
+	/// </summary>
+	public InotifyWatchStartupMode WatchStartupMode
+	{
+		get;
+	}
+
+	/// <summary>
 	/// Gets a value indicating whether startup rename rescan should run once.
 	/// </summary>
 	public bool StartupRenameRescanEnabled
@@ -189,6 +201,28 @@ internal sealed class FilesystemEventTriggerOptions
 			scan.MergeMinSecondsBetweenScans.Value,
 			scan.MergeLockRetrySeconds.Value,
 			settings.Runtime.RescanNow.Value,
-			scan.MergeTriggerRequestTimeoutBufferSeconds.Value);
+			scan.MergeTriggerRequestTimeoutBufferSeconds.Value,
+			ParseWatchStartupMode(scan.WatchStartupMode));
+	}
+
+	/// <summary>
+	/// Parses the watch-startup-mode token.
+	/// </summary>
+	/// <param name="value">Token value from settings.</param>
+	/// <returns>Parsed startup mode.</returns>
+	private static InotifyWatchStartupMode ParseWatchStartupMode(string? value)
+	{
+		if (string.IsNullOrWhiteSpace(value))
+		{
+			return InotifyWatchStartupMode.Progressive;
+		}
+
+		string mode = value.Trim().ToLowerInvariant();
+		return mode switch
+		{
+			"full" => InotifyWatchStartupMode.Full,
+			"progressive" => InotifyWatchStartupMode.Progressive,
+			_ => throw new ArgumentException("Settings scan.watch_startup_mode must be 'full' or 'progressive'.", nameof(value))
+		};
 	}
 }

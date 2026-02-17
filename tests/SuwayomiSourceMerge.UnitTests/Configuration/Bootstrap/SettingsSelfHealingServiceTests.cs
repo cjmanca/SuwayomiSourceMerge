@@ -39,6 +39,7 @@ public sealed class SettingsSelfHealingServiceTests
         Assert.Equal(60, result.Document.Scan!.MergeIntervalSeconds);
         Assert.Equal(5, result.Document.Scan.MergeTriggerPollSeconds);
         Assert.Equal(300, result.Document.Scan.MergeTriggerRequestTimeoutBufferSeconds);
+        Assert.Equal("progressive", result.Document.Scan.WatchStartupMode);
         Assert.NotNull(result.Document.Runtime);
         Assert.NotNull(result.Document.Shutdown);
         Assert.Equal("daemon.log", result.Document.Logging!.FileName);
@@ -136,6 +137,7 @@ public sealed class SettingsSelfHealingServiceTests
               merge_min_seconds_between_scans: 15
               merge_lock_retry_seconds: 30
               merge_trigger_request_timeout_buffer_seconds: 300
+              watch_startup_mode: progressive
             rename:
               rename_delay_seconds: 300
               rename_quiet_seconds: 120

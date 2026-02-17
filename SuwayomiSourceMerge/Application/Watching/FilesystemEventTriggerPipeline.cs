@@ -9,7 +9,7 @@ namespace SuwayomiSourceMerge.Application.Watching;
 /// <summary>
 /// Coordinates inotify event routing, rename polling/rescan fallback, and merge-trigger coalescing.
 /// </summary>
-internal sealed class FilesystemEventTriggerPipeline
+internal sealed partial class FilesystemEventTriggerPipeline : IDisposable
 {
 	/// <summary>Event id emitted for malformed or failed inotify polling operations.</summary>
 	private const string InotifyWarningEvent = "watcher.inotify.warning";
@@ -63,9 +63,9 @@ internal sealed class FilesystemEventTriggerPipeline
 	private bool _startupRenameRescanCompleted;
 
 	/// <summary>
-	/// Tracks whether startup merge request scheduling has been evaluated.
+	/// Tracks whether startup merge-request evaluation has run on this pipeline instance.
 	/// </summary>
-	private bool _startupMergeRequestCompleted;
+	private bool _startupMergeRequestEvaluated;
 
 	/// <summary>
 	/// Next scheduled rename queue process time.
@@ -91,6 +91,11 @@ internal sealed class FilesystemEventTriggerPipeline
 	/// Tracks seen source/manga pairs for chapter-implied-new routing behavior.
 	/// </summary>
 	private readonly HashSet<string> _seenSourceMangaKeys = new(StringComparer.Ordinal);
+
+	/// <summary>
+	/// Tracks whether this pipeline instance has been disposed.
+	/// </summary>
+	private bool _disposed;
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="FilesystemEventTriggerPipeline"/> class.
@@ -122,8 +127,25 @@ internal sealed class FilesystemEventTriggerPipeline
 	/// <returns>Tick summary result.</returns>
 	public FilesystemEventTickResult Tick(DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
 	{
+		ThrowIfDisposed();
 		cancellationToken.ThrowIfCancellationRequested();
 		EnsureInitialized(nowUtc);
+
+		int mergeRequestsQueued = 0;
+		MergeScanDispatchOutcome dispatchOutcome = MergeScanDispatchOutcome.NoPendingRequest;
+		if (!_startupMergeRequestEvaluated)
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+			if (!_mergeScanRequestCoalescer.HasPendingRequest)
+			{
+				mergeRequestsQueued += QueueMergeRequest("startup", force: false);
+			}
+
+			// Startup merge evaluation is intentionally single-pass even when an existing pending
+			// request is dispatched instead of queuing an explicit "startup" request.
+			_startupMergeRequestEvaluated = true;
+			dispatchOutcome = _mergeScanRequestCoalescer.DispatchPending(nowUtc, cancellationToken);
+		}
 
 		InotifyPollResult pollResult = _inotifyEventReader.Poll(
 			[_options.SourcesRootPath, _options.OverrideRootPath],
@@ -134,7 +156,6 @@ internal sealed class FilesystemEventTriggerPipeline
 		LogPollWarnings(pollResult);
 
 		int enqueuedChapterPaths = 0;
-		int mergeRequestsQueued = 0;
 		for (int index = 0; index < pollResult.Events.Count; index++)
 		{
 			cancellationToken.ThrowIfCancellationRequested();
@@ -142,17 +163,6 @@ internal sealed class FilesystemEventTriggerPipeline
 			(int enqueuedCount, int mergeCount) = RouteEvent(eventRecord);
 			enqueuedChapterPaths += enqueuedCount;
 			mergeRequestsQueued += mergeCount;
-		}
-
-		if (!_startupMergeRequestCompleted)
-		{
-			cancellationToken.ThrowIfCancellationRequested();
-			if (mergeRequestsQueued == 0)
-			{
-				mergeRequestsQueued += QueueMergeRequest("startup", force: false);
-			}
-
-			_startupMergeRequestCompleted = true;
 		}
 
 		int renameProcessRuns = 0;
@@ -190,7 +200,8 @@ internal sealed class FilesystemEventTriggerPipeline
 		}
 
 		cancellationToken.ThrowIfCancellationRequested();
-		MergeScanDispatchOutcome dispatchOutcome = _mergeScanRequestCoalescer.DispatchPending(nowUtc, cancellationToken);
+		MergeScanDispatchOutcome postPollDispatchOutcome = _mergeScanRequestCoalescer.DispatchPending(nowUtc, cancellationToken);
+		dispatchOutcome = ResolveDispatchOutcome(dispatchOutcome, postPollDispatchOutcome);
 		FilesystemEventTickResult result = new(
 			pollResult.Outcome,
 			pollResult.Events.Count,
@@ -215,6 +226,21 @@ internal sealed class FilesystemEventTriggerPipeline
 				("dispatch_outcome", result.MergeDispatchOutcome.ToString())));
 
 		return result;
+	}
+
+	/// <inheritdoc />
+	public void Dispose()
+	{
+		if (_disposed)
+		{
+			return;
+		}
+
+		_disposed = true;
+		if (_inotifyEventReader is IDisposable disposableReader)
+		{
+			disposableReader.Dispose();
+		}
 	}
 
 	/// <summary>
@@ -417,100 +443,4 @@ internal sealed class FilesystemEventTriggerPipeline
 		return next;
 	}
 
-	/// <summary>
-	/// Builds a normalized source/manga composite key.
-	/// </summary>
-	/// <param name="sourceName">Source name.</param>
-	/// <param name="mangaName">Manga name.</param>
-	/// <returns>Composite key string.</returns>
-	private static string BuildSourceMangaKey(string sourceName, string mangaName)
-	{
-		return string.Create(CultureInfo.InvariantCulture, $"{sourceName}/{mangaName}");
-	}
-
-	/// <summary>
-	/// Returns whether one path is under one root and outputs root-relative path text.
-	/// </summary>
-	/// <param name="rootPath">Root path.</param>
-	/// <param name="candidatePath">Candidate path.</param>
-	/// <param name="relativePath">Relative path when containment is true.</param>
-	/// <returns><see langword="true"/> when candidate is equal to or under root.</returns>
-	private static bool TryGetRelativePath(string rootPath, string candidatePath, out string relativePath)
-	{
-		relativePath = string.Empty;
-		string normalizedRoot = NormalizePath(rootPath);
-		string normalizedCandidate = NormalizePath(candidatePath);
-		if (string.Equals(normalizedRoot, normalizedCandidate, _pathComparison))
-		{
-			return true;
-		}
-
-		string prefix = normalizedRoot + Path.DirectorySeparatorChar;
-		if (!normalizedCandidate.StartsWith(prefix, _pathComparison))
-		{
-			return false;
-		}
-
-		relativePath = normalizedCandidate[prefix.Length..];
-		return true;
-	}
-
-	/// <summary>
-	/// Normalizes one path for containment and equality checks.
-	/// </summary>
-	/// <param name="path">Input path.</param>
-	/// <returns>Normalized full path.</returns>
-	private static string NormalizePath(string path)
-	{
-		string normalized = Path.GetFullPath(Path.TrimEndingDirectorySeparator(path));
-		return normalized.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
-	}
-
-	/// <summary>
-	/// Splits one relative path into normalized segments.
-	/// </summary>
-	/// <param name="relativePath">Relative path text.</param>
-	/// <returns>Segment array.</returns>
-	private static string[] SplitPathSegments(string relativePath)
-	{
-		if (string.IsNullOrWhiteSpace(relativePath))
-		{
-			return [];
-		}
-
-		return relativePath.Split(
-			[Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
-			StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-	}
-
-	/// <summary>
-	/// Returns whether one bit mask contains any of the specified flags.
-	/// </summary>
-	/// <param name="mask">Input mask.</param>
-	/// <param name="values">Flags to probe.</param>
-	/// <returns><see langword="true"/> when any flag is present.</returns>
-	private static bool HasAny(InotifyEventMask mask, InotifyEventMask values)
-	{
-		return (mask & values) != 0;
-	}
-
-	/// <summary>
-	/// Builds one immutable logging context dictionary.
-	/// </summary>
-	/// <param name="pairs">Context key/value pairs.</param>
-	/// <returns>Context dictionary.</returns>
-	private static IReadOnlyDictionary<string, string> BuildContext(params (string Key, string Value)[] pairs)
-	{
-		Dictionary<string, string> context = new(StringComparer.Ordinal);
-		for (int index = 0; index < pairs.Length; index++)
-		{
-			(string key, string value) = pairs[index];
-			if (!string.IsNullOrWhiteSpace(key))
-			{
-				context[key] = value;
-			}
-		}
-
-		return context;
-	}
 }

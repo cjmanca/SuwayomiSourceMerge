@@ -3,6 +3,7 @@ namespace SuwayomiSourceMerge.UnitTests.Application.Watching;
 using SuwayomiSourceMerge.Application.Watching;
 using SuwayomiSourceMerge.Configuration.Documents;
 using SuwayomiSourceMerge.Infrastructure.Rename;
+using SuwayomiSourceMerge.Infrastructure.Watching;
 
 /// <summary>
 /// Verifies expected, edge, and failure behavior for <see cref="FilesystemEventTriggerOptions"/>.
@@ -27,6 +28,7 @@ public sealed class FilesystemEventTriggerOptionsTests
 		Assert.Equal(30, options.MergeLockRetrySeconds);
 		Assert.Equal(300, options.InotifyRequestTimeoutBufferSeconds);
 		Assert.True(options.StartupRenameRescanEnabled);
+		Assert.Equal(InotifyWatchStartupMode.Progressive, options.WatchStartupMode);
 	}
 
 	/// <summary>
@@ -54,6 +56,39 @@ public sealed class FilesystemEventTriggerOptionsTests
 		Assert.Equal(0, options.MergeMinSecondsBetweenScans);
 		Assert.Equal(300, options.InotifyRequestTimeoutBufferSeconds);
 		Assert.False(options.StartupRenameRescanEnabled);
+		Assert.Equal(InotifyWatchStartupMode.Progressive, options.WatchStartupMode);
+	}
+
+	/// <summary>
+	/// Verifies watch startup mode tokens map to typed options.
+	/// </summary>
+	[Fact]
+	public void FromSettings_Expected_ShouldMapWatchStartupMode()
+	{
+		SettingsDocument defaults = SettingsDocumentDefaults.Create();
+		SettingsDocument settings = new()
+		{
+			Paths = defaults.Paths,
+			Scan = new SettingsScanSection
+			{
+				MergeIntervalSeconds = defaults.Scan!.MergeIntervalSeconds,
+				MergeTriggerPollSeconds = defaults.Scan.MergeTriggerPollSeconds,
+				MergeMinSecondsBetweenScans = defaults.Scan.MergeMinSecondsBetweenScans,
+				MergeLockRetrySeconds = defaults.Scan.MergeLockRetrySeconds,
+				MergeTriggerRequestTimeoutBufferSeconds = defaults.Scan.MergeTriggerRequestTimeoutBufferSeconds,
+				WatchStartupMode = "full"
+			},
+			Rename = defaults.Rename,
+			Diagnostics = defaults.Diagnostics,
+			Shutdown = defaults.Shutdown,
+			Permissions = defaults.Permissions,
+			Runtime = defaults.Runtime,
+			Logging = defaults.Logging
+		};
+
+		FilesystemEventTriggerOptions options = FilesystemEventTriggerOptions.FromSettings(settings);
+
+		Assert.Equal(InotifyWatchStartupMode.Full, options.WatchStartupMode);
 	}
 
 	/// <summary>
@@ -108,6 +143,27 @@ public sealed class FilesystemEventTriggerOptionsTests
 
 		Assert.Throws<ArgumentException>(() => FilesystemEventTriggerOptions.FromSettings(invalidSettings));
 		Assert.Throws<ArgumentException>(() => FilesystemEventTriggerOptions.FromSettings(invalidSettingsMissingTimeoutBuffer));
+		SettingsDocument validDefaults = SettingsDocumentDefaults.Create();
+		SettingsDocument invalidSettingsWatchMode = new()
+		{
+			Paths = validDefaults.Paths,
+			Scan = new SettingsScanSection
+			{
+				MergeIntervalSeconds = 3600,
+				MergeTriggerPollSeconds = 5,
+				MergeMinSecondsBetweenScans = 15,
+				MergeLockRetrySeconds = 30,
+				MergeTriggerRequestTimeoutBufferSeconds = 300,
+				WatchStartupMode = "unsupported"
+			},
+			Rename = validDefaults.Rename,
+			Diagnostics = validDefaults.Diagnostics,
+			Shutdown = validDefaults.Shutdown,
+			Permissions = validDefaults.Permissions,
+			Runtime = validDefaults.Runtime,
+			Logging = validDefaults.Logging
+		};
+		Assert.Throws<ArgumentException>(() => FilesystemEventTriggerOptions.FromSettings(invalidSettingsWatchMode));
 		Assert.Throws<ArgumentNullException>(() => FilesystemEventTriggerOptions.FromSettings(null!));
 	}
 }

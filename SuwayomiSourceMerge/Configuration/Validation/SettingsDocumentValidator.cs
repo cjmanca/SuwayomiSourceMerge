@@ -124,6 +124,7 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
 			ValidateNonNegative(document.Scan.MergeMinSecondsBetweenScans, file, "$.scan.merge_min_seconds_between_scans", result);
 			ValidatePositive(document.Scan.MergeLockRetrySeconds, file, "$.scan.merge_lock_retry_seconds", result);
 			ValidatePositive(document.Scan.MergeTriggerRequestTimeoutBufferSeconds, file, "$.scan.merge_trigger_request_timeout_buffer_seconds", result);
+			ValidateWatchStartupMode(document.Scan.WatchStartupMode, file, "$.scan.watch_startup_mode", result);
 		}
 
 		if (document.Rename is not null)
@@ -398,6 +399,27 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
 					path,
 					InvalidEnumCode,
 					$"Allowed values: {LogLevelParser.SupportedValuesDisplay}."));
+		}
+	}
+
+	/// <summary>
+	/// Validates optional <c>scan.watch_startup_mode</c> values.
+	/// </summary>
+	/// <param name="value">Watch startup mode value from settings.</param>
+	/// <param name="file">File name associated with the validation result.</param>
+	/// <param name="path">JSON path-like location for the field in validation output.</param>
+	/// <param name="result">Collector that receives validation errors.</param>
+	private static void ValidateWatchStartupMode(string? value, string file, string path, ValidationResult result)
+	{
+		if (string.IsNullOrWhiteSpace(value))
+		{
+			return;
+		}
+
+		string mode = value.Trim().ToLowerInvariant();
+		if (mode != "full" && mode != "progressive")
+		{
+			result.Add(new ValidationError(file, path, InvalidEnumCode, "Allowed values: full, progressive."));
 		}
 	}
 

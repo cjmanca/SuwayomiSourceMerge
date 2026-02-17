@@ -213,6 +213,7 @@ modules:
       - SuwayomiSourceMerge/Application/Cancellation/CancellationClassification.cs
       - SuwayomiSourceMerge/Application/Watching/FilesystemEventTickResult.cs
       - SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerOptions.cs
+      - SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerPipeline.Helpers.cs
       - SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerPipeline.cs
       - SuwayomiSourceMerge/Application/Watching/IMergeScanRequestCoalescer.cs
       - SuwayomiSourceMerge/Application/Watching/IMergeScanRequestHandler.cs
@@ -222,6 +223,7 @@ modules:
       - SuwayomiSourceMerge/Application/Watching/ProductionMergeScanRequestHandler.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineIntegrationTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineTests.Fakes.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/MergeScanRequestCoalescerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/NoOpMergeScanRequestHandlerTests.cs
@@ -274,7 +276,7 @@ modules:
       - Canonical normalization of unexpected handler dispatch outcomes to failure with failed-event emission; use ProductionMergeScanRequestHandler.DispatchMergeScan.
       - Canonical one-pass filesystem event routing plus periodic rename/merge fallback scheduling; use FilesystemEventTriggerPipeline.Tick.
       - Canonical production merge dispatch event/log contract with severity-aligned busy/mixed/failure IDs and workflow delegation; use ProductionMergeScanRequestHandler.
-      - Canonical startup merge-request scheduling when first tick has no event/interval-triggered requests; use FilesystemEventTriggerPipeline.Tick.
+      - Canonical startup-first merge dispatch and first-tick startup-evaluation semantics that skip duplicate startup requests when one is already pending; use FilesystemEventTriggerPipeline.Tick.
       - Canonical watcher settings mapping from validated settings documents; use FilesystemEventTriggerOptions.FromSettings.
     related: [application-mounting, application-supervision, infrastructure-rename, infrastructure-watching, runtime-host, unit-test-suite]
   - id: build-and-quality
@@ -357,7 +359,7 @@ modules:
       - symbol: docker/entrypoint.sh
         kind: file
         path: docker/entrypoint.sh
-        purpose: Applies PUID/PGID identity mapping, uses consistent bash `[[ ... ]]` tests, parses settings scalars with YAML-aware inline-comment handling (including embedded `#` plain scalars) and escaped-backslash-aware quote handling for log mirroring, enforces runtime-parity logging.file_name safety checks (rooted/segmented, invalid/control chars, trailing dots/spaces, reserved device names) with fallback warnings, uses top-level fuse write-failure diagnostics helper flow, avoids recursive merged-root chown, and launches the daemon.
+        purpose: Applies PUID/PGID identity mapping, uses consistent bash `[[ ... ]]` tests, parses settings scalars with YAML-aware inline-comment handling (including embedded `#` plain scalars) and escaped-backslash-aware quote handling for log mirroring, enforces runtime-parity logging.file_name safety checks (rooted/segmented, invalid/control chars, trailing dots/spaces, reserved device names) with fallback warnings, uses top-level fuse write-failure diagnostics helper flow, performs non-root FUSE device access preflight under the runtime identity, avoids recursive merged-root chown, performs best-effort first-level merged-child ownership repair with stale-endpoint-safe warnings, and launches the daemon.
       - symbol: tests/SuwayomiSourceMerge.IntegrationTests/README.md
         kind: file
         path: tests/SuwayomiSourceMerge.IntegrationTests/README.md
@@ -380,10 +382,11 @@ modules:
       - Canonical container entrypoint bash test/readability policy (`[[ ... ]]` conditionals and inline fuse write stderr capture); use docker/entrypoint.sh.
       - Canonical container runtime package and multi-stage image definition; use Dockerfile.
       - Canonical container startup fuse policy: skip fuse.conf edits when PUID=0 and fail non-root startup with remediation guidance when /etc/fuse.conf cannot be updated; use docker/entrypoint.sh.
+      - Canonical container startup non-root FUSE device access preflight under runtime identity (skip in mock-tool mode, warning when device is absent, fail-fast when present but inaccessible); use docker/entrypoint.sh.
       - Canonical container startup fuse write-failure diagnostics with root-cause details and manual `sh -c` remediation guidance; use docker/entrypoint.sh.
       - Canonical container startup log mirroring that parses settings scalars with YAML-aware inline-comment handling (embedded plain-scalar `#` values are preserved) plus escaped-backslash-aware quote handling, then writes entrypoint diagnostics into runtime log file path derived from settings/defaults; use docker/entrypoint.sh.
       - Canonical container startup logging.file_name safety gate that rejects rooted/segmented values, trailing dots/spaces, invalid/control characters, and reserved Windows device names, then falls back to default daemon.log with warning diagnostics; use docker/entrypoint.sh.
-      - Canonical container startup ownership policy that avoids recursive chown under /ssm/merged to prevent stale FUSE endpoint startup failures; use docker/entrypoint.sh.
+      - Canonical container startup ownership policy that avoids recursive chown under /ssm/merged and applies best-effort first-level child ownership repair (warning-only on stale endpoint failures); use docker/entrypoint.sh.
       - Canonical container startup PUID/PGID identity mapping and daemon launch; use docker/entrypoint.sh.
       - Canonical GHCR image build/publish GitHub Actions pipeline; use .github/workflows/docker-publish.yml.
     related: [integration-test-suite, runtime-host, unit-test-suite]
@@ -1083,25 +1086,28 @@ modules:
       - Canonical volume discovery filesystem operations contract; use IContainerVolumeFileSystem.
     related: [runtime-host, unit-test-suite]
   - id: infrastructure-watching
-    summary: One-shot inotifywait polling models and parser-backed event reader for typed watcher orchestration.
+    summary: Inotify watcher models and readers for one-shot polling plus persistent progressive monitor sessions.
     tags: [filesystem, infrastructure, inotify, runtime]
     paths:
       - SuwayomiSourceMerge/Infrastructure/Watching/IInotifyEventReader.cs
+      - SuwayomiSourceMerge/Infrastructure/Watching/IPersistentInotifyMonitorSession.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/InotifyEventMask.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/InotifyEventRecord.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/InotifyPollResult.cs
+      - SuwayomiSourceMerge/Infrastructure/Watching/InotifyWatchStartupMode.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs
+      - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.cs
+      - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Paths.cs
+      - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Progressive.cs
+      - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Session.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/InotifyEventRecordTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/InotifywaitEventReaderTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/PersistentInotifywaitEventReaderTests.cs
     entrypoints:
       - symbol: IInotifyEventReader
         kind: interface
         path: SuwayomiSourceMerge/Infrastructure/Watching/IInotifyEventReader.cs
-        purpose: Defines canonical one-shot inotify polling contract over watch roots.
-      - symbol: InotifyEventRecord
-        kind: class
-        path: SuwayomiSourceMerge/Infrastructure/Watching/InotifyEventRecord.cs
-        purpose: Stores one parsed inotify output line and normalized event-mask flags.
+        purpose: Defines canonical watcher polling contract over watch roots.
       - symbol: InotifyEventRecord.TryParse
         kind: method
         path: SuwayomiSourceMerge/Infrastructure/Watching/InotifyEventRecord.cs
@@ -1110,14 +1116,18 @@ modules:
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Watching/InotifyPollResult.cs
         purpose: Returns poll outcome, parsed events, and non-fatal polling/parsing warnings.
+      - symbol: InotifyWatchStartupMode
+        kind: enum
+        path: SuwayomiSourceMerge/Infrastructure/Watching/InotifyWatchStartupMode.cs
+        purpose: Defines full versus progressive watcher startup semantics consumed by runtime composition.
       - symbol: InotifywaitEventReader
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs
         purpose: Invokes inotifywait one-shot polls with configurable request-timeout buffer and maps command outcomes (including benign executor timeouts) to typed classifications.
-      - symbol: InotifywaitEventReader.Poll
-        kind: method
-        path: SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs
-        purpose: Executes one inotify poll request with shell-parity event set and parses returned lines.
+      - symbol: PersistentInotifywaitEventReader
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.cs
+        purpose: Runs long-lived inotifywait monitor sessions and batches queued events with progressive deep-watch startup support.
     extension_points:
       - how: Add event-token classification by extending event-mask parsing in record parser.
         symbols: [InotifyEventMask, InotifyEventRecord.TryParse]
@@ -1125,16 +1135,21 @@ modules:
       - how: Adjust inotify command arguments, timeout policy, and output parsing in the concrete reader.
         symbols: [InotifywaitEventReader, InotifywaitEventReader.Poll]
         paths: [SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs]
+      - how: Extend persistent monitor behavior (progressive deep-root discovery, restart backoff, and session batching) in the persistent reader partials.
+        symbols: [PersistentInotifywaitEventReader]
+        paths: [SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.cs, SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Paths.cs, SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Progressive.cs, SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Session.cs]
       - how: Swap watcher backends in tests or alternate hosts by implementing IInotifyEventReader.
-        symbols: [IInotifyEventReader, InotifywaitEventReader]
-        paths: [SuwayomiSourceMerge/Infrastructure/Watching/IInotifyEventReader.cs, SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs]
+        symbols: [IInotifyEventReader, InotifywaitEventReader, PersistentInotifywaitEventReader]
+        paths: [SuwayomiSourceMerge/Infrastructure/Watching/IInotifyEventReader.cs, SuwayomiSourceMerge/Infrastructure/Watching/IPersistentInotifyMonitorSession.cs, SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs, SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.cs]
       - how: Wire poll consumers to typed outcome/warning contracts rather than re-parsing raw command output.
-        symbols: [InotifyPollResult, InotifywaitEventReader.Poll]
-        paths: [SuwayomiSourceMerge/Infrastructure/Watching/InotifyPollResult.cs, SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs]
+        symbols: [InotifyPollResult, IInotifyEventReader]
+        paths: [SuwayomiSourceMerge/Infrastructure/Watching/IInotifyEventReader.cs, SuwayomiSourceMerge/Infrastructure/Watching/InotifyPollResult.cs]
     do_not_reimplement:
       - Canonical %w%f|%e line parsing and unknown-token detection; use InotifyEventRecord.TryParse.
       - Canonical inotify event token flag model; use InotifyEventMask.
       - Canonical one-shot inotify command invocation and timeout classification; use InotifywaitEventReader.Poll.
+      - Canonical persistent inotify monitor session orchestration with progressive deep-watch startup and bounded restart backoff; use PersistentInotifywaitEventReader.
+      - Canonical watcher startup mode contract (`full` and `progressive`); use InotifyWatchStartupMode.
       - Canonical typed poll outcome and warning contract; use InotifyPollResult.
     related: [application-watching, infrastructure-processes, runtime-host, unit-test-suite]
   - id: integration-test-suite
@@ -1184,7 +1199,7 @@ modules:
     extension_points:
       - how: Add new end-to-end runtime scenarios by extending container test cases in ContainerRuntimeEndToEndTests.
         symbols: [ContainerRuntimeEndToEndTests]
-        paths: [tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointLogPath.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs]
+        paths: [tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointFuseDevice.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointLogPath.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs]
       - how: Expand Docker CLI orchestration coverage by adding helpers to DockerCommandRunner and DockerCommandResult.
         symbols: [DockerCommandResult, DockerCommandRunner]
         paths: [tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerCommandResult.cs, tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerCommandRunner.cs]
@@ -1196,7 +1211,8 @@ modules:
         paths: [tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerAssertions.cs]
     do_not_reimplement:
       - Canonical container test workspace and mock-tool filesystem layout; use ContainerFixtureWorkspace.
-      - Canonical stale-merged chown startup-regression harness using argv-aware mock argument matching; use ContainerRuntimeEndToEndTests.
+      - Canonical stale-merged ownership startup-regression harness (recursive-avoidance plus warning-only child-repair failures) using argv-aware mock argument matching; use ContainerRuntimeEndToEndTests.
+      - Canonical entrypoint non-root FUSE-device-access fail-fast harness; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
       - Canonical deterministic wait-loop assertions for integration checks; use DockerAssertions.
       - Canonical Docker CLI command execution and diagnostics wrapper; use DockerCommandRunner.
       - Canonical Docker integration image build, daemon preflight, and teardown image cleanup fixture setup; use DockerIntegrationFixture.

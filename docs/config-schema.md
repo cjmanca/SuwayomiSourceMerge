@@ -30,6 +30,7 @@ scan:
   merge_min_seconds_between_scans: 15
   merge_lock_retry_seconds: 30
   merge_trigger_request_timeout_buffer_seconds: 300
+  watch_startup_mode: progressive
 rename:
   rename_delay_seconds: 300
   rename_quiet_seconds: 120
@@ -91,6 +92,8 @@ logging:
   - Must be `> 0`: all other numeric fields except those with explicit bounded ranges
   - Must be in range `1..3`: `shutdown.cleanup_priority_ionice_class`
   - Must be in range `-20..19`: `shutdown.cleanup_priority_nice_value`
+- `scan.watch_startup_mode` allowed values: `full`, `progressive` (default: `progressive`)
+- `scan.merge_trigger_request_timeout_buffer_seconds` is accepted for backward compatibility but deprecated for runtime use; the persistent inotify monitor path ignores this value and emits a startup warning.
 - `shutdown.cleanup_high_priority` controls startup/shutdown cleanup wrapper execution.
 - `shutdown.cleanup_apply_high_priority` controls reconciliation apply-path wrapper execution.
 - Runtime bootstrap/settings parse (`ConfigurationSchemaService.ParseSettingsForRuntime`) uses strict validation for shutdown cleanup profile fields (`cleanup_apply_high_priority`, `cleanup_priority_ionice_class`, `cleanup_priority_nice_value`).
