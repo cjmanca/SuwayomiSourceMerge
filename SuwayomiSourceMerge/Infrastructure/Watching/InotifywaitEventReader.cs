@@ -12,27 +12,27 @@ internal sealed class InotifywaitEventReader : IInotifyEventReader
 	/// <summary>
 	/// Poll interval passed to the process executor.
 	/// </summary>
-	private static readonly TimeSpan EXECUTOR_POLL_INTERVAL = TimeSpan.FromMilliseconds(100);
+	private static readonly TimeSpan _executorPollInterval = TimeSpan.FromMilliseconds(100);
 
 	/// <summary>
 	/// Additional timeout budget applied above inotify timeout.
 	/// </summary>
-	private static readonly TimeSpan REQUEST_TIMEOUT_BUFFER = TimeSpan.FromSeconds(2);
+	private static readonly TimeSpan _requestTimeoutBuffer = TimeSpan.FromSeconds(2);
 
 	/// <summary>
 	/// Maximum captured output characters per stream for one poll.
 	/// </summary>
-	private const int MAX_OUTPUT_CHARACTERS = 1_048_576;
+	private const int MaxOutputCharacters = 1_048_576;
 
 	/// <summary>
 	/// Exit code returned by inotifywait when no events occurred before timeout.
 	/// </summary>
-	private const int INOTIFY_TIMEOUT_EXIT_CODE = 2;
+	private const int InotifyTimeoutExitCode = 2;
 
 	/// <summary>
 	/// Event names passed to inotifywait.
 	/// </summary>
-	private static readonly string[] WATCH_EVENTS =
+	private static readonly string[] _watchEvents =
 	[
 		"create",
 		"moved_to",
@@ -139,10 +139,10 @@ internal sealed class InotifywaitEventReader : IInotifyEventReader
 			timeoutSeconds.ToString(CultureInfo.InvariantCulture)
 		};
 
-		for (int index = 0; index < WATCH_EVENTS.Length; index++)
+		for (int index = 0; index < _watchEvents.Length; index++)
 		{
 			arguments.Add("-e");
-			arguments.Add(WATCH_EVENTS[index]);
+			arguments.Add(_watchEvents[index]);
 		}
 
 		arguments.Add("--format");
@@ -153,9 +153,9 @@ internal sealed class InotifywaitEventReader : IInotifyEventReader
 		{
 			FileName = "inotifywait",
 			Arguments = arguments,
-			Timeout = timeout + REQUEST_TIMEOUT_BUFFER,
-			PollInterval = EXECUTOR_POLL_INTERVAL,
-			MaxOutputCharacters = MAX_OUTPUT_CHARACTERS
+			Timeout = timeout + _requestTimeoutBuffer,
+			PollInterval = _executorPollInterval,
+			MaxOutputCharacters = MaxOutputCharacters
 		};
 	}
 
@@ -176,7 +176,7 @@ internal sealed class InotifywaitEventReader : IInotifyEventReader
 		}
 
 		if (commandResult.Outcome == ExternalCommandOutcome.NonZeroExit &&
-			commandResult.ExitCode == INOTIFY_TIMEOUT_EXIT_CODE &&
+			commandResult.ExitCode == InotifyTimeoutExitCode &&
 			events.Count == 0)
 		{
 			return new InotifyPollResult(InotifyPollOutcome.TimedOut, events, warnings);

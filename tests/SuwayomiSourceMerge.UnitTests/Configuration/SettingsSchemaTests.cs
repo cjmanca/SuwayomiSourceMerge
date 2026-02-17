@@ -52,6 +52,9 @@ public sealed class SettingsSchemaTests
               unmount_command_timeout_seconds: 8
               unmount_detach_wait_seconds: 5
               cleanup_high_priority: true
+              cleanup_apply_high_priority: false
+              cleanup_priority_ionice_class: 3
+              cleanup_priority_nice_value: -20
             permissions:
               inherit_from_parent: true
               enforce_existing: false
@@ -121,6 +124,9 @@ public sealed class SettingsSchemaTests
               unmount_command_timeout_seconds: 8
               unmount_detach_wait_seconds: 5
               cleanup_high_priority: true
+              cleanup_apply_high_priority: false
+              cleanup_priority_ionice_class: 3
+              cleanup_priority_nice_value: -20
             permissions:
               inherit_from_parent: true
               enforce_existing: false
@@ -189,6 +195,9 @@ public sealed class SettingsSchemaTests
               unmount_command_timeout_seconds: 8
               unmount_detach_wait_seconds: 5
               cleanup_high_priority: true
+              cleanup_apply_high_priority: false
+              cleanup_priority_ionice_class: 3
+              cleanup_priority_nice_value: -20
             permissions:
               inherit_from_parent: true
               enforce_existing: false
@@ -259,6 +268,9 @@ public sealed class SettingsSchemaTests
               unmount_command_timeout_seconds: 8
               unmount_detach_wait_seconds: 5
               cleanup_high_priority: true
+              cleanup_apply_high_priority: false
+              cleanup_priority_ionice_class: 3
+              cleanup_priority_nice_value: -20
             permissions:
               inherit_from_parent: true
               enforce_existing: false
@@ -329,6 +341,9 @@ public sealed class SettingsSchemaTests
               unmount_command_timeout_seconds: 8
               unmount_detach_wait_seconds: 5
               cleanup_high_priority: true
+              cleanup_apply_high_priority: false
+              cleanup_priority_ionice_class: 3
+              cleanup_priority_nice_value: -20
             permissions:
               inherit_from_parent: true
               enforce_existing: false
@@ -399,6 +414,9 @@ public sealed class SettingsSchemaTests
               unmount_command_timeout_seconds: 8
               unmount_detach_wait_seconds: 5
               cleanup_high_priority: true
+              cleanup_apply_high_priority: false
+              cleanup_priority_ionice_class: 3
+              cleanup_priority_nice_value: -20
             permissions:
               inherit_from_parent: true
               enforce_existing: false
@@ -464,6 +482,9 @@ public sealed class SettingsSchemaTests
               unmount_command_timeout_seconds: 8
               unmount_detach_wait_seconds: 5
               cleanup_high_priority: true
+              cleanup_apply_high_priority: false
+              cleanup_priority_ionice_class: 3
+              cleanup_priority_nice_value: -20
             permissions:
               inherit_from_parent: true
               enforce_existing: false
@@ -534,6 +555,9 @@ public sealed class SettingsSchemaTests
               unmount_command_timeout_seconds: 8
               unmount_detach_wait_seconds: 5
               cleanup_high_priority: true
+              cleanup_apply_high_priority: false
+              cleanup_priority_ionice_class: 3
+              cleanup_priority_nice_value: -20
             permissions:
               inherit_from_parent: true
               enforce_existing: false

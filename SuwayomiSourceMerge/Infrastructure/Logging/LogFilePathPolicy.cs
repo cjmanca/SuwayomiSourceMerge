@@ -18,7 +18,7 @@ internal static class LogFilePathPolicy
 	/// These include Windows-invalid file-name characters and are intentionally applied on all platforms
 	/// for deterministic validation behavior.
 	/// </remarks>
-	private static readonly HashSet<char> InvalidFileNameCharacters =
+	private static readonly HashSet<char> _invalidFileNameCharacters =
 	[
 		'<',
 		'>',
@@ -34,7 +34,7 @@ internal static class LogFilePathPolicy
 	/// <summary>
 	/// Reserved Windows device names that cannot be used as file names.
 	/// </summary>
-	private static readonly HashSet<string> ReservedWindowsDeviceNames = new(StringComparer.OrdinalIgnoreCase)
+	private static readonly HashSet<string> _reservedWindowsDeviceNames = new(StringComparer.OrdinalIgnoreCase)
 	{
 		"CON",
 		"PRN",
@@ -178,7 +178,7 @@ internal static class LogFilePathPolicy
 				return true;
 			}
 
-			if (InvalidFileNameCharacters.Contains(character))
+			if (_invalidFileNameCharacters.Contains(character))
 			{
 				return true;
 			}
@@ -197,7 +197,7 @@ internal static class LogFilePathPolicy
 	private static bool IsReservedWindowsDeviceName(string value)
 	{
 		string baseName = Path.GetFileNameWithoutExtension(value);
-		return ReservedWindowsDeviceNames.Contains(baseName);
+		return _reservedWindowsDeviceNames.Contains(baseName);
 	}
 
 	/// <summary>

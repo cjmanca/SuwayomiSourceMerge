@@ -10,25 +10,25 @@ namespace SuwayomiSourceMerge.Application.Supervision;
 internal sealed class DaemonSupervisor : IDaemonSupervisor
 {
 	/// <summary>Event id emitted when supervisor startup completes.</summary>
-	private const string SUPERVISOR_STARTED_EVENT = "supervisor.started";
+	private const string SupervisorStartedEvent = "supervisor.started";
 
 	/// <summary>Event id emitted when supervisor stop is requested.</summary>
-	private const string SUPERVISOR_STOP_REQUESTED_EVENT = "supervisor.stop_requested";
+	private const string SupervisorStopRequestedEvent = "supervisor.stop_requested";
 
 	/// <summary>Event id emitted when supervisor stop cleanup completes.</summary>
-	private const string SUPERVISOR_STOPPED_EVENT = "supervisor.stopped";
+	private const string SupervisorStoppedEvent = "supervisor.stopped";
 
 	/// <summary>Event id emitted when worker exits unexpectedly without a stop request.</summary>
-	private const string SUPERVISOR_WORKER_EXITED_EVENT = "supervisor.worker_exited";
+	private const string SupervisorWorkerExitedEvent = "supervisor.worker_exited";
 
 	/// <summary>Event id emitted when worker exits with an unhandled exception.</summary>
-	private const string SUPERVISOR_WORKER_FAULT_EVENT = "supervisor.worker_fault";
+	private const string SupervisorWorkerFaultEvent = "supervisor.worker_fault";
 
 	/// <summary>Event id emitted when startup fails before run-loop execution begins.</summary>
-	private const string SUPERVISOR_STARTUP_FAILURE_EVENT = "supervisor.startup_failure";
+	private const string SupervisorStartupFailureEvent = "supervisor.startup_failure";
 
 	/// <summary>Event id emitted when graceful stop timeout expires.</summary>
-	private const string SUPERVISOR_STOP_TIMEOUT_EVENT = "supervisor.stop_timeout";
+	private const string SupervisorStopTimeoutEvent = "supervisor.stop_timeout";
 
 	/// <summary>
 	/// Synchronization gate for start/stop state transitions.
@@ -56,6 +56,11 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 	private readonly ISupervisorSignalRegistrar _signalRegistrar;
 
 	/// <summary>
+	/// Process-termination callback used when stop timeout indicates unrecoverable runtime state.
+	/// </summary>
+	private readonly Action<string, Exception?> _terminateProcess;
+
+	/// <summary>
 	/// Active lock handle while running.
 	/// </summary>
 	private SupervisorFileLock? _lockHandle;
@@ -64,6 +69,11 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 	/// Active worker cancellation source while running.
 	/// </summary>
 	private CancellationTokenSource? _workerCancellationSource;
+
+	/// <summary>
+	/// Active worker shutdown cancellation source while running.
+	/// </summary>
+	private CancellationTokenSource? _workerShutdownCancellationSource;
 
 	/// <summary>
 	/// Active worker task while running.
@@ -102,16 +112,22 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 	/// <param name="options">Supervisor options.</param>
 	/// <param name="logger">Logger dependency.</param>
 	/// <param name="signalRegistrar">Signal registrar dependency.</param>
+	/// <param name="terminateProcess">
+	/// Optional process-termination callback used when stop timeout elapses.
+	/// Defaults to <see cref="Environment.FailFast(string, Exception?)"/>.
+	/// </param>
 	public DaemonSupervisor(
 		IDaemonWorker worker,
 		DaemonSupervisorOptions options,
 		ISsmLogger logger,
-		ISupervisorSignalRegistrar signalRegistrar)
+		ISupervisorSignalRegistrar signalRegistrar,
+		Action<string, Exception?>? terminateProcess = null)
 	{
 		_worker = worker ?? throw new ArgumentNullException(nameof(worker));
 		_options = options ?? throw new ArgumentNullException(nameof(options));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 		_signalRegistrar = signalRegistrar ?? throw new ArgumentNullException(nameof(signalRegistrar));
+		_terminateProcess = terminateProcess ?? DefaultTerminateProcess;
 	}
 
 	/// <inheritdoc />
@@ -188,7 +204,7 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 			}
 
 			_stopRequested = true;
-			_logger.Debug(SUPERVISOR_STOP_REQUESTED_EVENT, "Daemon supervisor stop requested.");
+			_logger.Debug(SupervisorStopRequestedEvent, "Daemon supervisor stop requested.");
 			_stopTask = StopCoreAsync();
 			return _stopTask;
 		}
@@ -211,7 +227,7 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 			catch (Exception exception)
 			{
 				_logger.Error(
-					SUPERVISOR_STARTUP_FAILURE_EVENT,
+					SupervisorStartupFailureEvent,
 					"Daemon supervisor startup failed.",
 					BuildContext(
 						("exception_type", exception.GetType().FullName ?? exception.GetType().Name),
@@ -257,7 +273,7 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 				if (exitCode != 0)
 				{
 					_logger.Error(
-						SUPERVISOR_WORKER_EXITED_EVENT,
+						SupervisorWorkerExitedEvent,
 						"Daemon worker exited without a stop request.");
 				}
 			}
@@ -269,7 +285,7 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 		catch (Exception exception)
 		{
 			_logger.Error(
-				SUPERVISOR_WORKER_FAULT_EVENT,
+				SupervisorWorkerFaultEvent,
 				"Daemon worker exited with an unhandled exception.",
 				BuildContext(
 					("exception_type", exception.GetType().FullName ?? exception.GetType().Name),
@@ -291,15 +307,18 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 	private async Task StopCoreAsync()
 	{
 		CancellationTokenSource? workerCancellationSource;
+		CancellationTokenSource? workerShutdownCancellationSource;
 		Task? workerTask;
 		bool stopTimedOut = false;
 
 		lock (_syncRoot)
 		{
 			workerCancellationSource = _workerCancellationSource;
+			workerShutdownCancellationSource = _workerShutdownCancellationSource;
 			workerTask = _workerTask;
 		}
 
+		workerShutdownCancellationSource?.CancelAfter(_options.StopTimeout);
 		workerCancellationSource?.Cancel();
 
 		try
@@ -308,28 +327,20 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 			{
 				Task timeoutTask = Task.Delay(_options.StopTimeout);
 				Task completedTask = await Task.WhenAny(workerTask, timeoutTask).ConfigureAwait(false);
-				if (!ReferenceEquals(completedTask, workerTask))
+				if (ShouldTreatStopAsTimedOut(workerTask, completedTask))
 				{
 					stopTimedOut = true;
+					workerShutdownCancellationSource?.Cancel();
+					const string timeoutMessage = "Daemon worker did not stop before timeout elapsed.";
 					_logger.Error(
-						SUPERVISOR_STOP_TIMEOUT_EVENT,
-						"Daemon worker did not stop before timeout elapsed.",
+						SupervisorStopTimeoutEvent,
+						timeoutMessage,
 						BuildContext(("timeout_seconds", _options.StopTimeout.TotalSeconds.ToString(CultureInfo.InvariantCulture))));
+					_terminateProcess(timeoutMessage, null);
 				}
 				else
 				{
-					try
-					{
-						await workerTask.ConfigureAwait(false);
-					}
-					catch (OperationCanceledException)
-					{
-						// Expected on cooperative stop.
-					}
-					catch
-					{
-						// Worker faults are handled by RunAsync and do not block cleanup.
-					}
+					await ObserveWorkerCompletionDuringStop(workerTask).ConfigureAwait(false);
 				}
 			}
 		}
@@ -343,6 +354,8 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 				_lockHandle = null;
 				_workerCancellationSource?.Dispose();
 				_workerCancellationSource = null;
+				_workerShutdownCancellationSource?.Dispose();
+				_workerShutdownCancellationSource = null;
 				_workerTask = null;
 				_stopTask = null;
 				stopCompletionSource = _stopCompletionSource;
@@ -352,9 +365,56 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 
 			stopCompletionSource?.TrySetResult(stopTimedOut);
 			_logger.Debug(
-				SUPERVISOR_STOPPED_EVENT,
+				SupervisorStoppedEvent,
 				"Daemon supervisor stopped.",
 				BuildContext(("state_root", _options.StatePaths.StateRootPath)));
+		}
+	}
+
+	/// <summary>
+	/// Returns whether stop should be treated as timed out after a worker/timeout race.
+	/// </summary>
+	/// <param name="workerTask">Active worker task.</param>
+	/// <param name="completedTask">Task returned by <see cref="Task.WhenAny(Task[])"/>.</param>
+	/// <returns>
+	/// <see langword="true"/> when timeout handling should continue because the worker is still incomplete;
+	/// otherwise <see langword="false"/>.
+	/// </returns>
+	internal static bool ShouldTreatStopAsTimedOut(Task workerTask, Task completedTask)
+	{
+		ArgumentNullException.ThrowIfNull(workerTask);
+		ArgumentNullException.ThrowIfNull(completedTask);
+
+		if (ReferenceEquals(completedTask, workerTask))
+		{
+			return false;
+		}
+
+		// Boundary race guard: if both timeout and worker complete at the same instant,
+		// Task.WhenAny may return either task. Treat completed worker as non-timeout.
+		return !workerTask.IsCompleted;
+	}
+
+	/// <summary>
+	/// Awaits worker completion during stop and swallows cooperative/faulted outcomes.
+	/// </summary>
+	/// <param name="workerTask">Worker task to observe.</param>
+	/// <returns>A completion task.</returns>
+	private static async Task ObserveWorkerCompletionDuringStop(Task workerTask)
+	{
+		ArgumentNullException.ThrowIfNull(workerTask);
+
+		try
+		{
+			await workerTask.ConfigureAwait(false);
+		}
+		catch (OperationCanceledException)
+		{
+			// Expected on cooperative stop.
+		}
+		catch
+		{
+			// Worker faults are handled by RunAsync and do not block cleanup.
 		}
 	}
 
@@ -365,6 +425,7 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 	{
 		SupervisorFileLock? acquiredLock = null;
 		CancellationTokenSource? workerCancellationSource = null;
+		CancellationTokenSource? workerShutdownCancellationSource = null;
 		Task? workerTask = null;
 
 		try
@@ -372,7 +433,8 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 			Directory.CreateDirectory(_options.StatePaths.StateRootPath);
 			acquiredLock = SupervisorFileLock.Acquire(_options.StatePaths.SupervisorLockFilePath);
 			workerCancellationSource = new CancellationTokenSource();
-			workerTask = _worker.RunAsync(workerCancellationSource.Token);
+			workerShutdownCancellationSource = new CancellationTokenSource();
+			workerTask = _worker.RunAsync(workerCancellationSource.Token, workerShutdownCancellationSource.Token);
 			File.WriteAllText(
 				_options.StatePaths.DaemonPidFilePath,
 				Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
@@ -381,6 +443,8 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 		{
 			workerCancellationSource?.Cancel();
 			workerCancellationSource?.Dispose();
+			workerShutdownCancellationSource?.Cancel();
+			workerShutdownCancellationSource?.Dispose();
 			acquiredLock?.Dispose();
 			TryDeleteFile(_options.StatePaths.DaemonPidFilePath);
 			throw;
@@ -392,6 +456,8 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 			{
 				workerCancellationSource.Cancel();
 				workerCancellationSource.Dispose();
+				workerShutdownCancellationSource?.Cancel();
+				workerShutdownCancellationSource?.Dispose();
 				acquiredLock.Dispose();
 				TryDeleteFile(_options.StatePaths.DaemonPidFilePath);
 				return;
@@ -399,6 +465,7 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 
 			_lockHandle = acquiredLock;
 			_workerCancellationSource = workerCancellationSource;
+			_workerShutdownCancellationSource = workerShutdownCancellationSource;
 			_workerTask = workerTask;
 			_stopTask = null;
 			_stopRequested = false;
@@ -407,7 +474,7 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 		}
 
 		_logger.Debug(
-			SUPERVISOR_STARTED_EVENT,
+			SupervisorStartedEvent,
 			"Daemon supervisor started.",
 			BuildContext(("state_root", _options.StatePaths.StateRootPath)));
 	}
@@ -485,5 +552,15 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 		}
 
 		return context;
+	}
+
+	/// <summary>
+	/// Terminates the current process immediately.
+	/// </summary>
+	/// <param name="message">Failure message.</param>
+	/// <param name="exception">Optional exception context.</param>
+	private static void DefaultTerminateProcess(string message, Exception? exception)
+	{
+		Environment.FailFast(message, exception);
 	}
 }

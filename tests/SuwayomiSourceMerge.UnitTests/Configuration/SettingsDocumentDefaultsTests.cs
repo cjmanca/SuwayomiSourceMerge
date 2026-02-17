@@ -15,10 +15,14 @@ public sealed class SettingsDocumentDefaultsTests
 
         Assert.True(validation.IsValid);
         Assert.NotNull(document.Logging);
+        Assert.NotNull(document.Shutdown);
         Assert.Equal("daemon.log", document.Logging!.FileName);
         Assert.Equal(10, document.Logging.MaxFileSizeMb);
         Assert.Equal(10, document.Logging.RetainedFileCount);
         Assert.Equal("warning", document.Logging.Level);
+        Assert.False(document.Shutdown!.CleanupApplyHighPriority);
+        Assert.Equal(3, document.Shutdown!.CleanupPriorityIoniceClass);
+        Assert.Equal(-20, document.Shutdown.CleanupPriorityNiceValue);
     }
 
     [Fact]

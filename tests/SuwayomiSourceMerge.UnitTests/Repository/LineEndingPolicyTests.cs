@@ -11,7 +11,7 @@ public sealed class LineEndingPolicyTests
 	/// <summary>
 	/// Binary extensions excluded from line-ending checks.
 	/// </summary>
-	private static readonly HashSet<string> BinaryExtensions = new(StringComparer.OrdinalIgnoreCase)
+	private static readonly HashSet<string> _binaryExtensions = new(StringComparer.OrdinalIgnoreCase)
 	{
 		".7z",
 		".bmp",
@@ -53,7 +53,7 @@ public sealed class LineEndingPolicyTests
 		foreach (TrackedFileBlob trackedFile in trackedFiles)
 		{
 			string extension = Path.GetExtension(trackedFile.Path);
-			if (BinaryExtensions.Contains(extension))
+			if (_binaryExtensions.Contains(extension))
 			{
 				continue;
 			}

@@ -11,37 +11,37 @@ internal sealed class OverrideDetailsService : IOverrideDetailsService
 	/// <summary>
 	/// details.json file name.
 	/// </summary>
-	private const string DETAILS_JSON_FILE_NAME = "details.json";
+	private const string DetailsJsonFileName = "details.json";
 
 	/// <summary>
 	/// ComicInfo.xml file name.
 	/// </summary>
-	private const string COMIC_INFO_FILE_NAME = "ComicInfo.xml";
+	private const string ComicInfoFileName = "ComicInfo.xml";
 
 	/// <summary>
 	/// Minimum depth used for ComicInfo.xml discovery.
 	/// </summary>
-	private const int MIN_CANDIDATE_DEPTH = 2;
+	private const int MinCandidateDepth = 2;
 
 	/// <summary>
 	/// Typical chapter-layout depth used for fast candidate discovery.
 	/// </summary>
-	private const int FAST_CANDIDATE_DEPTH = 2;
+	private const int FastCandidateDepth = 2;
 
 	/// <summary>
 	/// Maximum fallback depth used for tolerant candidate discovery.
 	/// </summary>
-	private const int SLOW_CANDIDATE_MAX_DEPTH = 6;
+	private const int SlowCandidateMaxDepth = 6;
 
 	/// <summary>
 	/// Maximum number of slow-path candidates collected per source directory.
 	/// </summary>
-	private const int MAX_SLOW_CANDIDATES_PER_SOURCE = 30;
+	private const int MaxSlowCandidatesPerSource = 30;
 
 	/// <summary>
 	/// Placeholder status display values stored for shell-parity details.json output.
 	/// </summary>
-	private static readonly IReadOnlyList<string> STATUS_VALUE_DESCRIPTIONS =
+	private static readonly IReadOnlyList<string> _statusValueDescriptions =
 	[
 		"0 = Unknown",
 		"1 = Ongoing",
@@ -52,7 +52,7 @@ internal sealed class OverrideDetailsService : IOverrideDetailsService
 	/// <summary>
 	/// Regex used to normalize HTML line-break tags to newlines.
 	/// </summary>
-	private static readonly Regex LINE_BREAK_TAG_REGEX = new(
+	private static readonly Regex _lineBreakTagRegex = new(
 		@"<\s*br\s*/?\s*>",
 		RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
@@ -85,7 +85,7 @@ internal sealed class OverrideDetailsService : IOverrideDetailsService
 
 		string preferredDetailsPath = Path.Combine(
 			request.PreferredOverrideDirectoryPath,
-			DETAILS_JSON_FILE_NAME);
+			DetailsJsonFileName);
 
 		if (TryFindExistingOverrideDetailsPath(request, out string? existingDetailsPath))
 		{
@@ -228,7 +228,7 @@ internal sealed class OverrideDetailsService : IOverrideDetailsService
 		HashSet<string> checkedDirectories = new(StringComparer.Ordinal);
 		if (checkedDirectories.Add(request.PreferredOverrideDirectoryPath))
 		{
-			string preferredDetailsPath = Path.Combine(request.PreferredOverrideDirectoryPath, DETAILS_JSON_FILE_NAME);
+			string preferredDetailsPath = Path.Combine(request.PreferredOverrideDirectoryPath, DetailsJsonFileName);
 			if (File.Exists(preferredDetailsPath))
 			{
 				existingDetailsPath = preferredDetailsPath;
@@ -243,7 +243,7 @@ internal sealed class OverrideDetailsService : IOverrideDetailsService
 				continue;
 			}
 
-			string detailsPath = Path.Combine(overrideDirectoryPath, DETAILS_JSON_FILE_NAME);
+			string detailsPath = Path.Combine(overrideDirectoryPath, DetailsJsonFileName);
 			if (File.Exists(detailsPath))
 			{
 				existingDetailsPath = detailsPath;
@@ -274,7 +274,7 @@ internal sealed class OverrideDetailsService : IOverrideDetailsService
 
 		foreach (string sourceDirectoryPath in request.OrderedSourceDirectoryPaths)
 		{
-			string sourceDetailsPath = Path.Combine(sourceDirectoryPath, DETAILS_JSON_FILE_NAME);
+			string sourceDetailsPath = Path.Combine(sourceDirectoryPath, DetailsJsonFileName);
 			if (!File.Exists(sourceDetailsPath))
 			{
 				continue;
@@ -331,8 +331,8 @@ internal sealed class OverrideDetailsService : IOverrideDetailsService
 
 			string? candidatePath = FindLexicographicallySmallestCandidate(
 				sourceDirectoryPath,
-				MIN_CANDIDATE_DEPTH,
-				FAST_CANDIDATE_DEPTH);
+				MinCandidateDepth,
+				FastCandidateDepth);
 			if (candidatePath is null)
 			{
 				continue;
@@ -371,13 +371,13 @@ internal sealed class OverrideDetailsService : IOverrideDetailsService
 			HashSet<string> perSourceCandidates = new(StringComparer.Ordinal);
 			List<string> depthTwoCandidates = EnumerateComicInfoFilesInDepthRange(
 					sourceDirectoryPath,
-					MIN_CANDIDATE_DEPTH,
-					FAST_CANDIDATE_DEPTH)
+					MinCandidateDepth,
+					FastCandidateDepth)
 				.Where(
 					path =>
 						!string.Equals(path, fastPathCandidate, StringComparison.Ordinal)
 						&& perSourceCandidates.Add(path))
-				.Take(MAX_SLOW_CANDIDATES_PER_SOURCE)
+				.Take(MaxSlowCandidatesPerSource)
 				.ToList();
 
 			if (depthTwoCandidates.Count > 0)
@@ -388,13 +388,13 @@ internal sealed class OverrideDetailsService : IOverrideDetailsService
 
 			List<string> depthSixCandidates = EnumerateComicInfoFilesInDepthRange(
 					sourceDirectoryPath,
-					MIN_CANDIDATE_DEPTH,
-					SLOW_CANDIDATE_MAX_DEPTH)
+					MinCandidateDepth,
+					SlowCandidateMaxDepth)
 				.Where(
 					path =>
 						!string.Equals(path, fastPathCandidate, StringComparison.Ordinal)
 						&& perSourceCandidates.Add(path))
-				.Take(MAX_SLOW_CANDIDATES_PER_SOURCE)
+				.Take(MaxSlowCandidatesPerSource)
 				.ToList();
 
 			candidates.AddRange(depthSixCandidates);
@@ -461,7 +461,7 @@ internal sealed class OverrideDetailsService : IOverrideDetailsService
 			int fileDepth = currentDepth + 1;
 			if (fileDepth >= minimumDepth && fileDepth <= maximumDepth)
 			{
-				string candidatePath = Path.Combine(currentDirectoryPath, COMIC_INFO_FILE_NAME);
+				string candidatePath = Path.Combine(currentDirectoryPath, ComicInfoFileName);
 				if (File.Exists(candidatePath))
 				{
 					yield return candidatePath;
@@ -595,7 +595,7 @@ internal sealed class OverrideDetailsService : IOverrideDetailsService
 				writer.WriteString("status", MapStatusCode(metadata.Status));
 
 				writer.WriteStartArray("_status values");
-				foreach (string statusDisplayValue in STATUS_VALUE_DESCRIPTIONS)
+				foreach (string statusDisplayValue in _statusValueDescriptions)
 				{
 					writer.WriteStringValue(statusDisplayValue);
 				}
@@ -657,7 +657,7 @@ internal sealed class OverrideDetailsService : IOverrideDetailsService
 		string normalized = summary
 			.Replace("\r\n", "\n", StringComparison.Ordinal)
 			.Replace("\r", "\n", StringComparison.Ordinal);
-		normalized = LINE_BREAK_TAG_REGEX.Replace(normalized, "\n");
+		normalized = _lineBreakTagRegex.Replace(normalized, "\n");
 
 		return descriptionMode is "br" or "html"
 			? normalized.Replace("\n", "<br />\n", StringComparison.Ordinal)

@@ -8,44 +8,34 @@ namespace SuwayomiSourceMerge.Infrastructure.Mounts;
 internal sealed class FindmntMountSnapshotService : IMountSnapshotService
 {
 	/// <summary>
-	/// Warning code emitted when <c>findmnt</c> command execution fails.
-	/// </summary>
-	private const string COMMAND_FAILURE_WARNING_CODE = "MOUNT-SNAP-001";
-
-	/// <summary>
-	/// Warning code emitted when a <c>findmnt -P</c> line cannot be parsed safely.
-	/// </summary>
-	private const string PARSE_WARNING_CODE = "MOUNT-SNAP-002";
-
-	/// <summary>
 	/// Command name used to capture mount state.
 	/// </summary>
-	private const string FINDMNT_COMMAND = "findmnt";
+	private const string FindmntCommand = "findmnt";
 
 	/// <summary>
 	/// Maximum warning diagnostic text length.
 	/// </summary>
-	private const int MAX_WARNING_TEXT_LENGTH = 256;
+	private const int MaxWarningTextLength = 256;
 
 	/// <summary>
 	/// Shared command argument list used for snapshot capture.
 	/// </summary>
-	private static readonly IReadOnlyList<string> FINDMNT_ARGUMENTS = ["-n", "-P", "-o", "TARGET,FSTYPE,SOURCE,OPTIONS"];
+	private static readonly IReadOnlyList<string> _findmntArguments = ["-n", "-P", "-o", "TARGET,FSTYPE,SOURCE,OPTIONS"];
 
 	/// <summary>
 	/// Default command timeout used for snapshot capture.
 	/// </summary>
-	private static readonly TimeSpan DEFAULT_TIMEOUT = TimeSpan.FromSeconds(5);
+	private static readonly TimeSpan _defaultTimeout = TimeSpan.FromSeconds(5);
 
 	/// <summary>
 	/// Default command polling interval used for snapshot capture.
 	/// </summary>
-	private static readonly TimeSpan DEFAULT_POLL_INTERVAL = TimeSpan.FromMilliseconds(100);
+	private static readonly TimeSpan _defaultPollInterval = TimeSpan.FromMilliseconds(100);
 
 	/// <summary>
 	/// Default output capture size limit used for snapshot capture.
 	/// </summary>
-	private const int DEFAULT_MAX_OUTPUT_CHARACTERS = 65536;
+	private const int DefaultMaxOutputCharacters = 65536;
 
 	/// <summary>
 	/// Command executor used to run <c>findmnt</c>.
@@ -73,9 +63,9 @@ internal sealed class FindmntMountSnapshotService : IMountSnapshotService
 	public FindmntMountSnapshotService()
 		: this(
 			new ExternalCommandExecutor(),
-			DEFAULT_TIMEOUT,
-			DEFAULT_POLL_INTERVAL,
-			DEFAULT_MAX_OUTPUT_CHARACTERS)
+			_defaultTimeout,
+			_defaultPollInterval,
+			DefaultMaxOutputCharacters)
 	{
 	}
 
@@ -125,8 +115,8 @@ internal sealed class FindmntMountSnapshotService : IMountSnapshotService
 		ExternalCommandResult commandResult = _commandExecutor.Execute(
 			new ExternalCommandRequest
 			{
-				FileName = FINDMNT_COMMAND,
-				Arguments = FINDMNT_ARGUMENTS,
+				FileName = FindmntCommand,
+				Arguments = _findmntArguments,
 				Timeout = _timeout,
 				PollInterval = _pollInterval,
 				MaxOutputCharacters = _maxOutputCharacters
@@ -160,8 +150,8 @@ internal sealed class FindmntMountSnapshotService : IMountSnapshotService
 			}
 
 			warnings.Add(
-				new MountSnapshotWarning(
-					PARSE_WARNING_CODE,
+				MountSnapshotWarningPolicy.Create(
+					MountSnapshotWarningCodes.ParseFailure,
 					$"Skipped malformed findmnt output line {lineIndex + 1}: {warningMessage}."));
 		}
 
@@ -184,7 +174,7 @@ internal sealed class FindmntMountSnapshotService : IMountSnapshotService
 		string stderrDiagnostic = BuildTrimmedDiagnostic(commandResult.StandardError);
 		string message =
 			$"findmnt snapshot capture failed: outcome={commandResult.Outcome} failure_kind={commandResult.FailureKind} exit_code={commandResult.ExitCode?.ToString() ?? "<none>"} stderr={stderrDiagnostic}";
-		return new MountSnapshotWarning(COMMAND_FAILURE_WARNING_CODE, message);
+		return MountSnapshotWarningPolicy.Create(MountSnapshotWarningCodes.CommandFailure, message);
 	}
 
 	/// <summary>
@@ -200,11 +190,11 @@ internal sealed class FindmntMountSnapshotService : IMountSnapshotService
 			.Replace('\r', ' ')
 			.Replace('\n', ' ')
 			.Trim();
-		if (singleLine.Length <= MAX_WARNING_TEXT_LENGTH)
+		if (singleLine.Length <= MaxWarningTextLength)
 		{
 			return singleLine;
 		}
 
-		return $"{singleLine[..MAX_WARNING_TEXT_LENGTH]}...";
+		return $"{singleLine[..MaxWarningTextLength]}...";
 	}
 }

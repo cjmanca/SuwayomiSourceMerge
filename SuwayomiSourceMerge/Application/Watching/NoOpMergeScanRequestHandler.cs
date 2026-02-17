@@ -8,7 +8,7 @@ namespace SuwayomiSourceMerge.Application.Watching;
 internal sealed class NoOpMergeScanRequestHandler : IMergeScanRequestHandler
 {
 	/// <summary>Event id emitted for no-op merge dispatch requests.</summary>
-	private const string MERGE_DEFERRED_EVENT = "merge.dispatch.deferred";
+	private const string MergeDeferredEvent = "merge.dispatch.deferred";
 
 	/// <summary>
 	/// Logger dependency.
@@ -34,7 +34,7 @@ internal sealed class NoOpMergeScanRequestHandler : IMergeScanRequestHandler
 		cancellationToken.ThrowIfCancellationRequested();
 
 		_logger.Debug(
-			MERGE_DEFERRED_EVENT,
+			MergeDeferredEvent,
 			"Merge dispatch is currently deferred by no-op handler.",
 			BuildContext(
 				("reason", reason),

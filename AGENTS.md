@@ -6,8 +6,9 @@ You are a senior .NET developer and designer skilled in writing reliable, testab
 ## Universal Facts
 - Read this file first, then check `README.md`, `TASKS.md` and `AGENT_INDEX.yml` before starting any work.
 - You consider at least three implementation options before you change code and you choose the best one.
-- This application relies on .NET 9.0 and can be built using `dotnet build -p:EnableAutoFormat=true`.
-- Unit tests can be run via dotnet test and it's important to run all tests in the solution in this way before considering any change complete.
+- Prefer mcp tools over direct shell commands where possible
+- You should use #build_solution when you need to build the project or solution.
+- Unit tests can be run via #runTests and it's important to run all tests in the solution in this way before considering any change complete. If #runTests returns 0/0 tests, it means the build failed. Use #build_solution to confirm build errors.
 - When adding new features, design them in a testable way, and create unit tests to accompany them.
 - Treat warnings as errors and solve them as you would an error.
 - If a task is not listed in `TASKS.md`, add it with a brief description and today's date.
@@ -37,8 +38,8 @@ You are a senior .NET developer and designer skilled in writing reliable, testab
 - No magic numbers or strings
 - XMLDOC documentation for all identifiers (types, members, methods, properties, interfaces, etc)
 - Allman braces
-- `_privateMember` naming
-- `ALL_CAPS` constants
+- `_privateMember` naming for private member fields
+- PascalCase static constants
 - Keep files under 500 lines. Refactor before you cross the limit.
 - Organize code into clearly separated classes, structs, and interfaces grouped by feature and responsibility.
 
@@ -96,6 +97,62 @@ SuwayomiSourceMerge (this project) uses MergerFS to combine all those separate s
 - Log output should prioritize clarity and relevance, with logs written to the config directory.
 - For containerized inputs, all mapped directories directly under `/ssm/sources` are treated as source volumes, and all mapped directories directly under `/ssm/override` are treated as override volumes.
 - If a title doesn't match anything in `manga_equivalents.yml`, check if it matches something in overrides, and if so - use the existing exact spelling of the override entry.
+
+
+## Workflow Orchestration
+
+### 1. Plan Mode Default
+- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions) which hasn't already been planned out
+- If something goes sideways, STOP and re-plan immediately — don't keep pushing
+- Use plan mode for verification steps, not just building
+- Write detailed specs upfront to reduce ambiguity
+- If any clarifications are needed from the user, enter plan mode before asking questions
+- If you're in planning mode and need to switch to agent mode, stop and ask the user
+
+### 2. Subagent Strategy
+- Use subagents liberally to keep main context window clean
+- Offload research, exploration, and parallel analysis to subagents
+- For complex problems, throw more compute at it via subagents
+- One task per subagent for focused execution
+
+### 3. Self-Improvement Loop
+- After ANY correction from the user: update `lessons.md` with the pattern
+- Write rules for yourself that prevent the same mistake
+- Ruthlessly iterate on these lessons until mistake rate drops
+- Review lessons at session start for relevant project
+
+### 4. Verification Before Done
+- Never mark a task complete without proving it works
+- Diff behavior between main and your changes when relevant
+- Ask yourself: "Would a staff engineer approve this?"
+- Run tests, check logs, demonstrate correctness
+
+### 5. Demand Elegance (Balanced)
+- For non-trivial changes: pause and ask "is there a more elegant way?"
+- If a fix feels hacky: "Knowing everything I know now, implement the elegant solution"
+- Skip this for simple, obvious fixes — don't over-engineer
+- Challenge your own work before presenting it
+
+### 6. Autonomous Bug Fixing
+- When given a bug report: just fix it. Don't ask for hand-holding
+- Point at logs, errors, failing tests — then resolve them
+- Zero context switching required from the user
+- Go fix failing CI tests without being told how
+
+## Task Management
+1. **Plan First**: Write plan to `todo.md` with checkable items
+2. **Verify Plan**: Check in before starting implementation
+3. **Track Progress**: Mark items complete as you go
+4. **Explain Changes**: High-level summary at each step
+5. **Document Results**: Add review section to `todo.md`
+6. **Capture Lessons**: Update `lessons.md` after corrections
+
+## Core Principles
+- **Simplicity First**: Make every change as simple as possible. Impact minimal code.
+- **No Laziness**: Find root causes. No temporary fixes. Senior developer standards.
+- **Minimal Impact**: Changes should only touch what's necessary. Avoid introducing bugs.
+
+
 
 
 ### Example Container Structure

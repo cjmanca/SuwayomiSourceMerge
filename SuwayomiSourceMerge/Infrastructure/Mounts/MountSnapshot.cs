@@ -123,14 +123,23 @@ internal sealed class MountSnapshotWarning
 	/// </summary>
 	/// <param name="code">Stable warning code.</param>
 	/// <param name="message">Warning message text.</param>
+	/// <param name="severity">Warning severity classification.</param>
 	/// <exception cref="ArgumentException">Thrown when required values are null, empty, or whitespace.</exception>
-	public MountSnapshotWarning(string code, string message)
+	public MountSnapshotWarning(
+		string code,
+		string message,
+		MountSnapshotWarningSeverity severity = MountSnapshotWarningSeverity.NonFatal)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(code);
 		ArgumentException.ThrowIfNullOrWhiteSpace(message);
+		if (!Enum.IsDefined(severity))
+		{
+			throw new ArgumentOutOfRangeException(nameof(severity), severity, "Warning severity must be a defined value.");
+		}
 
 		Code = code;
 		Message = message;
+		Severity = severity;
 	}
 
 	/// <summary>
@@ -148,4 +157,28 @@ internal sealed class MountSnapshotWarning
 	{
 		get;
 	}
+
+	/// <summary>
+	/// Gets the warning severity classification.
+	/// </summary>
+	public MountSnapshotWarningSeverity Severity
+	{
+		get;
+	}
+}
+
+/// <summary>
+/// Classifies mount snapshot warning severity for downstream safety decisions.
+/// </summary>
+internal enum MountSnapshotWarningSeverity
+{
+	/// <summary>
+	/// Warning is informational and should not imply degraded mount visibility.
+	/// </summary>
+	NonFatal,
+
+	/// <summary>
+	/// Warning indicates mount visibility may be incomplete or unreliable.
+	/// </summary>
+	DegradedVisibility
 }

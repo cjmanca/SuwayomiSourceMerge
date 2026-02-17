@@ -641,7 +641,7 @@ public sealed class ChapterRenameQueueProcessorTests
 
 		Assert.Equal(0, result.CandidateEntries);
 		Assert.Equal(0, result.EnqueuedEntries);
-		Assert.DoesNotContain(logger.Events, entry => entry.EventId == "rename.enumeration_failed");
+		Assert.DoesNotContain(logger.Events, entry => entry.EventId == "rename.enumeration_warning");
 	}
 
 	/// <summary>
@@ -666,7 +666,9 @@ public sealed class ChapterRenameQueueProcessorTests
 
 		Assert.Equal(0, result.CandidateEntries);
 		Assert.Equal(0, result.EnqueuedEntries);
-		Assert.Contains(logger.Events, entry => entry.EventId == "rename.enumeration_failed");
+		Assert.Contains(
+			logger.Events,
+			entry => entry.EventId == "rename.enumeration_warning" && entry.Level == global::SuwayomiSourceMerge.Infrastructure.Logging.LogLevel.Warning);
 	}
 
 	/// <summary>

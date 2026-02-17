@@ -141,6 +141,9 @@ internal sealed class ContainerFixtureWorkspace : IDisposable
 		  unmount_command_timeout_seconds: 8
 		  unmount_detach_wait_seconds: 5
 		  cleanup_high_priority: true
+		  cleanup_apply_high_priority: false
+		  cleanup_priority_ionice_class: 3
+		  cleanup_priority_nice_value: -20
 
 		permissions:
 		  inherit_from_parent: true
@@ -193,6 +196,8 @@ internal sealed class ContainerFixtureWorkspace : IDisposable
 			"inotifywait",
 			"""
 			#!/usr/bin/env sh
+			LOG_FILE="${MOCK_COMMAND_LOG_PATH:-/ssm/state/mock-commands.log}"
+			printf "%s %s\n" "inotifywait" "$*" >> "$LOG_FILE"
 			if [ -n "${INOTIFYWAIT_STDOUT:-}" ]; then
 			  printf "%b" "${INOTIFYWAIT_STDOUT}"
 			fi
@@ -203,6 +208,11 @@ internal sealed class ContainerFixtureWorkspace : IDisposable
 			"findmnt",
 			"""
 			#!/usr/bin/env sh
+			LOG_FILE="${MOCK_COMMAND_LOG_PATH:-/ssm/state/mock-commands.log}"
+			printf "%s %s\n" "findmnt" "$*" >> "$LOG_FILE"
+			if [ -n "${FINDMNT_STDOUT:-}" ]; then
+			  printf "%b" "${FINDMNT_STDOUT}"
+			fi
 			exit "${FINDMNT_EXIT_CODE:-0}"
 			""");
 
@@ -210,6 +220,8 @@ internal sealed class ContainerFixtureWorkspace : IDisposable
 			"mergerfs",
 			"""
 			#!/usr/bin/env sh
+			LOG_FILE="${MOCK_COMMAND_LOG_PATH:-/ssm/state/mock-commands.log}"
+			printf "%s %s\n" "mergerfs" "$*" >> "$LOG_FILE"
 			exit "${MERGERFS_EXIT_CODE:-0}"
 			""");
 
@@ -217,6 +229,8 @@ internal sealed class ContainerFixtureWorkspace : IDisposable
 			"fusermount",
 			"""
 			#!/usr/bin/env sh
+			LOG_FILE="${MOCK_COMMAND_LOG_PATH:-/ssm/state/mock-commands.log}"
+			printf "%s %s\n" "fusermount" "$*" >> "$LOG_FILE"
 			exit "${FUSERMOUNT_EXIT_CODE:-0}"
 			""");
 
@@ -224,6 +238,8 @@ internal sealed class ContainerFixtureWorkspace : IDisposable
 			"fusermount3",
 			"""
 			#!/usr/bin/env sh
+			LOG_FILE="${MOCK_COMMAND_LOG_PATH:-/ssm/state/mock-commands.log}"
+			printf "%s %s\n" "fusermount3" "$*" >> "$LOG_FILE"
 			exit "${FUSERMOUNT3_EXIT_CODE:-0}"
 			""");
 	}

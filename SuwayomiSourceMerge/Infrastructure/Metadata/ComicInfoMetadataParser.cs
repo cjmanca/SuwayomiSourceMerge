@@ -13,37 +13,37 @@ internal sealed class ComicInfoMetadataParser : IComicInfoMetadataParser
 	/// <summary>
 	/// ComicInfo series element local name.
 	/// </summary>
-	private const string SERIES_ELEMENT_NAME = "Series";
+	private const string SeriesElementName = "Series";
 
 	/// <summary>
 	/// ComicInfo writer element local name.
 	/// </summary>
-	private const string WRITER_ELEMENT_NAME = "Writer";
+	private const string WriterElementName = "Writer";
 
 	/// <summary>
 	/// ComicInfo penciller element local name.
 	/// </summary>
-	private const string PENCILLER_ELEMENT_NAME = "Penciller";
+	private const string PencillerElementName = "Penciller";
 
 	/// <summary>
 	/// ComicInfo summary element local name.
 	/// </summary>
-	private const string SUMMARY_ELEMENT_NAME = "Summary";
+	private const string SummaryElementName = "Summary";
 
 	/// <summary>
 	/// ComicInfo genre element local name.
 	/// </summary>
-	private const string GENRE_ELEMENT_NAME = "Genre";
+	private const string GenreElementName = "Genre";
 
 	/// <summary>
 	/// ComicInfo status element local name.
 	/// </summary>
-	private const string STATUS_ELEMENT_NAME = "Status";
+	private const string StatusElementName = "Status";
 
 	/// <summary>
 	/// ComicInfo status fallback element local name.
 	/// </summary>
-	private const string TACHIYOMI_STATUS_ELEMENT_NAME = "PublishingStatusTachiyomi";
+	private const string TachiyomiStatusElementName = "PublishingStatusTachiyomi";
 
 	/// <inheritdoc />
 	public bool TryParse(string comicInfoXmlPath, out ComicInfoMetadata? metadata)
@@ -92,16 +92,16 @@ internal sealed class ComicInfoMetadataParser : IComicInfoMetadataParser
 		{
 			XDocument document = XDocument.Parse(xmlContent, LoadOptions.PreserveWhitespace);
 
-			string series = ReadFirstElementValue(document, SERIES_ELEMENT_NAME);
-			string writer = ReadFirstElementValue(document, WRITER_ELEMENT_NAME);
-			string penciller = ReadFirstElementValue(document, PENCILLER_ELEMENT_NAME);
+			string series = ReadFirstElementValue(document, SeriesElementName);
+			string writer = ReadFirstElementValue(document, WriterElementName);
+			string penciller = ReadFirstElementValue(document, PencillerElementName);
 			string summary = ReadSummaryElementValue(document);
-			string genre = ReadFirstElementValue(document, GENRE_ELEMENT_NAME);
-			string status = ReadFirstElementValue(document, STATUS_ELEMENT_NAME);
+			string genre = ReadFirstElementValue(document, GenreElementName);
+			string status = ReadFirstElementValue(document, StatusElementName);
 
 			if (string.IsNullOrWhiteSpace(status))
 			{
-				status = ReadFirstElementValue(document, TACHIYOMI_STATUS_ELEMENT_NAME);
+				status = ReadFirstElementValue(document, TachiyomiStatusElementName);
 			}
 
 			metadata = new ComicInfoMetadata(
@@ -147,7 +147,7 @@ internal sealed class ComicInfoMetadataParser : IComicInfoMetadataParser
 
 			if (inSummary)
 			{
-				if (TryFindClosingTagStart(line, SUMMARY_ELEMENT_NAME, 0, out int summaryCloseTagStart))
+				if (TryFindClosingTagStart(line, SummaryElementName, 0, out int summaryCloseTagStart))
 				{
 					AppendSummaryLine(summaryBuilder, line[..summaryCloseTagStart]);
 					inSummary = false;
@@ -178,27 +178,27 @@ internal sealed class ComicInfoMetadataParser : IComicInfoMetadataParser
 				continue;
 			}
 
-			if (series.Length == 0 && TryReadScalarValueFromLine(line, SERIES_ELEMENT_NAME, out series))
+			if (series.Length == 0 && TryReadScalarValueFromLine(line, SeriesElementName, out series))
 			{
 				foundAnyTag = true;
 			}
 
-			if (writer.Length == 0 && TryReadScalarValueFromLine(line, WRITER_ELEMENT_NAME, out writer))
+			if (writer.Length == 0 && TryReadScalarValueFromLine(line, WriterElementName, out writer))
 			{
 				foundAnyTag = true;
 			}
 
-			if (penciller.Length == 0 && TryReadScalarValueFromLine(line, PENCILLER_ELEMENT_NAME, out penciller))
+			if (penciller.Length == 0 && TryReadScalarValueFromLine(line, PencillerElementName, out penciller))
 			{
 				foundAnyTag = true;
 			}
 
-			if (genre.Length == 0 && TryReadScalarValueFromLine(line, GENRE_ELEMENT_NAME, out genre))
+			if (genre.Length == 0 && TryReadScalarValueFromLine(line, GenreElementName, out genre))
 			{
 				foundAnyTag = true;
 			}
 
-			if (status.Length == 0 && TryReadScalarValueFromLine(line, STATUS_ELEMENT_NAME, out status))
+			if (status.Length == 0 && TryReadScalarValueFromLine(line, StatusElementName, out status))
 			{
 				foundAnyTag = true;
 			}
@@ -215,7 +215,7 @@ internal sealed class ComicInfoMetadataParser : IComicInfoMetadataParser
 			foreach (string rawLine in lines)
 			{
 				string line = rawLine.Replace("\r", string.Empty, StringComparison.Ordinal);
-				if (!TryReadScalarValueFromLine(line, TACHIYOMI_STATUS_ELEMENT_NAME, out status))
+				if (!TryReadScalarValueFromLine(line, TachiyomiStatusElementName, out status))
 				{
 					continue;
 				}
@@ -265,7 +265,7 @@ internal sealed class ComicInfoMetadataParser : IComicInfoMetadataParser
 	{
 		ArgumentNullException.ThrowIfNull(document);
 
-		XElement? summaryElement = FindFirstElement(document, SUMMARY_ELEMENT_NAME);
+		XElement? summaryElement = FindFirstElement(document, SummaryElementName);
 		if (summaryElement is null)
 		{
 			return string.Empty;
@@ -373,7 +373,7 @@ internal sealed class ComicInfoMetadataParser : IComicInfoMetadataParser
 	{
 		ArgumentNullException.ThrowIfNull(line);
 
-		if (!TryFindOpeningTagEnd(line, SUMMARY_ELEMENT_NAME, 0, out int summaryStart))
+		if (!TryFindOpeningTagEnd(line, SummaryElementName, 0, out int summaryStart))
 		{
 			summaryValue = string.Empty;
 			isClosed = false;
@@ -381,7 +381,7 @@ internal sealed class ComicInfoMetadataParser : IComicInfoMetadataParser
 		}
 
 		string summarySlice = line[summaryStart..];
-		if (TryFindClosingTagStart(summarySlice, SUMMARY_ELEMENT_NAME, 0, out int summaryEnd))
+		if (TryFindClosingTagStart(summarySlice, SummaryElementName, 0, out int summaryEnd))
 		{
 			summaryValue = summarySlice[..summaryEnd];
 			isClosed = true;

@@ -13,6 +13,7 @@ maintenance:
     - When configuration APIs are edited, keep XMLDOC coverage complete across touched identifiers.
 conventions:
   - Treat warnings as errors globally via central MSBuild props.
+  - Use PascalCase for const fields and `_camelCase` for private static readonly fields.
   - Use xUnit for unit tests and keep reusable fixtures/helpers in a shared test project.
   - Prefer extending existing orchestration/test roots over creating parallel frameworks.
   - Keep XMLDOC comments detailed for runtime and configuration APIs so intent/usage are clear in-code.
@@ -46,7 +47,7 @@ modules:
       - symbol: DefaultRuntimeSupervisorRunner
         kind: class
         path: SuwayomiSourceMerge/Application/Hosting/DefaultRuntimeSupervisorRunner.cs
-        purpose: Composes watcher, rename, and supervisor dependencies and executes daemon runtime flow.
+        purpose: Composes watcher, rename, mount workflow, and supervisor dependencies for production runtime flow.
       - symbol: IRuntimeSupervisorRunner
         kind: interface
         path: SuwayomiSourceMerge/Application/Hosting/IRuntimeSupervisorRunner.cs
@@ -66,11 +67,76 @@ modules:
       - Canonical runtime failure lifecycle event emission (`host.shutdown_failed`) when runtime exits non-zero; use ApplicationHost.Run.
       - Canonical runtime dependency composition for bootstrap, logging, and supervision; use ApplicationHost.CreateDefault.
       - Canonical runtime supervisor dependency composition for production startup; use DefaultRuntimeSupervisorRunner.
-    related: [application-supervision, logging-infrastructure, runtime-host, unit-test-suite]
+    related: [application-mounting, application-supervision, logging-infrastructure, runtime-host, unit-test-suite]
+  - id: application-mounting
+    summary: Production merge workflow orchestration and lifecycle cleanup for branch planning, reconciliation, and mount apply.
+    tags: [application, mounting, runtime]
+    paths:
+      - SuwayomiSourceMerge/Application/Mounting/IMergeMountWorkflow.cs
+      - SuwayomiSourceMerge/Application/Mounting/IMergeRuntimeLifecycle.cs
+      - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.Cleanup.cs
+      - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.Groups.cs
+      - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.Pass.Apply.cs
+      - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.Pass.cs
+      - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.Pass.ForceRemount.cs
+      - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.Pass.Grouping.cs
+      - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.cs
+      - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflowOptions.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.DegradedVisibilityAndOverrideTitles.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.MountCommands.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.OutcomesAndCancellation.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.cs
+    entrypoints:
+      - symbol: IMergeMountWorkflow
+        kind: interface
+        path: SuwayomiSourceMerge/Application/Mounting/IMergeMountWorkflow.cs
+        purpose: Defines production merge dispatch contract for full scan/plan/reconcile/apply passes.
+      - symbol: IMergeRuntimeLifecycle
+        kind: interface
+        path: SuwayomiSourceMerge/Application/Mounting/IMergeRuntimeLifecycle.cs
+        purpose: Defines startup and shutdown lifecycle hooks consumed by daemon workers.
+      - symbol: MergeMountWorkflow
+        kind: class
+        path: SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.cs
+        purpose: Runs merge passes, maps apply outcomes, and owns startup/shutdown cleanup behavior.
+      - symbol: MergeMountWorkflow.OnWorkerStarting
+        kind: method
+        path: SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.cs
+        purpose: Executes managed-root startup cleanup when runtime.startup_cleanup is enabled.
+      - symbol: MergeMountWorkflow.OnWorkerStopping
+        kind: method
+        path: SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.cs
+        purpose: Executes managed-root shutdown unmount cleanup when shutdown.unmount_on_exit is enabled.
+      - symbol: MergeMountWorkflow.RunMergePass
+        kind: method
+        path: SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.Pass.cs
+        purpose: Performs discovery, grouping, branch planning, reconciliation, and command application for one dispatch.
+    extension_points:
+      - how: Add alternate runtime lifecycle cleanup behavior by implementing IMergeRuntimeLifecycle and wiring it into daemon workers.
+        symbols: [IMergeRuntimeLifecycle, MergeMountWorkflow]
+        paths: [SuwayomiSourceMerge/Application/Mounting/IMergeRuntimeLifecycle.cs, SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.cs]
+      - how: Swap merge dispatch orchestration by implementing IMergeMountWorkflow and replacing workflow construction in runtime hosting.
+        symbols: [IMergeMountWorkflow, MergeMountWorkflow]
+        paths: [SuwayomiSourceMerge/Application/Mounting/IMergeMountWorkflow.cs, SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.cs]
+      - how: Tune settings-to-workflow option mapping (including cleanup wrapper ionice/nice values) by extending MergeMountWorkflowOptions.FromSettings.
+        symbols: [MergeMountWorkflowOptions, MergeMountWorkflowOptions.FromSettings]
+        paths: [SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflowOptions.cs]
+    do_not_reimplement:
+      - Canonical cancellation propagation during merge-pass branch planning and override-title discovery enumeration; use MergeMountWorkflow.RunMergePass and MergeMountWorkflow.Pass.Grouping helpers.
+      - Canonical cleanup stale-prune safety gate that infers still-mounted branch directories from mergerfs source payloads and skips pruning only for degraded-visibility or unresolved mappings; use MergeMountWorkflow.RunCleanupPass.
+      - Canonical merge-pass degraded-visibility safety gate that suppresses stale-unmount apply actions when source discovery/build/snapshot visibility is degraded while still allowing mount/remount actions; use MergeMountWorkflow.RunMergePass.
+      - Canonical resolve-only force-remount reason resolution (`override-force:<title>`) targeting known desired mountpoints; use MergeMountWorkflow.RunMergePass.
+      - Canonical merge-pass outcome mapping from action results (mixed when busy+failure, then busy over failure over success); use MergeMountWorkflow.RunMergePass.
+      - Canonical merge-pass helper partitioning for action apply, force-remount resolution, and grouping helpers; use MergeMountWorkflow partial pass files.
+      - Canonical startup/shutdown managed-root cleanup orchestration; use MergeMountWorkflow.OnWorkerStarting and MergeMountWorkflow.OnWorkerStopping.
+      - Canonical title grouping and canonical-title precedence flow used by merge runtime; use MergeMountWorkflow.RunMergePass.
+    related: [application-hosting, application-supervision, application-watching, config-resolution, infrastructure-metadata, infrastructure-mounts, infrastructure-volumes, unit-test-suite]
   - id: application-supervision
     summary: Daemon lifecycle supervision with state-file locking, PID tracking, and signal-driven graceful shutdown.
     tags: [application, lifecycle, runtime, supervision]
     paths:
+      - SuwayomiSourceMerge/Application/Cancellation/CancellationClassification.cs
       - SuwayomiSourceMerge/Application/Supervision/ConsoleSupervisorSignalRegistrar.cs
       - SuwayomiSourceMerge/Application/Supervision/DaemonSupervisor.cs
       - SuwayomiSourceMerge/Application/Supervision/DaemonSupervisorOptions.cs
@@ -82,7 +148,12 @@ modules:
       - SuwayomiSourceMerge/Application/Supervision/SupervisorStatePaths.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/FilesystemEventDaemonWorkerTests.cs
     entrypoints:
+      - symbol: CancellationClassification.IsCooperative
+        kind: method
+        path: SuwayomiSourceMerge/Application/Cancellation/CancellationClassification.cs
+        purpose: Classifies OperationCanceledException instances as cooperative only when they carry the caller-owned canceled token.
       - symbol: ConsoleSupervisorSignalRegistrar
         kind: class
         path: SuwayomiSourceMerge/Application/Supervision/ConsoleSupervisorSignalRegistrar.cs
@@ -90,11 +161,15 @@ modules:
       - symbol: DaemonSupervisor
         kind: class
         path: SuwayomiSourceMerge/Application/Supervision/DaemonSupervisor.cs
-        purpose: Coordinates single-instance start, coalesced concurrent startup, worker lifetime, startup-failure diagnostics, graceful stop, timeout fail-fast run exit, and state cleanup.
+        purpose: Coordinates single-instance start, coalesced concurrent startup, worker lifetime, startup-failure diagnostics, graceful stop, timeout-triggered process hard-stop, and state cleanup.
       - symbol: DaemonSupervisor.RunAsync
         kind: method
         path: SuwayomiSourceMerge/Application/Supervision/DaemonSupervisor.cs
         purpose: Runs the worker until stop signals or failures using stable run-state capture before callback registration and maps startup cancellation/failure to deterministic exit codes.
+      - symbol: DaemonSupervisor.ShouldTreatStopAsTimedOut
+        kind: method
+        path: SuwayomiSourceMerge/Application/Supervision/DaemonSupervisor.cs
+        purpose: Classifies stop-timeout races so timeout handling runs only when the worker remains incomplete after Task.WhenAny returns.
       - symbol: DaemonSupervisorOptions
         kind: class
         path: SuwayomiSourceMerge/Application/Supervision/DaemonSupervisorOptions.cs
@@ -102,7 +177,7 @@ modules:
       - symbol: FilesystemEventDaemonWorker
         kind: class
         path: SuwayomiSourceMerge/Application/Supervision/FilesystemEventDaemonWorker.cs
-        purpose: Executes continuous filesystem trigger ticks until cancellation.
+        purpose: Executes worker startup lifecycle hooks, continuous trigger ticks, and shutdown lifecycle hooks.
       - symbol: SupervisorFileLock
         kind: class
         path: SuwayomiSourceMerge/Application/Supervision/SupervisorFileLock.cs
@@ -118,18 +193,22 @@ modules:
         symbols: [DaemonSupervisorOptions, SupervisorStatePaths]
         paths: [SuwayomiSourceMerge/Application/Supervision/DaemonSupervisorOptions.cs, SuwayomiSourceMerge/Application/Supervision/SupervisorStatePaths.cs]
     do_not_reimplement:
+      - Canonical bounded shutdown lifecycle token flow (fresh stop token canceled at stop-timeout boundary); use DaemonSupervisor.StopCoreAsync and IDaemonWorker.RunAsync.
+      - Canonical cooperative-cancellation classification shared across worker/dispatch paths (caller-token canceled + matching token OR tokenless cancellation); use CancellationClassification.IsCooperative.
       - Canonical daemon lifecycle start/stop idempotency, timeout handling, and cleanup flow; use DaemonSupervisor.
       - Canonical early-stop race handling by capturing worker/stop tasks before signal and cancellation registration; use DaemonSupervisor.RunAsync.
       - Canonical startup exception exit-code mapping (cancellation=success, non-cancellation startup failure=error) and startup-failure diagnostics; use DaemonSupervisor.RunAsync.
-      - Canonical run-loop timeout liveness behavior (non-hanging fail-fast on stop timeout); use DaemonSupervisor.RunAsync.
+      - Canonical stop-timeout hard-stop behavior with boundary completion recheck before process termination; use DaemonSupervisor.StopCoreAsync and DaemonSupervisor.ShouldTreatStopAsTimedOut.
       - Canonical state-file path resolution for supervisor lock/pid files; use SupervisorStatePaths.
+      - Canonical worker lifecycle hook ordering (startup before loop, shutdown in finally with cooperative-cancellation debug downgrade and non-cooperative warning logging); use FilesystemEventDaemonWorker.
       - Canonical worker-loop contract used by daemon supervision; use IDaemonWorker.
       - Canonical exclusive supervisor lock-file acquisition and release semantics; use SupervisorFileLock.
-    related: [application-hosting, application-watching, unit-test-suite]
+    related: [application-hosting, application-mounting, application-watching, unit-test-suite]
   - id: application-watching
     summary: Tick-based event trigger orchestration that routes inotify events and coalesces merge scan requests.
     tags: [application, orchestration, runtime, watching]
     paths:
+      - SuwayomiSourceMerge/Application/Cancellation/CancellationClassification.cs
       - SuwayomiSourceMerge/Application/Watching/FilesystemEventTickResult.cs
       - SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerOptions.cs
       - SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerPipeline.cs
@@ -138,11 +217,13 @@ modules:
       - SuwayomiSourceMerge/Application/Watching/MergeScanDispatchOutcome.cs
       - SuwayomiSourceMerge/Application/Watching/MergeScanRequestCoalescer.cs
       - SuwayomiSourceMerge/Application/Watching/NoOpMergeScanRequestHandler.cs
+      - SuwayomiSourceMerge/Application/Watching/ProductionMergeScanRequestHandler.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineIntegrationTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/MergeScanRequestCoalescerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/NoOpMergeScanRequestHandlerTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/ProductionMergeScanRequestHandlerTests.cs
     entrypoints:
       - symbol: FilesystemEventTriggerOptions
         kind: class
@@ -164,10 +245,10 @@ modules:
         kind: class
         path: SuwayomiSourceMerge/Application/Watching/MergeScanRequestCoalescer.cs
         purpose: Coalesces burst merge scan requests and enforces min-interval and retry-delay gates.
-      - symbol: NoOpMergeScanRequestHandler
+      - symbol: ProductionMergeScanRequestHandler
         kind: class
-        path: SuwayomiSourceMerge/Application/Watching/NoOpMergeScanRequestHandler.cs
-        purpose: Handles merge dispatch requests with deterministic success while merge-apply orchestration is deferred.
+        path: SuwayomiSourceMerge/Application/Watching/ProductionMergeScanRequestHandler.cs
+        purpose: Delegates merge dispatch requests with severity-aligned stable dispatch event IDs for busy, mixed, and failure outcomes.
     extension_points:
       - how: Add alternate merge dispatch targets by implementing IMergeScanRequestHandler and injecting into coalescer construction.
         symbols: [IMergeScanRequestHandler, MergeScanRequestCoalescer]
@@ -175,9 +256,9 @@ modules:
       - how: Adjust source/override event routing semantics by editing trigger pipeline handlers and reason mapping.
         symbols: [FilesystemEventTriggerPipeline, FilesystemEventTriggerPipeline.Tick]
         paths: [SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerPipeline.cs]
-      - how: Keep lifecycle-only merge dispatch behavior stable via no-op handler defaults until mount-apply orchestration is introduced.
-        symbols: [IMergeScanRequestHandler, NoOpMergeScanRequestHandler]
-        paths: [SuwayomiSourceMerge/Application/Watching/IMergeScanRequestHandler.cs, SuwayomiSourceMerge/Application/Watching/NoOpMergeScanRequestHandler.cs]
+      - how: Keep production merge dispatch behavior centralized by routing coalescer dispatch through one IMergeScanRequestHandler implementation.
+        symbols: [IMergeScanRequestHandler, ProductionMergeScanRequestHandler]
+        paths: [SuwayomiSourceMerge/Application/Watching/IMergeScanRequestHandler.cs, SuwayomiSourceMerge/Application/Watching/ProductionMergeScanRequestHandler.cs]
       - how: Tune watcher cadence and startup-rescan behavior via options construction from settings.
         symbols: [FilesystemEventTriggerOptions, FilesystemEventTriggerOptions.FromSettings]
         paths: [SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerOptions.cs]
@@ -186,11 +267,13 @@ modules:
         paths: [SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerPipeline.cs]
     do_not_reimplement:
       - Canonical burst merge-request coalescing with latest-reason and latest-force replacement semantics; use MergeScanRequestCoalescer.
-      - Canonical lifecycle-scope merge dispatch success placeholder behavior; use NoOpMergeScanRequestHandler.
-      - Canonical merge-request interval/retry gate decisions; use MergeScanRequestCoalescer.DispatchPending.
+      - Canonical handler/coalescer token-aware mapping for cancellation exceptions (cooperative cancellation rethrow when caller token is canceled and exception token matches or is tokenless, non-cooperative cancellation mapped to failure with failed-event emission); use ProductionMergeScanRequestHandler.DispatchMergeScan, MergeScanRequestCoalescer.DispatchPending, and CancellationClassification.IsCooperative.
+      - Canonical normalization of unexpected handler dispatch outcomes to failure with failed-event emission; use ProductionMergeScanRequestHandler.DispatchMergeScan.
+      - Canonical production merge dispatch event/log contract with severity-aligned busy/mixed/failure IDs and workflow delegation; use ProductionMergeScanRequestHandler.
+      - Canonical merge-request interval/retry gate decisions including mixed retry behavior; use MergeScanRequestCoalescer.DispatchPending.
       - Canonical one-pass filesystem event routing plus periodic rename/merge fallback scheduling; use FilesystemEventTriggerPipeline.Tick.
       - Canonical watcher settings mapping from validated settings documents; use FilesystemEventTriggerOptions.FromSettings.
-    related: [application-supervision, infrastructure-rename, infrastructure-watching, runtime-host, unit-test-suite]
+    related: [application-mounting, application-supervision, infrastructure-rename, infrastructure-watching, runtime-host, unit-test-suite]
   - id: build-and-quality
     summary: Central build defaults and formatting behavior for the solution.
     tags: [build, msbuild, quality]
@@ -444,7 +527,15 @@ modules:
       - symbol: ConfigurationSchemaService
         kind: class
         path: SuwayomiSourceMerge/Configuration/Loading/ConfigurationSchemaService.cs
-        purpose: Provides parse-and-validate entrypoints for all configuration files.
+        purpose: Provides strict-runtime and tooling-relaxed parse-and-validate entrypoints for configuration files.
+      - symbol: ConfigurationSchemaService.ParseSettingsForRuntime
+        kind: method
+        path: SuwayomiSourceMerge/Configuration/Loading/ConfigurationSchemaService.cs
+        purpose: Parses settings.yml using strict-runtime profile for bootstrap/runtime call sites.
+      - symbol: ConfigurationSchemaService.ParseSettingsForTooling
+        kind: method
+        path: SuwayomiSourceMerge/Configuration/Loading/ConfigurationSchemaService.cs
+        purpose: Parses settings.yml with relaxed-tooling profile that tolerates omitted self-healed shutdown cleanup fields.
       - symbol: SettingsDocument
         kind: class
         path: SuwayomiSourceMerge/Configuration/Documents/SettingsDocument.cs
@@ -456,7 +547,7 @@ modules:
       - symbol: SettingsDocumentValidator
         kind: class
         path: SuwayomiSourceMerge/Configuration/Validation/SettingsDocumentValidator.cs
-        purpose: Enforces deterministic settings validation rules via documented helper routines and emits actionable, path-scoped errors.
+        purpose: Enforces deterministic settings validation rules with strict-runtime and relaxed-tooling profile support.
       - symbol: YamlDocumentParser
         kind: class
         path: SuwayomiSourceMerge/Configuration/Loading/YamlDocumentParser.cs
@@ -485,12 +576,13 @@ modules:
       - Manga equivalents conflict detection rules; use MangaEquivalentsDocumentValidator.
       - Scene tag matcher-equivalent dedup rules; use SceneTagsDocumentValidator.
       - Settings logging level and logging section validation rules; use SettingsDocumentValidator.
+      - Settings strict-runtime versus tooling-relaxed shutdown cleanup profile validation behavior; use SettingsDocumentValidator and ConfigurationSchemaService.ParseSettingsForRuntime/ParseSettingsForTooling.
       - Settings validation code map and field constraints; use SettingsDocumentValidator.
       - Source priority dedup validation rules; use SourcePriorityDocumentValidator.
       - YAML parser unknown-key tolerance for schema evolution; use YamlDocumentParser.
     related: [config-resolution, domain-normalization, logging-infrastructure, runtime-host, unit-test-suite]
   - id: domain-normalization
-    summary: Data-driven scene-tag matching plus shared cached title/token normalization for runtime and validation flows.
+    summary: Data-driven scene-tag matching plus shared cached title/token/source normalization for runtime and validation flows.
     tags: [domain, normalization, titles]
     paths:
       - SuwayomiSourceMerge/Domain/Normalization/CachedTitleComparisonNormalizer.cs
@@ -501,11 +593,13 @@ modules:
       - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyBuilder.cs
       - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyKind.cs
       - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatcher.cs
+      - SuwayomiSourceMerge/Domain/Normalization/SourceNameKeyNormalizer.cs
       - SuwayomiSourceMerge/Domain/Normalization/TitleComparisonNormalizerProvider.cs
       - SuwayomiSourceMerge/Domain/Normalization/TitleKeyNormalizer.cs
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/CachedTitleComparisonNormalizerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/ComparisonTextNormalizerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/SceneTagMatcherTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/SourceNameKeyNormalizerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/TitleKeyNormalizerTests.cs
     entrypoints:
       - symbol: ComparisonTextNormalizer.NormalizeTokenKey
@@ -524,6 +618,10 @@ modules:
         kind: class
         path: SuwayomiSourceMerge/Domain/Normalization/SceneTagMatcher.cs
         purpose: Normalizes configured scene tags into matcher-equivalent keys and performs deterministic candidate matching.
+      - symbol: SourceNameKeyNormalizer.NormalizeSourceKey
+        kind: method
+        path: SuwayomiSourceMerge/Domain/Normalization/SourceNameKeyNormalizer.cs
+        purpose: Produces canonical trim+case-insensitive source-name keys for exclusion matching across merge and rename flows.
       - symbol: TitleComparisonNormalizerProvider.Get
         kind: method
         path: SuwayomiSourceMerge/Domain/Normalization/TitleComparisonNormalizerProvider.cs
@@ -551,6 +649,7 @@ modules:
       - Canonical configured scene-tag phrase matching implementation; use SceneTagMatcher.
       - Canonical matcher-equivalent scene-tag key derivation; use SceneTagMatchKeyBuilder.TryCreate.
       - Canonical scene-tag matcher contract for normalization consumers; use ISceneTagMatcher.
+      - Canonical trim+case-insensitive source-name key normalization for exclusion matching; use SourceNameKeyNormalizer.NormalizeSourceKey.
       - Canonical title key normalization for runtime and validation call sites; use TitleKeyNormalizer.NormalizeTitleKey.
     related: [config-bootstrap-migration, config-resolution, config-schema-validation, unit-test-suite]
   - id: infrastructure-branch-planning
@@ -687,49 +786,62 @@ modules:
       - Canonical runtime contract for details.json ensure operations; use IOverrideDetailsService.
     related: [runtime-host, unit-test-suite]
   - id: infrastructure-mounts
-    summary: findmnt-backed snapshots, legacy shell pair-mode fallback, and deterministic reconciliation planning.
+    summary: Mount snapshots, reconciliation, command apply, and branch-link staging used by production merge runtime.
     tags: [infrastructure, mounts, reconciliation, runtime]
     paths:
+      - SuwayomiSourceMerge/Infrastructure/Mounts/BranchLinkStagingService.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/DesiredMountDefinition.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/FindmntMountSnapshotService.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/FindmntSnapshotLineParser.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/IBranchLinkStagingService.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/IMergerfsMountCommandService.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/IMountReconciliationService.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/IMountSnapshotService.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/MergerfsMountCommandService.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/MountActionApplyResult.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationAction.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationInput.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationPlan.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationReason.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationService.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/MountSnapshot.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/MountSnapshotWarningPolicy.cs
       - suwayomi_manga_daemon.sh
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/BranchLinkStagingServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/FindmntMountSnapshotServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/FindmntSnapshotLineParserTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MountSnapshotWarningPolicyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MountReconciliationServiceTests.cs
     entrypoints:
+      - symbol: BranchLinkStagingService
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Mounts/BranchLinkStagingService.cs
+        purpose: Stages branch-link directories/symlinks and cleans stale branch-link directories.
       - symbol: FindmntMountSnapshotService
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Mounts/FindmntMountSnapshotService.cs
         purpose: Captures mount snapshots via findmnt and emits deterministic parse/command warnings.
-      - symbol: FindmntMountSnapshotService.Capture
-        kind: method
-        path: SuwayomiSourceMerge/Infrastructure/Mounts/FindmntMountSnapshotService.cs
-        purpose: Executes findmnt with util-linux-compatible pairs-mode flags and returns parsed mount entries plus non-fatal warnings.
+      - symbol: IMergerfsMountCommandService
+        kind: interface
+        path: SuwayomiSourceMerge/Infrastructure/Mounts/IMergerfsMountCommandService.cs
+        purpose: Defines command application contract for mount/remount/unmount reconciliation actions.
       - symbol: IMountReconciliationService
         kind: interface
         path: SuwayomiSourceMerge/Infrastructure/Mounts/IMountReconciliationService.cs
         purpose: Defines planner contract for deterministic mount reconciliation.
-      - symbol: IMountSnapshotService
-        kind: interface
-        path: SuwayomiSourceMerge/Infrastructure/Mounts/IMountSnapshotService.cs
-        purpose: Defines mount-state snapshot capture contract for reconciliation consumers.
+      - symbol: MergerfsMountCommandService
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Mounts/MergerfsMountCommandService.cs
+        purpose: Applies mount/remount/unmount actions using mergerfs and fusermount fallback chains with configurable cleanup wrapper priorities.
       - symbol: MountReconciliationService
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationService.cs
         purpose: Computes deterministic mount/remount/unmount actions using normalized mountpoint key comparisons.
-      - symbol: MountReconciliationService.Reconcile
+      - symbol: MountSnapshotWarningPolicy.ResolveSeverity
         kind: method
-        path: SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationService.cs
-        purpose: Produces ordered actions with normalized desired/actual/force/stale matching and stale-mergerfs cleanup.
+        path: SuwayomiSourceMerge/Infrastructure/Mounts/MountSnapshotWarningPolicy.cs
+        purpose: Resolves mount snapshot warning severity from canonical warning codes for downstream safety gates.
     extension_points:
       - how: Add additional snapshot metadata fields by extending MountSnapshotEntry and parser mapping in the findmnt snapshot service.
         symbols: [FindmntMountSnapshotService, FindmntSnapshotLineParser, MountSnapshotEntry]
@@ -737,21 +849,27 @@ modules:
       - how: Adjust legacy shell findmnt pairs-mode fallback policy via probe and wrapper functions.
         symbols: [findmnt_pairs, probe_findmnt_pairs_mode, ro_timeout_findmnt_pairs]
         paths: [suwayomi_manga_daemon.sh]
+      - how: Swap branch-link staging behavior by implementing IBranchLinkStagingService and wiring into merge workflow composition.
+        symbols: [BranchLinkStagingService, IBranchLinkStagingService]
+        paths: [SuwayomiSourceMerge/Infrastructure/Mounts/BranchLinkStagingService.cs, SuwayomiSourceMerge/Infrastructure/Mounts/IBranchLinkStagingService.cs]
       - how: Swap snapshot capture sources (for example mountinfo readers) by implementing IMountSnapshotService and wiring the new service.
         symbols: [FindmntMountSnapshotService, IMountSnapshotService]
         paths: [SuwayomiSourceMerge/Infrastructure/Mounts/FindmntMountSnapshotService.cs, SuwayomiSourceMerge/Infrastructure/Mounts/IMountSnapshotService.cs]
-      - how: Wire mount command applicators to deterministic reconciliation outputs by consuming IMountReconciliationService actions.
-        symbols: [IMountReconciliationService, MountReconciliationAction, MountReconciliationService]
-        paths: [SuwayomiSourceMerge/Infrastructure/Mounts/IMountReconciliationService.cs, SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationAction.cs, SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationService.cs]
+      - how: Wire merge runtime command application through IMergerfsMountCommandService instead of duplicating command chains.
+        symbols: [IMergerfsMountCommandService, MergerfsMountCommandService]
+        paths: [SuwayomiSourceMerge/Infrastructure/Mounts/IMergerfsMountCommandService.cs, SuwayomiSourceMerge/Infrastructure/Mounts/MergerfsMountCommandService.cs]
     do_not_reimplement:
-      - Canonical reconciliation action contract for planner outputs; use MountReconciliationAction.
+      - Canonical branch-link staging and stale-directory cleanup semantics; use BranchLinkStagingService.
+      - Canonical mount-snapshot warning-code severity mapping used by cleanup safety decisions; use MountSnapshotWarningPolicy.ResolveSeverity.
+      - Canonical dangling-entry replacement semantics for branch-link staging (delete-any-entry before relink); use BranchLinkStagingService.StageBranchLinks.
+      - Canonical unmount mixed-outcome precedence where non-busy failures are not masked by busy results; use MergerfsMountCommandService.
       - Canonical desired-vs-actual reconciliation decision engine; use MountReconciliationService.Reconcile.
       - Canonical findmnt snapshot capture and parse-warning behavior (including non-throwing parser guards and escape decoding); use FindmntMountSnapshotService.
       - Canonical legacy shell findmnt pairs-mode compatibility wrapper; use findmnt_pairs.
-      - Canonical timed legacy shell findmnt pairs-mode wrapper; use ro_timeout_findmnt_pairs.
+      - Canonical mount/unmount/remount command fallback chains (`fusermount3`, `fusermount`, `umount`); use MergerfsMountCommandService.
       - Canonical normalized mountpoint key matching across desired/actual/forced/stale checks; use MountReconciliationService.Reconcile.
-      - Canonical snapshot model consumed by mount reconciliation flows; use MountSnapshot.
-    related: [infrastructure-branch-planning, infrastructure-processes, runtime-host, unit-test-suite]
+      - Canonical timed legacy shell findmnt pairs-mode wrapper; use ro_timeout_findmnt_pairs.
+    related: [application-mounting, infrastructure-branch-planning, infrastructure-processes, runtime-host, unit-test-suite]
   - id: infrastructure-processes
     summary: External process execution with poll-supervised timeout/cancellation, exit-precedence boundary probes, and bounded output capture.
     tags: [infrastructure, process, runtime]
@@ -996,6 +1114,7 @@ modules:
     tags: [docker, integration-tests, runtime, xunit]
     paths:
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs
+      - tests/SuwayomiSourceMerge.IntegrationTests/DockerAssertionsBehaviorTests.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/README.md
       - tests/SuwayomiSourceMerge.IntegrationTests/SuwayomiSourceMerge.IntegrationTests.csproj
       - tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/ContainerFixtureWorkspace.cs
@@ -1012,7 +1131,15 @@ modules:
       - symbol: DockerAssertions
         kind: class
         path: tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerAssertions.cs
-        purpose: Provides deterministic polling assertions for file/log/state checks during container tests.
+        purpose: Provides deterministic polling and shared-read file assertion helpers with timeout diagnostics preserving last read exceptions.
+      - symbol: DockerAssertions.CountFileLinesMatching
+        kind: method
+        path: tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerAssertions.cs
+        purpose: Counts matching log lines with shared-read semantics and bounded retries for transient IO/share failures.
+      - symbol: DockerAssertionsBehaviorTests
+        kind: class
+        path: tests/SuwayomiSourceMerge.IntegrationTests/DockerAssertionsBehaviorTests.cs
+        purpose: Verifies expected, edge, and failure polling behavior for DockerAssertions timeout diagnostics.
       - symbol: DockerCommandRunner
         kind: class
         path: tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerCommandRunner.cs
@@ -1043,6 +1170,7 @@ modules:
       - Canonical deterministic wait-loop assertions for integration checks; use DockerAssertions.
       - Canonical Docker CLI command execution and diagnostics wrapper; use DockerCommandRunner.
       - Canonical Docker integration image build, daemon preflight, and teardown image cleanup fixture setup; use DockerIntegrationFixture.
+      - Canonical shared-read log-line counting with transient retry semantics; use DockerAssertions.CountFileLinesMatching.
     related: [container-runtime-assets, infrastructure-watching, runtime-host, unit-test-suite]
   - id: logging-infrastructure
     summary: Structured log formatting, level filtering, and file rolling/retention for runtime diagnostics.
@@ -1184,14 +1312,20 @@ modules:
     summary: Primary xUnit project covering config, runtime orchestration, and infrastructure behavior with mutation scaffolding.
     tags: [tests, xunit, validation]
     paths:
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Cancellation/CancellationClassificationTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Hosting/ApplicationHostTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.OutcomesAndCancellation.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/FilesystemEventDaemonWorkerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineIntegrationTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/MergeScanRequestCoalescerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/NoOpMergeScanRequestHandlerTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/ProductionMergeScanRequestHandlerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapExceptionTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapGuardTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapServiceTests.cs
@@ -1225,6 +1359,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/CachedTitleComparisonNormalizerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/ComparisonTextNormalizerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/SceneTagMatcherTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/SourceNameKeyNormalizerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Domain/Normalization/TitleKeyNormalizerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogEventTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/LogFilePathPolicyTests.cs
@@ -1235,6 +1370,9 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/StructuredTextLogFormatterTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComicInfoMetadataParserTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/BranchLinkStagingServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MountSnapshotWarningPolicyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeDiscoveryResultTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeDiscoveryServiceContractTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeDiscoveryServiceTests.cs
@@ -1298,4 +1436,4 @@ modules:
       - Logging formatter/filter/rolling behavior coverage; extend Infrastructure/Logging test classes.
       - Mutation-test scope and threshold gates; use stryker-config.json.
       - Repository LF line-ending drift guard; extend LineEndingPolicyTests.
-    related: [application-hosting, application-supervision, application-watching, build-and-quality, config-schema-validation, infrastructure-watching, logging-infrastructure, runtime-host, shared-test-support]
+    related: [application-hosting, application-mounting, application-supervision, application-watching, build-and-quality, config-schema-validation, infrastructure-mounts, infrastructure-watching, logging-infrastructure, runtime-host, shared-test-support]

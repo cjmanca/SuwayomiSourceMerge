@@ -1,9 +1,15 @@
+using SuwayomiSourceMerge.Application.Mounting;
 using SuwayomiSourceMerge.Application.Supervision;
 using SuwayomiSourceMerge.Application.Watching;
 using SuwayomiSourceMerge.Configuration.Bootstrap;
+using SuwayomiSourceMerge.Configuration.Resolution;
+using SuwayomiSourceMerge.Domain.Normalization;
 using SuwayomiSourceMerge.Infrastructure.Logging;
+using SuwayomiSourceMerge.Infrastructure.Metadata;
+using SuwayomiSourceMerge.Infrastructure.Mounts;
 using SuwayomiSourceMerge.Infrastructure.Processes;
 using SuwayomiSourceMerge.Infrastructure.Rename;
+using SuwayomiSourceMerge.Infrastructure.Volumes;
 using SuwayomiSourceMerge.Infrastructure.Watching;
 
 namespace SuwayomiSourceMerge.Application.Hosting;
@@ -30,8 +36,25 @@ internal sealed class DefaultRuntimeSupervisorRunner : IRuntimeSupervisorRunner
 			new ChapterRenameFileSystem(),
 			logger);
 
+		MergeMountWorkflowOptions mergeOptions = MergeMountWorkflowOptions.FromSettings(documents.Settings);
+		ISceneTagMatcher sceneTagMatcher = new SceneTagMatcher(documents.SceneTags.Tags ?? []);
+		IMangaEquivalenceService mangaEquivalenceService = new MangaEquivalenceService(documents.MangaEquivalents, sceneTagMatcher);
+		ISourcePriorityService sourcePriorityService = new SourcePriorityService(documents.SourcePriority);
+		MergeMountWorkflow mergeMountWorkflow = new(
+			mergeOptions,
+			mangaEquivalenceService,
+			sceneTagMatcher,
+			new ContainerVolumeDiscoveryService(),
+			new MergerfsBranchPlanningService(sourcePriorityService),
+			new FindmntMountSnapshotService(),
+			new MountReconciliationService(),
+			new MergerfsMountCommandService(),
+			new BranchLinkStagingService(),
+			new OverrideDetailsService(),
+			logger);
+
 		IMergeScanRequestCoalescer mergeScanRequestCoalescer = new MergeScanRequestCoalescer(
-			new NoOpMergeScanRequestHandler(logger),
+			new ProductionMergeScanRequestHandler(mergeMountWorkflow, logger),
 			triggerOptions.MergeMinSecondsBetweenScans,
 			triggerOptions.MergeLockRetrySeconds);
 
@@ -42,7 +65,7 @@ internal sealed class DefaultRuntimeSupervisorRunner : IRuntimeSupervisorRunner
 			mergeScanRequestCoalescer,
 			logger);
 
-		IDaemonWorker worker = new FilesystemEventDaemonWorker(triggerPipeline, logger);
+		IDaemonWorker worker = new FilesystemEventDaemonWorker(triggerPipeline, mergeMountWorkflow, logger);
 		IDaemonSupervisor supervisor = new DaemonSupervisor(
 			worker,
 			DaemonSupervisorOptions.FromSettings(documents.Settings),

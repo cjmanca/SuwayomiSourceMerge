@@ -12,12 +12,12 @@ internal sealed class ExternalCommandExecutor : IExternalCommandExecutor
 	/// <summary>
 	/// Character-buffer size used by output capture readers.
 	/// </summary>
-	private const int CAPTURE_BUFFER_SIZE = 2048;
+	private const int CaptureBufferSize = 2048;
 
 	/// <summary>
 	/// Minimum best-effort wait duration used when attempting to drain output after timeout/cancellation.
 	/// </summary>
-	private const int MIN_CAPTURE_WAIT_MILLISECONDS = 50;
+	private const int MinCaptureWaitMilliseconds = 50;
 
 	/// <summary>
 	/// Factory used to create process facade instances for each execution attempt.
@@ -335,7 +335,7 @@ internal sealed class ExternalCommandExecutor : IExternalCommandExecutor
 	private static int CalculateCaptureWaitMilliseconds(TimeSpan pollInterval)
 	{
 		return Math.Max(
-			MIN_CAPTURE_WAIT_MILLISECONDS,
+			MinCaptureWaitMilliseconds,
 			CalculateWaitMilliseconds(pollInterval, TimeSpan.FromSeconds(1)));
 	}
 
@@ -350,13 +350,13 @@ internal sealed class ExternalCommandExecutor : IExternalCommandExecutor
 		ArgumentNullException.ThrowIfNull(reader);
 		ArgumentNullException.ThrowIfNull(buffer);
 
-		char[] chunk = ArrayPool<char>.Shared.Rent(CAPTURE_BUFFER_SIZE);
+		char[] chunk = ArrayPool<char>.Shared.Rent(CaptureBufferSize);
 
 		try
 		{
 			while (true)
 			{
-				int read = await reader.ReadAsync(chunk.AsMemory(0, CAPTURE_BUFFER_SIZE)).ConfigureAwait(false);
+				int read = await reader.ReadAsync(chunk.AsMemory(0, CaptureBufferSize)).ConfigureAwait(false);
 				if (read <= 0)
 				{
 					return;

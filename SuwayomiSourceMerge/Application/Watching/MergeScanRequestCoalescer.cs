@@ -1,3 +1,5 @@
+using SuwayomiSourceMerge.Application.Cancellation;
+
 namespace SuwayomiSourceMerge.Application.Watching;
 
 /// <summary>
@@ -21,7 +23,7 @@ internal sealed class MergeScanRequestCoalescer : IMergeScanRequestCoalescer
 	private readonly TimeSpan _minSecondsBetweenScans;
 
 	/// <summary>
-	/// Delay applied after busy/failure outcomes before retrying.
+	/// Delay applied after busy/mixed/failure outcomes before retrying.
 	/// </summary>
 	private readonly TimeSpan _retryDelay;
 
@@ -51,7 +53,7 @@ internal sealed class MergeScanRequestCoalescer : IMergeScanRequestCoalescer
 	private DateTimeOffset? _lastSuccessUtc;
 
 	/// <summary>
-	/// Earliest timestamp when the next retry may occur after busy/failure outcomes.
+	/// Earliest timestamp when the next retry may occur after busy/mixed/failure outcomes.
 	/// </summary>
 	private DateTimeOffset? _nextRetryUtc;
 
@@ -60,7 +62,7 @@ internal sealed class MergeScanRequestCoalescer : IMergeScanRequestCoalescer
 	/// </summary>
 	/// <param name="requestHandler">Downstream merge-scan request handler.</param>
 	/// <param name="minSecondsBetweenScans">Minimum interval between successful dispatches in seconds.</param>
-	/// <param name="retryDelaySeconds">Retry delay applied after busy/failure outcomes in seconds.</param>
+	/// <param name="retryDelaySeconds">Retry delay applied after busy/mixed/failure outcomes in seconds.</param>
 	public MergeScanRequestCoalescer(
 		IMergeScanRequestHandler requestHandler,
 		int minSecondsBetweenScans,
@@ -150,7 +152,7 @@ internal sealed class MergeScanRequestCoalescer : IMergeScanRequestCoalescer
 		{
 			outcome = _requestHandler.DispatchMergeScan(pendingReason, pendingForce, cancellationToken);
 		}
-		catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+		catch (OperationCanceledException exception) when (CancellationClassification.IsCooperative(exception, cancellationToken))
 		{
 			lock (_syncRoot)
 			{
@@ -181,6 +183,7 @@ internal sealed class MergeScanRequestCoalescer : IMergeScanRequestCoalescer
 			}
 
 			if (outcome == MergeScanDispatchOutcome.Busy ||
+				outcome == MergeScanDispatchOutcome.Mixed ||
 				outcome == MergeScanDispatchOutcome.Failure)
 			{
 				_nextRetryUtc = nowUtc + _retryDelay;

@@ -14,7 +14,7 @@ internal static class ProgramEntryPoint
 	/// <summary>
 	/// Default configuration root path used by containerized deployments.
 	/// </summary>
-	private const string DEFAULT_CONFIG_ROOT_PATH = "/ssm/config";
+	private const string DefaultConfigRootPath = "/ssm/config";
 
 	/// <summary>
 	/// Runs the application using the default host composition.
@@ -45,6 +45,6 @@ internal static class ProgramEntryPoint
 		ArgumentNullException.ThrowIfNull(standardError);
 		ArgumentNullException.ThrowIfNull(hostRunner);
 
-		return hostRunner(DEFAULT_CONFIG_ROOT_PATH, standardError);
+		return hostRunner(DefaultConfigRootPath, standardError);
 	}
 }

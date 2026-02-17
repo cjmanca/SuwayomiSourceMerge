@@ -10,22 +10,22 @@ namespace SuwayomiSourceMerge.Application.Hosting;
 internal sealed class ApplicationHost
 {
 	/// <summary>Event id emitted when bootstrap completes successfully.</summary>
-	private const string BOOTSTRAP_COMPLETED_EVENT = "bootstrap.completed";
+	private const string BootstrapCompletedEvent = "bootstrap.completed";
 
 	/// <summary>Event id emitted for each bootstrap warning.</summary>
-	private const string BOOTSTRAP_WARNING_EVENT = "bootstrap.warning";
+	private const string BootstrapWarningEvent = "bootstrap.warning";
 
 	/// <summary>Event id emitted when host shutdown completes.</summary>
-	private const string HOST_SHUTDOWN_EVENT = "host.shutdown";
+	private const string HostShutdownEvent = "host.shutdown";
 
 	/// <summary>Event id emitted when host runtime exits with failure.</summary>
-	private const string HOST_SHUTDOWN_FAILED_EVENT = "host.shutdown_failed";
+	private const string HostShutdownFailedEvent = "host.shutdown_failed";
 
 	/// <summary>Event id emitted when host startup completes.</summary>
-	private const string HOST_STARTUP_EVENT = "host.startup";
+	private const string HostStartupEvent = "host.startup";
 
 	/// <summary>Event id emitted for unhandled host exceptions.</summary>
-	private const string HOST_UNHANDLED_EXCEPTION_EVENT = "host.unhandled_exception";
+	private const string HostUnhandledExceptionEvent = "host.unhandled_exception";
 
 	/// <summary>
 	/// Service responsible for configuration bootstrap and validation.
@@ -108,13 +108,13 @@ internal sealed class ApplicationHost
 				message => WriteToStandardError(standardError, message));
 
 			logger.Debug(
-				HOST_STARTUP_EVENT,
+				HostStartupEvent,
 				"Host startup completed.",
 				BuildContext(
 					("config_root_path", configRootPath)));
 
 			logger.Debug(
-				BOOTSTRAP_COMPLETED_EVENT,
+				BootstrapCompletedEvent,
 				"Configuration bootstrap completed.",
 				BuildContext(
 					("files", bootstrapResult.Files.Count.ToString()),
@@ -123,7 +123,7 @@ internal sealed class ApplicationHost
 			foreach (ConfigurationBootstrapWarning warning in bootstrapResult.Warnings)
 			{
 				logger.Warning(
-					BOOTSTRAP_WARNING_EVENT,
+					BootstrapWarningEvent,
 					warning.Message,
 					BuildContext(
 						("code", warning.Code),
@@ -135,13 +135,13 @@ internal sealed class ApplicationHost
 			if (runtimeExitCode != 0)
 			{
 				logger.Error(
-					HOST_SHUTDOWN_FAILED_EVENT,
+					HostShutdownFailedEvent,
 					"Host runtime exited with failure.",
 					BuildContext(("runtime_exit_code", runtimeExitCode.ToString())));
 				return 1;
 			}
 
-			logger.Debug(HOST_SHUTDOWN_EVENT, "Host shutdown completed.");
+			logger.Debug(HostShutdownEvent, "Host shutdown completed.");
 			return 0;
 		}
 		catch (ConfigurationBootstrapException exception)
@@ -209,7 +209,7 @@ internal sealed class ApplicationHost
 			try
 			{
 				logger.Error(
-					HOST_UNHANDLED_EXCEPTION_EVENT,
+					HostUnhandledExceptionEvent,
 					"Unhandled host exception.",
 					BuildContext(
 						("exception_type", exception.GetType().FullName ?? exception.GetType().Name),

@@ -14,32 +14,32 @@ internal sealed class ConfigurationPathSet
 	/// <summary>
 	/// Canonical legacy file name used for manga equivalence migration input.
 	/// </summary>
-	private const string MANGA_EQUIVALENTS_LEGACY_FILE_NAME = "manga_equivalents.txt";
+	private const string MangaEquivalentsLegacyFileName = "manga_equivalents.txt";
 
 	/// <summary>
 	/// Canonical YAML file name used for manga equivalence configuration.
 	/// </summary>
-	private const string MANGA_EQUIVALENTS_YAML_FILE_NAME = "manga_equivalents.yml";
+	private const string MangaEquivalentsYamlFileName = "manga_equivalents.yml";
 
 	/// <summary>
 	/// Canonical YAML file name used for scene tag configuration.
 	/// </summary>
-	private const string SCENE_TAGS_YAML_FILE_NAME = "scene_tags.yml";
+	private const string SceneTagsYamlFileName = "scene_tags.yml";
 
 	/// <summary>
 	/// Canonical YAML file name used for settings configuration.
 	/// </summary>
-	private const string SETTINGS_YAML_FILE_NAME = "settings.yml";
+	private const string SettingsYamlFileName = "settings.yml";
 
 	/// <summary>
 	/// Canonical legacy file name used for source priority migration input.
 	/// </summary>
-	private const string SOURCE_PRIORITY_LEGACY_FILE_NAME = "source_priority.txt";
+	private const string SourcePriorityLegacyFileName = "source_priority.txt";
 
 	/// <summary>
 	/// Canonical YAML file name used for source priority configuration.
 	/// </summary>
-	private const string SOURCE_PRIORITY_YAML_FILE_NAME = "source_priority.yml";
+	private const string SourcePriorityYamlFileName = "source_priority.yml";
 
 	/// <summary>
 	/// Initializes a new <see cref="ConfigurationPathSet"/> and expands all canonical paths.
@@ -48,12 +48,12 @@ internal sealed class ConfigurationPathSet
 	private ConfigurationPathSet(string configRootPath)
 	{
 		ConfigRootPath = Path.GetFullPath(configRootPath);
-		SettingsYamlPath = Path.Combine(ConfigRootPath, SETTINGS_YAML_FILE_NAME);
-		MangaEquivalentsYamlPath = Path.Combine(ConfigRootPath, MANGA_EQUIVALENTS_YAML_FILE_NAME);
-		SceneTagsYamlPath = Path.Combine(ConfigRootPath, SCENE_TAGS_YAML_FILE_NAME);
-		SourcePriorityYamlPath = Path.Combine(ConfigRootPath, SOURCE_PRIORITY_YAML_FILE_NAME);
-		MangaEquivalentsLegacyPath = Path.Combine(ConfigRootPath, MANGA_EQUIVALENTS_LEGACY_FILE_NAME);
-		SourcePriorityLegacyPath = Path.Combine(ConfigRootPath, SOURCE_PRIORITY_LEGACY_FILE_NAME);
+		SettingsYamlPath = Path.Combine(ConfigRootPath, SettingsYamlFileName);
+		MangaEquivalentsYamlPath = Path.Combine(ConfigRootPath, MangaEquivalentsYamlFileName);
+		SceneTagsYamlPath = Path.Combine(ConfigRootPath, SceneTagsYamlFileName);
+		SourcePriorityYamlPath = Path.Combine(ConfigRootPath, SourcePriorityYamlFileName);
+		MangaEquivalentsLegacyPath = Path.Combine(ConfigRootPath, MangaEquivalentsLegacyFileName);
+		SourcePriorityLegacyPath = Path.Combine(ConfigRootPath, SourcePriorityLegacyFileName);
 	}
 
 	/// <summary>

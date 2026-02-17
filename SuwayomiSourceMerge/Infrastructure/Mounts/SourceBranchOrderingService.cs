@@ -10,7 +10,7 @@ internal sealed class SourceBranchOrderingService
 	/// <summary>
 	/// Path comparer used for source-path de-duplication and primary path tie-break ordering.
 	/// </summary>
-	private static readonly StringComparer PATH_COMPARER = PathSafetyPolicy.GetPathComparer();
+	private static readonly StringComparer _pathComparer = PathSafetyPolicy.GetPathComparer();
 
 	/// <summary>
 	/// Orders source branch candidates and removes duplicate paths.
@@ -53,11 +53,11 @@ internal sealed class SourceBranchOrderingService
 		OrderedSourceBranch[] sorted = ordered
 			.OrderBy(item => item.Priority)
 			.ThenBy(item => item.Candidate.SourceName, StringComparer.Ordinal)
-			.ThenBy(item => item.Candidate.SourcePath, PATH_COMPARER)
+			.ThenBy(item => item.Candidate.SourcePath, _pathComparer)
 			.ThenBy(item => item.Candidate.SourcePath, StringComparer.Ordinal)
 			.ToArray();
 
-		HashSet<string> seenPaths = new(PATH_COMPARER);
+		HashSet<string> seenPaths = new(_pathComparer);
 		List<MergerfsSourceBranchCandidate> deduplicated = [];
 		foreach (OrderedSourceBranch item in sorted)
 		{

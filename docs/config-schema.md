@@ -55,6 +55,9 @@ shutdown:
   unmount_command_timeout_seconds: 8
   unmount_detach_wait_seconds: 5
   cleanup_high_priority: true
+  cleanup_apply_high_priority: false
+  cleanup_priority_ionice_class: 3
+  cleanup_priority_nice_value: -20
 
 permissions:
   inherit_from_parent: true
@@ -85,7 +88,13 @@ logging:
 - Path fields must be absolute paths
 - Numeric fields:
   - Must be `>= 0`: `merge_min_seconds_between_scans`, `rename_delay_seconds`, `rename_quiet_seconds`, `debug_timing_min_item_ms`, `debug_scan_progress_every`, `debug_scan_progress_seconds`
-  - Must be `> 0`: all other numeric fields
+  - Must be `> 0`: all other numeric fields except those with explicit bounded ranges
+  - Must be in range `1..3`: `shutdown.cleanup_priority_ionice_class`
+  - Must be in range `-20..19`: `shutdown.cleanup_priority_nice_value`
+- `shutdown.cleanup_high_priority` controls startup/shutdown cleanup wrapper execution.
+- `shutdown.cleanup_apply_high_priority` controls reconciliation apply-path wrapper execution.
+- Runtime bootstrap/settings parse (`ConfigurationSchemaService.ParseSettingsForRuntime`) uses strict validation for shutdown cleanup profile fields (`cleanup_apply_high_priority`, `cleanup_priority_ionice_class`, `cleanup_priority_nice_value`).
+- Tooling/schema-only settings parse (`ConfigurationSchemaService.ParseSettingsForTooling`) may omit those shutdown cleanup profile fields; when provided, numeric ranges are still validated.
 - `details_description_mode` allowed values: `text`, `br`, `html`
 - `logging.file_name` must be a single file name (no rooted path, directory separators, or traversal segments)
 - `logging.file_name` must not contain cross-platform strict invalid file-name characters (`U+0000`-`U+001F`, `<`, `>`, `:`, `"`, `/`, `\`, `|`, `?`, `*`)

@@ -8,31 +8,31 @@ namespace SuwayomiSourceMerge.Infrastructure.Rename;
 internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueProcessor
 {
 	/// <summary>Event id used when one chapter path is enqueued.</summary>
-	private const string ENQUEUE_EVENT = "rename.queue.enqueued";
+	private const string EnqueueEvent = "rename.queue.enqueued";
 
 	/// <summary>Event id used for per-pass queue processing summaries.</summary>
-	private const string PROCESS_SUMMARY_EVENT = "rename.queue.processed";
+	private const string ProcessSummaryEvent = "rename.queue.processed";
 
 	/// <summary>Event id used for per-pass rescan summaries.</summary>
-	private const string RESCAN_SUMMARY_EVENT = "rename.queue.rescan";
+	private const string RescanSummaryEvent = "rename.queue.rescan";
 
 	/// <summary>Event id used when queue entries are dropped after missing-path grace windows expire.</summary>
-	private const string MISSING_PATH_DROPPED_EVENT = "rename.queue.missing_dropped";
+	private const string MissingPathDroppedEvent = "rename.queue.missing_dropped";
 
 	/// <summary>Event id used when collision suffix options are exhausted.</summary>
-	private const string COLLISION_EXHAUSTED_EVENT = "rename.collision_exhausted";
+	private const string CollisionExhaustedEvent = "rename.collision_exhausted";
 
-	/// <summary>Event id used when directory moves fail.</summary>
-	private const string MOVE_FAILED_EVENT = "rename.move_failed";
+	/// <summary>Event id used when directory move warnings are emitted.</summary>
+	private const string MoveWarningEvent = "rename.move_warning";
 
-	/// <summary>Event id used when a filesystem enumeration operation fails.</summary>
-	private const string ENUMERATION_FAILED_EVENT = "rename.enumeration_failed";
+	/// <summary>Event id used when filesystem enumeration warnings are emitted.</summary>
+	private const string EnumerationWarningEvent = "rename.enumeration_warning";
 
 	/// <summary>Event id used when one rename operation succeeds.</summary>
-	private const string RENAMED_EVENT = "rename.directory.renamed";
+	private const string RenamedEvent = "rename.directory.renamed";
 
 	/// <summary>Collision suffix alphabet used by shell parity behavior.</summary>
-	private const string COLLISION_SUFFIX_ALPHABET = "abcdefghijklmnopqrstuvwxyz";
+	private const string CollisionSuffixAlphabet = "abcdefghijklmnopqrstuvwxyz";
 
 	/// <summary>Filesystem adapter dependency.</summary>
 	private readonly IChapterRenameFileSystem _fileSystem;
@@ -92,7 +92,7 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 		if (queued)
 		{
 			_logger.Debug(
-				ENQUEUE_EVENT,
+				EnqueueEvent,
 				"Queued chapter path for rename processing.",
 				BuildContext(
 					("path", normalizedChapterPath),
@@ -172,7 +172,7 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 		ChapterRenameProcessResult finalizedResult = processResult ?? throw new InvalidOperationException("Queue transform did not produce a process result.");
 
 		_logger.Debug(
-			PROCESS_SUMMARY_EVENT,
+			ProcessSummaryEvent,
 			"Processed chapter rename queue.",
 			BuildContext(
 				("processed", finalizedResult.ProcessedEntries.ToString()),
@@ -235,7 +235,7 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 
 		ChapterRenameRescanResult result = new(candidates, enqueued);
 		_logger.Debug(
-			RESCAN_SUMMARY_EVENT,
+			RescanSummaryEvent,
 			"Rescanned chapter directories for rename candidates.",
 			BuildContext(
 				("candidates", result.CandidateEntries.ToString()),
@@ -324,9 +324,9 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 			return sanitizedName;
 		}
 
-		for (int index = 0; index < COLLISION_SUFFIX_ALPHABET.Length; index++)
+		for (int index = 0; index < CollisionSuffixAlphabet.Length; index++)
 		{
-			char suffix = COLLISION_SUFFIX_ALPHABET[index];
+			char suffix = CollisionSuffixAlphabet[index];
 			string candidateName = $"{sanitizedName}_alt-{suffix}";
 			string candidatePath = Path.Combine(parentPath, candidateName);
 			if (!_fileSystem.PathExists(candidatePath))
@@ -357,7 +357,7 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 		catch (Exception exception)
 		{
 			_logger.Warning(
-				ENUMERATION_FAILED_EVENT,
+				EnumerationWarningEvent,
 				"Directory enumeration failed.",
 				BuildContext(
 					("path", path),
@@ -385,7 +385,7 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 		catch (Exception exception)
 		{
 			_logger.Warning(
-				ENUMERATION_FAILED_EVENT,
+				EnumerationWarningEvent,
 				"Filesystem entry enumeration failed.",
 				BuildContext(
 					("path", path),
