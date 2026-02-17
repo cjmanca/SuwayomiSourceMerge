@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>SuwayomiSourceMerge</Name>
+  <Repository>ghcr.io/cjmanca/suwayomisourcemerge:latest</Repository>
+  <Registry>https://github.com/cjmanca/SuwayomiSourceMerge/pkgs/container/suwayomisourcemerge</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/cjmanca/SuwayomiSourceMerge/issues</Support>
+  <Project>https://github.com/cjmanca/SuwayomiSourceMerge</Project>
+  <Overview>Merge duplicate Suwayomi manga sources into a single merged library using mergerfs. Important for Unraid: use direct disk or pool paths (for example /mnt/diskX or /mnt/cache), avoid /mnt/user for runtime paths, and keep /ssm/merged configured with rshared propagation.</Overview>
+  <Category>MediaApp:Books Tools:Utilities</Category>
+  <WebUI/>
+  <TemplateURL>https://raw.githubusercontent.com/cjmanca/SuwayomiSourceMerge/main/unraid/templates/my-SuwayomiSourceMerge.xml</TemplateURL>
+  <Icon/>
+  <ExtraParams>--device=/dev/fuse --cap-add=SYS_ADMIN --security-opt apparmor=unconfined --security-opt seccomp=unconfined</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DateInstalled/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="Container user ID used for file ownership." Type="Variable" Display="always" Required="false" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Container group ID used for file ownership." Type="Variable" Display="always" Required="false" Mask="false">100</Config>
+  <Config Name="Appdata Config Path" Target="/ssm/config" Default="/mnt/cache/appdata/ssm/config" Mode="rw" Description="Container Path: /ssm/config" Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/ssm/config</Config>
+  <Config Name="Runtime State Path" Target="/ssm/state" Default="/mnt/cache/appdata/ssm/state" Mode="rw" Description="Container Path: /ssm/state" Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/ssm/state</Config>
+  <Config Name="Merged Output Path (rshared)" Target="/ssm/merged" Default="/mnt/cache/appdata/ssm/merged" Mode="rw,rshared" Description="Container Path: /ssm/merged (must be rshared)." Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/ssm/merged</Config>
+  <Config Name="Preferred Override Path" Target="/ssm/override/priority" Default="/mnt/cache/ssm/override" Mode="rw" Description="Container Path: /ssm/override/priority (preferred write target)." Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/ssm/override</Config>
+  <Config Name="Additional Override Disk 1" Target="/ssm/override/disk1" Default="" Mode="rw" Description="Optional container path: /ssm/override/disk1" Type="Path" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Additional Override Disk 2" Target="/ssm/override/disk2" Default="" Mode="rw" Description="Optional container path: /ssm/override/disk2" Type="Path" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Additional Override Disk 3" Target="/ssm/override/disk3" Default="" Mode="rw" Description="Optional container path: /ssm/override/disk3" Type="Path" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Additional Override Disk 4" Target="/ssm/override/disk4" Default="" Mode="rw" Description="Optional container path: /ssm/override/disk4" Type="Path" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Additional Override Disk 5" Target="/ssm/override/disk5" Default="" Mode="rw" Description="Optional container path: /ssm/override/disk5" Type="Path" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Additional Override Disk 6" Target="/ssm/override/disk6" Default="" Mode="rw" Description="Optional container path: /ssm/override/disk6" Type="Path" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Additional Override Disk 7" Target="/ssm/override/disk7" Default="" Mode="rw" Description="Optional container path: /ssm/override/disk7" Type="Path" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Additional Override Disk 8" Target="/ssm/override/disk8" Default="" Mode="rw" Description="Optional container path: /ssm/override/disk8" Type="Path" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Additional Override Disk 9" Target="/ssm/override/disk9" Default="" Mode="rw" Description="Optional container path: /ssm/override/disk9" Type="Path" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Additional Override Disk 10" Target="/ssm/override/disk10" Default="" Mode="rw" Description="Optional container path: /ssm/override/disk10" Type="Path" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Source Disk 1" Target="/ssm/sources/disk1" Default="/mnt/disk1/share/suwayomi-manga-downloads/mangas" Mode="rw" Description="Container Path: /ssm/sources/disk1 (direct disk/pool path, not /mnt/user)." Type="Path" Display="always" Required="true" Mask="false">/mnt/disk1/share/suwayomi-manga-downloads/mangas</Config>
+  <Config Name="Source Disk 2" Target="/ssm/sources/disk2" Default="" Mode="rw" Description="Optional container path: /ssm/sources/disk2" Type="Path" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Source Disk 3" Target="/ssm/sources/disk3" Default="" Mode="rw" Description="Optional container path: /ssm/sources/disk3" Type="Path" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Source Disk 4" Target="/ssm/sources/disk4" Default="" Mode="rw" Description="Optional container path: /ssm/sources/disk4" Type="Path" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Source Disk 5" Target="/ssm/sources/disk5" Default="" Mode="rw" Description="Optional container path: /ssm/sources/disk5" Type="Path" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Source Disk 6" Target="/ssm/sources/disk6" Default="" Mode="rw" Description="Optional container path: /ssm/sources/disk6" Type="Path" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Source Disk 7" Target="/ssm/sources/disk7" Default="" Mode="rw" Description="Optional container path: /ssm/sources/disk7" Type="Path" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Source Disk 8" Target="/ssm/sources/disk8" Default="" Mode="rw" Description="Optional container path: /ssm/sources/disk8" Type="Path" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Source Disk 9" Target="/ssm/sources/disk9" Default="" Mode="rw" Description="Optional container path: /ssm/sources/disk9" Type="Path" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Source Disk 10" Target="/ssm/sources/disk10" Default="" Mode="rw" Description="Optional container path: /ssm/sources/disk10" Type="Path" Display="advanced" Required="false" Mask="false"></Config>
+</Container>

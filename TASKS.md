@@ -102,4 +102,6 @@
 - [x] 2026-02-17 - Replace public README Dockerfile usage section with Docker Compose deployment instructions and example `compose.yaml`.
 - [x] 2026-02-17 - Add README guidance for Unraid Docker volume layout, including explicit underlying disk/pool bind paths and a warning/rationale to avoid `/mnt/user` for runtime merge paths.
 - [x] 2026-02-17 - Clarify README Docker requirements so the merged bind mount uses `rshared` for both `docker run` and Docker Compose examples.
+- [x] 2026-02-17 - Create an Unraid Community Apps Docker template XML with required FUSE/security flags, rshared merged bind mode, and baseline source/override path mappings.
+- [x] 2026-02-17 - Expand the Unraid Community Apps template to include optional source and override disk mappings through `/ssm/sources/disk10` and `/ssm/override/disk10`.
 - [ ] 2026-02-09 - Finalize docs and developer index after implementation (`README.md`, `AGENTS.md`, `AGENT_INDEX.yml`, migration notes, operation guide). DoD: docs match shipped behavior, migration path is documented, and `AGENT_INDEX.yml` is updated per `AGENT_INDEX_PROMPT.md`.

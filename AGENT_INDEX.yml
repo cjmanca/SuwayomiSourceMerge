@@ -1265,6 +1265,7 @@ modules:
       - README.md
       - SuwayomiSourceMerge/Program.cs
       - SuwayomiSourceMerge/SuwayomiSourceMerge.csproj
+      - unraid/templates/my-SuwayomiSourceMerge.xml
     entrypoints:
       - symbol: DEVELOPMENT.md
         kind: file
@@ -1286,6 +1287,10 @@ modules:
         kind: file
         path: SuwayomiSourceMerge/SuwayomiSourceMerge.csproj
         purpose: Defines runtime target framework and build behavior.
+      - symbol: unraid/templates/my-SuwayomiSourceMerge.xml
+        kind: file
+        path: unraid/templates/my-SuwayomiSourceMerge.xml
+        purpose: Defines an Unraid Community Apps template with required FUSE/security flags and source/override path slots through disk10.
     extension_points:
       - how: Add new runtime orchestration by introducing services and invoking them from Program.cs.
         symbols: [Program.cs]
@@ -1293,13 +1298,14 @@ modules:
       - how: Add project-level runtime/build settings in the application project file.
         symbols: [SuwayomiSourceMerge.csproj]
         paths: [SuwayomiSourceMerge/SuwayomiSourceMerge.csproj]
-      - how: Document runtime operation and deployment guidance in README.md and DEVELOPMENT.md.
-        symbols: [README.md, DEVELOPMENT.md]
-        paths: [README.md, DEVELOPMENT.md]
+      - how: Document runtime operation and deployment guidance in README.md, DEVELOPMENT.md, and the Unraid template.
+        symbols: [README.md, DEVELOPMENT.md, unraid/templates/my-SuwayomiSourceMerge.xml]
+        paths: [README.md, DEVELOPMENT.md, unraid/templates/my-SuwayomiSourceMerge.xml]
     do_not_reimplement:
       - Canonical contributor runtime baseline documentation; use DEVELOPMENT.md.
       - Canonical default startup config root handoff to application host; use ProgramEntryPoint.Run.
       - Canonical public runtime usage and deployment documentation; use README.md.
+      - Canonical Unraid Community Apps template wiring for this runtime; use unraid/templates/my-SuwayomiSourceMerge.xml.
       - Console entrypoint bootstrapping; extend Program.cs.
       - Runtime project configuration root; extend SuwayomiSourceMerge.csproj.
       - Warning policy overrides in app project; keep centralized in Directory.Build.props.
