@@ -98,4 +98,8 @@
 - [x] 2026-02-17 - Address PR #18 AI review follow-up: dedupe repository-root test locator helper, fix tooling-profile indentation drift, queue initial startup merge requests in watcher pipeline, and skip invalid override titles with warning-level diagnostics while preserving merge-pass resilience.
 - [x] 2026-02-17 - Create a GitHub Actions workflow that builds the Docker image and publishes it to GitHub Container Registry (GHCR).
 - [x] 2026-02-17 - Expand Docker publish workflow to run on all branch pushes and tag branch builds with clear `branch-<name>` image tags for testing.
+- [x] 2026-02-17 - Rename developer-focused `README.md` to `DEVELOPMENT.md` and add a new public-facing `README.md` with Docker (Dockerfile + CI example) and bare-metal usage instructions.
+- [x] 2026-02-17 - Replace public README Dockerfile usage section with Docker Compose deployment instructions and example `compose.yaml`.
+- [x] 2026-02-17 - Add README guidance for Unraid Docker volume layout, including explicit underlying disk/pool bind paths and a warning/rationale to avoid `/mnt/user` for runtime merge paths.
+- [x] 2026-02-17 - Clarify README Docker requirements so the merged bind mount uses `rshared` for both `docker run` and Docker Compose examples.
 - [ ] 2026-02-09 - Finalize docs and developer index after implementation (`README.md`, `AGENTS.md`, `AGENT_INDEX.yml`, migration notes, operation guide). DoD: docs match shipped behavior, migration path is documented, and `AGENT_INDEX.yml` is updated per `AGENT_INDEX_PROMPT.md`.

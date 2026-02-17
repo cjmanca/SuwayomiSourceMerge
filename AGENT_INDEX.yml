@@ -1258,12 +1258,18 @@ modules:
       - Canonical size-based rollover and retained archive handling; use RollingFileSink.
     related: [application-hosting, config-schema-validation, unit-test-suite]
   - id: runtime-host
-    summary: Console application host and project-level runtime configuration.
+    summary: Console host, runtime configuration, and top-level public/developer runtime usage documentation.
     tags: [runtime, host, console]
     paths:
+      - DEVELOPMENT.md
+      - README.md
       - SuwayomiSourceMerge/Program.cs
       - SuwayomiSourceMerge/SuwayomiSourceMerge.csproj
     entrypoints:
+      - symbol: DEVELOPMENT.md
+        kind: file
+        path: DEVELOPMENT.md
+        purpose: Captures contributor-focused runtime baseline, architecture constraints, and test guidance.
       - symbol: Program.cs
         kind: file
         path: SuwayomiSourceMerge/Program.cs
@@ -1272,6 +1278,10 @@ modules:
         kind: method
         path: SuwayomiSourceMerge/Program.cs
         purpose: Executes the composed application host using the canonical container config root.
+      - symbol: README.md
+        kind: file
+        path: README.md
+        purpose: Captures public usage guidance including Docker Compose, Unraid direct-disk mapping, rshared merged-bind requirements, CI, and bare-metal runtime instructions.
       - symbol: SuwayomiSourceMerge.csproj
         kind: file
         path: SuwayomiSourceMerge/SuwayomiSourceMerge.csproj
@@ -1283,9 +1293,14 @@ modules:
       - how: Add project-level runtime/build settings in the application project file.
         symbols: [SuwayomiSourceMerge.csproj]
         paths: [SuwayomiSourceMerge/SuwayomiSourceMerge.csproj]
+      - how: Document runtime operation and deployment guidance in README.md and DEVELOPMENT.md.
+        symbols: [README.md, DEVELOPMENT.md]
+        paths: [README.md, DEVELOPMENT.md]
     do_not_reimplement:
-      - Console entrypoint bootstrapping; extend Program.cs.
+      - Canonical contributor runtime baseline documentation; use DEVELOPMENT.md.
       - Canonical default startup config root handoff to application host; use ProgramEntryPoint.Run.
+      - Canonical public runtime usage and deployment documentation; use README.md.
+      - Console entrypoint bootstrapping; extend Program.cs.
       - Runtime project configuration root; extend SuwayomiSourceMerge.csproj.
       - Warning policy overrides in app project; keep centralized in Directory.Build.props.
     related: [application-hosting, build-and-quality, shared-test-support, unit-test-suite]

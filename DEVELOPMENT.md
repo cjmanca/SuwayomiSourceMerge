@@ -1,9 +1,15 @@
-This application relies on .NET 9.0.
-Mutation testing for configuration code is configured at `tests/SuwayomiSourceMerge.UnitTests/stryker-config.json` (target threshold break: 80).
-When adding new features, design them in a testable way, and create unit tests to accompany them.
+# Development Notes
 
+This document is contributor-focused. Public usage and quickstart guidance is in `README.md`.
 
-Requirements baseline for the C# port:
+## Development baseline
+
+- Runtime target: `.NET 9.0`
+- Mutation config for settings/validation code: `tests/SuwayomiSourceMerge.UnitTests/stryker-config.json` (threshold break: `80`)
+- New features should be designed for testability and include tests
+
+## C# port requirements baseline
+
 - Documentation is source of truth when it conflicts with legacy shell behavior.
 - Linux-only runtime target inside Docker with required FUSE permissions.
 - Implementation style is hybrid: C# orchestration with external `mergerfs`, `findmnt`, and `fusermount*` commands.
@@ -23,7 +29,7 @@ Requirements baseline for the C# port:
 - Runtime settings come from `settings.yml`; missing settings must be auto-added with defaults.
 - Logging should prioritize clarity and relevance and write to the config directory.
 - Docker-based integration tests are acceptable for v1.
-- All permissions on created files/directories will be set the same, based on either the docker container PUID/PGID environment variables or equivalent in command switches if not running in a container.
+- All permissions on created files/directories are set from container `PUID`/`PGID` (or equivalent bare-metal switches when not containerized).
 
 Configuration schema reference: `docs/config-schema.md`.
 
@@ -50,12 +56,13 @@ docker run --rm \
 ```
 
 Container defaults and paths:
+
 - `PUID` default: `99`
 - `PGID` default: `100`
 - Required mount paths: `/ssm/config`, `/ssm/sources`, `/ssm/override`, `/ssm/merged`, `/ssm/state`
-- If default `ssm` user/group names are already present with different IDs, entrypoint uses deterministic fallback names while still honoring requested `PUID`/`PGID`.
+- If default `ssm` user/group names already map to different IDs, the entrypoint uses deterministic fallback names while honoring requested `PUID`/`PGID`.
 
-For real FUSE/mergerfs runtime behavior (not mocked test mode), the container host/runtime must provide `/dev/fuse` and required capabilities (commonly `SYS_ADMIN` plus relaxed seccomp/apparmor constraints appropriate for FUSE).
+For real FUSE/mergerfs runtime behavior (not mocked test mode), the host/runtime must provide `/dev/fuse` and required capabilities (commonly `SYS_ADMIN` plus relaxed seccomp/apparmor constraints appropriate for FUSE).
 
 ## Docker end-to-end integration tests
 
