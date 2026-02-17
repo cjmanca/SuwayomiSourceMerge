@@ -4,7 +4,7 @@ using SuwayomiSourceMerge.Configuration.Documents;
 using SuwayomiSourceMerge.Configuration.Validation;
 using SuwayomiSourceMerge.UnitTests.Configuration;
 
-public sealed class SettingsDocumentValidatorTests
+public sealed partial class SettingsDocumentValidatorTests
 {
     [Fact]
     public void Validate_ShouldPass_ForDefaultDocument()
@@ -103,6 +103,7 @@ public sealed class SettingsDocumentValidatorTests
                 StartupCleanup = baseline.Runtime.StartupCleanup,
                 RescanNow = baseline.Runtime.RescanNow,
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
+                MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 DetailsDescriptionMode = baseline.Runtime.DetailsDescriptionMode,
                 MergerfsOptionsBase = baseline.Runtime.MergerfsOptionsBase,
                 ExcludedSources = ["Source A", " source-a "]
@@ -203,6 +204,7 @@ public sealed class SettingsDocumentValidatorTests
                 StartupCleanup = true,
                 RescanNow = true,
                 EnableMountHealthcheck = true,
+                MaxConsecutiveMountFailures = 5,
                 DetailsDescriptionMode = null,
                 MergerfsOptionsBase = "allow_other",
                 ExcludedSources = null
@@ -250,6 +252,7 @@ public sealed class SettingsDocumentValidatorTests
                 StartupCleanup = baseline.Runtime.StartupCleanup,
                 RescanNow = baseline.Runtime.RescanNow,
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
+                MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 DetailsDescriptionMode = baseline.Runtime.DetailsDescriptionMode,
                 MergerfsOptionsBase = baseline.Runtime.MergerfsOptionsBase,
                 ExcludedSources = [" ", "Source A"]

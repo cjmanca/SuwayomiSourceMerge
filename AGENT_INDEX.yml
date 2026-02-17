@@ -69,7 +69,7 @@ modules:
       - Canonical runtime supervisor dependency composition for production startup; use DefaultRuntimeSupervisorRunner.
     related: [application-mounting, application-supervision, logging-infrastructure, runtime-host, unit-test-suite]
   - id: application-mounting
-    summary: Production merge workflow orchestration and lifecycle cleanup for branch planning, reconciliation, and mount apply.
+    summary: Production merge workflow orchestration and lifecycle cleanup for branch planning, reconciliation, mount apply, and mount-readiness fail-fast handling.
     tags: [application, mounting, runtime]
     paths:
       - SuwayomiSourceMerge/Application/Mounting/IMergeMountWorkflow.cs
@@ -83,6 +83,7 @@ modules:
       - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.cs
       - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflowOptions.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.DegradedVisibilityAndOverrideTitles.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.FailFastMountFailures.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.MountCommands.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.OutcomesAndCancellation.cs
@@ -126,6 +127,7 @@ modules:
       - Canonical cancellation propagation during merge-pass branch planning and override-title discovery enumeration; use MergeMountWorkflow.RunMergePass and MergeMountWorkflow.Pass.Grouping helpers.
       - Canonical cleanup stale-prune safety gate that infers still-mounted branch directories from mergerfs source payloads and skips pruning only for degraded-visibility or unresolved mappings; use MergeMountWorkflow.RunCleanupPass.
       - Canonical merge-pass degraded-visibility safety gate that suppresses stale-unmount apply actions when source discovery/build/snapshot visibility is degraded while still allowing mount/remount actions; use MergeMountWorkflow.RunMergePass.
+      - Canonical mount-readiness accessibility probe that performs single-shot first-entry directory materialization and maps probe IO/access faults to mount failures; use MergeMountWorkflow.ValidateMountReadiness and MergeMountWorkflow.TryProbeMountPointAccessibility.
       - Canonical merge-pass helper partitioning for action apply, force-remount resolution, and grouping helpers; use MergeMountWorkflow partial pass files.
       - Canonical merge-pass outcome mapping from action results (mixed when busy+failure, then busy over failure over success); use MergeMountWorkflow.RunMergePass.
       - Canonical merge-pass override-title filtering that skips empty-normalized override directory names with warning diagnostics before resolver construction; use MergeMountWorkflow.DiscoverExistingOverrideTitles and MergeMountWorkflow.IsValidOverrideResolverTitle.
@@ -355,7 +357,7 @@ modules:
       - symbol: Dockerfile
         kind: file
         path: Dockerfile
-        purpose: Defines canonical multi-stage .NET build/runtime image, required runtime packages, and baked `cap_sys_admin` file capabilities for mergerfs/fusermount3.
+        purpose: Defines canonical multi-stage .NET build/runtime image, pinned upstream mergerfs Bookworm package install, required runtime packages, and baked `cap_sys_admin` file capabilities for mergerfs/fusermount3.
       - symbol: docker/entrypoint.sh
         kind: file
         path: docker/entrypoint.sh
@@ -1087,7 +1089,7 @@ modules:
       - Canonical volume discovery filesystem operations contract; use IContainerVolumeFileSystem.
     related: [runtime-host, unit-test-suite]
   - id: infrastructure-watching
-    summary: Inotify watcher models and readers for one-shot polling plus persistent progressive monitor sessions.
+    summary: Inotify watcher models and readers for one-shot polling plus persistent progressive monitor sessions with bounded poll buffers.
     tags: [filesystem, infrastructure, inotify, runtime]
     paths:
       - SuwayomiSourceMerge/Infrastructure/Watching/IInotifyEventReader.cs
@@ -1097,6 +1099,7 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Watching/InotifyPollResult.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/InotifyWatchStartupMode.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs
+      - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.BoundedBuffers.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Reconciliation.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Paths.cs
@@ -1104,6 +1107,7 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Session.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/InotifyEventRecordTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/InotifywaitEventReaderTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/PersistentInotifywaitEventReaderTests.BoundedPollBuffers.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/PersistentInotifywaitEventReaderTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/PersistentInotifywaitEventReaderTests.ReconciliationAndTiming.cs
     entrypoints:
@@ -1152,12 +1156,13 @@ modules:
       - Canonical inotify event token flag model; use InotifyEventMask.
       - Canonical one-shot inotify command invocation and timeout classification; use InotifywaitEventReader.Poll.
       - Canonical persistent inotify monitor orchestration with progressive deep-watch startup, desired-session pruning, and bounded restart backoff; use PersistentInotifywaitEventReader.
+      - Canonical persistent inotify poll result bounding and drop-oldest overflow signaling (including guaranteed overflow summary warning retention); use PersistentInotifywaitEventReader.
       - Canonical progressive deep-session startup budget semantics are per start phase (pre-wait/post-wait), not single-phase per entire poll; use PersistentInotifywaitEventReader.
       - Canonical watcher startup mode contract (`full` and `progressive`); use InotifyWatchStartupMode.
       - Canonical typed poll outcome and warning contract; use InotifyPollResult.
     related: [application-watching, infrastructure-processes, runtime-host, unit-test-suite]
   - id: integration-test-suite
-    summary: Docker-based end-to-end integration suite validating container runtime startup and failure semantics.
+    summary: Docker-based end-to-end integration suite validating container runtime startup, capability, Debian-semantic pinned-upstream mergerfs package version checks, and failure semantics.
     tags: [docker, integration-tests, runtime, xunit]
     paths:
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.Capabilities.cs
@@ -1224,7 +1229,7 @@ modules:
       - Canonical entrypoint non-root FUSE-device-access fail-fast harness; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
       - Canonical entrypoint non-root FUSE preflight validation that rejects non-character-device `FUSE_DEVICE_PATH` values; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
       - Canonical entrypoint trusted-root log ownership guard that skips privileged chown outside `/ssm/config`; use ContainerRuntimeEndToEndTests.EntrypointLogPath.
-      - Canonical image capability regression harness validating baked cap_sys_admin on mergerfs/fusermount3 plus stripped-image negative controls; use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.Capabilities.cs`.
+      - Canonical image capability regression harness validating baked cap_sys_admin on mergerfs/fusermount3, Debian-version-aware pinned-upstream mergerfs package validation, and stripped-image negative controls; use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.Capabilities.cs`.
       - Canonical deterministic wait-loop assertions for integration checks; use DockerAssertions.
       - Canonical Docker CLI command execution and diagnostics wrapper; use DockerCommandRunner.
       - Canonical Docker integration image build, daemon preflight, and teardown image cleanup fixture setup; use DockerIntegrationFixture.
@@ -1393,6 +1398,7 @@ modules:
     paths:
       - tests/SuwayomiSourceMerge.UnitTests/Application/Cancellation/CancellationClassificationTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Hosting/ApplicationHostTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.FailFastMountFailures.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.OutcomesAndCancellation.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.cs
@@ -1429,6 +1435,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/SourcePrioritySchemaTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/MangaEquivalentsDocumentValidatorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/SceneTagsDocumentValidatorTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/SettingsDocumentValidatorTests.RuntimeMountFailureThreshold.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/SettingsDocumentValidatorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/SourcePriorityDocumentValidatorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/ValidationKeyNormalizerPropertyTests.cs
@@ -1459,6 +1466,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeFileSystemTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/InotifyEventRecordTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/InotifywaitEventReaderTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/PersistentInotifywaitEventReaderTests.BoundedPollBuffers.cs
       - tests/SuwayomiSourceMerge.UnitTests/ProgramEntryPointTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Repository/LineEndingPolicyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Repository/NamingConventionPolicyTests.cs

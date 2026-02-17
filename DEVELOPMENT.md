@@ -33,6 +33,12 @@ This document is contributor-focused. Public usage and quickstart guidance is in
 
 Configuration schema reference: `docs/config-schema.md`.
 
+Startup mount safeguards:
+
+- Command-reported mount success is validated by checking for a live mergerfs mount entry and probing directory access.
+- Consecutive mount/remount failures abort remaining actions for the pass after `runtime.max_consecutive_mount_failures` (default `5`).
+- `Transport endpoint is not connected` conditions are treated as failed mount readiness checks and surfaced as mount failures.
+
 ## Container runtime assets
 
 Build image:

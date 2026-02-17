@@ -58,6 +58,15 @@ public sealed partial class MergeMountWorkflowTests
 		}
 
 		/// <summary>
+		/// Gets or sets a value indicating whether successful mount/remount actions should create mountpoint directories.
+		/// </summary>
+		public bool AutoCreateMountPointOnSuccess
+		{
+			get;
+			set;
+		} = true;
+
+		/// <summary>
 		/// Gets recorded unmounted mountpoints.
 		/// </summary>
 		public List<string> UnmountedMountPoints
@@ -99,6 +108,13 @@ public sealed partial class MergeMountWorkflowTests
 			MountActionApplyOutcome outcome = _applyOutcomeSequence.Count > 0
 				? _applyOutcomeSequence.Dequeue()
 				: ApplyOutcome;
+			if (outcome == MountActionApplyOutcome.Success &&
+				AutoCreateMountPointOnSuccess &&
+				(action.Kind == MountReconciliationActionKind.Mount || action.Kind == MountReconciliationActionKind.Remount))
+			{
+				Directory.CreateDirectory(action.MountPoint);
+			}
+
 			return new MountActionApplyResult(action, outcome, "apply");
 		}
 

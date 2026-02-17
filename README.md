@@ -94,6 +94,7 @@ Published images already bake file capabilities required for non-root mergerfs m
 
 - `/usr/bin/fusermount3` -> `cap_sys_admin+ep`
 - `$(command -v mergerfs)` -> `cap_sys_admin+ep`
+- `mergerfs` version is pinned to upstream Bookworm package `2.41.1`
 
 If you build a custom or derived image and replace packages, re-apply and verify capabilities:
 

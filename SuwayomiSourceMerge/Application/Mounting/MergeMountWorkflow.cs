@@ -31,6 +31,9 @@ internal sealed partial class MergeMountWorkflow : IMergeMountWorkflow, IMergeRu
 	/// <summary>Event id emitted when one reconciliation action is applied.</summary>
 	private const string MergeActionEvent = "merge.workflow.action";
 
+	/// <summary>Event id emitted when apply actions are aborted after repeated mount failures.</summary>
+	private const string MergeActionFailFastEvent = "merge.workflow.action_fail_fast";
+
 	/// <summary>Event id emitted for lifecycle cleanup runs.</summary>
 	private const string MergeCleanupEvent = "merge.workflow.cleanup";
 

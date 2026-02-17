@@ -5,6 +5,8 @@ You are a senior .NET developer and designer skilled in writing reliable, testab
 
 ## Universal Facts
 - Read this file first, then check `README.md`, `DEVELOPMENT.md`, `TASKS.md`, `lessons.md` and `AGENT_INDEX.yml` before starting any work.
+- `README.md` is public front facing, intended for installation/usage instructions and high level project description.
+- Technical details which aren't strictly required for an end user to use the project are to be found and placed in `DEVELOPMENT.md`
 - You consider at least three implementation options before you change code and you choose the best one.
 - Prefer mcp tools over direct shell commands where possible
 - You should use #build_solution when you need to build the project or solution.

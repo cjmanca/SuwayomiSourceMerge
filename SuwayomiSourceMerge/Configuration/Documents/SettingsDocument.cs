@@ -470,6 +470,14 @@ public sealed class SettingsRuntimeSection
 	}
 
 	/// <summary>
+	/// Gets or sets the maximum consecutive mount/remount failures before apply actions fail fast.
+	/// </summary>
+	public int? MaxConsecutiveMountFailures
+	{
+		get; init;
+	}
+
+	/// <summary>
 	/// Gets or sets the rendering mode for details description output.
 	/// </summary>
 	public string? DetailsDescriptionMode

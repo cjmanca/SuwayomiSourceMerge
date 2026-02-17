@@ -7,6 +7,9 @@ namespace SuwayomiSourceMerge.IntegrationTests;
 /// </summary>
 public sealed partial class ContainerRuntimeEndToEndTests
 {
+	private const string ExpectedPinnedMergerfsUpstreamVersion = "2.41.1";
+	private const string ExpectedPinnedMergerfsUpperBound = "2.41.2~";
+
 	/// <summary>
 	/// Verifies the distributed image bakes <c>cap_sys_admin</c> onto both mergerfs and fusermount3 binaries.
 	/// </summary>
@@ -17,6 +20,33 @@ public sealed partial class ContainerRuntimeEndToEndTests
 
 		Assert.False(result.TimedOut);
 		Assert.Equal(0, result.ExitCode);
+	}
+
+	/// <summary>
+	/// Verifies the distributed image ships mergerfs in the exact pinned upstream version series.
+	/// </summary>
+	[Fact]
+	public void Run_Expected_ShouldReportMergerfsVersionWithinPinnedUpstreamSeries()
+	{
+		DockerCommandResult result = _fixture.Runner.Execute(
+		[
+			"run",
+			"--rm",
+			_fixture.ImageTag,
+			"bash",
+			"-lc",
+			$"actual_version=\"$(dpkg-query -W -f='${{Version}}' mergerfs)\" && printf '%s\\n' \"$actual_version\" && dpkg --compare-versions \"$actual_version\" ge \"{ExpectedPinnedMergerfsUpstreamVersion}~\" && dpkg --compare-versions \"$actual_version\" lt \"{ExpectedPinnedMergerfsUpperBound}\""
+		],
+		timeout: TimeSpan.FromMinutes(2));
+
+		Assert.False(result.TimedOut);
+		Assert.True(
+			result.ExitCode == 0,
+			$"Expected mergerfs Debian package version to remain within upstream pinned series '{ExpectedPinnedMergerfsUpstreamVersion}'.{Environment.NewLine}" +
+			$"Command: {result.Command}{Environment.NewLine}" +
+			$"ExitCode: {result.ExitCode}{Environment.NewLine}" +
+			$"Stdout:{Environment.NewLine}{result.StandardOutput}{Environment.NewLine}" +
+			$"Stderr:{Environment.NewLine}{result.StandardError}");
 	}
 
 	/// <summary>

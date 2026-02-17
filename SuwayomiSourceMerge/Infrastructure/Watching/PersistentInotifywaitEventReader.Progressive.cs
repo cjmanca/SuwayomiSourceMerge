@@ -46,7 +46,7 @@ internal sealed partial class PersistentInotifywaitEventReader
 	/// <param name="commandFailed">Receives generic command-failure classification for other startup failures.</param>
 	private void StartPendingProgressiveDeepSessions(
 		DateTimeOffset nowUtc,
-		ICollection<string> warnings,
+		BoundedFifoBuffer<string> warnings,
 		ref bool toolNotFound,
 		ref bool commandFailed)
 	{
@@ -104,7 +104,7 @@ internal sealed partial class PersistentInotifywaitEventReader
 		string watchPath,
 		bool recursive,
 		DateTimeOffset nowUtc,
-		ICollection<string> warnings,
+		BoundedFifoBuffer<string> warnings,
 		ref bool toolNotFound,
 		ref bool commandFailed)
 	{

@@ -173,6 +173,7 @@ public sealed class SettingsSelfHealingServiceTests
               startup_cleanup: true
               rescan_now: true
               enable_mount_healthcheck: false
+              max_consecutive_mount_failures: 5
               details_description_mode: text
               mergerfs_options_base: allow_other,default_permissions,use_ino,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0
               excluded_sources:
