@@ -109,4 +109,5 @@
 - [x] 2026-02-17 - Add configurable `scan.merge_trigger_request_timeout_buffer_seconds` with default `300`, wire it through watcher options into `InotifywaitEventReader`, and update schema/self-healing/validation/docs/tests.
 - [x] 2026-02-17 - Add unit-test coverage verifying `InotifywaitEventReader` applies the default `requestTimeoutBufferSeconds` value (`300`) when constructor argument is omitted.
 - [x] 2026-02-17 - Seed generated default `manga_equivalents.yml` and `source_priority.yml` with one starter example entry each (while retaining existing populated `scene_tags.yml` defaults) and update bootstrap/docs/tests accordingly.
+- [x] 2026-02-17 - Fix merge canonical fallback naming so trailing scene-tag suffixes are stripped from source-derived display titles before override branch paths are created, with regression tests for stripped and all-tag edge cases.
 - [ ] 2026-02-09 - Finalize docs and developer index after implementation (`README.md`, `AGENTS.md`, `AGENT_INDEX.yml`, migration notes, operation guide). DoD: docs match shipped behavior, migration path is documented, and `AGENT_INDEX.yml` is updated per `AGENT_INDEX_PROMPT.md`.

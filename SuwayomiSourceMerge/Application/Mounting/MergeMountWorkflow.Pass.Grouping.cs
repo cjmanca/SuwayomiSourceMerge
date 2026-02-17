@@ -162,6 +162,12 @@ internal sealed partial class MergeMountWorkflow
 			return overrideCanonicalTitle;
 		}
 
+		string strippedTitle = TitleKeyNormalizer.StripTrailingSceneTagSuffixes(inputTitle, _sceneTagMatcher);
+		if (!string.IsNullOrWhiteSpace(strippedTitle))
+		{
+			return strippedTitle;
+		}
+
 		return inputTitle.Trim();
 	}
 

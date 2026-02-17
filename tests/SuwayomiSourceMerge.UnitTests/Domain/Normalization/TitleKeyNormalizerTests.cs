@@ -61,4 +61,28 @@ public sealed class TitleKeyNormalizerTests
 	{
 		Assert.Throws<ArgumentNullException>(() => TitleKeyNormalizer.NormalizeTokenKey(null!));
 	}
+
+	[Fact]
+	public void StripTrailingSceneTagSuffixes_ShouldStripSuffixAndPreserveDisplayText()
+	{
+		ISceneTagMatcher matcher = new SceneTagMatcher(["official", "tapas official"]);
+
+		string stripped = TitleKeyNormalizer.StripTrailingSceneTagSuffixes("Log Into The Future [Tapas Official]", matcher);
+
+		Assert.Equal("Log Into The Future", stripped);
+	}
+
+	[Fact]
+	public void StripTrailingSceneTagSuffixes_ShouldReturnInput_WhenMatcherIsNull()
+	{
+		string stripped = TitleKeyNormalizer.StripTrailingSceneTagSuffixes("Solo Leveling [Official]", sceneTagMatcher: null);
+
+		Assert.Equal("Solo Leveling [Official]", stripped);
+	}
+
+	[Fact]
+	public void StripTrailingSceneTagSuffixes_ShouldThrow_WhenInputIsNull()
+	{
+		Assert.Throws<ArgumentNullException>(() => TitleKeyNormalizer.StripTrailingSceneTagSuffixes(null!, new SceneTagMatcher(["official"])));
+	}
 }

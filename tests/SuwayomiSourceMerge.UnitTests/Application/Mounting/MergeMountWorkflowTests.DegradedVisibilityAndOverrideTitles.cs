@@ -161,6 +161,55 @@ public sealed partial class MergeMountWorkflowTests
 	}
 
 	/// <summary>
+	/// Verifies fallback canonical title resolution strips trailing scene-tag suffixes for display naming.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Edge_ShouldStripSceneTagSuffix_FromFallbackCanonicalSourceTitle()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		Directory.CreateDirectory(Path.Combine(fixture.VolumeDiscoveryService.SourceVolumePaths[0], "SourceA", "Solo Leveling [Official]"));
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("interval elapsed", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Success, outcome);
+		Assert.NotNull(fixture.ReconciliationService.LastInput);
+		Assert.Contains(
+			fixture.ReconciliationService.LastInput!.DesiredMounts,
+			static mount => mount.MountPoint.EndsWith(
+				Path.DirectorySeparatorChar + "Solo Leveling",
+				StringComparison.Ordinal));
+		Assert.DoesNotContain(
+			fixture.ReconciliationService.LastInput.DesiredMounts,
+			static mount => mount.MountPoint.EndsWith(
+				Path.DirectorySeparatorChar + "Solo Leveling [Official]",
+				StringComparison.Ordinal));
+	}
+
+	/// <summary>
+	/// Verifies fallback canonical title resolution keeps original title when stripping would produce an empty value.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Edge_ShouldKeepOriginalTitle_WhenSceneTagStrippingEmptiesFallbackTitle()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		Directory.CreateDirectory(Path.Combine(fixture.VolumeDiscoveryService.SourceVolumePaths[0], "SourceA", "(Official)"));
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("interval elapsed", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Success, outcome);
+		Assert.NotNull(fixture.ReconciliationService.LastInput);
+		Assert.Contains(
+			fixture.ReconciliationService.LastInput!.DesiredMounts,
+			static mount => mount.MountPoint.EndsWith(
+				Path.DirectorySeparatorChar + "(Official)",
+				StringComparison.Ordinal));
+	}
+
+	/// <summary>
 	/// Verifies source-discovery warning suppression does not mask non-stale mount-action failures.
 	/// </summary>
 	[Fact]

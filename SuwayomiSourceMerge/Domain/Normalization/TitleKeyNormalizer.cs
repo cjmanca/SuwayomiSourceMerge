@@ -82,6 +82,29 @@ internal static class TitleKeyNormalizer
 	}
 
 	/// <summary>
+	/// Strips trailing scene-tag suffixes from one title while preserving display formatting.
+	/// </summary>
+	/// <param name="input">Raw title value.</param>
+	/// <param name="sceneTagMatcher">
+	/// Optional matcher used to remove trailing scene-tag suffixes.
+	/// </param>
+	/// <returns>
+	/// Input title text with any matching trailing scene-tag suffixes removed and outer whitespace trimmed.
+	/// </returns>
+	/// <exception cref="ArgumentNullException">Thrown when <paramref name="input"/> is <see langword="null"/>.</exception>
+	public static string StripTrailingSceneTagSuffixes(string input, ISceneTagMatcher? sceneTagMatcher)
+	{
+		ArgumentNullException.ThrowIfNull(input);
+
+		if (string.IsNullOrWhiteSpace(input))
+		{
+			return string.Empty;
+		}
+
+		return StripSceneTagSuffixes(input.Trim(), sceneTagMatcher);
+	}
+
+	/// <summary>
 	/// Determines whether a word is one of the canonical leading articles removed from title keys.
 	/// </summary>
 	/// <param name="word">Word token to evaluate.</param>

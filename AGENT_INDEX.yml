@@ -132,6 +132,7 @@ modules:
       - Canonical resolve-only force-remount reason resolution (`override-force:<title>`) targeting known desired mountpoints; use MergeMountWorkflow.RunMergePass.
       - Canonical startup/shutdown managed-root cleanup orchestration; use MergeMountWorkflow.OnWorkerStarting and MergeMountWorkflow.OnWorkerStopping.
       - Canonical title grouping and canonical-title precedence flow used by merge runtime; use MergeMountWorkflow.RunMergePass.
+      - Canonical source-derived fallback canonical-title display naming that strips trailing scene-tag suffixes while preserving override/equivalence precedence; use MergeMountWorkflow.ResolveCanonicalTitle.
     related: [application-hosting, application-supervision, application-watching, config-resolution, infrastructure-metadata, infrastructure-mounts, infrastructure-volumes, unit-test-suite]
   - id: application-supervision
     summary: Daemon lifecycle supervision with state-file locking, PID tracking, and signal-driven graceful shutdown.
@@ -643,6 +644,10 @@ modules:
         kind: method
         path: SuwayomiSourceMerge/Domain/Normalization/TitleKeyNormalizer.cs
         purpose: Builds compact title comparison keys with optional scene-tag suffix stripping.
+      - symbol: TitleKeyNormalizer.StripTrailingSceneTagSuffixes
+        kind: method
+        path: SuwayomiSourceMerge/Domain/Normalization/TitleKeyNormalizer.cs
+        purpose: Removes trailing scene-tag suffixes from display titles without applying comparison-key punctuation normalization.
     extension_points:
       - how: Add alternate scene-tag matching policies by implementing the matcher interface and injecting the implementation into validation call sites.
         symbols: [ISceneTagMatcher, MangaEquivalentsDocumentValidator]
@@ -663,6 +668,7 @@ modules:
       - Canonical matcher-equivalent scene-tag key derivation; use SceneTagMatchKeyBuilder.TryCreate.
       - Canonical scene-tag matcher contract for normalization consumers; use ISceneTagMatcher.
       - Canonical trim+case-insensitive source-name key normalization for exclusion matching; use SourceNameKeyNormalizer.NormalizeSourceKey.
+      - Canonical display-title trailing scene-tag suffix stripping used by merge canonical fallback naming; use TitleKeyNormalizer.StripTrailingSceneTagSuffixes.
       - Canonical title key normalization for runtime and validation call sites; use TitleKeyNormalizer.NormalizeTitleKey.
     related: [config-bootstrap-migration, config-resolution, config-schema-validation, unit-test-suite]
   - id: infrastructure-branch-planning
