@@ -208,6 +208,11 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 		TimeSpan pollInterval,
 		CancellationToken cancellationToken)
 	{
+		if (!TryEnsureMountPointDirectory(action.MountPoint, out string ensureDiagnostic))
+		{
+			return new MountActionApplyResult(action, MountActionApplyOutcome.Failure, ensureDiagnostic);
+		}
+
 		string options = $"{mergerfsOptionsBase},fsname={action.DesiredIdentity}";
 		ExternalCommandRequest request = CreateRequest(
 			"mergerfs",
@@ -218,6 +223,27 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 		ExternalCommandResult commandResult = _commandExecutor.Execute(request, cancellationToken);
 		(MountActionApplyOutcome outcome, string diagnostic) = ClassifyCommandResult(commandResult);
 		return new MountActionApplyResult(action, outcome, diagnostic);
+	}
+
+	/// <summary>
+	/// Ensures the action mountpoint directory exists before invoking mergerfs.
+	/// </summary>
+	/// <param name="mountPoint">Mountpoint directory path.</param>
+	/// <param name="diagnostic">Failure diagnostic text.</param>
+	/// <returns><see langword="true"/> when the directory exists or is created; otherwise <see langword="false"/>.</returns>
+	private static bool TryEnsureMountPointDirectory(string mountPoint, out string diagnostic)
+	{
+		try
+		{
+			_ = Directory.CreateDirectory(mountPoint);
+			diagnostic = string.Empty;
+			return true;
+		}
+		catch (Exception exception)
+		{
+			diagnostic = $"Failed to ensure mountpoint directory '{mountPoint}': {exception.GetType().Name}: {exception.Message}";
+			return false;
+		}
 	}
 
 	/// <summary>

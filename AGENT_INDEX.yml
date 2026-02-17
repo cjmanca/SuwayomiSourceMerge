@@ -829,6 +829,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/BranchLinkStagingServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/FindmntMountSnapshotServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/FindmntSnapshotLineParserTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.MountPointCreation.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MountSnapshotWarningPolicyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MountReconciliationServiceTests.cs
@@ -852,7 +853,7 @@ modules:
       - symbol: MergerfsMountCommandService
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Mounts/MergerfsMountCommandService.cs
-        purpose: Applies mount/remount/unmount actions using mergerfs and fusermount fallback chains with configurable cleanup wrapper priorities.
+        purpose: Applies mount/remount/unmount actions using mergerfs and fusermount fallback chains with mountpoint-ensure and cleanup-wrapper priorities.
       - symbol: MountReconciliationService
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationService.cs
@@ -885,6 +886,7 @@ modules:
       - Canonical desired-vs-actual reconciliation decision engine; use MountReconciliationService.Reconcile.
       - Canonical findmnt snapshot capture and parse-warning behavior (including non-throwing parser guards and escape decoding); use FindmntMountSnapshotService.
       - Canonical legacy shell findmnt pairs-mode compatibility wrapper; use findmnt_pairs.
+      - Canonical mount action precondition that ensures mountpoint directories exist before invoking mergerfs; use MergerfsMountCommandService.
       - Canonical mount/unmount/remount command fallback chains (`fusermount3`, `fusermount`, `umount`); use MergerfsMountCommandService.
       - Canonical normalized mountpoint key matching across desired/actual/forced/stale checks; use MountReconciliationService.Reconcile.
       - Canonical timed legacy shell findmnt pairs-mode wrapper; use ro_timeout_findmnt_pairs.

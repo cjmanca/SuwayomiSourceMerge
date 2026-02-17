@@ -6,7 +6,7 @@ using SuwayomiSourceMerge.Infrastructure.Processes;
 /// <summary>
 /// Verifies expected, edge, and failure behavior for <see cref="MergerfsMountCommandService"/>.
 /// </summary>
-public sealed class MergerfsMountCommandServiceTests
+public sealed partial class MergerfsMountCommandServiceTests
 {
 	/// <summary>
 	/// Verifies mount command composition includes fsname with desired identity.
