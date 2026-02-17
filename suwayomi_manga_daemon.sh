@@ -3,7 +3,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ################################################################################
-# Helped script for Suwayomi on unraid.
+# Helper script for Suwayomi on unraid.
 # Sets up mergerFS to link the same manga's from different sources into a combined local source.
 # Also renames chapters with release groups containing numbers, since the numbers confuse suwayomi's local chapter ordering.
 # Uses inotify to detect new sources/mangas/chapters as long as the script continues to run.
@@ -3836,7 +3836,7 @@ cleaned_norm="$(normify_from_normalized "$cleaned")"
 
       CANON_BY_GROUPKEY["$groupkey"]="${CANON_BY_GROUPKEY[$groupkey]:-$canon}"
 
-      
+
 local -a manga_dir_reals=()
 if [[ "$manga_dir" == /mnt/user/* ]]; then
   mapfile -t manga_dir_reals < <(list_real_dirs_for_user_dir "$manga_dir")
@@ -4493,7 +4493,7 @@ unmount_all_mergerfs_under_local_root() {
       # Takes too long to do all that checking. Just brute force unmount everything lazily. It'll work it's self out.
       run_cmd_timeout "$UNMOUNT_CMD_TIMEOUT_SECONDS" "$FUSERMOUNT_BIN" -uz "$mp" >&3 2>&3 || true
       command -v umount >/dev/null 2>&1 && run_cmd_timeout "$UNMOUNT_CMD_TIMEOUT_SECONDS" umount -l "$mp" >&3 2>&3 || true
-	
+
 #      if ! run_cmd_timeout "$UNMOUNT_CMD_TIMEOUT_SECONDS" "$FUSERMOUNT_BIN" -u "$mp" >&3 2>&3; then
 #        # Busy mounts happen; try lazy unmount (-z). This detaches the mount when possible.
 #        run_cmd_timeout "$UNMOUNT_CMD_TIMEOUT_SECONDS" "$FUSERMOUNT_BIN" -uz "$mp" >&3 2>&3 || true
@@ -4913,7 +4913,7 @@ log "Supervisor: lock acquired"
   trap 'cleanup; exit 0' INT TERM
   trap 'cleanup' EXIT
 
-  
+
 init_watch_roots || true
 local _w=""
 for _w in "${WATCH_ROOTS[@]:-}"; do
