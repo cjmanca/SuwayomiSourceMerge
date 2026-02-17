@@ -21,6 +21,7 @@ public sealed class SettingsDocumentDefaultsTests
         Assert.Equal(10, document.Logging.RetainedFileCount);
         Assert.Equal("warning", document.Logging.Level);
         Assert.Equal(300, document.Scan!.MergeTriggerRequestTimeoutBufferSeconds);
+        Assert.Equal("progressive", document.Scan.WatchStartupMode);
         Assert.False(document.Shutdown!.CleanupApplyHighPriority);
         Assert.Equal(3, document.Shutdown!.CleanupPriorityIoniceClass);
         Assert.Equal(-20, document.Shutdown.CleanupPriorityNiceValue);

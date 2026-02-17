@@ -89,6 +89,20 @@ internal sealed class FilesystemEventDaemonWorker : IDaemonWorker
 								("message", exception.Message)));
 					}
 
+					try
+					{
+						_triggerPipeline.Dispose();
+					}
+					catch (Exception exception)
+					{
+						_logger.Warning(
+							WorkerLifecycleWarningEvent,
+							"Filesystem trigger pipeline dispose threw a non-fatal exception.",
+							BuildContext(
+								("exception_type", exception.GetType().FullName ?? exception.GetType().Name),
+								("message", exception.Message)));
+					}
+
 					_logger.Debug(WorkerStoppedEvent, "Filesystem event daemon worker stopped.");
 				}
 			},

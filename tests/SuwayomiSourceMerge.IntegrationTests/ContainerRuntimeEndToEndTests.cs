@@ -49,6 +49,7 @@ public sealed partial class ContainerRuntimeEndToEndTests
 			string daemonLogPath = Path.Combine(workspace.ConfigRootPath, "daemon.log");
 			string commandLogPath = Path.Combine(workspace.StateRootPath, "mock-commands.log");
 			DockerAssertions.WaitForFileContains(daemonLogPath, "event=\"host.startup\"", TimeSpan.FromSeconds(60));
+			DockerAssertions.WaitForFileContains(daemonLogPath, "scan.merge_trigger_request_timeout_buffer_seconds", TimeSpan.FromSeconds(60));
 			DockerAssertions.WaitForFileContains(daemonLogPath, "event=\"watcher.tick.summary\"", TimeSpan.FromSeconds(60));
 			DockerAssertions.WaitForFileContains(daemonLogPath, "event=\"merge.dispatch.completed\"", TimeSpan.FromSeconds(60));
 			DockerAssertions.WaitForFileContains(commandLogPath, "mergerfs ", TimeSpan.FromSeconds(60));
@@ -335,6 +336,53 @@ public sealed partial class ContainerRuntimeEndToEndTests
 		Assert.False(result.TimedOut);
 		Assert.Equal(0, result.ExitCode);
 		Assert.DoesNotContain("Transport endpoint is not connected", result.StandardError, StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// Verifies merged-child ownership repair failures are logged as warnings without aborting startup.
+	/// </summary>
+	[Fact]
+	public void Run_Edge_ShouldContinue_WhenMergedChildOwnershipRepairFails()
+	{
+		using ContainerFixtureWorkspace workspace = new();
+		Directory.CreateDirectory(Path.Combine(workspace.MergedRootPath, "Stale"));
+		workspace.WriteMockToolScript(
+			"chown",
+			"""
+			#!/usr/bin/env sh
+			for argument in "$@"; do
+			  if [ "$argument" = "/ssm/merged/Stale" ]; then
+			    echo "chown: cannot access '/ssm/merged/Stale': Transport endpoint is not connected" >&2
+			    exit 1
+			  fi
+			done
+			exit 0
+			""");
+
+		DockerCommandResult result = _fixture.Runner.Execute(
+		[
+			"run",
+			"--rm",
+			"--volume",
+			$"{workspace.MockBinPath}:/ssm/mock-bin:ro",
+			"--volume",
+			$"{workspace.MergedRootPath}:/ssm/merged",
+			"--env",
+			"PATH=/ssm/mock-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+			"--env",
+			"PUID=99",
+			"--env",
+			"PGID=100",
+			_fixture.ImageTag,
+			"bash",
+			"-lc",
+			"true"
+		],
+		timeout: TimeSpan.FromMinutes(2));
+
+		Assert.False(result.TimedOut);
+		Assert.Equal(0, result.ExitCode);
+		Assert.Contains("Failed to chown existing merged child '/ssm/merged/Stale'", result.StandardError, StringComparison.Ordinal);
 	}
 
 	/// <summary>

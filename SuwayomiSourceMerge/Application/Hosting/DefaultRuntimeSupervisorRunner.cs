@@ -1,3 +1,5 @@
+using System.Globalization;
+
 using SuwayomiSourceMerge.Application.Mounting;
 using SuwayomiSourceMerge.Application.Supervision;
 using SuwayomiSourceMerge.Application.Watching;
@@ -7,7 +9,6 @@ using SuwayomiSourceMerge.Domain.Normalization;
 using SuwayomiSourceMerge.Infrastructure.Logging;
 using SuwayomiSourceMerge.Infrastructure.Metadata;
 using SuwayomiSourceMerge.Infrastructure.Mounts;
-using SuwayomiSourceMerge.Infrastructure.Processes;
 using SuwayomiSourceMerge.Infrastructure.Rename;
 using SuwayomiSourceMerge.Infrastructure.Volumes;
 using SuwayomiSourceMerge.Infrastructure.Watching;
@@ -27,10 +28,19 @@ internal sealed class DefaultRuntimeSupervisorRunner : IRuntimeSupervisorRunner
 
 		FilesystemEventTriggerOptions triggerOptions = FilesystemEventTriggerOptions.FromSettings(documents.Settings);
 		ChapterRenameOptions renameOptions = ChapterRenameOptions.FromSettings(documents.Settings);
+		if (documents.Settings.Scan?.MergeTriggerRequestTimeoutBufferSeconds is int timeoutBufferSeconds)
+		{
+			logger.Warning(
+				"watcher.config.deprecated",
+				"Setting 'scan.merge_trigger_request_timeout_buffer_seconds' is deprecated and ignored by the persistent inotify monitor implementation.",
+				new Dictionary<string, string>(StringComparer.Ordinal)
+				{
+					["setting"] = "scan.merge_trigger_request_timeout_buffer_seconds",
+					["value"] = timeoutBufferSeconds.ToString(CultureInfo.InvariantCulture)
+				});
+		}
 
-		IInotifyEventReader inotifyReader = new InotifywaitEventReader(
-			new ExternalCommandExecutor(),
-			triggerOptions.InotifyRequestTimeoutBufferSeconds);
+		IInotifyEventReader inotifyReader = new PersistentInotifywaitEventReader(triggerOptions.WatchStartupMode);
 		IChapterRenameQueueProcessor renameQueueProcessor = new ChapterRenameQueueProcessor(
 			renameOptions,
 			new ShellParityChapterRenameSanitizer(),

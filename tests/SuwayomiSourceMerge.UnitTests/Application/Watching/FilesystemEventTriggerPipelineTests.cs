@@ -9,13 +9,13 @@ using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 /// <summary>
 /// Verifies expected, edge, and failure behavior for <see cref="FilesystemEventTriggerPipeline"/>.
 /// </summary>
-public sealed class FilesystemEventTriggerPipelineTests
+public sealed partial class FilesystemEventTriggerPipelineTests
 {
 	/// <summary>
-	/// Verifies chapter directory events enqueue rename work and queue merge requests.
+	/// Verifies chapter directory events enqueue rename work and keep startup-first request ordering deterministic.
 	/// </summary>
 	[Fact]
-	public void Tick_Expected_ShouldEnqueueChapterAndQueueMergeRequest_WhenChapterEventArrives()
+	public void Tick_Expected_ShouldEnqueueChapterAndQueueMergeRequestInStartupFirstOrder_WhenChapterEventArrives()
 	{
 		StubInotifyEventReader eventReader = new(
 			new InotifyPollResult(
@@ -40,19 +40,20 @@ public sealed class FilesystemEventTriggerPipelineTests
 		FilesystemEventTickResult result = pipeline.Tick(DateTimeOffset.UtcNow);
 
 		Assert.Equal(1, result.EnqueuedChapterPaths);
-		Assert.Equal(1, result.MergeRequestsQueued);
+		Assert.Equal(2, result.MergeRequestsQueued);
 		Assert.Equal(1, result.RenameProcessRuns);
 		Assert.Equal(MergeScanDispatchOutcome.Success, result.MergeDispatchOutcome);
 		Assert.Single(renameProcessor.EnqueuedPaths);
-		Assert.Single(coalescer.Requests);
-		Assert.Equal("chapter-implied-new:SourceA/MangaA", coalescer.Requests[0].Reason);
+		Assert.Equal(2, coalescer.Requests.Count);
+		Assert.Equal("startup", coalescer.Requests[0].Reason);
+		Assert.Equal("chapter-implied-new:SourceA/MangaA", coalescer.Requests[1].Reason);
 	}
 
 	/// <summary>
-	/// Verifies source-directory events enqueue nested chapter paths immediately.
+	/// Verifies source-directory events enqueue nested chapter paths immediately while preserving startup-first ordering.
 	/// </summary>
 	[Fact]
-	public void Tick_Expected_ShouldEnqueueNestedChapters_WhenNewSourceDirectoryEventArrives()
+	public void Tick_Expected_ShouldEnqueueNestedChaptersInStartupFirstOrder_WhenNewSourceDirectoryEventArrives()
 	{
 		StubInotifyEventReader eventReader = new(
 			new InotifyPollResult(
@@ -81,15 +82,16 @@ public sealed class FilesystemEventTriggerPipelineTests
 		Assert.Equal(3, result.EnqueuedChapterPaths);
 		Assert.Single(renameProcessor.EnqueuedSourcePaths);
 		Assert.Equal("/ssm/sources/SourceA", renameProcessor.EnqueuedSourcePaths[0]);
-		Assert.Single(coalescer.Requests);
-		Assert.Equal("new-source:SourceA", coalescer.Requests[0].Reason);
+		Assert.Equal(2, coalescer.Requests.Count);
+		Assert.Equal("startup", coalescer.Requests[0].Reason);
+		Assert.Equal("new-source:SourceA", coalescer.Requests[1].Reason);
 	}
 
 	/// <summary>
-	/// Verifies manga-directory events enqueue nested chapter paths immediately.
+	/// Verifies manga-directory events enqueue nested chapter paths immediately while preserving startup-first ordering.
 	/// </summary>
 	[Fact]
-	public void Tick_Expected_ShouldEnqueueNestedChapters_WhenNewMangaDirectoryEventArrives()
+	public void Tick_Expected_ShouldEnqueueNestedChaptersInStartupFirstOrder_WhenNewMangaDirectoryEventArrives()
 	{
 		StubInotifyEventReader eventReader = new(
 			new InotifyPollResult(
@@ -118,8 +120,9 @@ public sealed class FilesystemEventTriggerPipelineTests
 		Assert.Equal(2, result.EnqueuedChapterPaths);
 		Assert.Single(renameProcessor.EnqueuedMangaPaths);
 		Assert.Equal("/ssm/sources/SourceA/MangaA", renameProcessor.EnqueuedMangaPaths[0]);
-		Assert.Single(coalescer.Requests);
-		Assert.Equal("new-manga:SourceA/MangaA", coalescer.Requests[0].Reason);
+		Assert.Equal(2, coalescer.Requests.Count);
+		Assert.Equal("startup", coalescer.Requests[0].Reason);
+		Assert.Equal("new-manga:SourceA/MangaA", coalescer.Requests[1].Reason);
 	}
 
 	/// <summary>
@@ -142,6 +145,80 @@ public sealed class FilesystemEventTriggerPipelineTests
 		Assert.Single(coalescer.Requests);
 		Assert.Equal("startup", coalescer.Requests[0].Reason);
 		Assert.False(coalescer.Requests[0].Force);
+	}
+
+	/// <summary>
+	/// Verifies startup merge dispatch runs before the first inotify poll on the first tick.
+	/// </summary>
+	[Fact]
+	public void Tick_Expected_ShouldDispatchStartupBeforePolling_OnFirstTick()
+	{
+		RecordingMergeScanRequestCoalescer coalescer = new(MergeScanDispatchOutcome.Success);
+		StubInotifyEventReader eventReader = new(
+			new InotifyPollResult(InotifyPollOutcome.Success, [], []),
+			_ => Assert.Equal(1, coalescer.DispatchCalls));
+		FilesystemEventTriggerPipeline pipeline = new(
+			CreateOptions(startupRenameRescanEnabled: false),
+			eventReader,
+			new RecordingChapterRenameQueueProcessor(),
+			coalescer,
+			new RecordingLogger());
+
+		FilesystemEventTickResult result = pipeline.Tick(DateTimeOffset.UtcNow);
+
+		Assert.Equal(1, result.MergeRequestsQueued);
+		Assert.Equal(2, coalescer.DispatchCalls);
+		Assert.Single(coalescer.Requests);
+		Assert.Equal("startup", coalescer.Requests[0].Reason);
+	}
+
+	/// <summary>
+	/// Verifies startup evaluation does not queue a duplicate startup request when one is already pending.
+	/// </summary>
+	[Fact]
+	public void Tick_Edge_ShouldEvaluateStartupWithoutQueueingDuplicateRequest_WhenPendingRequestAlreadyExists()
+	{
+		RecordingMergeScanRequestCoalescer coalescer = new(MergeScanDispatchOutcome.Success)
+		{
+			HasPendingRequestOverride = true
+		};
+		FilesystemEventTriggerPipeline pipeline = new(
+			CreateOptions(startupRenameRescanEnabled: false),
+			new StubInotifyEventReader(new InotifyPollResult(InotifyPollOutcome.Success, [], [])),
+			new RecordingChapterRenameQueueProcessor(),
+			coalescer,
+			new RecordingLogger());
+
+		FilesystemEventTickResult result = pipeline.Tick(DateTimeOffset.UtcNow);
+
+		Assert.Equal(0, result.MergeRequestsQueued);
+		Assert.Empty(coalescer.Requests);
+		Assert.Equal(2, coalescer.DispatchCalls);
+	}
+
+	/// <summary>
+	/// Verifies startup dispatch failures are non-fatal and polling still executes on first tick.
+	/// </summary>
+	[Fact]
+	public void Tick_Failure_ShouldContinuePolling_WhenStartupDispatchFails()
+	{
+		bool pollInvoked = false;
+		RecordingMergeScanRequestCoalescer coalescer = new(MergeScanDispatchOutcome.Failure);
+		StubInotifyEventReader eventReader = new(
+			new InotifyPollResult(InotifyPollOutcome.Success, [], []),
+			_ => pollInvoked = true);
+		FilesystemEventTriggerPipeline pipeline = new(
+			CreateOptions(startupRenameRescanEnabled: false),
+			eventReader,
+			new RecordingChapterRenameQueueProcessor(),
+			coalescer,
+			new RecordingLogger());
+
+		FilesystemEventTickResult result = pipeline.Tick(DateTimeOffset.UtcNow);
+
+		Assert.True(pollInvoked);
+		Assert.Equal(MergeScanDispatchOutcome.Failure, result.MergeDispatchOutcome);
+		Assert.Equal(1, result.MergeRequestsQueued);
 	}
 
 	/// <summary>
@@ -276,222 +353,4 @@ public sealed class FilesystemEventTriggerPipelineTests
 		Assert.Equal(0, renameProcessor.ProcessCalls);
 	}
 
-	/// <summary>
-	/// Creates default trigger options for tests.
-	/// </summary>
-	/// <param name="startupRenameRescanEnabled">Startup rename rescan flag.</param>
-	/// <returns>Constructed options instance.</returns>
-	private static FilesystemEventTriggerOptions CreateOptions(bool startupRenameRescanEnabled)
-	{
-		ChapterRenameOptions renameOptions = new(
-			"/ssm/sources",
-			renameDelaySeconds: 300,
-			renameQuietSeconds: 120,
-			renamePollSeconds: 20,
-			renameRescanSeconds: 172800,
-			["Local source"]);
-		return new FilesystemEventTriggerOptions(
-			renameOptions,
-			"/ssm/override",
-			inotifyPollSeconds: 5,
-			mergeIntervalSeconds: 3600,
-			mergeMinSecondsBetweenScans: 15,
-			mergeLockRetrySeconds: 30,
-			startupRenameRescanEnabled);
-	}
-
-	/// <summary>
-	/// Inotify reader stub returning one configured poll result.
-	/// </summary>
-	private sealed class StubInotifyEventReader : IInotifyEventReader
-	{
-		/// <summary>
-		/// Initializes a new instance of the <see cref="StubInotifyEventReader"/> class.
-		/// </summary>
-		/// <param name="result">Result returned by <see cref="Poll"/>.</param>
-		public StubInotifyEventReader(InotifyPollResult result, Action<CancellationToken>? onPoll = null)
-		{
-			Result = result ?? throw new ArgumentNullException(nameof(result));
-			OnPoll = onPoll;
-		}
-
-		/// <summary>
-		/// Gets configured result.
-		/// </summary>
-		public InotifyPollResult Result
-		{
-			get;
-		}
-
-		/// <summary>
-		/// Optional callback executed when poll is invoked.
-		/// </summary>
-		public Action<CancellationToken>? OnPoll
-		{
-			get;
-		}
-
-		/// <inheritdoc />
-		public InotifyPollResult Poll(
-			IReadOnlyList<string> watchRoots,
-			TimeSpan timeout,
-			CancellationToken cancellationToken = default)
-		{
-			OnPoll?.Invoke(cancellationToken);
-			return Result;
-		}
-	}
-
-	/// <summary>
-	/// Rename queue processor fake recording method calls.
-	/// </summary>
-	private sealed class RecordingChapterRenameQueueProcessor : IChapterRenameQueueProcessor
-	{
-		/// <summary>
-		/// Gets enqueued chapter paths.
-		/// </summary>
-		public List<string> EnqueuedPaths
-		{
-			get;
-		} = [];
-
-		/// <summary>
-		/// Gets source paths passed to recursive enqueue.
-		/// </summary>
-		public List<string> EnqueuedSourcePaths
-		{
-			get;
-		} = [];
-
-		/// <summary>
-		/// Gets manga paths passed to recursive enqueue.
-		/// </summary>
-		public List<string> EnqueuedMangaPaths
-		{
-			get;
-		} = [];
-
-		/// <summary>
-		/// Delegate used by source recursive enqueue.
-		/// </summary>
-		public Func<string, int> EnqueueChaptersUnderSourcePathHandler
-		{
-			get;
-			set;
-		} = static _ => 0;
-
-		/// <summary>
-		/// Delegate used by manga recursive enqueue.
-		/// </summary>
-		public Func<string, int> EnqueueChaptersUnderMangaPathHandler
-		{
-			get;
-			set;
-		} = static _ => 0;
-
-		/// <summary>
-		/// Gets number of <see cref="ProcessOnce"/> calls.
-		/// </summary>
-		public int ProcessCalls
-		{
-			get;
-			private set;
-		}
-
-		/// <summary>
-		/// Gets number of <see cref="RescanAndEnqueue"/> calls.
-		/// </summary>
-		public int RescanCalls
-		{
-			get;
-			private set;
-		}
-
-		/// <inheritdoc />
-		public bool EnqueueChapterPath(string chapterPath)
-		{
-			EnqueuedPaths.Add(chapterPath);
-			return true;
-		}
-
-		/// <inheritdoc />
-		public int EnqueueChaptersUnderMangaPath(string mangaPath)
-		{
-			EnqueuedMangaPaths.Add(mangaPath);
-			return EnqueueChaptersUnderMangaPathHandler(mangaPath);
-		}
-
-		/// <inheritdoc />
-		public int EnqueueChaptersUnderSourcePath(string sourcePath)
-		{
-			EnqueuedSourcePaths.Add(sourcePath);
-			return EnqueueChaptersUnderSourcePathHandler(sourcePath);
-		}
-
-		/// <inheritdoc />
-		public ChapterRenameProcessResult ProcessOnce()
-		{
-			ProcessCalls++;
-			return new ChapterRenameProcessResult(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-		}
-
-		/// <inheritdoc />
-		public ChapterRenameRescanResult RescanAndEnqueue()
-		{
-			RescanCalls++;
-			return new ChapterRenameRescanResult(0, 0);
-		}
-	}
-
-	/// <summary>
-	/// Merge request coalescer fake recording queued requests and returning one configured dispatch outcome.
-	/// </summary>
-	private sealed class RecordingMergeScanRequestCoalescer : IMergeScanRequestCoalescer
-	{
-		/// <summary>
-		/// Initializes a new instance of the <see cref="RecordingMergeScanRequestCoalescer"/> class.
-		/// </summary>
-		/// <param name="dispatchOutcome">Outcome returned by <see cref="DispatchPending"/>.</param>
-		public RecordingMergeScanRequestCoalescer(MergeScanDispatchOutcome dispatchOutcome)
-		{
-			DispatchOutcome = dispatchOutcome;
-		}
-
-		/// <summary>
-		/// Gets queued request records.
-		/// </summary>
-		public List<(string Reason, bool Force)> Requests
-		{
-			get;
-		} = [];
-
-		/// <summary>
-		/// Gets dispatch outcome returned by <see cref="DispatchPending"/>.
-		/// </summary>
-		public MergeScanDispatchOutcome DispatchOutcome
-		{
-			get;
-		}
-
-		/// <inheritdoc />
-		public bool HasPendingRequest
-		{
-			get
-			{
-				return Requests.Count > 0;
-			}
-		}
-
-		/// <inheritdoc />
-		public MergeScanDispatchOutcome DispatchPending(DateTimeOffset nowUtc, CancellationToken cancellationToken = default)
-		{
-			return DispatchOutcome;
-		}
-
-		/// <inheritdoc />
-		public void RequestScan(string reason, bool force = false)
-		{
-			Requests.Add((reason, force));
-		}
-	}
 }

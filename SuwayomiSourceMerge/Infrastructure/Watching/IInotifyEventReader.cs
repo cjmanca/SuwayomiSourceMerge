@@ -1,12 +1,12 @@
 namespace SuwayomiSourceMerge.Infrastructure.Watching;
 
 /// <summary>
-/// Polls filesystem watch roots using one-shot inotifywait commands.
+/// Polls filesystem watch roots and returns batched inotify events.
 /// </summary>
 internal interface IInotifyEventReader
 {
 	/// <summary>
-	/// Polls watch roots once and parses returned inotify events.
+	/// Polls watch roots once and returns parsed inotify event records.
 	/// </summary>
 	/// <param name="watchRoots">Directories passed to inotifywait.</param>
 	/// <param name="timeout">Maximum wait duration for one poll.</param>

@@ -38,7 +38,8 @@ public static class SettingsDocumentDefaults
 				MergeTriggerPollSeconds = 5,
 				MergeMinSecondsBetweenScans = 15,
 				MergeLockRetrySeconds = 30,
-				MergeTriggerRequestTimeoutBufferSeconds = 300
+				MergeTriggerRequestTimeoutBufferSeconds = 300,
+				WatchStartupMode = "progressive"
 			},
 			Rename = new SettingsRenameSection
 			{

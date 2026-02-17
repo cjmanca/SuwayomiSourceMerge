@@ -7,9 +7,13 @@ DEFAULT_SSM_USER="ssm"
 DEFAULT_SSM_GROUP="ssm"
 DEFAULT_LOG_FILE_NAME="daemon.log"
 DEFAULT_LOG_ROOT_PATH="/ssm/config"
+MERGED_ROOT_PATH="/ssm/merged"
 FUSE_CONF_PATH="${FUSE_CONF_PATH:-/etc/fuse.conf}"
+FUSE_DEVICE_PATH="${FUSE_DEVICE_PATH:-/dev/fuse}"
 ENTRYPOINT_SETTINGS_PATH="${ENTRYPOINT_SETTINGS_PATH:-/ssm/config/settings.yml}"
 ENTRYPOINT_LOG_FILE=""
+# Runtime identity string is intentionally formatted for direct gosu invocation.
+RUNTIME_GOSU_IDENTITY=""
 
 PUID="${PUID:-$DEFAULT_PUID}"
 PGID="${PGID:-$DEFAULT_PGID}"
@@ -328,6 +332,67 @@ ensure_user_allow_other() {
 
 ensure_user_allow_other
 
+resolve_runtime_gosu_identity() {
+  local runtime_user_name
+  runtime_user_name="$(getent passwd "$PUID" | cut -d: -f1 || true)"
+  if [[ -n "$runtime_user_name" ]]; then
+    RUNTIME_GOSU_IDENTITY="$runtime_user_name:$PGID"
+    return
+  fi
+
+  RUNTIME_GOSU_IDENTITY="$PUID:$PGID"
+}
+
+ensure_runtime_fuse_device_access() {
+  if [[ "$PUID" = "0" ]]; then
+    return
+  fi
+
+  if [[ -e "/ssm/mock-bin/mergerfs" ]]; then
+    entrypoint_log "WARN: Skipping FUSE device preflight because mock mergerfs tool '/ssm/mock-bin/mergerfs' is present."
+    return
+  fi
+
+  if [[ ! -e "$FUSE_DEVICE_PATH" ]]; then
+    entrypoint_log "WARN: '$FUSE_DEVICE_PATH' is not present. Mergerfs mounts will fail unless runtime is using mocked tool scripts."
+    return
+  fi
+
+  if [[ ! -c "$FUSE_DEVICE_PATH" ]]; then
+    local fuse_file_type_detail
+    fuse_file_type_detail="$(stat -c 'type=%F mode=%a owner=%u group=%g' "$FUSE_DEVICE_PATH" 2>/dev/null || echo "type unavailable")"
+    entrypoint_log "ERROR: '$FUSE_DEVICE_PATH' is not a character device ($fuse_file_type_detail). Configure FUSE_DEVICE_PATH to point to a mapped '/dev/fuse' device."
+    exit 70
+  fi
+
+  local runtime_user_name
+  runtime_user_name="$(getent passwd "$PUID" | cut -d: -f1 || true)"
+  local fuse_device_group_id
+  fuse_device_group_id="$(stat -c '%g' "$FUSE_DEVICE_PATH" 2>/dev/null || true)"
+  if [[ -n "$runtime_user_name" && "$fuse_device_group_id" =~ ^[0-9]+$ ]]; then
+    local fuse_device_group_name
+    fuse_device_group_name="$(getent group "$fuse_device_group_id" | cut -d: -f1 || true)"
+    if [[ -n "$fuse_device_group_name" ]]; then
+      local add_group_error
+      if ! add_group_error="$(usermod -a -G "$fuse_device_group_name" "$runtime_user_name" 2>&1)"; then
+        entrypoint_log "WARN: Failed to add runtime user '$runtime_user_name' to FUSE device group '$fuse_device_group_name'. Detail: $add_group_error"
+      fi
+    fi
+  fi
+
+  # Keep direct test invocations separate to avoid extra shell indirection/quoting with sh -c.
+  if gosu "$RUNTIME_GOSU_IDENTITY" test -r "$FUSE_DEVICE_PATH" &&
+    gosu "$RUNTIME_GOSU_IDENTITY" test -w "$FUSE_DEVICE_PATH"; then
+    return
+  fi
+
+  local fuse_device_access_detail
+  fuse_device_access_detail="$(stat -c 'mode=%a owner=%u group=%g' "$FUSE_DEVICE_PATH" 2>/dev/null || echo "stat unavailable")"
+  entrypoint_log "ERROR: Runtime identity '$RUNTIME_GOSU_IDENTITY' cannot read/write '$FUSE_DEVICE_PATH' ($fuse_device_access_detail). Mergerfs mounts will fail with 'Operation not permitted'."
+  entrypoint_log "Fix access to '$FUSE_DEVICE_PATH' for PUID=$PUID (for example by mapping the device and granting user/group read+write permissions)."
+  exit 70
+}
+
 existing_group_name="$(getent group "$PGID" | cut -d: -f1 || true)"
 if [[ -z "$existing_group_name" ]]; then
   desired_group_name="$DEFAULT_SSM_GROUP"
@@ -368,11 +433,76 @@ if ! getent passwd "$PUID" >/dev/null 2>&1; then
   useradd "${useradd_args[@]}" "$desired_user_name"
 fi
 
-mkdir -p /ssm/config /ssm/state /ssm/merged
-chown -R "$PUID:$PGID" /ssm/config /ssm/state
+ensure_merged_root_ownership() {
+  chown "$PUID:$PGID" "$MERGED_ROOT_PATH"
+
+  local merged_child_path
+  for merged_child_path in "$MERGED_ROOT_PATH"/*; do
+    if [[ ! -e "$merged_child_path" ]]; then
+      break
+    fi
+
+    if [[ -L "$merged_child_path" ]]; then
+      entrypoint_log "WARN: Skipping symlinked merged child '$merged_child_path' during ownership repair."
+      continue
+    fi
+
+    if [[ ! -d "$merged_child_path" ]]; then
+      continue
+    fi
+
+    local current_owner
+    current_owner="$(stat -c '%u:%g' "$merged_child_path" 2>/dev/null || true)"
+    if [[ "$current_owner" = "$PUID:$PGID" ]]; then
+      continue
+    fi
+
+    local child_chown_error
+    if ! child_chown_error="$(chown -h "$PUID:$PGID" "$merged_child_path" 2>&1)"; then
+      entrypoint_log "WARN: Failed to chown existing merged child '$merged_child_path' to '$PUID:$PGID'. Continuing without recursive repair. Detail: $child_chown_error"
+    fi
+  done
+}
+
+ensure_entrypoint_log_file_ownership() {
+  if [[ -z "$ENTRYPOINT_LOG_FILE" || ! -e "$ENTRYPOINT_LOG_FILE" ]]; then
+    return
+  fi
+
+  if [[ -L "$ENTRYPOINT_LOG_FILE" ]]; then
+    entrypoint_log "WARN: Skipping chown for symlinked entrypoint log path '$ENTRYPOINT_LOG_FILE'."
+    return
+  fi
+
+  local trusted_log_root
+  trusted_log_root="$(readlink -f "$DEFAULT_LOG_ROOT_PATH" 2>/dev/null || printf '%s' "$DEFAULT_LOG_ROOT_PATH")"
+  local resolved_log_file_path
+  resolved_log_file_path="$(readlink -f "$ENTRYPOINT_LOG_FILE" 2>/dev/null || true)"
+  if [[ -z "$resolved_log_file_path" ]]; then
+    entrypoint_log "WARN: Skipping chown for entrypoint log path '$ENTRYPOINT_LOG_FILE' because the canonical path could not be resolved."
+    return
+  fi
+
+  case "$resolved_log_file_path" in
+    "$trusted_log_root"|"$trusted_log_root"/*) ;;
+    *)
+      entrypoint_log "WARN: Skipping chown for entrypoint log path '$ENTRYPOINT_LOG_FILE' because resolved path '$resolved_log_file_path' is outside trusted root '$trusted_log_root'."
+      return
+      ;;
+  esac
+
+  chown -h "$PUID:$PGID" "$resolved_log_file_path" >/dev/null 2>&1 || true
+}
+
+mkdir -p /ssm/config /ssm/state "$MERGED_ROOT_PATH"
+# Securely fix ownership of config and state trees without following symlinks, to avoid
+# privilege escalation via symlinks planted inside these directories.
+find /ssm/config /ssm/state -xdev -exec chown -h "$PUID:$PGID" {} + >/dev/null 2>&1 || true
 # Only chown the merged root itself (not recursive) so stale FUSE mountpoints beneath
-# /ssm/merged do not hard-fail container startup with transport-endpoint errors.
-chown "$PUID:$PGID" /ssm/merged
+# $MERGED_ROOT_PATH does not hard-fail container startup with transport-endpoint errors.
+ensure_merged_root_ownership
+resolve_runtime_gosu_identity
+ensure_runtime_fuse_device_access
 
 if [[ -d /ssm/mock-bin ]]; then
   chmod +x /ssm/mock-bin/* >/dev/null 2>&1 || true
@@ -382,4 +512,5 @@ if [[ "$#" -eq 0 ]]; then
   set -- dotnet /app/SuwayomiSourceMerge.dll
 fi
 
-exec gosu "$PUID:$PGID" "$@"
+ensure_entrypoint_log_file_ownership
+exec gosu "$RUNTIME_GOSU_IDENTITY" "$@"

@@ -295,6 +295,38 @@ public sealed class SettingsDocumentValidatorTests
     }
 
     [Fact]
+    public void Validate_ShouldReportDeterministicError_WhenWatchStartupModeInvalid()
+    {
+        SettingsDocumentValidator validator = new();
+        SettingsDocument baseline = ConfigurationTestData.CreateValidSettingsDocument();
+        SettingsDocument document = new()
+        {
+            Paths = baseline.Paths,
+            Scan = new SettingsScanSection
+            {
+                MergeIntervalSeconds = baseline.Scan!.MergeIntervalSeconds,
+                MergeTriggerPollSeconds = baseline.Scan.MergeTriggerPollSeconds,
+                MergeMinSecondsBetweenScans = baseline.Scan.MergeMinSecondsBetweenScans,
+                MergeLockRetrySeconds = baseline.Scan.MergeLockRetrySeconds,
+                MergeTriggerRequestTimeoutBufferSeconds = baseline.Scan.MergeTriggerRequestTimeoutBufferSeconds,
+                WatchStartupMode = "invalid"
+            },
+            Rename = baseline.Rename,
+            Diagnostics = baseline.Diagnostics,
+            Shutdown = baseline.Shutdown,
+            Permissions = baseline.Permissions,
+            Runtime = baseline.Runtime,
+            Logging = baseline.Logging
+        };
+
+        ValidationResult result = validator.Validate(document, "settings.yml");
+
+        ValidationError error = Assert.Single(result.Errors);
+        Assert.Equal("$.scan.watch_startup_mode", error.Path);
+        Assert.Equal("CFG-SET-005", error.Code);
+    }
+
+    [Fact]
     public void Validate_ShouldAllowLoggingLevelWithWhitespaceAndMixedCase()
     {
         SettingsDocumentValidator validator = new();

@@ -43,7 +43,7 @@ public sealed class FilesystemEventTriggerPipelineIntegrationTests
 		FilesystemEventTickResult secondTick = pipeline.Tick(now.AddSeconds(5));
 		FilesystemEventTickResult thirdTick = pipeline.Tick(now.AddSeconds(20));
 
-		Assert.Equal(MergeScanDispatchOutcome.Success, firstTick.MergeDispatchOutcome);
+		Assert.Equal(MergeScanDispatchOutcome.SkippedDueToMinInterval, firstTick.MergeDispatchOutcome);
 		Assert.Equal(MergeScanDispatchOutcome.SkippedDueToMinInterval, secondTick.MergeDispatchOutcome);
 		Assert.Equal(MergeScanDispatchOutcome.Success, thirdTick.MergeDispatchOutcome);
 		Assert.Equal(2, handler.DispatchCalls);

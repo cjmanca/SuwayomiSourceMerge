@@ -190,6 +190,14 @@ public sealed class SettingsScanSection
 	{
 		get; init;
 	}
+
+	/// <summary>
+	/// Gets or sets watcher startup strategy token (<c>full</c> or <c>progressive</c>).
+	/// </summary>
+	public string? WatchStartupMode
+	{
+		get; init;
+	}
 }
 
 /// <summary>
