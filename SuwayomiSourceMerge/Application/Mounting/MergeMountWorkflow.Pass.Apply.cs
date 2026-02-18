@@ -37,7 +37,7 @@ internal sealed partial class MergeMountWorkflow
 				cancellationToken);
 			if (IsMountOrRemount(action) && applyResult.Outcome == MountActionApplyOutcome.Success)
 			{
-				applyResult = ValidateMountReadiness(action, applyResult);
+				applyResult = ValidateMountReadiness(action, applyResult, cancellationToken);
 			}
 
 			if (applyResult.Outcome == MountActionApplyOutcome.Busy)
@@ -123,7 +123,8 @@ internal sealed partial class MergeMountWorkflow
 	/// <returns>Updated apply result with readiness failures mapped to failure outcomes.</returns>
 	private MountActionApplyResult ValidateMountReadiness(
 		MountReconciliationAction action,
-		MountActionApplyResult applyResult)
+		MountActionApplyResult applyResult,
+		CancellationToken cancellationToken)
 	{
 		string normalizedMountPoint = Path.GetFullPath(action.MountPoint);
 		MountSnapshot readinessSnapshot = _mountSnapshotService.Capture();
@@ -147,12 +148,17 @@ internal sealed partial class MergeMountWorkflow
 				$"Mount readiness check failed: expected mergerfs filesystem type for '{normalizedMountPoint}' but observed '{matchingEntry.FileSystemType}'.");
 		}
 
-		if (!TryProbeMountPointAccessibility(normalizedMountPoint, out string probeFailure))
+		MountReadinessProbeResult probeResult = _mountCommandService.ProbeMountPointReadiness(
+			normalizedMountPoint,
+			_options.UnmountCommandTimeout,
+			_options.CommandPollInterval,
+			cancellationToken);
+		if (!probeResult.IsReady)
 		{
 			return new MountActionApplyResult(
 				action,
 				MountActionApplyOutcome.Failure,
-				$"Mount readiness check failed: mountpoint probe failed for '{normalizedMountPoint}'. {probeFailure}");
+				$"Mount readiness check failed: mountpoint probe failed for '{normalizedMountPoint}'. {probeResult.Diagnostic}");
 		}
 
 		return applyResult;
@@ -179,36 +185,5 @@ internal sealed partial class MergeMountWorkflow
 		}
 
 		return null;
-	}
-
-	/// <summary>
-	/// Probes mountpoint accessibility with a bounded directory enumeration read.
-	/// </summary>
-	/// <param name="mountPoint">Mountpoint path.</param>
-	/// <param name="failure">Failure diagnostic when probe fails.</param>
-	/// <returns><see langword="true"/> when probe succeeds; otherwise <see langword="false"/>.</returns>
-	private static bool TryProbeMountPointAccessibility(string mountPoint, out string failure)
-	{
-		if (!Directory.Exists(mountPoint))
-		{
-			failure = "Mountpoint directory does not exist.";
-			return false;
-		}
-
-		try
-		{
-			string[] firstEntries = Directory.EnumerateFileSystemEntries(mountPoint).Take(1).ToArray();
-			if (firstEntries.Length > 0)
-			{
-				_ = firstEntries[0].Length;
-			}
-			failure = string.Empty;
-			return true;
-		}
-		catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or DirectoryNotFoundException)
-		{
-			failure = $"{exception.GetType().Name}: {exception.Message}";
-			return false;
-		}
 	}
 }

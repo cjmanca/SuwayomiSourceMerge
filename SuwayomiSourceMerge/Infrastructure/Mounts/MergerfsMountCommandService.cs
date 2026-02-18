@@ -46,6 +46,11 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 	];
 
 	/// <summary>
+	/// Command used for timeout-bounded mounted-path readiness probing.
+	/// </summary>
+	private const string ReadinessProbeCommand = "ls";
+
+	/// <summary>
 	/// Command executor dependency.
 	/// </summary>
 	private readonly IExternalCommandExecutor _commandExecutor;
@@ -198,6 +203,51 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 			action,
 			MountActionApplyOutcome.Failure,
 			"No unmount command was available on PATH.");
+	}
+
+	/// <inheritdoc />
+	public MountReadinessProbeResult ProbeMountPointReadiness(
+		string mountPoint,
+		TimeSpan commandTimeout,
+		TimeSpan pollInterval,
+		CancellationToken cancellationToken = default)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(mountPoint);
+		ValidateTiming(commandTimeout, pollInterval);
+		cancellationToken.ThrowIfCancellationRequested();
+
+		ExternalCommandRequest request = CreateRequest(
+			ReadinessProbeCommand,
+			["-A", mountPoint],
+			commandTimeout,
+			pollInterval);
+		ExternalCommandResult commandResult = _commandExecutor.Execute(request, cancellationToken);
+		if (commandResult.Outcome == ExternalCommandOutcome.Success)
+		{
+			return MountReadinessProbeResult.Ready("Readiness probe command succeeded.");
+		}
+
+		if (commandResult.Outcome == ExternalCommandOutcome.TimedOut)
+		{
+			return MountReadinessProbeResult.NotReady("Readiness probe command timed out.");
+		}
+
+		if (commandResult.Outcome == ExternalCommandOutcome.Cancelled)
+		{
+			return MountReadinessProbeResult.NotReady("Readiness probe command was cancelled.");
+		}
+
+		if (commandResult.Outcome == ExternalCommandOutcome.NonZeroExit)
+		{
+			string diagnostic = string.IsNullOrWhiteSpace(commandResult.StandardError)
+				? commandResult.StandardOutput.Trim()
+				: commandResult.StandardError.Trim();
+			return MountReadinessProbeResult.NotReady(
+				$"Readiness probe command exited non-zero ({commandResult.ExitCode?.ToString() ?? "<none>"}): {diagnostic}");
+		}
+
+		return MountReadinessProbeResult.NotReady(
+			$"Readiness probe command failed: outcome={commandResult.Outcome} failure_kind={commandResult.FailureKind}.");
 	}
 
 	/// <summary>

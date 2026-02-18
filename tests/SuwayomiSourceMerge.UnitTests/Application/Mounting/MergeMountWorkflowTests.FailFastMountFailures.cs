@@ -92,4 +92,42 @@ public sealed partial class MergeMountWorkflowTests
 		Assert.Equal(MergeScanDispatchOutcome.Failure, outcome);
 		Assert.Single(fixture.MountCommandService.AppliedActions);
 	}
+
+	/// <summary>
+	/// Verifies timeout-bounded readiness probe failures downgrade command-reported mount success.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Failure_ShouldReturnFailure_WhenReadinessProbeTimesOut()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		fixture.MountCommandService.ApplyOutcome = MountActionApplyOutcome.Success;
+		fixture.MountCommandService.ReadinessProbeResult = MountReadinessProbeResult.NotReady("Readiness probe command timed out.");
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("startup", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Failure, outcome);
+		Assert.Single(fixture.MountCommandService.AppliedActions);
+	}
+
+	/// <summary>
+	/// Verifies readiness-probe failures contribute to consecutive mount failure fail-fast threshold.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Failure_ShouldFailFast_WhenReadinessProbeFailureReachesThreshold()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory, maxConsecutiveMountFailures: 1);
+		Directory.CreateDirectory(Path.Combine(fixture.Options.SourcesRootPath, "disk1", "SourceA", "Another Title"));
+		fixture.MountCommandService.ApplyOutcome = MountActionApplyOutcome.Success;
+		fixture.MountCommandService.ReadinessProbeResult = MountReadinessProbeResult.NotReady("Readiness probe command exited non-zero (1): Transport endpoint is not connected");
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("startup", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Failure, outcome);
+		Assert.Single(fixture.MountCommandService.AppliedActions);
+		Assert.Contains(fixture.Logger.Events, static log => log.EventId == "merge.workflow.action_fail_fast");
+	}
 }

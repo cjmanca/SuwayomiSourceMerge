@@ -184,6 +184,7 @@ internal sealed partial class PersistentInotifywaitEventReader : IInotifyEventRe
 				ReconcileDesiredMonitorState([]);
 			}
 
+			AddPollOverflowWarning(warnings, droppedEventCount: 0, warnings.DroppedCount);
 			return new InotifyPollResult(InotifyPollOutcome.Success, [], warnings.ToArray());
 		}
 
@@ -224,6 +225,7 @@ internal sealed partial class PersistentInotifywaitEventReader : IInotifyEventRe
 
 		if (!hasExistingRoots)
 		{
+			AddPollOverflowWarning(warnings, droppedEventCount: 0, warnings.DroppedCount);
 			return new InotifyPollResult(InotifyPollOutcome.Success, [], warnings.ToArray());
 		}
 

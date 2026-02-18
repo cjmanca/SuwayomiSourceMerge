@@ -127,7 +127,7 @@ modules:
       - Canonical cancellation propagation during merge-pass branch planning and override-title discovery enumeration; use MergeMountWorkflow.RunMergePass and MergeMountWorkflow.Pass.Grouping helpers.
       - Canonical cleanup stale-prune safety gate that infers still-mounted branch directories from mergerfs source payloads and skips pruning only for degraded-visibility or unresolved mappings; use MergeMountWorkflow.RunCleanupPass.
       - Canonical merge-pass degraded-visibility safety gate that suppresses stale-unmount apply actions when source discovery/build/snapshot visibility is degraded while still allowing mount/remount actions; use MergeMountWorkflow.RunMergePass.
-      - Canonical mount-readiness accessibility probe that performs single-shot first-entry directory materialization and maps probe IO/access faults to mount failures; use MergeMountWorkflow.ValidateMountReadiness and MergeMountWorkflow.TryProbeMountPointAccessibility.
+      - Canonical mount-readiness accessibility probe that uses timeout-bounded command execution and maps probe failures/timeouts to mount failures; use MergeMountWorkflow.ValidateMountReadiness and IMergerfsMountCommandService.ProbeMountPointReadiness.
       - Canonical merge-pass helper partitioning for action apply, force-remount resolution, and grouping helpers; use MergeMountWorkflow partial pass files.
       - Canonical merge-pass outcome mapping from action results (mixed when busy+failure, then busy over failure over success); use MergeMountWorkflow.RunMergePass.
       - Canonical merge-pass override-title filtering that skips empty-normalized override directory names with warning diagnostics before resolver construction; use MergeMountWorkflow.DiscoverExistingOverrideTitles and MergeMountWorkflow.IsValidOverrideResolverTitle.
@@ -337,7 +337,7 @@ modules:
       - Test assembly internal visibility policy; use SuwayomiSourceMerge/AssemblyInfo.cs.
     related: [runtime-host, unit-test-suite]
   - id: container-runtime-assets
-    summary: Container image, entrypoint identity/fuse policy, and docker-context filtering for runtime deployment.
+    summary: Container image, entrypoint identity/fuse policy, package integrity verification, and docker-context filtering for runtime deployment.
     tags: [container, docker, runtime]
     paths:
       - .dockerignore
@@ -357,7 +357,7 @@ modules:
       - symbol: Dockerfile
         kind: file
         path: Dockerfile
-        purpose: Defines canonical multi-stage .NET build/runtime image, pinned upstream mergerfs Bookworm package install, required runtime packages, and baked `cap_sys_admin` file capabilities for mergerfs/fusermount3.
+        purpose: Defines canonical multi-stage .NET build/runtime image, pinned upstream mergerfs Bookworm package install with SHA256 integrity verification, required runtime packages, and baked `cap_sys_admin` file capabilities for mergerfs/fusermount3.
       - symbol: docker/entrypoint.sh
         kind: file
         path: docker/entrypoint.sh
@@ -383,6 +383,7 @@ modules:
       - Canonical container build context exclusion policy; use .dockerignore.
       - Canonical container entrypoint bash test/readability policy (`[[ ... ]]` conditionals and inline fuse write stderr capture); use docker/entrypoint.sh.
       - Canonical container runtime package and multi-stage image definition; use Dockerfile.
+      - Canonical pinned mergerfs package integrity verification (arch-specific SHA256 checks) during image builds; use Dockerfile.
       - Canonical container runtime file-capability baking for non-root mergerfs/fusermount3 command execution; use Dockerfile.
       - Canonical container startup fuse policy: skip fuse.conf edits when PUID=0 and fail non-root startup with remediation guidance when /etc/fuse.conf cannot be updated; use docker/entrypoint.sh.
       - Canonical container startup non-root FUSE device access preflight under runtime identity (skip in mock-tool mode, warning when device is absent, fail-fast when present but inaccessible); use docker/entrypoint.sh.
@@ -830,6 +831,7 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Mounts/IMountSnapshotService.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/MergerfsMountCommandService.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/MountActionApplyResult.cs
+      - SuwayomiSourceMerge/Infrastructure/Mounts/MountReadinessProbeResult.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationAction.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationInput.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationPlan.cs
@@ -842,6 +844,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/FindmntMountSnapshotServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/FindmntSnapshotLineParserTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.MountPointCreation.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.ReadinessProbe.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MountSnapshotWarningPolicyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MountReconciliationServiceTests.cs
@@ -857,7 +860,7 @@ modules:
       - symbol: IMergerfsMountCommandService
         kind: interface
         path: SuwayomiSourceMerge/Infrastructure/Mounts/IMergerfsMountCommandService.cs
-        purpose: Defines command application contract for mount/remount/unmount reconciliation actions.
+        purpose: Defines command application contract for mount/remount/unmount reconciliation actions and timeout-bounded mount readiness probing.
       - symbol: IMountReconciliationService
         kind: interface
         path: SuwayomiSourceMerge/Infrastructure/Mounts/IMountReconciliationService.cs
@@ -865,7 +868,7 @@ modules:
       - symbol: MergerfsMountCommandService
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Mounts/MergerfsMountCommandService.cs
-        purpose: Applies mount/remount/unmount actions using mergerfs and fusermount fallback chains with mountpoint-ensure, bad-mountpoint retry, and cleanup-wrapper priorities.
+        purpose: Applies mount/remount/unmount actions using mergerfs and fusermount fallback chains with mountpoint-ensure, bad-mountpoint retry, timeout-bounded readiness probing, and cleanup-wrapper priorities.
       - symbol: MountReconciliationService
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationService.cs
@@ -899,6 +902,7 @@ modules:
       - Canonical findmnt snapshot capture and parse-warning behavior (including non-throwing parser guards and escape decoding); use FindmntMountSnapshotService.
       - Canonical legacy shell findmnt pairs-mode compatibility wrapper; use findmnt_pairs.
       - Canonical mount action precondition that ensures mountpoint directories exist before invoking mergerfs; use MergerfsMountCommandService.
+      - Canonical timeout-bounded mounted-path readiness probe command execution and diagnostic mapping; use MergerfsMountCommandService.ProbeMountPointReadiness.
       - Canonical bad-mountpoint retry flow with explicit two-sentence labeled mountpoint-directory-creation failure diagnostics; use MergerfsMountCommandService.
       - Canonical mount/unmount/remount command fallback chains (`fusermount3`, `fusermount`, `umount`); use MergerfsMountCommandService.
       - Canonical normalized mountpoint key matching across desired/actual/forced/stale checks; use MountReconciliationService.Reconcile.
@@ -1156,7 +1160,7 @@ modules:
       - Canonical inotify event token flag model; use InotifyEventMask.
       - Canonical one-shot inotify command invocation and timeout classification; use InotifywaitEventReader.Poll.
       - Canonical persistent inotify monitor orchestration with progressive deep-watch startup, desired-session pruning, and bounded restart backoff; use PersistentInotifywaitEventReader.
-      - Canonical persistent inotify poll result bounding and drop-oldest overflow signaling (including guaranteed overflow summary warning retention); use PersistentInotifywaitEventReader.
+      - Canonical persistent inotify poll result bounding and drop-oldest overflow signaling (including guaranteed overflow summary warning retention across early-return paths); use PersistentInotifywaitEventReader.
       - Canonical progressive deep-session startup budget semantics are per start phase (pre-wait/post-wait), not single-phase per entire poll; use PersistentInotifywaitEventReader.
       - Canonical watcher startup mode contract (`full` and `progressive`); use InotifyWatchStartupMode.
       - Canonical typed poll outcome and warning contract; use InotifyPollResult.
@@ -1458,6 +1462,8 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComicInfoMetadataParserTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/BranchLinkStagingServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.MountPointCreation.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.ReadinessProbe.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MountSnapshotWarningPolicyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeDiscoveryResultTests.cs

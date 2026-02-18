@@ -9,6 +9,8 @@ WORKDIR /app
 
 ARG TARGETARCH
 ARG MERGERFS_VERSION=2.41.1
+ARG MERGERFS_SHA256_AMD64=5bdc1df054bb27713c9fe195b97cf80f4850efdd287eef45118cc89fcceb2d27
+ARG MERGERFS_SHA256_ARM64=9c4293e5763413c4f99260a5b732e838f82b9af445108907d4595dc50477358f
 
 RUN set -eux; \
     apt-get update; \
@@ -22,11 +24,13 @@ RUN set -eux; \
         libcap2-bin \
         util-linux; \
     case "${TARGETARCH}" in \
-        amd64|arm64) mergerfs_arch="${TARGETARCH}" ;; \
+        amd64) mergerfs_arch="${TARGETARCH}"; mergerfs_sha256="${MERGERFS_SHA256_AMD64}" ;; \
+        arm64) mergerfs_arch="${TARGETARCH}"; mergerfs_sha256="${MERGERFS_SHA256_ARM64}" ;; \
         *) echo "Unsupported TARGETARCH '${TARGETARCH}' for mergerfs package selection." >&2; exit 1 ;; \
     esac; \
     mergerfs_deb="mergerfs_${MERGERFS_VERSION}.debian-bookworm_${mergerfs_arch}.deb"; \
     curl -fsSL -o "/tmp/${mergerfs_deb}" "https://github.com/trapexit/mergerfs/releases/download/${MERGERFS_VERSION}/${mergerfs_deb}"; \
+    echo "${mergerfs_sha256}  /tmp/${mergerfs_deb}" | sha256sum -c -; \
     apt-get install -y --no-install-recommends "/tmp/${mergerfs_deb}"; \
     rm -f "/tmp/${mergerfs_deb}"; \
     dpkg-query -W -f='${Version}' mergerfs | grep -F "${MERGERFS_VERSION}" >/dev/null; \

@@ -133,4 +133,4 @@
 - [x] 2026-02-17 - Stabilize startup mounting and eliminate first-tick OOM by adding bounded persistent inotify poll buffers, mount readiness verification with fail-fast consecutive mount failure threshold, and pinned upstream mergerfs runtime packaging with docs/index/test updates.
 - [x] 2026-02-17 - Align persistent watcher bounded poll-buffer contracts with append-only semantics by removing unsupported `ICollection<T>` behavior, guaranteeing overflow summary warning retention, and adding focused watcher regression coverage.
 - [x] 2026-02-17 - Address code-review hardening follow-ups by enforcing exact Debian mergerfs pin validation in container capability integration tests, strengthening mount-readiness probe materialization semantics, and tightening fail-fast mount-warning diagnostic assertions with index updates.
-
+- [x] 2026-02-18 - Address unresolved PR #23 AI review threads by adding timeout-bounded mount readiness probe execution via mount command service, emitting overflow summary warnings on watcher early returns, and verifying pinned mergerfs package checksums in Docker build.

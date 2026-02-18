@@ -145,4 +145,57 @@ public sealed partial class PersistentInotifywaitEventReaderTests
 		Assert.Contains(result.Warnings, warning => warning.Contains("dropped_events='", StringComparison.Ordinal));
 		Assert.Contains(result.Warnings, warning => warning.Contains("dropped_warnings='0'", StringComparison.Ordinal));
 	}
+
+	/// <summary>
+	/// Verifies warning-overflow summaries are emitted when invalid root normalization overflows and poll exits early.
+	/// </summary>
+	[Fact]
+	public void Poll_Failure_ShouldEmitOverflowSummary_WhenInvalidRootNormalizationOverflowsAndNoRootsNormalize()
+	{
+		List<string> invalidRoots = [];
+		for (int index = 0; index < 1300; index++)
+		{
+			invalidRoots.Add($"invalid\0root-{index:D4}");
+		}
+
+		FakeSessionFactory sessionFactory = new();
+		using PersistentInotifywaitEventReader reader = new(
+			InotifyWatchStartupMode.Full,
+			sessionFactory.TryStart,
+			static () => DateTimeOffset.UtcNow);
+
+		InotifyPollResult result = reader.Poll(invalidRoots, TimeSpan.FromMilliseconds(1));
+
+		Assert.Equal(InotifyPollOutcome.Success, result.Outcome);
+		Assert.Empty(result.Events);
+		Assert.Equal(1024, result.Warnings.Count);
+		Assert.Contains(result.Warnings, warning => warning.Contains(OverflowWarningToken, StringComparison.Ordinal));
+	}
+
+	/// <summary>
+	/// Verifies warning-overflow summaries are emitted when many missing roots overflow warnings before no-existing-roots early return.
+	/// </summary>
+	[Fact]
+	public void Poll_Failure_ShouldEmitOverflowSummary_WhenMissingRootWarningsOverflowAndNoRootsExist()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		List<string> missingRoots = [];
+		for (int index = 0; index < 1300; index++)
+		{
+			missingRoots.Add(Path.Combine(temporaryDirectory.Path, "missing", $"root-{index:D4}"));
+		}
+
+		FakeSessionFactory sessionFactory = new();
+		using PersistentInotifywaitEventReader reader = new(
+			InotifyWatchStartupMode.Full,
+			sessionFactory.TryStart,
+			static () => DateTimeOffset.UtcNow);
+
+		InotifyPollResult result = reader.Poll(missingRoots, TimeSpan.FromMilliseconds(1));
+
+		Assert.Equal(InotifyPollOutcome.Success, result.Outcome);
+		Assert.Empty(result.Events);
+		Assert.Equal(1024, result.Warnings.Count);
+		Assert.Contains(result.Warnings, warning => warning.Contains(OverflowWarningToken, StringComparison.Ordinal));
+	}
 }
