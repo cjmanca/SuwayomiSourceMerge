@@ -39,6 +39,7 @@ Startup mount safeguards:
 - Mount-readiness directory access probing is timeout-bounded via command execution (`ls -A`) using the existing unmount command timeout settings.
 - Consecutive mount/remount failures abort remaining actions for the pass after `runtime.max_consecutive_mount_failures` (default `5`).
 - `Transport endpoint is not connected` conditions are treated as failed mount readiness checks and surfaced as mount failures.
+- Mount command composition applies `threads=1` when `runtime.mergerfs_options_base` does not explicitly set a `threads` value to reduce per-mount process/thread pressure on high mount-count startups.
 
 ## Container runtime assets
 

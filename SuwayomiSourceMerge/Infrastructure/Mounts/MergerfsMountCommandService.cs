@@ -271,7 +271,7 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 			return new MountActionApplyResult(action, MountActionApplyOutcome.Failure, ensureDiagnostic);
 		}
 
-		string options = $"{mergerfsOptionsBase},fsname={action.DesiredIdentity}";
+		string options = MergerfsOptionComposer.ComposeMountOptions(mergerfsOptionsBase, action.DesiredIdentity!);
 		ExternalCommandRequest request = CreateRequest(
 			"mergerfs",
 			["-o", options, action.MountPayload!, action.MountPoint],

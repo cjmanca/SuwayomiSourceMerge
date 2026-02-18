@@ -87,7 +87,7 @@ public static class SettingsDocumentDefaults
 				EnableMountHealthcheck = false,
 				MaxConsecutiveMountFailures = 5,
 				DetailsDescriptionMode = "text",
-				MergerfsOptionsBase = "allow_other,default_permissions,use_ino,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0",
+				MergerfsOptionsBase = "allow_other,default_permissions,use_ino,threads=1,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0",
 				ExcludedSources = ["Local source"]
 			},
 			Logging = new SettingsLoggingSection

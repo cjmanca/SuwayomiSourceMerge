@@ -134,10 +134,13 @@ internal sealed partial class MergeMountWorkflow
 			string warningCode = readinessSnapshot.Warnings.Count > 0
 				? readinessSnapshot.Warnings[0].Code
 				: "none";
+			string warningMessage = readinessSnapshot.Warnings.Count > 0
+				? readinessSnapshot.Warnings[0].Message
+				: "none";
 			return new MountActionApplyResult(
 				action,
 				MountActionApplyOutcome.Failure,
-				$"Mount readiness check failed: no mount snapshot entry found for '{normalizedMountPoint}'. snapshot_entries='{readinessSnapshot.Entries.Count}' snapshot_warnings='{readinessSnapshot.Warnings.Count}' first_warning_code='{warningCode}'.");
+				$"Mount readiness check failed: no mount snapshot entry found for '{normalizedMountPoint}'. snapshot_entries='{readinessSnapshot.Entries.Count}' snapshot_warnings='{readinessSnapshot.Warnings.Count}' first_warning_code='{warningCode}' first_warning_message='{warningMessage}'.");
 		}
 
 		if (!matchingEntry.FileSystemType.Contains("mergerfs", StringComparison.OrdinalIgnoreCase))
