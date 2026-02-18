@@ -4,10 +4,10 @@ SuwayomiSourceMerge combines duplicate manga libraries from multiple Suwayomi so
 
 In Suwayomi, set your local manga directory to use the merged output from SuwayomiSourceMerge.
 
-If you're running Suwayomi in a docker container, you'll need to set the local source volume to rshared:
-`--mount type=bind,source=/mnt/cache/appdata/ssm/merged,target=/home/suwayomi/.local/share/Tachidesk/local,bind-propagation=rshared`
+If you're running Suwayomi in a docker container, you'll need to set the local source volume to `rw,slave`:
+`-v '/mnt/cache/appdata/ssm/merged':'/home/suwayomi/.local/share/Tachidesk/local':'rw,slave'`
 
-If you're running SuwayomiSourceMerge in Docker, set the `/ssm/merged` bind to `rshared` as well.
+If you're running SuwayomiSourceMerge in Docker, set the `/ssm/merged` bind to `rw,shared`.
 
 It uses `mergerfs` under a .NET control plane to:
 
@@ -90,24 +90,6 @@ Branch builds are also published for testing with explicit branch tags:
 - `ghcr.io/cjmanca/suwayomisourcemerge:sha-<short-sha>`
 - `ghcr.io/cjmanca/suwayomisourcemerge:v<version>` (tag pushes)
 
-Published images already bake file capabilities required for non-root mergerfs mounts:
-
-- `/usr/bin/fusermount3` -> `cap_sys_admin+ep`
-- `$(command -v mergerfs)` -> `cap_sys_admin+ep`
-- `mergerfs` version is pinned to upstream Bookworm package `2.41.1`
-
-If you build a custom or derived image and replace packages, re-apply and verify capabilities:
-
-```bash
-apt-get update && apt-get install -y libcap2-bin
-setcap cap_sys_admin+ep /usr/bin/fusermount3
-setcap cap_sys_admin+ep "$(command -v mergerfs)"
-getcap /usr/bin/fusermount3
-getcap "$(command -v mergerfs)"
-```
-
-These file capabilities are in addition to runtime container requirements like `/dev/fuse`, `SYS_ADMIN`, and relaxed seccomp/apparmor options shown below.
-
 #### Run the container
 
 ```bash
@@ -119,6 +101,7 @@ docker run --rm \
   -e PUID=99 \
   -e PGID=100 \
   -v /mnt/cache/appdata/ssm/config:/ssm/config \
+  -v /mnt/cache/appdata/ssm/merged:/ssm/merged:rw,shared \
   -v /mnt/cache/appdata/ssm/state:/ssm/state \
   -v /mnt/disk1/share/suwayomi-manga-downloads/mangas:/ssm/sources/disk1 \
   -v /mnt/disk2/share/suwayomi-manga-downloads/mangas:/ssm/sources/disk2 \
@@ -127,7 +110,6 @@ docker run --rm \
   -v /mnt/disk1/share/override:/ssm/override/disk1 \
   -v /mnt/disk2/share/override:/ssm/override/disk2 \
   -v /mnt/disk3/share/override:/ssm/override/disk3 \
-  --mount type=bind,source=/mnt/cache/appdata/ssm/merged,target=/ssm/merged,bind-propagation=rshared \
   ghcr.io/cjmanca/suwayomisourcemerge:latest
 ```
 
@@ -139,7 +121,7 @@ Required container paths:
 - `/ssm/merged`
 - `/ssm/state`
 
-`/ssm/merged` must be configured with `bind-propagation=rshared`.
+`/ssm/merged` must be configured with `bind-propagation=shared`.
 
 ### Option B: deploy with Docker Compose
 
@@ -161,6 +143,7 @@ services:
       PGID: "100"
     volumes:
       - /mnt/cache/appdata/ssm/config:/ssm/config
+	  - /mnt/cache/appdata/ssm/merged:/ssm/merged:rw,shared
       - /mnt/cache/appdata/ssm/state:/ssm/state
       - /mnt/disk1/share/suwayomi-manga-downloads/mangas:/ssm/sources/disk1
       - /mnt/disk2/share/suwayomi-manga-downloads/mangas:/ssm/sources/disk2
@@ -169,11 +152,6 @@ services:
       - /mnt/disk1/share/override:/ssm/override/disk1
       - /mnt/disk2/share/override:/ssm/override/disk2
       - /mnt/disk3/share/override:/ssm/override/disk3
-      - type: bind
-        source: /mnt/cache/appdata/ssm/merged
-        target: /ssm/merged
-        bind:
-          propagation: rshared
     devices:
       - /dev/fuse:/dev/fuse
     cap_add:
