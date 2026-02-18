@@ -136,3 +136,4 @@
 - [x] 2026-02-18 - Address unresolved PR #23 AI review threads by adding timeout-bounded mount readiness probe execution via mount command service, emitting overflow summary warnings on watcher early returns, and verifying pinned mergerfs package checksums in Docker build.
 - [x] 2026-02-18 - Improve unhandled-exception diagnostics by logging full exception stack traces in host/supervisor failure logs and add regression tests.
 - [x] 2026-02-18 - Reduce persistent inotify watcher thread pressure by removing per-session `Task.Run` wrappers and using async process-exit observation.
+- [x] 2026-02-18 - Fix `findmnt` escaped-value decoding to preserve UTF-8 mountpoint text (prevent mojibake cleanup/unmount mismatches) and add parser regression coverage.

@@ -205,7 +205,7 @@ internal static class FindmntSnapshotLineParser
 	{
 		ArgumentNullException.ThrowIfNull(rawValue);
 
-		StringBuilder decoded = new(rawValue.Length);
+		List<byte> decodedBytes = new(rawValue.Length);
 		int index = 0;
 
 		while (index < rawValue.Length)
@@ -213,29 +213,29 @@ internal static class FindmntSnapshotLineParser
 			char current = rawValue[index];
 			if (current != '\\')
 			{
-				decoded.Append(current);
+				AppendCodePointUtf8Bytes(decodedBytes, current);
 				index++;
 				continue;
 			}
 
 			if (index == rawValue.Length - 1)
 			{
-				decoded.Append('\\');
+				AppendCodePointUtf8Bytes(decodedBytes, '\\');
 				index++;
 				continue;
 			}
 
 			char next = rawValue[index + 1];
-			if (TryDecodeOctal(rawValue, index, out char decodedOctalCharacter, out int octalLength))
+			if (TryDecodeOctal(rawValue, index, out int decodedOctalValue, out int octalLength))
 			{
-				decoded.Append(decodedOctalCharacter);
+				AppendEscapedValueBytes(decodedBytes, decodedOctalValue);
 				index += octalLength;
 				continue;
 			}
 
-			if (TryDecodeHex(rawValue, index, out char decodedHexCharacter, out int hexLength))
+			if (TryDecodeHex(rawValue, index, out int decodedHexValue, out int hexLength))
 			{
-				decoded.Append(decodedHexCharacter);
+				AppendEscapedValueBytes(decodedBytes, decodedHexValue);
 				index += hexLength;
 				continue;
 			}
@@ -243,30 +243,74 @@ internal static class FindmntSnapshotLineParser
 			switch (next)
 			{
 				case 'n':
-					decoded.Append('\n');
+					AppendCodePointUtf8Bytes(decodedBytes, '\n');
 					break;
 				case 'r':
-					decoded.Append('\r');
+					AppendCodePointUtf8Bytes(decodedBytes, '\r');
 					break;
 				case 't':
-					decoded.Append('\t');
+					AppendCodePointUtf8Bytes(decodedBytes, '\t');
 					break;
 				case '"':
-					decoded.Append('"');
+					AppendCodePointUtf8Bytes(decodedBytes, '"');
 					break;
 				case '\\':
-					decoded.Append('\\');
+					AppendCodePointUtf8Bytes(decodedBytes, '\\');
 					break;
 				default:
-					decoded.Append('\\');
-					decoded.Append(next);
+					AppendCodePointUtf8Bytes(decodedBytes, '\\');
+					AppendCodePointUtf8Bytes(decodedBytes, next);
 					break;
 			}
 
 			index += 2;
 		}
 
-		return decoded.ToString();
+		return Encoding.UTF8.GetString([.. decodedBytes]);
+	}
+
+	/// <summary>
+	/// Appends one Unicode scalar value to a UTF-8 byte buffer.
+	/// </summary>
+	/// <param name="buffer">Destination byte buffer.</param>
+	/// <param name="codePoint">Unicode scalar value.</param>
+	private static void AppendCodePointUtf8Bytes(ICollection<byte> buffer, int codePoint)
+	{
+		ArgumentNullException.ThrowIfNull(buffer);
+
+		if (codePoint <= 0x7F)
+		{
+			buffer.Add((byte)codePoint);
+			return;
+		}
+
+		if (codePoint > 0x10FFFF)
+		{
+			codePoint = '?';
+		}
+
+		foreach (byte value in Encoding.UTF8.GetBytes(char.ConvertFromUtf32(codePoint)))
+		{
+			buffer.Add(value);
+		}
+	}
+
+	/// <summary>
+	/// Appends one escaped numeric value as a raw byte when possible, otherwise as a UTF-8 code point.
+	/// </summary>
+	/// <param name="buffer">Destination byte buffer.</param>
+	/// <param name="value">Escaped numeric value.</param>
+	private static void AppendEscapedValueBytes(ICollection<byte> buffer, int value)
+	{
+		ArgumentNullException.ThrowIfNull(buffer);
+
+		if (value is >= byte.MinValue and <= byte.MaxValue)
+		{
+			buffer.Add((byte)value);
+			return;
+		}
+
+		AppendCodePointUtf8Bytes(buffer, value);
 	}
 
 	/// <summary>
@@ -274,18 +318,18 @@ internal static class FindmntSnapshotLineParser
 	/// </summary>
 	/// <param name="value">Source text.</param>
 	/// <param name="slashIndex">Index of the backslash character.</param>
-	/// <param name="decodedCharacter">Decoded character on success.</param>
+	/// <param name="decodedValue">Decoded scalar value on success.</param>
 	/// <param name="consumedLength">Number of consumed source characters.</param>
 	/// <returns><see langword="true"/> when decoding succeeds; otherwise <see langword="false"/>.</returns>
 	private static bool TryDecodeOctal(
 		string value,
 		int slashIndex,
-		out char decodedCharacter,
+		out int decodedValue,
 		out int consumedLength)
 	{
 		ArgumentNullException.ThrowIfNull(value);
 
-		decodedCharacter = default;
+		decodedValue = default;
 		consumedLength = 0;
 
 		int startIndex = slashIndex + 1;
@@ -314,7 +358,7 @@ internal static class FindmntSnapshotLineParser
 			return false;
 		}
 
-		decodedCharacter = (char)octalValue;
+		decodedValue = octalValue;
 		consumedLength = 1 + parsedLength;
 		return true;
 	}
@@ -324,18 +368,18 @@ internal static class FindmntSnapshotLineParser
 	/// </summary>
 	/// <param name="value">Source text.</param>
 	/// <param name="slashIndex">Index of the backslash character.</param>
-	/// <param name="decodedCharacter">Decoded character on success.</param>
+	/// <param name="decodedValue">Decoded scalar value on success.</param>
 	/// <param name="consumedLength">Number of consumed source characters.</param>
 	/// <returns><see langword="true"/> when decoding succeeds; otherwise <see langword="false"/>.</returns>
 	private static bool TryDecodeHex(
 		string value,
 		int slashIndex,
-		out char decodedCharacter,
+		out int decodedValue,
 		out int consumedLength)
 	{
 		ArgumentNullException.ThrowIfNull(value);
 
-		decodedCharacter = default;
+		decodedValue = default;
 		consumedLength = 0;
 
 		int prefixIndex = slashIndex + 1;
@@ -362,7 +406,7 @@ internal static class FindmntSnapshotLineParser
 			return false;
 		}
 
-		decodedCharacter = (char)hexValue;
+		decodedValue = hexValue;
 		consumedLength = endIndex - slashIndex;
 		return true;
 	}

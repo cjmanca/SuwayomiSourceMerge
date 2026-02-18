@@ -903,6 +903,7 @@ modules:
       - Canonical unmount mixed-outcome precedence where non-busy failures are not masked by busy results; use MergerfsMountCommandService.
       - Canonical desired-vs-actual reconciliation decision engine; use MountReconciliationService.Reconcile.
       - Canonical findmnt snapshot capture and parse-warning behavior (including non-throwing parser guards and escape decoding); use FindmntMountSnapshotService.
+      - Canonical findmnt escaped-byte decoding must preserve UTF-8 mountpoint text for cleanup/unmount path matching; use FindmntSnapshotLineParser.DecodeEscapedValue.
       - Canonical legacy shell findmnt pairs-mode compatibility wrapper; use findmnt_pairs.
       - Canonical mount action precondition that ensures mountpoint directories exist before invoking mergerfs; use MergerfsMountCommandService.
       - Canonical timeout-bounded mounted-path readiness probe command execution and diagnostic mapping; use MergerfsMountCommandService.ProbeMountPointReadiness.

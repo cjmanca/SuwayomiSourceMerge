@@ -34,6 +34,22 @@ public sealed class FindmntSnapshotLineParserTests
 	}
 
 	/// <summary>
+	/// Verifies UTF-8 octal escaped bytes decode to the expected Unicode title text.
+	/// </summary>
+	[Fact]
+	public void TryParse_Expected_ShouldDecodeUtf8OctalEscapesToUnicodeText()
+	{
+		string line = "TARGET=\"/ssm/merged/Doctor\\342\\200\\231s Rebirth\" FSTYPE=\"fuse.mergerfs\" SOURCE=\"source-id\" OPTIONS=\"rw\"";
+
+		bool success = FindmntSnapshotLineParser.TryParse(line, out MountSnapshotEntry? entry, out string? warningMessage);
+
+		Assert.True(success);
+		Assert.Null(warningMessage);
+		Assert.NotNull(entry);
+		Assert.Equal("/ssm/merged/Doctor’s Rebirth", entry!.MountPoint);
+	}
+
+	/// <summary>
 	/// Verifies values ending with escaped backslashes are parsed and terminated correctly.
 	/// </summary>
 	[Fact]
