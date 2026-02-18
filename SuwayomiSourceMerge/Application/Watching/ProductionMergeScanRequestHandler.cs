@@ -54,7 +54,7 @@ internal sealed class ProductionMergeScanRequestHandler : IMergeScanRequestHandl
 		ArgumentException.ThrowIfNullOrWhiteSpace(reason);
 		cancellationToken.ThrowIfCancellationRequested();
 
-		_logger.Debug(
+		_logger.Normal(
 			MergeDispatchStartedEvent,
 			"Starting production merge dispatch.",
 			BuildContext(
@@ -99,7 +99,7 @@ internal sealed class ProductionMergeScanRequestHandler : IMergeScanRequestHandl
 
 		if (outcome == MergeScanDispatchOutcome.Success)
 		{
-			_logger.Debug(
+			_logger.Normal(
 				MergeDispatchCompletedEvent,
 				"Production merge dispatch completed successfully.",
 				BuildContext(

@@ -19,7 +19,7 @@ public sealed class SettingsDocumentDefaultsTests
         Assert.Equal("daemon.log", document.Logging!.FileName);
         Assert.Equal(10, document.Logging.MaxFileSizeMb);
         Assert.Equal(10, document.Logging.RetainedFileCount);
-        Assert.Equal("warning", document.Logging.Level);
+        Assert.Equal("normal", document.Logging.Level);
         Assert.Equal(300, document.Scan!.MergeTriggerRequestTimeoutBufferSeconds);
         Assert.Equal("progressive", document.Scan.WatchStartupMode);
         Assert.False(document.Shutdown!.CleanupApplyHighPriority);

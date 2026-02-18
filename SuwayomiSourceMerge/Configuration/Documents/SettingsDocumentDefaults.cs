@@ -95,7 +95,7 @@ public static class SettingsDocumentDefaults
 				FileName = "daemon.log",
 				MaxFileSizeMb = 10,
 				RetainedFileCount = 10,
-				Level = "warning"
+				Level = "normal"
 			}
 		};
 	}

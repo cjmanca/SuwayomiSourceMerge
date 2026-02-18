@@ -59,6 +59,12 @@ internal sealed class RecordingLogger : ISsmLogger
 	}
 
 	/// <inheritdoc />
+	public void Normal(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
+	{
+		Log(LogLevel.Normal, eventId, message, context);
+	}
+
+	/// <inheritdoc />
 	public void Warning(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
 	{
 		Log(LogLevel.Warning, eventId, message, context);

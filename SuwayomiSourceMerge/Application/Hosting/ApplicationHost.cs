@@ -107,13 +107,13 @@ internal sealed class ApplicationHost
 				bootstrapResult.Documents.Settings,
 				message => WriteToStandardError(standardError, message));
 
-			logger.Debug(
+			logger.Normal(
 				HostStartupEvent,
 				"Host startup completed.",
 				BuildContext(
 					("config_root_path", configRootPath)));
 
-			logger.Debug(
+			logger.Normal(
 				BootstrapCompletedEvent,
 				"Configuration bootstrap completed.",
 				BuildContext(
@@ -141,7 +141,7 @@ internal sealed class ApplicationHost
 				return 1;
 			}
 
-			logger.Debug(HostShutdownEvent, "Host shutdown completed.");
+			logger.Normal(HostShutdownEvent, "Host shutdown completed.");
 			return 0;
 		}
 		catch (ConfigurationBootstrapException exception)

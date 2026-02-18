@@ -19,7 +19,7 @@ internal sealed partial class MergeMountWorkflow
 		ArgumentException.ThrowIfNullOrWhiteSpace(reason);
 		cancellationToken.ThrowIfCancellationRequested();
 
-		_logger.Debug(
+		_logger.Normal(
 			MergePassStartedEvent,
 			"Merge workflow pass started.",
 			BuildContext(
@@ -31,6 +31,16 @@ internal sealed partial class MergeMountWorkflow
 			_options.OverrideRootPath);
 		LogVolumeDiscoveryWarnings(discoveryResult);
 		bool hasSourceDiscoveryWarning = HasSourceDiscoveryWarnings(discoveryResult);
+		if (discoveryResult.SourceVolumePaths.Count == 0)
+		{
+			_logger.Warning(
+				MergePassWarningEvent,
+				$"No source volumes were discovered under '{_options.SourcesRootPath}'.",
+				BuildContext(
+					("reason", reason),
+					("override_volumes", discoveryResult.OverrideVolumePaths.Count.ToString()),
+					("source_discovery_warnings", discoveryResult.Warnings.Count.ToString())));
+		}
 
 		if (discoveryResult.OverrideVolumePaths.Count == 0)
 		{
@@ -104,6 +114,20 @@ internal sealed partial class MergeMountWorkflow
 			}
 		}
 
+		if (desiredMounts.Count == 0)
+		{
+			_logger.Warning(
+				MergePassWarningEvent,
+				"Merge workflow produced zero desired mounts for this pass.",
+				BuildContext(
+					("reason", reason),
+					("groups", groups.Count.ToString()),
+					("source_volumes", discoveryResult.SourceVolumePaths.Count.ToString()),
+					("override_volumes", discoveryResult.OverrideVolumePaths.Count.ToString()),
+					("override_titles", existingOverrideTitles.Count.ToString()),
+					("build_failure", buildFailure ? "true" : "false")));
+		}
+
 		MountSnapshot mountSnapshot = _mountSnapshotService.Capture();
 		for (int index = 0; index < mountSnapshot.Warnings.Count; index++)
 		{
@@ -175,7 +199,7 @@ internal sealed partial class MergeMountWorkflow
 			}
 		}
 
-		_logger.Debug(
+		_logger.Normal(
 			MergePassCompletedEvent,
 			"Merge workflow pass completed.",
 			BuildContext(

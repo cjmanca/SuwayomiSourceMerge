@@ -10,7 +10,7 @@ public sealed class StructuredTextLogFormatterTests
         StructuredTextLogFormatter formatter = new();
         LogEvent logEvent = new(
             new DateTimeOffset(2026, 2, 9, 12, 30, 0, TimeSpan.Zero),
-            LogLevel.Warning,
+            LogLevel.Normal,
             "bootstrap.warning",
             "Warning during bootstrap.",
             new Dictionary<string, string>(StringComparer.Ordinal)
@@ -22,7 +22,7 @@ public sealed class StructuredTextLogFormatterTests
         string line = formatter.Format(logEvent);
 
         Assert.Contains("ts=2026-02-09T12:30:00.0000000+00:00", line);
-        Assert.Contains("level=warning", line);
+        Assert.Contains("level=normal", line);
         Assert.Contains("event=\"bootstrap.warning\"", line);
         Assert.Contains("msg=\"Warning during bootstrap.\"", line);
         Assert.Contains("code=\"CFG-MIG-001\"", line);

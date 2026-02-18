@@ -204,7 +204,7 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 			}
 
 			_stopRequested = true;
-			_logger.Debug(SupervisorStopRequestedEvent, "Daemon supervisor stop requested.");
+			_logger.Normal(SupervisorStopRequestedEvent, "Daemon supervisor stop requested.");
 			_stopTask = StopCoreAsync();
 			return _stopTask;
 		}
@@ -366,7 +366,7 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 			}
 
 			stopCompletionSource?.TrySetResult(stopTimedOut);
-			_logger.Debug(
+			_logger.Normal(
 				SupervisorStoppedEvent,
 				"Daemon supervisor stopped.",
 				BuildContext(("state_root", _options.StatePaths.StateRootPath)));
@@ -475,7 +475,7 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 			_isRunning = true;
 		}
 
-		_logger.Debug(
+		_logger.Normal(
 			SupervisorStartedEvent,
 			"Daemon supervisor started.",
 			BuildContext(("state_root", _options.StatePaths.StateRootPath)));

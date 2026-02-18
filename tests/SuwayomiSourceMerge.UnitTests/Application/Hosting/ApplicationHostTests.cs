@@ -122,7 +122,7 @@ public sealed class ApplicationHostTests
 	{
 		ConfigurationBootstrapException bootstrapException = new(
 		[
-			new ValidationError("settings.yml", "$.logging.level", "CFG-SET-005", "Allowed values: trace, debug, warning, error, none.")
+			new ValidationError("settings.yml", "$.logging.level", "CFG-SET-005", "Allowed values: trace, debug, normal, warning, error, none.")
 		]);
 
 		ApplicationHost host = new(
@@ -392,7 +392,7 @@ public sealed class ApplicationHostTests
 
 		public void Log(LogLevel level, string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
 		{
-			if (level == LogLevel.Debug)
+			if (level == LogLevel.Debug || level == LogLevel.Normal)
 			{
 				throw new InvalidOperationException("simulated logger failure");
 			}
@@ -406,6 +406,11 @@ public sealed class ApplicationHostTests
 		public void Debug(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
 		{
 			Log(LogLevel.Debug, eventId, message, context);
+		}
+
+		public void Normal(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
+		{
+			Log(LogLevel.Normal, eventId, message, context);
 		}
 
 		public void Warning(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)

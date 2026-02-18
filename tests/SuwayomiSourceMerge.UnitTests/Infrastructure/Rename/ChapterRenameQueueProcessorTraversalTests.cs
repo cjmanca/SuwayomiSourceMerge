@@ -108,6 +108,11 @@ public sealed class ChapterRenameQueueProcessorTraversalTests
 		}
 
 		/// <inheritdoc />
+		public void Normal(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
+		{
+		}
+
+		/// <inheritdoc />
 		public void Warning(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
 		{
 		}

@@ -60,6 +60,7 @@ internal sealed class StructuredTextLogFormatter
 		{
 			LogLevel.Trace => "trace",
 			LogLevel.Debug => "debug",
+			LogLevel.Normal => "normal",
 			LogLevel.Warning => "warning",
 			LogLevel.Error => "error",
 			LogLevel.None => "none",

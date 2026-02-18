@@ -9,6 +9,7 @@ public sealed class SsmLoggerFactoryTests
     [Theory]
     [InlineData("trace")]
     [InlineData("debug")]
+    [InlineData("normal")]
     [InlineData("warning")]
     [InlineData("error")]
     [InlineData("none")]

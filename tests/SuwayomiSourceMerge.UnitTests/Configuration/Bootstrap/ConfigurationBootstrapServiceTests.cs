@@ -325,7 +325,7 @@ public sealed class ConfigurationBootstrapServiceTests
         Assert.Equal(5, result.Documents.Settings.Scan!.MergeTriggerPollSeconds);
         Assert.Equal(300, result.Documents.Settings.Scan!.MergeTriggerRequestTimeoutBufferSeconds);
         Assert.Equal("progressive", result.Documents.Settings.Scan!.WatchStartupMode);
-        Assert.Equal("warning", result.Documents.Settings.Logging!.Level);
+        Assert.Equal("normal", result.Documents.Settings.Logging!.Level);
     }
 
     [Fact]

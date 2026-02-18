@@ -139,3 +139,6 @@
 - [x] 2026-02-18 - Fix `findmnt` escaped-value decoding to preserve UTF-8 mountpoint text (prevent mojibake cleanup/unmount mismatches) and add parser regression coverage.
 - [x] 2026-02-18 - Prevent mergerfs startup collapse under high mount counts by enforcing a default per-mount thread cap (`threads=1`) when not explicitly configured, and update defaults/docs/tests.
 - [x] 2026-02-18 - Harden daemon worker startup under thread-pool pressure by running the filesystem event worker loop on a dedicated long-running task instead of `Task.Run`.
+- [x] 2026-02-18 - Improve warning-level merge diagnostics so startup is not silent when no source volumes are discovered or a pass resolves to zero desired mounts.
+- [x] 2026-02-18 - Handle container SIGTERM as cooperative supervisor stop so shutdown cleanup runs (unmount sweep + branch-link cleanup), with unit/integration signal-path coverage.
+- [x] 2026-02-18 - Introduce `logging.level: normal` (between `debug` and `warning`) as the default and move startup/shutdown and workflow status summaries to this level for non-debug runtime visibility.

@@ -61,7 +61,7 @@ internal sealed class FilesystemEventDaemonWorker : IDaemonWorker
 
 		void RunWorkerLoop()
 		{
-			_logger.Debug(WorkerStartedEvent, "Filesystem event daemon worker started.");
+			_logger.Normal(WorkerStartedEvent, "Filesystem event daemon worker started.");
 
 			try
 			{
@@ -80,7 +80,7 @@ internal sealed class FilesystemEventDaemonWorker : IDaemonWorker
 				}
 				catch (OperationCanceledException exception) when (CancellationClassification.IsCooperative(exception, shutdownCancellationToken))
 				{
-					_logger.Debug(
+					_logger.Normal(
 						WorkerStoppedEvent,
 						"Merge runtime shutdown lifecycle hook observed cooperative cancellation.");
 				}
@@ -108,7 +108,7 @@ internal sealed class FilesystemEventDaemonWorker : IDaemonWorker
 							("message", exception.Message)));
 				}
 
-				_logger.Debug(WorkerStoppedEvent, "Filesystem event daemon worker stopped.");
+				_logger.Normal(WorkerStoppedEvent, "Filesystem event daemon worker stopped.");
 			}
 		}
 	}

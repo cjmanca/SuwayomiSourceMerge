@@ -64,6 +64,7 @@ modules:
         paths: [SuwayomiSourceMerge/Application/Hosting/ApplicationHost.cs]
     do_not_reimplement:
       - Canonical host lifecycle orchestration and stderr fallback handling; use ApplicationHost.Run.
+      - Canonical host startup/bootstrap/shutdown status-event emission at normal severity; use ApplicationHost.Run.
       - Canonical runtime failure lifecycle event emission (`host.shutdown_failed`) when runtime exits non-zero; use ApplicationHost.Run.
       - Canonical runtime dependency composition for bootstrap, logging, and supervision; use ApplicationHost.CreateDefault.
       - Canonical runtime supervisor dependency composition for production startup; use DefaultRuntimeSupervisorRunner.
@@ -88,6 +89,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.MountCommands.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.OutcomesAndCancellation.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.WarningDiagnostics.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.cs
     entrypoints:
       - symbol: IMergeMountWorkflow
@@ -132,6 +134,8 @@ modules:
       - Canonical merge-pass helper partitioning for action apply, force-remount resolution, and grouping helpers; use MergeMountWorkflow partial pass files.
       - Canonical merge-pass outcome mapping from action results (mixed when busy+failure, then busy over failure over success); use MergeMountWorkflow.RunMergePass.
       - Canonical merge-pass override-title filtering that skips empty-normalized override directory names with warning diagnostics before resolver construction; use MergeMountWorkflow.DiscoverExistingOverrideTitles and MergeMountWorkflow.IsValidOverrideResolverTitle.
+      - Canonical warning-level merge diagnostics for no-source discovery and zero-desired-mount passes; use MergeMountWorkflow.RunMergePass.
+      - Canonical merge-workflow lifecycle status-event emission (`merge.workflow.started`, `merge.workflow.completed`, cleanup pass summary) at normal severity; use MergeMountWorkflow.RunMergePass and MergeMountWorkflow.RunCleanupPass.
       - Canonical resolve-only force-remount reason resolution (`override-force:<title>`) targeting known desired mountpoints; use MergeMountWorkflow.RunMergePass.
       - Canonical startup/shutdown managed-root cleanup orchestration; use MergeMountWorkflow.OnWorkerStarting and MergeMountWorkflow.OnWorkerStopping.
       - Canonical title grouping and canonical-title precedence flow used by merge runtime; use MergeMountWorkflow.RunMergePass.
@@ -152,6 +156,7 @@ modules:
       - SuwayomiSourceMerge/Application/Supervision/SupervisorFileLock.cs
       - SuwayomiSourceMerge/Application/Supervision/SupervisorStatePaths.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorOptionsTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/ConsoleSupervisorSignalRegistrarTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorTests.StackTraceLogging.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/FilesystemEventDaemonWorkerTests.cs
@@ -205,8 +210,10 @@ modules:
       - Canonical early-stop race handling by capturing worker/stop tasks before signal and cancellation registration; use DaemonSupervisor.RunAsync.
       - Canonical startup exception exit-code mapping (cancellation=success, non-cancellation startup failure=error) and startup-failure diagnostics; use DaemonSupervisor.RunAsync.
       - Canonical stop-timeout hard-stop behavior with boundary completion recheck before process termination; use DaemonSupervisor.StopCoreAsync and DaemonSupervisor.ShouldTreatStopAsTimedOut.
+      - Canonical supervisor and worker lifecycle status-event emission (`supervisor.started`, `supervisor.stop_requested`, `supervisor.stopped`, `supervisor.worker.started`, `supervisor.worker.stopped`) at normal severity; use DaemonSupervisor and FilesystemEventDaemonWorker.
+      - Canonical container SIGTERM cooperative-stop interception that prevents immediate process termination while cleanup runs; use ConsoleSupervisorSignalRegistrar POSIX signal registration.
       - Canonical state-file path resolution for supervisor lock/pid files; use SupervisorStatePaths.
-      - Canonical worker lifecycle hook ordering (startup before loop, shutdown in finally with cooperative-cancellation debug downgrade and non-cooperative warning logging); use FilesystemEventDaemonWorker.
+      - Canonical worker lifecycle hook ordering (startup before loop, shutdown in finally with cooperative-cancellation status logs at normal severity and non-cooperative warning logging); use FilesystemEventDaemonWorker.
       - Canonical worker-loop execution model should use a dedicated long-running task (not thread-pool `Task.Run`) to avoid startup stalls under thread-pool pressure; use FilesystemEventDaemonWorker.RunAsync.
       - Canonical worker/startup fault diagnostics with full exception payload (`exception.ToString()` stack trace); use DaemonSupervisor.RunAsync.
       - Canonical worker-loop contract used by daemon supervision; use IDaemonWorker.
@@ -281,6 +288,7 @@ modules:
       - Canonical merge-request interval/retry gate decisions including mixed retry behavior; use MergeScanRequestCoalescer.DispatchPending.
       - Canonical normalization of unexpected handler dispatch outcomes to failure with failed-event emission; use ProductionMergeScanRequestHandler.DispatchMergeScan.
       - Canonical one-pass filesystem event routing plus periodic rename/merge fallback scheduling; use FilesystemEventTriggerPipeline.Tick.
+      - Canonical production dispatch lifecycle status-event emission (`merge.dispatch.started`, `merge.dispatch.completed`) at normal severity; use ProductionMergeScanRequestHandler.DispatchMergeScan.
       - Canonical production merge dispatch event/log contract with severity-aligned busy/mixed/failure IDs and workflow delegation; use ProductionMergeScanRequestHandler.
       - Canonical startup-first merge dispatch and first-tick startup-evaluation semantics that skip duplicate startup requests when one is already pending; use FilesystemEventTriggerPipeline.Tick.
       - Canonical watcher settings mapping from validated settings documents; use FilesystemEventTriggerOptions.FromSettings.
@@ -607,6 +615,7 @@ modules:
       - Manga equivalents conflict detection rules; use MangaEquivalentsDocumentValidator.
       - Scene tag matcher-equivalent dedup rules; use SceneTagsDocumentValidator.
       - Settings logging level and logging section validation rules; use SettingsDocumentValidator.
+      - Settings default log-level baseline (`logging.level: normal`) and schema/docs parity; use SettingsDocumentDefaults.Create and docs/config-schema.md.
       - Settings strict-runtime versus tooling-relaxed shutdown cleanup profile validation behavior; use SettingsDocumentValidator and ConfigurationSchemaService.ParseSettingsForRuntime/ParseSettingsForTooling.
       - Settings validation code map and field constraints; use SettingsDocumentValidator.
       - Source priority dedup validation rules; use SourcePriorityDocumentValidator.
@@ -1180,6 +1189,7 @@ modules:
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointFuseDevice.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointLogPath.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs
+      - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.SignalHandling.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/DockerAssertionsBehaviorTests.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/DockerCommandRunnerBehaviorTests.cs
@@ -1223,7 +1233,7 @@ modules:
     extension_points:
       - how: Add new end-to-end runtime scenarios by extending container test cases in ContainerRuntimeEndToEndTests.
         symbols: [ContainerRuntimeEndToEndTests]
-        paths: [tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.Capabilities.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointFuseDevice.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointLogPath.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs]
+        paths: [tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.Capabilities.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointFuseDevice.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointLogPath.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.SignalHandling.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs]
       - how: Expand Docker CLI orchestration coverage by adding helpers to DockerCommandRunner and DockerCommandResult.
         symbols: [DockerCommandResult, DockerCommandRunner]
         paths: [tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerCommandResult.cs, tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerCommandRunner.cs]
@@ -1240,6 +1250,7 @@ modules:
       - Canonical entrypoint non-root FUSE-device-access fail-fast harness; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
       - Canonical entrypoint non-root FUSE preflight validation that rejects non-character-device `FUSE_DEVICE_PATH` values; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
       - Canonical entrypoint trusted-root log ownership guard that skips privileged chown outside `/ssm/config`; use ContainerRuntimeEndToEndTests.EntrypointLogPath.
+      - Canonical SIGTERM shutdown integration harness that verifies graceful cleanup/unmount behavior during container stop; use ContainerRuntimeEndToEndTests.SignalHandling.
       - Canonical image capability regression harness validating baked cap_sys_admin on mergerfs/fusermount3, Debian-version-aware pinned-upstream mergerfs package validation, and stripped-image negative controls; use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.Capabilities.cs`.
       - Canonical deterministic wait-loop assertions for integration checks; use DockerAssertions.
       - Canonical Docker CLI command execution and diagnostics wrapper; use DockerCommandRunner.
@@ -1247,7 +1258,7 @@ modules:
       - Canonical shared-read log-line counting with transient retry semantics; use DockerAssertions.CountFileLinesMatching.
     related: [container-runtime-assets, infrastructure-watching, runtime-host, unit-test-suite]
   - id: logging-infrastructure
-    summary: Structured log formatting, level filtering, and file rolling/retention for runtime diagnostics.
+    summary: Structured log formatting, normal/debug threshold filtering, and file rolling/retention for diagnostics.
     tags: [diagnostics, logging, runtime]
     paths:
       - SuwayomiSourceMerge/Infrastructure/Logging/ILogSink.cs
@@ -1315,6 +1326,7 @@ modules:
       - Canonical log-file name/path safety checks; use LogFilePathPolicy.
       - Canonical level filtering and sink fault fallback behavior; use RollingFileLogger.
       - Canonical non-emitting handling for LogLevel.None sentinel values; use RollingFileLogger.
+      - Canonical normal-level semantics (ordered between debug and warning) and formatter token mapping (`level=normal`); use LogLevel and StructuredTextLogFormatter.
       - Canonical logging-level token parsing shared by validation and runtime; use LogLevelParser.
       - Canonical non-throw probing for logging-level tokens; use LogLevelParser.TryParse.
       - Canonical structured text line format and escaping policy; use StructuredTextLogFormatter.
@@ -1412,8 +1424,10 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.FailFastMountFailures.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.OutcomesAndCancellation.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.WarningDiagnostics.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorOptionsTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/ConsoleSupervisorSignalRegistrarTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorTests.StackTraceLogging.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/FilesystemEventDaemonWorkerTests.cs

@@ -16,6 +16,7 @@ internal static class LogLevelParser
 	[
 		("trace", LogLevel.Trace),
 		("debug", LogLevel.Debug),
+		("normal", LogLevel.Normal),
 		("warning", LogLevel.Warning),
 		("error", LogLevel.Error),
 		("none", LogLevel.None)

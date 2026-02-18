@@ -7,9 +7,11 @@ public sealed class RollingFileLoggerTests
     [Theory]
     [InlineData(0, 0, true)]
     [InlineData(1, 0, false)]
-    [InlineData(2, 3, true)]
-    [InlineData(3, 2, false)]
+    [InlineData(2, 1, false)]
+    [InlineData(2, 2, true)]
+    [InlineData(3, 4, true)]
     [InlineData(4, 3, false)]
+    [InlineData(5, 4, false)]
     public void Log_ShouldRespectConfiguredMinimumLevel(int minimumLevelValue, int eventLevelValue, bool expectedWrite)
     {
         LogLevel minimumLevel = (LogLevel)minimumLevelValue;
@@ -85,6 +87,7 @@ public sealed class RollingFileLoggerTests
     [InlineData(2)]
     [InlineData(3)]
     [InlineData(4)]
+    [InlineData(5)]
     public void IsEnabled_ShouldAlwaysReturnFalse_ForNoneEventLevel(int minimumLevelValue)
     {
         LogLevel minimumLevel = (LogLevel)minimumLevelValue;
@@ -129,14 +132,16 @@ public sealed class RollingFileLoggerTests
 
         logger.Trace("event.trace", "trace");
         logger.Debug("event.debug", "debug");
+        logger.Normal("event.normal", "normal");
         logger.Warning("event.warning", "warning");
         logger.Error("event.error", "error");
 
-        Assert.Equal(4, sink.Lines.Count);
+        Assert.Equal(5, sink.Lines.Count);
         Assert.Contains("level=trace", sink.Lines[0]);
         Assert.Contains("level=debug", sink.Lines[1]);
-        Assert.Contains("level=warning", sink.Lines[2]);
-        Assert.Contains("level=error", sink.Lines[3]);
+        Assert.Contains("level=normal", sink.Lines[2]);
+        Assert.Contains("level=warning", sink.Lines[3]);
+        Assert.Contains("level=error", sink.Lines[4]);
     }
 
     [Fact]

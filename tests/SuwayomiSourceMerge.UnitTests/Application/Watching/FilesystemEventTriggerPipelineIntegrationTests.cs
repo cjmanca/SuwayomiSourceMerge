@@ -197,6 +197,11 @@ public sealed class FilesystemEventTriggerPipelineIntegrationTests
 		}
 
 		/// <inheritdoc />
+		public void Normal(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
+		{
+		}
+
+		/// <inheritdoc />
 		public void Error(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
 		{
 		}

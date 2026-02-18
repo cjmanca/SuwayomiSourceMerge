@@ -80,7 +80,7 @@ logging:
   file_name: daemon.log
   max_file_size_mb: 10
   retained_file_count: 10
-  level: warning
+  level: normal
 ```
 
 ### Validation rules
@@ -106,7 +106,7 @@ logging:
 - `logging.file_name` must not end with `.` or space
 - On Windows hosts, `logging.file_name` must not resolve to a reserved device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1`-`COM9`, `LPT1`-`LPT9`)
 - Entrypoint privileged log-file ownership adjustment is restricted to paths resolved under `/ssm/config`; custom absolute `paths.log_root_path` values remain valid but skip root-run ownership updates when outside that trusted root.
-- `logging.level` allowed values: `trace`, `debug`, `warning`, `error`, `none`
+- `logging.level` allowed values: `trace`, `debug`, `normal`, `warning`, `error`, `none`
 - `excluded_sources` cannot contain empty items or duplicates after normalization
 
 ## manga_equivalents.yml
