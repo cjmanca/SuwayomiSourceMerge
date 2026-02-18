@@ -207,6 +207,7 @@ modules:
       - Canonical stop-timeout hard-stop behavior with boundary completion recheck before process termination; use DaemonSupervisor.StopCoreAsync and DaemonSupervisor.ShouldTreatStopAsTimedOut.
       - Canonical state-file path resolution for supervisor lock/pid files; use SupervisorStatePaths.
       - Canonical worker lifecycle hook ordering (startup before loop, shutdown in finally with cooperative-cancellation debug downgrade and non-cooperative warning logging); use FilesystemEventDaemonWorker.
+      - Canonical worker-loop execution model should use a dedicated long-running task (not thread-pool `Task.Run`) to avoid startup stalls under thread-pool pressure; use FilesystemEventDaemonWorker.RunAsync.
       - Canonical worker/startup fault diagnostics with full exception payload (`exception.ToString()` stack trace); use DaemonSupervisor.RunAsync.
       - Canonical worker-loop contract used by daemon supervision; use IDaemonWorker.
       - Canonical exclusive supervisor lock-file acquisition and release semantics; use SupervisorFileLock.

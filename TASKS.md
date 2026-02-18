@@ -138,3 +138,4 @@
 - [x] 2026-02-18 - Reduce persistent inotify watcher thread pressure by removing per-session `Task.Run` wrappers and using async process-exit observation.
 - [x] 2026-02-18 - Fix `findmnt` escaped-value decoding to preserve UTF-8 mountpoint text (prevent mojibake cleanup/unmount mismatches) and add parser regression coverage.
 - [x] 2026-02-18 - Prevent mergerfs startup collapse under high mount counts by enforcing a default per-mount thread cap (`threads=1`) when not explicitly configured, and update defaults/docs/tests.
+- [x] 2026-02-18 - Harden daemon worker startup under thread-pool pressure by running the filesystem event worker loop on a dedicated long-running task instead of `Task.Run`.
