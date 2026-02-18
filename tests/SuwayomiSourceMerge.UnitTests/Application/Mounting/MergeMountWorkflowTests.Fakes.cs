@@ -363,6 +363,15 @@ public sealed partial class MergeMountWorkflowTests
 		} = new MountSnapshot([], []);
 
 		/// <summary>
+		/// Gets the number of capture invocations.
+		/// </summary>
+		public int CaptureCount
+		{
+			get;
+			private set;
+		}
+
+		/// <summary>
 		/// Gets or sets a provider for applied actions used to synthesize readiness snapshots.
 		/// </summary>
 		public Func<IReadOnlyList<MountReconciliationAction>>? AppliedActionsProvider
@@ -393,6 +402,7 @@ public sealed partial class MergeMountWorkflowTests
 		/// <inheritdoc />
 		public MountSnapshot Capture()
 		{
+			CaptureCount++;
 			if (_queuedSnapshots.Count > 0)
 			{
 				return _queuedSnapshots.Dequeue();

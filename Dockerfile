@@ -38,6 +38,7 @@ RUN set -eux; \
     setcap cap_sys_admin+ep "$(command -v mergerfs)"; \
     getcap /usr/bin/fusermount3 | grep -F "cap_sys_admin=ep" >/dev/null; \
     getcap "$(command -v mergerfs)" | grep -F "cap_sys_admin=ep" >/dev/null; \
+    apt-get purge -y --auto-remove curl; \
     rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/publish/ /app/

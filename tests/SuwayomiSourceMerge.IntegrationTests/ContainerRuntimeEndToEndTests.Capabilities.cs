@@ -50,6 +50,27 @@ public sealed partial class ContainerRuntimeEndToEndTests
 	}
 
 	/// <summary>
+	/// Verifies the runtime image does not retain build-only curl tooling.
+	/// </summary>
+	[Fact]
+	public void Run_Edge_ShouldNotShipCurlInRuntimeImage()
+	{
+		DockerCommandResult result = _fixture.Runner.Execute(
+		[
+			"run",
+			"--rm",
+			_fixture.ImageTag,
+			"bash",
+			"-lc",
+			"command -v curl >/dev/null 2>&1"
+		],
+		timeout: TimeSpan.FromMinutes(2));
+
+		Assert.False(result.TimedOut);
+		Assert.NotEqual(0, result.ExitCode);
+	}
+
+	/// <summary>
 	/// Verifies mergerfs capability checks resolve the binary path through <c>command -v</c>.
 	/// </summary>
 	[Fact]

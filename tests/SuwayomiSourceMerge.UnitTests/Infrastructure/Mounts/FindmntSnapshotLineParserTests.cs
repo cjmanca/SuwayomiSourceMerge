@@ -50,6 +50,57 @@ public sealed class FindmntSnapshotLineParserTests
 	}
 
 	/// <summary>
+	/// Verifies valid UTF-16 surrogate pairs in unescaped text decode without throwing.
+	/// </summary>
+	[Fact]
+	public void TryParse_Expected_ShouldPreserveValidSurrogatePair_WhenRawValueContainsNonBmpText()
+	{
+		const string Emoji = "\uD83D\uDE00";
+		string line = $"TARGET=\"/ssm/merged/Title{Emoji}\" FSTYPE=\"fuse.mergerfs\" SOURCE=\"source-id\" OPTIONS=\"rw\"";
+
+		bool success = FindmntSnapshotLineParser.TryParse(line, out MountSnapshotEntry? entry, out string? warningMessage);
+
+		Assert.True(success);
+		Assert.Null(warningMessage);
+		Assert.NotNull(entry);
+		Assert.Equal($"/ssm/merged/Title{Emoji}", entry!.MountPoint);
+	}
+
+	/// <summary>
+	/// Verifies isolated high-surrogate code units are replaced rather than throwing.
+	/// </summary>
+	[Fact]
+	public void TryParse_Edge_ShouldReplaceIsolatedHighSurrogate_WhenRawValueContainsInvalidUtf16()
+	{
+		const string IsolatedHighSurrogate = "\uD83D";
+		string line = $"TARGET=\"/ssm/merged/Bad{IsolatedHighSurrogate}Value\" FSTYPE=\"fuse.mergerfs\" SOURCE=\"source-id\" OPTIONS=\"rw\"";
+
+		bool success = FindmntSnapshotLineParser.TryParse(line, out MountSnapshotEntry? entry, out string? warningMessage);
+
+		Assert.True(success);
+		Assert.Null(warningMessage);
+		Assert.NotNull(entry);
+		Assert.Equal("/ssm/merged/Bad\uFFFDValue", entry!.MountPoint);
+	}
+
+	/// <summary>
+	/// Verifies isolated low-surrogate code units are replaced rather than throwing.
+	/// </summary>
+	[Fact]
+	public void TryParse_Failure_ShouldReplaceIsolatedLowSurrogate_WhenRawValueContainsInvalidUtf16()
+	{
+		const string IsolatedLowSurrogate = "\uDE00";
+		string line = $"TARGET=\"/ssm/merged/Bad{IsolatedLowSurrogate}Value\" FSTYPE=\"fuse.mergerfs\" SOURCE=\"source-id\" OPTIONS=\"rw\"";
+
+		bool success = FindmntSnapshotLineParser.TryParse(line, out MountSnapshotEntry? entry, out string? warningMessage);
+
+		Assert.True(success);
+		Assert.Null(warningMessage);
+		Assert.NotNull(entry);
+		Assert.Equal("/ssm/merged/Bad\uFFFDValue", entry!.MountPoint);
+	}
+
+	/// <summary>
 	/// Verifies values ending with escaped backslashes are parsed and terminated correctly.
 	/// </summary>
 	[Fact]

@@ -28,8 +28,14 @@ internal sealed partial class PersistentInotifywaitEventReader
 			return;
 		}
 
+		int emittedDroppedWarningCount = droppedWarningCount;
+		if (warnings.Count >= MaxPollWarnings)
+		{
+			emittedDroppedWarningCount++;
+		}
+
 		warnings.AddOverflowSummary(
-			$"Persistent inotify poll buffers overflowed. dropped_events='{droppedEventCount}' dropped_warnings='{droppedWarningCount}' max_events='{MaxPollEvents}' max_warnings='{MaxPollWarnings}' policy='drop_oldest'.");
+			$"Persistent inotify poll buffers overflowed. dropped_events='{droppedEventCount}' dropped_warnings='{emittedDroppedWarningCount}' max_events='{MaxPollEvents}' max_warnings='{MaxPollWarnings}' policy='drop_oldest'.");
 	}
 
 	/// <summary>
@@ -71,6 +77,7 @@ internal sealed partial class PersistentInotifywaitEventReader
 			if (_items.Count >= _maxItems)
 			{
 				_ = _items.Dequeue();
+				_droppedCount++;
 			}
 
 			_items.Enqueue(item);

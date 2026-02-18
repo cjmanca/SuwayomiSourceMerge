@@ -130,7 +130,7 @@ modules:
       - Canonical cancellation propagation during merge-pass branch planning and override-title discovery enumeration; use MergeMountWorkflow.RunMergePass and MergeMountWorkflow.Pass.Grouping helpers.
       - Canonical cleanup stale-prune safety gate that infers still-mounted branch directories from mergerfs source payloads and skips pruning only for degraded-visibility or unresolved mappings; use MergeMountWorkflow.RunCleanupPass.
       - Canonical merge-pass degraded-visibility safety gate that suppresses stale-unmount apply actions when source discovery/build/snapshot visibility is degraded while still allowing mount/remount actions; use MergeMountWorkflow.RunMergePass.
-      - Canonical mount-readiness accessibility probe that uses timeout-bounded command execution and maps probe failures/timeouts to mount failures; use MergeMountWorkflow.ValidateMountReadiness and IMergerfsMountCommandService.ProbeMountPointReadiness.
+      - Canonical mount-readiness flow should run per-action timeout-bounded probes then validate successful mounts against one post-apply snapshot capture; use MergeMountWorkflow.ValidateMountReadinessProbe, MergeMountWorkflow.ValidatePostApplyMountSnapshot, and IMergerfsMountCommandService.ProbeMountPointReadiness.
       - Canonical merge-pass helper partitioning for action apply, force-remount resolution, and grouping helpers; use MergeMountWorkflow partial pass files.
       - Canonical merge-pass outcome mapping from action results (mixed when busy+failure, then busy over failure over success); use MergeMountWorkflow.RunMergePass.
       - Canonical merge-pass override-title filtering that skips empty-normalized override directory names with warning diagnostics before resolver construction; use MergeMountWorkflow.DiscoverExistingOverrideTitles and MergeMountWorkflow.IsValidOverrideResolverTitle.
@@ -395,6 +395,7 @@ modules:
       - Canonical container build context exclusion policy; use .dockerignore.
       - Canonical container entrypoint bash test/readability policy (`[[ ... ]]` conditionals and inline fuse write stderr capture); use docker/entrypoint.sh.
       - Canonical container runtime package and multi-stage image definition; use Dockerfile.
+      - Canonical container runtime package and multi-stage image definition must remove build-only curl after mergerfs package install; use Dockerfile.
       - Canonical pinned mergerfs package integrity verification (arch-specific SHA256 checks) during image builds; use Dockerfile.
       - Canonical container runtime file-capability baking for non-root mergerfs/fusermount3 command execution; use Dockerfile.
       - Canonical container startup fuse policy: skip fuse.conf edits when PUID=0 and fail non-root startup with remediation guidance when /etc/fuse.conf cannot be updated; use docker/entrypoint.sh.
@@ -913,7 +914,7 @@ modules:
       - Canonical unmount mixed-outcome precedence where non-busy failures are not masked by busy results; use MergerfsMountCommandService.
       - Canonical desired-vs-actual reconciliation decision engine; use MountReconciliationService.Reconcile.
       - Canonical findmnt snapshot capture and parse-warning behavior (including non-throwing parser guards and escape decoding); use FindmntMountSnapshotService.
-      - Canonical findmnt escaped-byte decoding must preserve UTF-8 mountpoint text for cleanup/unmount path matching; use FindmntSnapshotLineParser.DecodeEscapedValue.
+      - Canonical findmnt escaped-byte decoding must preserve UTF-8 mountpoint text and replace malformed surrogate halves with U+FFFD instead of throwing; use FindmntSnapshotLineParser.DecodeEscapedValue.
       - Canonical legacy shell findmnt pairs-mode compatibility wrapper; use findmnt_pairs.
       - Canonical mount action precondition that ensures mountpoint directories exist before invoking mergerfs; use MergerfsMountCommandService.
       - Canonical mergerfs mount option composition must enforce a default thread cap (`threads=1`) when no explicit threads option is configured; use MergerfsOptionComposer.ComposeMountOptions.
@@ -1176,7 +1177,7 @@ modules:
       - Canonical one-shot inotify command invocation and timeout classification; use InotifywaitEventReader.Poll.
       - Canonical persistent inotify monitor orchestration with progressive deep-watch startup, desired-session pruning, and bounded restart backoff; use PersistentInotifywaitEventReader.
       - Canonical persistent inotify monitor session IO/exit observation should avoid per-session Task.Run thread pinning; use PersistentInotifywaitEventReader.InotifyMonitorSession.
-      - Canonical persistent inotify poll result bounding and drop-oldest overflow signaling (including guaranteed overflow summary warning retention across early-return paths); use PersistentInotifywaitEventReader.
+      - Canonical persistent inotify poll result bounding and drop-oldest overflow signaling must retain overflow summary warnings across early returns and include summary-eviction warning drops in dropped-warning diagnostics; use PersistentInotifywaitEventReader.
       - Canonical progressive deep-session startup budget semantics are per start phase (pre-wait/post-wait), not single-phase per entire poll; use PersistentInotifywaitEventReader.
       - Canonical watcher startup mode contract (`full` and `progressive`); use InotifyWatchStartupMode.
       - Canonical typed poll outcome and warning contract; use InotifyPollResult.
@@ -1251,7 +1252,7 @@ modules:
       - Canonical entrypoint non-root FUSE preflight validation that rejects non-character-device `FUSE_DEVICE_PATH` values; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
       - Canonical entrypoint trusted-root log ownership guard that skips privileged chown outside `/ssm/config`; use ContainerRuntimeEndToEndTests.EntrypointLogPath.
       - Canonical SIGTERM shutdown integration harness that verifies graceful cleanup/unmount behavior during container stop; use ContainerRuntimeEndToEndTests.SignalHandling.
-      - Canonical image capability regression harness validating baked cap_sys_admin on mergerfs/fusermount3, Debian-version-aware pinned-upstream mergerfs package validation, and stripped-image negative controls; use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.Capabilities.cs`.
+      - Canonical image capability regression harness validating baked cap_sys_admin on mergerfs/fusermount3, Debian-version-aware pinned-upstream mergerfs package validation, build-only curl removal, and stripped-image negative controls; use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.Capabilities.cs`.
       - Canonical deterministic wait-loop assertions for integration checks; use DockerAssertions.
       - Canonical Docker CLI command execution and diagnostics wrapper; use DockerCommandRunner.
       - Canonical Docker integration image build, daemon preflight, and teardown image cleanup fixture setup; use DockerIntegrationFixture.

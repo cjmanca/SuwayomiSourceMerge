@@ -21,6 +21,7 @@ internal sealed partial class MergeMountWorkflow
 		bool hadBusy = false;
 		bool hadFailure = false;
 		int consecutiveMountFailures = 0;
+		List<MountReconciliationAction> successfulMountActions = [];
 
 		for (int index = 0; index < actions.Count; index++)
 		{
@@ -37,7 +38,11 @@ internal sealed partial class MergeMountWorkflow
 				cancellationToken);
 			if (IsMountOrRemount(action) && applyResult.Outcome == MountActionApplyOutcome.Success)
 			{
-				applyResult = ValidateMountReadiness(action, applyResult, cancellationToken);
+				applyResult = ValidateMountReadinessProbe(action, applyResult, cancellationToken);
+				if (applyResult.Outcome == MountActionApplyOutcome.Success)
+				{
+					successfulMountActions.Add(action);
+				}
 			}
 
 			if (applyResult.Outcome == MountActionApplyOutcome.Busy)
@@ -86,6 +91,11 @@ internal sealed partial class MergeMountWorkflow
 			}
 		}
 
+		if (successfulMountActions.Count > 0)
+		{
+			hadFailure = ValidatePostApplyMountSnapshot(successfulMountActions) || hadFailure;
+		}
+
 		if (hadBusy && hadFailure)
 		{
 			return (MergeScanDispatchOutcome.Mixed, hadBusy, hadFailure);
@@ -116,41 +126,17 @@ internal sealed partial class MergeMountWorkflow
 	}
 
 	/// <summary>
-	/// Validates mount readiness after a command-reported mount/remount success.
+	/// Validates one mount-readiness probe after a command-reported mount/remount success.
 	/// </summary>
 	/// <param name="action">Applied mount/remount action.</param>
 	/// <param name="applyResult">Original successful apply result.</param>
 	/// <returns>Updated apply result with readiness failures mapped to failure outcomes.</returns>
-	private MountActionApplyResult ValidateMountReadiness(
+	private MountActionApplyResult ValidateMountReadinessProbe(
 		MountReconciliationAction action,
 		MountActionApplyResult applyResult,
 		CancellationToken cancellationToken)
 	{
 		string normalizedMountPoint = Path.GetFullPath(action.MountPoint);
-		MountSnapshot readinessSnapshot = _mountSnapshotService.Capture();
-		MountSnapshotEntry? matchingEntry = FindSnapshotEntryForMountPoint(readinessSnapshot.Entries, normalizedMountPoint);
-		if (matchingEntry is null)
-		{
-			string warningCode = readinessSnapshot.Warnings.Count > 0
-				? readinessSnapshot.Warnings[0].Code
-				: "none";
-			string warningMessage = readinessSnapshot.Warnings.Count > 0
-				? readinessSnapshot.Warnings[0].Message
-				: "none";
-			return new MountActionApplyResult(
-				action,
-				MountActionApplyOutcome.Failure,
-				$"Mount readiness check failed: no mount snapshot entry found for '{normalizedMountPoint}'. snapshot_entries='{readinessSnapshot.Entries.Count}' snapshot_warnings='{readinessSnapshot.Warnings.Count}' first_warning_code='{warningCode}' first_warning_message='{warningMessage}'.");
-		}
-
-		if (!matchingEntry.FileSystemType.Contains("mergerfs", StringComparison.OrdinalIgnoreCase))
-		{
-			return new MountActionApplyResult(
-				action,
-				MountActionApplyOutcome.Failure,
-				$"Mount readiness check failed: expected mergerfs filesystem type for '{normalizedMountPoint}' but observed '{matchingEntry.FileSystemType}'.");
-		}
-
 		MountReadinessProbeResult probeResult = _mountCommandService.ProbeMountPointReadiness(
 			normalizedMountPoint,
 			_options.UnmountCommandTimeout,
@@ -168,25 +154,107 @@ internal sealed partial class MergeMountWorkflow
 	}
 
 	/// <summary>
-	/// Locates one snapshot entry for the target mountpoint using normalized path equality.
+	/// Validates mount/remount success actions against one post-apply snapshot.
 	/// </summary>
-	/// <param name="entries">Snapshot entries.</param>
-	/// <param name="normalizedMountPoint">Normalized target mountpoint.</param>
-	/// <returns>Matching entry when found; otherwise <see langword="null"/>.</returns>
-	private static MountSnapshotEntry? FindSnapshotEntryForMountPoint(
-		IReadOnlyList<MountSnapshotEntry> entries,
-		string normalizedMountPoint)
+	/// <param name="successfulMountActions">Successful mount/remount actions from this apply pass.</param>
+	/// <returns><see langword="true"/> when one or more mount readiness failures were detected; otherwise <see langword="false"/>.</returns>
+	private bool ValidatePostApplyMountSnapshot(IReadOnlyList<MountReconciliationAction> successfulMountActions)
 	{
+		ArgumentNullException.ThrowIfNull(successfulMountActions);
+
+		MountSnapshot readinessSnapshot = _mountSnapshotService.Capture();
+		Dictionary<string, MountSnapshotEntry> snapshotEntriesByMountPoint = BuildSnapshotEntriesByMountPoint(readinessSnapshot.Entries);
+		HashSet<string> checkedMountPoints = new(PathSafetyPolicy.GetPathComparer());
+		bool hadFailure = false;
+
+		for (int index = 0; index < successfulMountActions.Count; index++)
+		{
+			MountReconciliationAction action = successfulMountActions[index];
+			string normalizedMountPoint = Path.GetFullPath(action.MountPoint);
+			if (!checkedMountPoints.Add(normalizedMountPoint))
+			{
+				continue;
+			}
+
+			if (!snapshotEntriesByMountPoint.TryGetValue(normalizedMountPoint, out MountSnapshotEntry? entry))
+			{
+				hadFailure = true;
+				LogSnapshotReadinessFailure(
+					normalizedMountPoint,
+					$"Mount readiness check failed after apply: no mount snapshot entry found for '{normalizedMountPoint}'. snapshot_entries='{readinessSnapshot.Entries.Count}' snapshot_warnings='{readinessSnapshot.Warnings.Count}' first_warning_code='{GetFirstSnapshotWarningCode(readinessSnapshot)}' first_warning_message='{GetFirstSnapshotWarningMessage(readinessSnapshot)}'.");
+				continue;
+			}
+
+			if (!entry.FileSystemType.Contains("mergerfs", StringComparison.OrdinalIgnoreCase))
+			{
+				hadFailure = true;
+				LogSnapshotReadinessFailure(
+					normalizedMountPoint,
+					$"Mount readiness check failed after apply: expected mergerfs filesystem type for '{normalizedMountPoint}' but observed '{entry.FileSystemType}'.");
+			}
+		}
+
+		return hadFailure;
+	}
+
+	/// <summary>
+	/// Builds an entry lookup by normalized mountpoint path.
+	/// </summary>
+	/// <param name="entries">Snapshot entries to index.</param>
+	/// <returns>Lookup keyed by normalized mountpoint path.</returns>
+	private static Dictionary<string, MountSnapshotEntry> BuildSnapshotEntriesByMountPoint(
+		IReadOnlyList<MountSnapshotEntry> entries)
+	{
+		ArgumentNullException.ThrowIfNull(entries);
+
+		Dictionary<string, MountSnapshotEntry> entriesByMountPoint = new(PathSafetyPolicy.GetPathComparer());
 		for (int index = 0; index < entries.Count; index++)
 		{
 			MountSnapshotEntry entry = entries[index];
 			string entryMountPoint = Path.GetFullPath(entry.MountPoint);
-			if (string.Equals(entryMountPoint, normalizedMountPoint, _pathComparison))
-			{
-				return entry;
-			}
+			entriesByMountPoint.TryAdd(entryMountPoint, entry);
 		}
 
-		return null;
+		return entriesByMountPoint;
 	}
+
+	/// <summary>
+	/// Returns the first snapshot warning code when available.
+	/// </summary>
+	/// <param name="snapshot">Readiness snapshot value.</param>
+	/// <returns>First warning code when available; otherwise <c>none</c>.</returns>
+	private static string GetFirstSnapshotWarningCode(MountSnapshot snapshot)
+	{
+		ArgumentNullException.ThrowIfNull(snapshot);
+		return snapshot.Warnings.Count > 0
+			? snapshot.Warnings[0].Code
+			: "none";
+	}
+
+	/// <summary>
+	/// Returns the first snapshot warning message when available.
+	/// </summary>
+	/// <param name="snapshot">Readiness snapshot value.</param>
+	/// <returns>First warning message when available; otherwise <c>none</c>.</returns>
+	private static string GetFirstSnapshotWarningMessage(MountSnapshot snapshot)
+	{
+		ArgumentNullException.ThrowIfNull(snapshot);
+		return snapshot.Warnings.Count > 0
+			? snapshot.Warnings[0].Message
+			: "none";
+	}
+
+	/// <summary>
+	/// Logs one snapshot-based mount readiness failure.
+	/// </summary>
+	/// <param name="mountPoint">Mountpoint that failed snapshot readiness validation.</param>
+	/// <param name="message">Failure message.</param>
+	private void LogSnapshotReadinessFailure(string mountPoint, string message)
+	{
+		_logger.Warning(
+			MergePassWarningEvent,
+			message,
+			BuildContext(("mountpoint", mountPoint)));
+	}
+
 }

@@ -142,3 +142,4 @@
 - [x] 2026-02-18 - Improve warning-level merge diagnostics so startup is not silent when no source volumes are discovered or a pass resolves to zero desired mounts.
 - [x] 2026-02-18 - Handle container SIGTERM as cooperative supervisor stop so shutdown cleanup runs (unmount sweep + branch-link cleanup), with unit/integration signal-path coverage.
 - [x] 2026-02-18 - Introduce `logging.level: normal` (between `debug` and `warning`) as the default and move startup/shutdown and workflow status summaries to this level for non-debug runtime visibility.
+- [x] 2026-02-18 - Resolve secondary unresolved PR #23 reviewer follow-ups: correct watcher overflow warning-drop accounting, harden findmnt surrogate decoding, batch mount snapshot readiness validation to one post-apply capture, and remove build-only curl from runtime image with integration assertion coverage.

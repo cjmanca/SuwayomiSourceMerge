@@ -62,9 +62,12 @@ public sealed partial class MergeMountWorkflowTests
 		fixture.MountCommandService.EnqueueApplyOutcome(MountActionApplyOutcome.Success);
 		fixture.MountSnapshotService.EnqueueSnapshot(new MountSnapshot([], []));
 		fixture.MountSnapshotService.EnqueueSnapshot(
-			new MountSnapshot([new MountSnapshotEntry(mountPointB, "fuse.mergerfs", "src-b", "rw", isHealthy: null)], []));
-		fixture.MountSnapshotService.EnqueueSnapshot(
-			new MountSnapshot([new MountSnapshotEntry(mountPointD, "fuse.mergerfs", "src-d", "rw", isHealthy: null)], []));
+			new MountSnapshot(
+			[
+				new MountSnapshotEntry(mountPointB, "fuse.mergerfs", "src-b", "rw", isHealthy: null),
+				new MountSnapshotEntry(mountPointD, "fuse.mergerfs", "src-d", "rw", isHealthy: null)
+			],
+			[]));
 		MergeMountWorkflow workflow = fixture.CreateWorkflow();
 
 		MergeScanDispatchOutcome outcome = workflow.RunMergePass("startup", force: false);
@@ -72,6 +75,54 @@ public sealed partial class MergeMountWorkflowTests
 		Assert.Equal(MergeScanDispatchOutcome.Failure, outcome);
 		Assert.Equal(4, fixture.MountCommandService.AppliedActions.Count);
 		Assert.DoesNotContain(fixture.Logger.Events, log => log.EventId == "merge.workflow.action_fail_fast");
+	}
+
+	/// <summary>
+	/// Verifies one post-apply snapshot validates all successful mounts instead of capturing once per mount action.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Expected_ShouldValidateMultipleSuccessfulMountsAgainstOnePostApplySnapshot()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		Directory.CreateDirectory(Path.Combine(fixture.Options.SourcesRootPath, "disk1", "SourceA", "Another Title"));
+		Directory.CreateDirectory(Path.Combine(fixture.Options.SourcesRootPath, "disk1", "SourceA", "Third Title"));
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("startup", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Success, outcome);
+		Assert.Equal(3, fixture.MountCommandService.AppliedActions.Count);
+		Assert.Equal(2, fixture.MountSnapshotService.CaptureCount);
+	}
+
+	/// <summary>
+	/// Verifies post-apply snapshot validation fails when a successful mountpoint resolves to a non-mergerfs filesystem type.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Edge_ShouldReturnFailure_WhenPostApplySnapshotReportsWrongFilesystemType()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		string mountPoint = Path.Combine(fixture.Options.MergedRootPath, "Canonical Title");
+		fixture.MountSnapshotService.AutoIncludeAppliedMountActions = false;
+		fixture.MountSnapshotService.EnqueueSnapshot(new MountSnapshot([], []));
+		fixture.MountSnapshotService.EnqueueSnapshot(
+			new MountSnapshot(
+			[
+				new MountSnapshotEntry(mountPoint, "ext4", "disk", "rw", isHealthy: null)
+			],
+			[]));
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("startup", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Failure, outcome);
+		Assert.Equal(2, fixture.MountSnapshotService.CaptureCount);
+		Assert.Contains(
+			fixture.Logger.Events,
+			log => log.EventId == "merge.workflow.warning"
+				&& log.Message.Contains("expected mergerfs filesystem type", StringComparison.Ordinal));
 	}
 
 	/// <summary>

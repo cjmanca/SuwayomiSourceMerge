@@ -210,11 +210,9 @@ internal static class FindmntSnapshotLineParser
 
 		while (index < rawValue.Length)
 		{
-			char current = rawValue[index];
-			if (current != '\\')
+			if (rawValue[index] != '\\')
 			{
-				AppendCodePointUtf8Bytes(decodedBytes, current);
-				index++;
+				AppendUtf16TextAsUtf8Bytes(decodedBytes, rawValue, ref index);
 				continue;
 			}
 
@@ -267,6 +265,45 @@ internal static class FindmntSnapshotLineParser
 		}
 
 		return Encoding.UTF8.GetString([.. decodedBytes]);
+	}
+
+	/// <summary>
+	/// Appends one non-escape UTF-16 input unit sequence as UTF-8 bytes.
+	/// </summary>
+	/// <param name="buffer">Destination byte buffer.</param>
+	/// <param name="value">Source text.</param>
+	/// <param name="index">Current source index, advanced to the next unconsumed position.</param>
+	private static void AppendUtf16TextAsUtf8Bytes(ICollection<byte> buffer, string value, ref int index)
+	{
+		ArgumentNullException.ThrowIfNull(buffer);
+		ArgumentNullException.ThrowIfNull(value);
+		ArgumentOutOfRangeException.ThrowIfNegative(index);
+		ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, value.Length);
+
+		char current = value[index];
+		if (char.IsHighSurrogate(current))
+		{
+			if (index + 1 < value.Length && char.IsLowSurrogate(value[index + 1]))
+			{
+				AppendCodePointUtf8Bytes(buffer, char.ConvertToUtf32(current, value[index + 1]));
+				index += 2;
+				return;
+			}
+
+			AppendCodePointUtf8Bytes(buffer, '\uFFFD');
+			index++;
+			return;
+		}
+
+		if (char.IsLowSurrogate(current))
+		{
+			AppendCodePointUtf8Bytes(buffer, '\uFFFD');
+			index++;
+			return;
+		}
+
+		AppendCodePointUtf8Bytes(buffer, current);
+		index++;
 	}
 
 	/// <summary>

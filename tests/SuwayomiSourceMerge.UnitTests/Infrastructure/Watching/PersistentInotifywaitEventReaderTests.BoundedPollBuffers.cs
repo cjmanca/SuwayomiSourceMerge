@@ -143,7 +143,7 @@ public sealed partial class PersistentInotifywaitEventReaderTests
 		Assert.Equal(InotifyPollOutcome.Success, result.Outcome);
 		Assert.Equal(1024, result.Warnings.Count);
 		Assert.Contains(result.Warnings, warning => warning.Contains("dropped_events='", StringComparison.Ordinal));
-		Assert.Contains(result.Warnings, warning => warning.Contains("dropped_warnings='0'", StringComparison.Ordinal));
+		Assert.Contains(result.Warnings, warning => warning.Contains("dropped_warnings='1'", StringComparison.Ordinal));
 	}
 
 	/// <summary>
