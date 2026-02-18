@@ -135,3 +135,4 @@
 - [x] 2026-02-17 - Address code-review hardening follow-ups by enforcing exact Debian mergerfs pin validation in container capability integration tests, strengthening mount-readiness probe materialization semantics, and tightening fail-fast mount-warning diagnostic assertions with index updates.
 - [x] 2026-02-18 - Address unresolved PR #23 AI review threads by adding timeout-bounded mount readiness probe execution via mount command service, emitting overflow summary warnings on watcher early returns, and verifying pinned mergerfs package checksums in Docker build.
 - [x] 2026-02-18 - Improve unhandled-exception diagnostics by logging full exception stack traces in host/supervisor failure logs and add regression tests.
+- [x] 2026-02-18 - Reduce persistent inotify watcher thread pressure by removing per-session `Task.Run` wrappers and using async process-exit observation.
