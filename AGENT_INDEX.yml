@@ -67,6 +67,7 @@ modules:
       - Canonical runtime failure lifecycle event emission (`host.shutdown_failed`) when runtime exits non-zero; use ApplicationHost.Run.
       - Canonical runtime dependency composition for bootstrap, logging, and supervision; use ApplicationHost.CreateDefault.
       - Canonical runtime supervisor dependency composition for production startup; use DefaultRuntimeSupervisorRunner.
+      - Canonical unhandled-host exception diagnostics with full exception payload (`exception.ToString()` stack trace); use ApplicationHost.TryLogUnhandledException.
     related: [application-mounting, application-supervision, logging-infrastructure, runtime-host, unit-test-suite]
   - id: application-mounting
     summary: Production merge workflow orchestration and lifecycle cleanup for branch planning, reconciliation, mount apply, and mount-readiness fail-fast handling.
@@ -151,6 +152,7 @@ modules:
       - SuwayomiSourceMerge/Application/Supervision/SupervisorFileLock.cs
       - SuwayomiSourceMerge/Application/Supervision/SupervisorStatePaths.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorOptionsTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorTests.StackTraceLogging.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/FilesystemEventDaemonWorkerTests.cs
     entrypoints:
@@ -205,6 +207,7 @@ modules:
       - Canonical stop-timeout hard-stop behavior with boundary completion recheck before process termination; use DaemonSupervisor.StopCoreAsync and DaemonSupervisor.ShouldTreatStopAsTimedOut.
       - Canonical state-file path resolution for supervisor lock/pid files; use SupervisorStatePaths.
       - Canonical worker lifecycle hook ordering (startup before loop, shutdown in finally with cooperative-cancellation debug downgrade and non-cooperative warning logging); use FilesystemEventDaemonWorker.
+      - Canonical worker/startup fault diagnostics with full exception payload (`exception.ToString()` stack trace); use DaemonSupervisor.RunAsync.
       - Canonical worker-loop contract used by daemon supervision; use IDaemonWorker.
       - Canonical exclusive supervisor lock-file acquisition and release semantics; use SupervisorFileLock.
     related: [application-hosting, application-mounting, application-watching, unit-test-suite]
@@ -1407,6 +1410,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.OutcomesAndCancellation.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorOptionsTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorTests.StackTraceLogging.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/FilesystemEventDaemonWorkerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerOptionsTests.cs

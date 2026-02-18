@@ -213,7 +213,8 @@ internal sealed class ApplicationHost
 					"Unhandled host exception.",
 					BuildContext(
 						("exception_type", exception.GetType().FullName ?? exception.GetType().Name),
-						("message", exception.Message)));
+						("message", exception.Message),
+						("exception", exception.ToString())));
 			}
 			catch
 			{

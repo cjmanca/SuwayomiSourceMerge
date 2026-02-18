@@ -231,7 +231,8 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 					"Daemon supervisor startup failed.",
 					BuildContext(
 						("exception_type", exception.GetType().FullName ?? exception.GetType().Name),
-						("message", exception.Message)));
+						("message", exception.Message),
+						("exception", exception.ToString())));
 				return 1;
 			}
 
@@ -289,7 +290,8 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 				"Daemon worker exited with an unhandled exception.",
 				BuildContext(
 					("exception_type", exception.GetType().FullName ?? exception.GetType().Name),
-					("message", exception.Message)));
+					("message", exception.Message),
+					("exception", exception.ToString())));
 			exitCode = 1;
 		}
 		finally
