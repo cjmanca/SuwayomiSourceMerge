@@ -5,9 +5,9 @@ namespace SuwayomiSourceMerge.Configuration.Documents;
 /// </summary>
 /// <remarks>
 /// Values returned here must stay aligned with documented schema defaults and are used by bootstrap
-/// code paths whenever a settings file is missing fields.
+/// code paths whenever a settings file is missing active runtime fields.
 /// Update this factory in lockstep with <c>settings.yml</c> schema additions to keep self-healing
-/// deterministic.
+/// deterministic for non-deprecated settings.
 /// </remarks>
 public static class SettingsDocumentDefaults
 {
@@ -15,7 +15,7 @@ public static class SettingsDocumentDefaults
 	/// Creates a fully populated default settings document with container-oriented runtime values.
 	/// </summary>
 	/// <returns>
-	/// A complete <see cref="SettingsDocument"/> instance containing defaults for every section and field.
+	/// A complete <see cref="SettingsDocument"/> instance containing defaults for active section fields.
 	/// </returns>
 	public static SettingsDocument Create()
 	{
@@ -38,7 +38,6 @@ public static class SettingsDocumentDefaults
 				MergeTriggerPollSeconds = 5,
 				MergeMinSecondsBetweenScans = 15,
 				MergeLockRetrySeconds = 30,
-				MergeTriggerRequestTimeoutBufferSeconds = 300,
 				WatchStartupMode = "progressive"
 			},
 			Rename = new SettingsRenameSection

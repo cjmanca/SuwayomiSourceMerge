@@ -123,7 +123,7 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
 			ValidatePositive(document.Scan.MergeTriggerPollSeconds, file, "$.scan.merge_trigger_poll_seconds", result);
 			ValidateNonNegative(document.Scan.MergeMinSecondsBetweenScans, file, "$.scan.merge_min_seconds_between_scans", result);
 			ValidatePositive(document.Scan.MergeLockRetrySeconds, file, "$.scan.merge_lock_retry_seconds", result);
-			ValidatePositive(document.Scan.MergeTriggerRequestTimeoutBufferSeconds, file, "$.scan.merge_trigger_request_timeout_buffer_seconds", result);
+			ValidateOptionalPositive(document.Scan.MergeTriggerRequestTimeoutBufferSeconds, file, "$.scan.merge_trigger_request_timeout_buffer_seconds", result);
 			ValidateWatchStartupMode(document.Scan.WatchStartupMode, file, "$.scan.watch_startup_mode", result);
 		}
 
@@ -281,6 +281,26 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
 		if (!value.HasValue)
 		{
 			result.Add(new ValidationError(file, path, MissingFieldCode, "Required numeric field is missing."));
+			return;
+		}
+
+		if (value.Value <= 0)
+		{
+			result.Add(new ValidationError(file, path, InvalidRangeCode, "Value must be greater than 0."));
+		}
+	}
+
+	/// <summary>
+	/// Ensures an optional numeric field, when present, is greater than zero.
+	/// </summary>
+	/// <param name="value">Numeric value to validate.</param>
+	/// <param name="file">File name associated with the validation result.</param>
+	/// <param name="path">JSON path-like location for the field in validation output.</param>
+	/// <param name="result">Collector that receives validation errors.</param>
+	private static void ValidateOptionalPositive(int? value, string file, string path, ValidationResult result)
+	{
+		if (!value.HasValue)
+		{
 			return;
 		}
 

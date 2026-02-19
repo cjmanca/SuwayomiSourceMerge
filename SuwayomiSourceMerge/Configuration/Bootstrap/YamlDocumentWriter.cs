@@ -9,6 +9,8 @@ namespace SuwayomiSourceMerge.Configuration.Bootstrap;
 /// <remarks>
 /// The writer enforces underscored naming, disables YAML aliases, and normalizes line endings to
 /// Unix-style newlines so generated config files are deterministic across platforms.
+/// Null-valued properties are omitted so deprecated/optional fields are not reintroduced as explicit
+/// <c>null</c> entries during self-heal rewrites.
 /// </remarks>
 internal sealed class YamlDocumentWriter
 {
@@ -24,6 +26,7 @@ internal sealed class YamlDocumentWriter
 	{
 		_serializer = new SerializerBuilder()
 			.DisableAliases()
+			.ConfigureDefaultValuesHandling(DefaultValuesHandling.OmitNull)
 			.WithNamingConvention(UnderscoredNamingConvention.Instance)
 			.Build();
 	}

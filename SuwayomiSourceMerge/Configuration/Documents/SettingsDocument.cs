@@ -184,7 +184,8 @@ public sealed class SettingsScanSection
 	}
 
 	/// <summary>
-	/// Gets or sets additional timeout buffer in seconds added to each inotifywait command request.
+	/// Gets or sets a deprecated compatibility timeout buffer in seconds for legacy one-shot inotify request behavior.
+	/// This value is ignored by the persistent inotify monitor runtime path.
 	/// </summary>
 	public int? MergeTriggerRequestTimeoutBufferSeconds
 	{

@@ -323,9 +323,10 @@ public sealed class ConfigurationBootstrapServiceTests
         Assert.Equal(false, result.Documents.Settings.Runtime!.LowPriority);
         Assert.Equal("/ssm/sources", result.Documents.Settings.Paths!.SourcesRootPath);
         Assert.Equal(5, result.Documents.Settings.Scan!.MergeTriggerPollSeconds);
-        Assert.Equal(300, result.Documents.Settings.Scan!.MergeTriggerRequestTimeoutBufferSeconds);
+        Assert.Null(result.Documents.Settings.Scan!.MergeTriggerRequestTimeoutBufferSeconds);
         Assert.Equal("progressive", result.Documents.Settings.Scan!.WatchStartupMode);
         Assert.Equal("normal", result.Documents.Settings.Logging!.Level);
+        Assert.DoesNotContain("merge_trigger_request_timeout_buffer_seconds", healedContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -351,7 +352,6 @@ public sealed class ConfigurationBootstrapServiceTests
               merge_trigger_poll_seconds: 5
               merge_min_seconds_between_scans: 15
               merge_lock_retry_seconds: 30
-              merge_trigger_request_timeout_buffer_seconds: 300
               watch_startup_mode: progressive
             rename:
               rename_delay_seconds: 300

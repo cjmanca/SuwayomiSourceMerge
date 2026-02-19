@@ -41,6 +41,20 @@ public sealed class YamlDocumentWriterTests
         Assert.True(File.Exists(nestedPath));
     }
 
+    [Fact]
+    public void Write_ShouldOmitNullValues_WhenSerializingSettingsDocument()
+    {
+        using TemporaryDirectory directory = new();
+        string filePath = Path.Combine(directory.Path, "settings.yml");
+        YamlDocumentWriter writer = new();
+        SettingsDocument document = SettingsDocumentDefaults.Create();
+
+        writer.Write(filePath, document);
+
+        string yaml = File.ReadAllText(filePath);
+        Assert.DoesNotContain("merge_trigger_request_timeout_buffer_seconds", yaml, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

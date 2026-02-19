@@ -122,7 +122,7 @@ public sealed class FilesystemEventTriggerOptionsTests
 		};
 
 		SettingsDocument defaults = SettingsDocumentDefaults.Create();
-		SettingsDocument invalidSettingsMissingTimeoutBuffer = new()
+		SettingsDocument settingsMissingTimeoutBuffer = new()
 		{
 			Paths = defaults.Paths,
 			Scan = new SettingsScanSection
@@ -142,7 +142,8 @@ public sealed class FilesystemEventTriggerOptionsTests
 		};
 
 		Assert.Throws<ArgumentException>(() => FilesystemEventTriggerOptions.FromSettings(invalidSettings));
-		Assert.Throws<ArgumentException>(() => FilesystemEventTriggerOptions.FromSettings(invalidSettingsMissingTimeoutBuffer));
+		FilesystemEventTriggerOptions options = FilesystemEventTriggerOptions.FromSettings(settingsMissingTimeoutBuffer);
+		Assert.Equal(300, options.InotifyRequestTimeoutBufferSeconds);
 		SettingsDocument validDefaults = SettingsDocumentDefaults.Create();
 		SettingsDocument invalidSettingsWatchMode = new()
 		{

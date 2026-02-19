@@ -33,7 +33,7 @@ public sealed partial class SettingsDocumentValidatorTests
                 MergeTriggerPollSeconds = 1,
                 MergeMinSecondsBetweenScans = 0,
                 MergeLockRetrySeconds = 1,
-                MergeTriggerRequestTimeoutBufferSeconds = 1
+                MergeTriggerRequestTimeoutBufferSeconds = null
             },
             Rename = new SettingsRenameSection
             {

@@ -186,8 +186,7 @@ internal sealed class FilesystemEventTriggerOptions
 		if (!scan.MergeTriggerPollSeconds.HasValue ||
 			!scan.MergeIntervalSeconds.HasValue ||
 			!scan.MergeMinSecondsBetweenScans.HasValue ||
-			!scan.MergeLockRetrySeconds.HasValue ||
-			!scan.MergeTriggerRequestTimeoutBufferSeconds.HasValue)
+			!scan.MergeLockRetrySeconds.HasValue)
 		{
 			throw new ArgumentException("Settings scan section contains missing values.", nameof(settings));
 		}
@@ -201,7 +200,7 @@ internal sealed class FilesystemEventTriggerOptions
 			scan.MergeMinSecondsBetweenScans.Value,
 			scan.MergeLockRetrySeconds.Value,
 			settings.Runtime.RescanNow.Value,
-			scan.MergeTriggerRequestTimeoutBufferSeconds.Value,
+			scan.MergeTriggerRequestTimeoutBufferSeconds ?? DefaultInotifyRequestTimeoutBufferSeconds,
 			ParseWatchStartupMode(scan.WatchStartupMode));
 	}
 

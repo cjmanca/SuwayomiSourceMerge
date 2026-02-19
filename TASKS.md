@@ -144,3 +144,4 @@
 - [x] 2026-02-18 - Introduce `logging.level: normal` (between `debug` and `warning`) as the default and move startup/shutdown and workflow status summaries to this level for non-debug runtime visibility.
 - [x] 2026-02-18 - Resolve secondary unresolved PR #23 reviewer follow-ups: correct watcher overflow warning-drop accounting, harden findmnt surrogate decoding, batch mount snapshot readiness validation to one post-apply capture, and remove build-only curl from runtime image with integration assertion coverage.
 - [x] 2026-02-18 - Reduce rename queue idle-log noise by suppressing normal-level `rename.queue.processed` summaries for empty queue passes while retaining summaries for non-empty passes, with regression tests.
+- [x] 2026-02-19 - Stop regenerating deprecated `scan.merge_trigger_request_timeout_buffer_seconds` during settings self-heal while keeping backward-compatible parsing and runtime warning behavior.
