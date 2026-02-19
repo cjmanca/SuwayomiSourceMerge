@@ -20,6 +20,11 @@ namespace SuwayomiSourceMerge.Application.Hosting;
 /// </summary>
 internal sealed class DefaultRuntimeSupervisorRunner : IRuntimeSupervisorRunner
 {
+	/// <summary>
+	/// Event id emitted when configured scene tags are missing recommended defaults.
+	/// </summary>
+	private const string SceneTagsRecommendedMissingEvent = "config.scene_tags.recommended_missing";
+
 	/// <inheritdoc />
 	public int Run(ConfigurationDocumentSet documents, ISsmLogger logger)
 	{
@@ -50,6 +55,19 @@ internal sealed class DefaultRuntimeSupervisorRunner : IRuntimeSupervisorRunner
 
 		MergeMountWorkflowOptions mergeOptions = MergeMountWorkflowOptions.FromSettings(documents.Settings);
 		ISceneTagMatcher sceneTagMatcher = new SceneTagMatcher(documents.SceneTags.Tags ?? []);
+		IReadOnlyList<string> missingRecommendedTags = SceneTagConfigurationAdvisor.GetMissingRecommendedTags(sceneTagMatcher);
+		if (missingRecommendedTags.Count > 0)
+		{
+			logger.Warning(
+				SceneTagsRecommendedMissingEvent,
+				"Configured scene_tags.yml is missing recommended default tags. Manual update is recommended.",
+				new Dictionary<string, string>(StringComparer.Ordinal)
+				{
+					["missing_count"] = missingRecommendedTags.Count.ToString(CultureInfo.InvariantCulture),
+					["missing_tags"] = string.Join(", ", missingRecommendedTags)
+				});
+		}
+
 		IMangaEquivalenceService mangaEquivalenceService = new MangaEquivalenceService(documents.MangaEquivalents, sceneTagMatcher);
 		ISourcePriorityService sourcePriorityService = new SourcePriorityService(documents.SourcePriority);
 		MergeMountWorkflow mergeMountWorkflow = new(

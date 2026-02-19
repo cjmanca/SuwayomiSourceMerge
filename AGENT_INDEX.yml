@@ -25,7 +25,9 @@ modules:
       - SuwayomiSourceMerge/Application/Hosting/ApplicationHost.cs
       - SuwayomiSourceMerge/Application/Hosting/DefaultRuntimeSupervisorRunner.cs
       - SuwayomiSourceMerge/Application/Hosting/IRuntimeSupervisorRunner.cs
+      - SuwayomiSourceMerge/Application/Hosting/SceneTagConfigurationAdvisor.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Hosting/ApplicationHostTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Hosting/SceneTagConfigurationAdvisorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/ProgramEntryPointTests.cs
     entrypoints:
       - symbol: ApplicationHost
@@ -65,6 +67,7 @@ modules:
     do_not_reimplement:
       - Canonical host lifecycle orchestration and stderr fallback handling; use ApplicationHost.Run.
       - Canonical host startup/bootstrap/shutdown status-event emission at normal severity; use ApplicationHost.Run.
+      - Canonical recommended scene-tag drift diagnostics for warn-only runtime visibility; use SceneTagConfigurationAdvisor.GetMissingRecommendedTags and DefaultRuntimeSupervisorRunner.Run.
       - Canonical runtime failure lifecycle event emission (`host.shutdown_failed`) when runtime exits non-zero; use ApplicationHost.Run.
       - Canonical runtime dependency composition for bootstrap, logging, and supervision; use ApplicationHost.CreateDefault.
       - Canonical runtime supervisor dependency composition for production startup; use DefaultRuntimeSupervisorRunner.
@@ -130,16 +133,17 @@ modules:
       - Canonical cancellation propagation during merge-pass branch planning and override-title discovery enumeration; use MergeMountWorkflow.RunMergePass and MergeMountWorkflow.Pass.Grouping helpers.
       - Canonical cleanup stale-prune safety gate that infers still-mounted branch directories from mergerfs source payloads and skips pruning only for degraded-visibility or unresolved mappings; use MergeMountWorkflow.RunCleanupPass.
       - Canonical merge-pass degraded-visibility safety gate that suppresses stale-unmount apply actions when source discovery/build/snapshot visibility is degraded while still allowing mount/remount actions; use MergeMountWorkflow.RunMergePass.
-      - Canonical mount-readiness flow should run per-action timeout-bounded probes then validate successful mounts against one post-apply snapshot capture; use MergeMountWorkflow.ValidateMountReadinessProbe, MergeMountWorkflow.ValidatePostApplyMountSnapshot, and IMergerfsMountCommandService.ProbeMountPointReadiness.
       - Canonical merge-pass helper partitioning for action apply, force-remount resolution, and grouping helpers; use MergeMountWorkflow partial pass files.
       - Canonical merge-pass outcome mapping from action results (mixed when busy+failure, then busy over failure over success); use MergeMountWorkflow.RunMergePass.
-      - Canonical merge-pass override-title filtering that skips empty-normalized override directory names with warning diagnostics before resolver construction; use MergeMountWorkflow.DiscoverExistingOverrideTitles and MergeMountWorkflow.IsValidOverrideResolverTitle.
-      - Canonical warning-level merge diagnostics for no-source discovery and zero-desired-mount passes; use MergeMountWorkflow.RunMergePass.
+      - Canonical merge-pass override-title catalog discovery/filtering before resolver construction; use MergeMountWorkflow.DiscoverExistingOverrideTitleCatalog and MergeMountWorkflow.TryCreateOverrideTitleCatalogEntry.
       - Canonical merge-workflow lifecycle status-event emission (`merge.workflow.started`, `merge.workflow.completed`, cleanup pass summary) at normal severity; use MergeMountWorkflow.RunMergePass and MergeMountWorkflow.RunCleanupPass.
+      - Canonical mount-readiness flow should run per-action timeout-bounded probes then validate successful mounts against one post-apply snapshot capture; use MergeMountWorkflow.ValidateMountReadinessProbe, MergeMountWorkflow.ValidatePostApplyMountSnapshot, and IMergerfsMountCommandService.ProbeMountPointReadiness.
       - Canonical resolve-only force-remount reason resolution (`override-force:<title>`) targeting known desired mountpoints; use MergeMountWorkflow.RunMergePass.
-      - Canonical startup/shutdown managed-root cleanup orchestration; use MergeMountWorkflow.OnWorkerStarting and MergeMountWorkflow.OnWorkerStopping.
-      - Canonical title grouping and canonical-title precedence flow used by merge runtime; use MergeMountWorkflow.RunMergePass.
       - Canonical source-derived fallback canonical-title display naming that strips trailing scene-tag suffixes while preserving override/equivalence precedence; use MergeMountWorkflow.ResolveCanonicalTitle.
+      - Canonical startup/shutdown managed-root cleanup orchestration; use MergeMountWorkflow.OnWorkerStarting and MergeMountWorkflow.OnWorkerStopping.
+      - Canonical tagged-only override preservation advisories with manual rename guidance; use MergeMountWorkflow.LogOverrideCanonicalAdvisories.
+      - Canonical title grouping and canonical-title precedence flow used by merge runtime; use MergeMountWorkflow.RunMergePass.
+      - Canonical warning-level merge diagnostics for no-source discovery and zero-desired-mount passes; use MergeMountWorkflow.RunMergePass.
     related: [application-hosting, application-supervision, application-watching, config-resolution, infrastructure-metadata, infrastructure-mounts, infrastructure-volumes, unit-test-suite]
   - id: application-supervision
     summary: Daemon lifecycle supervision with state-file locking, PID tracking, and signal-driven graceful shutdown.
@@ -493,7 +497,9 @@ modules:
       - SuwayomiSourceMerge/Configuration/Resolution/IOverrideCanonicalResolver.cs
       - SuwayomiSourceMerge/Configuration/Resolution/ISourcePriorityService.cs
       - SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceService.cs
+      - SuwayomiSourceMerge/Configuration/Resolution/OverrideCanonicalAdvisory.cs
       - SuwayomiSourceMerge/Configuration/Resolution/OverrideCanonicalResolver.cs
+      - SuwayomiSourceMerge/Configuration/Resolution/OverrideTitleCatalogEntry.cs
       - SuwayomiSourceMerge/Configuration/Resolution/SourcePriorityService.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalenceServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/OverrideCanonicalResolverTests.cs
@@ -518,7 +524,7 @@ modules:
       - symbol: OverrideCanonicalResolver
         kind: class
         path: SuwayomiSourceMerge/Configuration/Resolution/OverrideCanonicalResolver.cs
-        purpose: Resolves normalized title keys to first-seen exact override titles via frozen lookup data and shared cached key normalization.
+        purpose: Resolves normalized title keys using deterministic untagged-over-tagged canonical arbitration with advisory output for tagged-only preservation.
       - symbol: SourcePriorityService
         kind: class
         path: SuwayomiSourceMerge/Configuration/Resolution/SourcePriorityService.cs
@@ -535,7 +541,7 @@ modules:
         paths: [SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceService.cs, SuwayomiSourceMerge/Configuration/Resolution/IOverrideCanonicalResolver.cs, SuwayomiSourceMerge/Configuration/Resolution/ISourcePriorityService.cs]
     do_not_reimplement:
       - Canonical manga equivalence canonical/alias lookup construction and conflict checks; use MangaEquivalenceService.
-      - Canonical override-title normalized lookup with caller-order-first collision policy; use OverrideCanonicalResolver.
+      - Canonical override-title normalized lookup with deterministic untagged-over-tagged canonical arbitration; use OverrideCanonicalResolver.
       - Canonical source-priority normalized token matching and fallback behavior; use SourcePriorityService.
     related: [config-schema-validation, domain-normalization, unit-test-suite]
   - id: config-schema-validation
@@ -698,6 +704,7 @@ modules:
       - Canonical matcher-equivalent scene-tag key derivation; use SceneTagMatchKeyBuilder.TryCreate.
       - Canonical scene-tag matcher contract for normalization consumers; use ISceneTagMatcher.
       - Canonical trim+case-insensitive source-name key normalization for exclusion matching; use SourceNameKeyNormalizer.NormalizeSourceKey.
+      - Canonical trailing bracket/delimited scene-tag suffix boundary detection with punctuation-noise fallback; use TitleKeyNormalizer.TryGetTrailingBracketSuffixRange and TitleKeyNormalizer.TryMatchSceneTagCandidate.
       - Canonical display-title trailing scene-tag suffix stripping used by merge canonical fallback naming; use TitleKeyNormalizer.StripTrailingSceneTagSuffixes.
       - Canonical title key normalization for runtime and validation call sites; use TitleKeyNormalizer.NormalizeTitleKey.
     related: [config-bootstrap-migration, config-resolution, config-schema-validation, unit-test-suite]
@@ -1426,6 +1433,8 @@ modules:
     paths:
       - tests/SuwayomiSourceMerge.UnitTests/Application/Cancellation/CancellationClassificationTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Hosting/ApplicationHostTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Hosting/SceneTagConfigurationAdvisorTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.DegradedVisibilityAndOverrideTitles.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.FailFastMountFailures.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.OutcomesAndCancellation.cs
