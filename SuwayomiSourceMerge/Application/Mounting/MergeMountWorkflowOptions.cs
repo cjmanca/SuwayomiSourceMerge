@@ -18,6 +18,7 @@ internal sealed class MergeMountWorkflowOptions
 	/// <param name="mergerfsOptionsBase">Base mergerfs options.</param>
 	/// <param name="excludedSources">Excluded source names.</param>
 	/// <param name="enableMountHealthcheck">Whether health checks are enabled in reconciliation.</param>
+	/// <param name="maxConsecutiveMountFailures">Maximum consecutive mount/remount failures before apply actions fail fast.</param>
 	/// <param name="startupCleanupEnabled">Whether startup cleanup is enabled.</param>
 	/// <param name="unmountOnExit">Whether shutdown unmount is enabled.</param>
 	/// <param name="cleanupHighPriority">Whether cleanup should prefer high-priority wrapper commands.</param>
@@ -35,6 +36,7 @@ internal sealed class MergeMountWorkflowOptions
 		string mergerfsOptionsBase,
 		IReadOnlyList<string> excludedSources,
 		bool enableMountHealthcheck,
+		int maxConsecutiveMountFailures,
 		bool startupCleanupEnabled,
 		bool unmountOnExit,
 		bool cleanupHighPriority,
@@ -72,6 +74,11 @@ internal sealed class MergeMountWorkflowOptions
 			throw new ArgumentOutOfRangeException(nameof(cleanupPriorityNiceValue), cleanupPriorityNiceValue, "Nice value must be between -20 and 19.");
 		}
 
+		if (maxConsecutiveMountFailures <= 0)
+		{
+			throw new ArgumentOutOfRangeException(nameof(maxConsecutiveMountFailures), maxConsecutiveMountFailures, "Maximum consecutive mount failures must be > 0.");
+		}
+
 		SourcesRootPath = Path.GetFullPath(sourcesRootPath);
 		OverrideRootPath = Path.GetFullPath(overrideRootPath);
 		MergedRootPath = Path.GetFullPath(mergedRootPath);
@@ -83,6 +90,7 @@ internal sealed class MergeMountWorkflowOptions
 			.Select(static sourceName => sourceName.Trim())
 			.ToArray();
 		EnableMountHealthcheck = enableMountHealthcheck;
+		MaxConsecutiveMountFailures = maxConsecutiveMountFailures;
 		StartupCleanupEnabled = startupCleanupEnabled;
 		UnmountOnExit = unmountOnExit;
 		CleanupHighPriority = cleanupHighPriority;
@@ -153,6 +161,14 @@ internal sealed class MergeMountWorkflowOptions
 	/// Gets a value indicating whether mount health checks are enabled.
 	/// </summary>
 	public bool EnableMountHealthcheck
+	{
+		get;
+	}
+
+	/// <summary>
+	/// Gets the maximum consecutive mount/remount failures before apply actions fail fast.
+	/// </summary>
+	public int MaxConsecutiveMountFailures
 	{
 		get;
 	}
@@ -266,12 +282,13 @@ internal sealed class MergeMountWorkflowOptions
 		}
 
 		if (runtime.EnableMountHealthcheck is null ||
+			runtime.MaxConsecutiveMountFailures is null ||
 			runtime.DetailsDescriptionMode is null ||
 			runtime.MergerfsOptionsBase is null ||
 			runtime.StartupCleanup is null)
 		{
 			throw new ArgumentException(
-				"Settings runtime.enable_mount_healthcheck, runtime.details_description_mode, runtime.mergerfs_options_base, and runtime.startup_cleanup are required.",
+				"Settings runtime.enable_mount_healthcheck, runtime.max_consecutive_mount_failures, runtime.details_description_mode, runtime.mergerfs_options_base, and runtime.startup_cleanup are required.",
 				nameof(settings));
 		}
 
@@ -301,6 +318,7 @@ internal sealed class MergeMountWorkflowOptions
 			runtime.MergerfsOptionsBase,
 			runtime.ExcludedSources ?? [],
 			runtime.EnableMountHealthcheck.Value,
+			runtime.MaxConsecutiveMountFailures.Value,
 			runtime.StartupCleanup.Value,
 			shutdown.UnmountOnExit.Value,
 			shutdown.CleanupHighPriority.Value,

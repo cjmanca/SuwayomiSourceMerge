@@ -20,14 +20,19 @@ internal enum LogLevel
 	Debug = 1,
 
 	/// <summary>
+	/// General runtime status information for normal operation visibility.
+	/// </summary>
+	Normal = 2,
+
+	/// <summary>
 	/// Non-fatal issues or noteworthy conditions that should be reviewed.
 	/// </summary>
-	Warning = 2,
+	Warning = 3,
 
 	/// <summary>
 	/// Failure conditions that indicate an operation did not complete successfully.
 	/// </summary>
-	Error = 3,
+	Error = 4,
 
 	/// <summary>
 	/// Sentinel level that disables normal file log emission.
@@ -35,5 +40,5 @@ internal enum LogLevel
 	/// <remarks>
 	/// This value is intended for configuration thresholding and should not be emitted as an event level.
 	/// </remarks>
-	None = 4
+	None = 5
 }

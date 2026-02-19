@@ -122,7 +122,7 @@ public sealed class ApplicationHostTests
 	{
 		ConfigurationBootstrapException bootstrapException = new(
 		[
-			new ValidationError("settings.yml", "$.logging.level", "CFG-SET-005", "Allowed values: trace, debug, warning, error, none.")
+			new ValidationError("settings.yml", "$.logging.level", "CFG-SET-005", "Allowed values: trace, debug, normal, warning, error, none.")
 		]);
 
 		ApplicationHost host = new(
@@ -250,6 +250,29 @@ public sealed class ApplicationHostTests
 		Assert.DoesNotContain("event=\"host.shutdown\"", logContent);
 	}
 
+	[Fact]
+	public void Run_ShouldLogFullExceptionStackTrace_WhenRuntimeSupervisorThrows()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		ApplicationHost host = new(
+			new StubBootstrapService(_ => CreateBootstrapResult(temporaryDirectory.Path, "debug", [])),
+			new SsmLoggerFactory(),
+			new StubRuntimeSupervisorRunner((_, _) => throw new InvalidOperationException("runtime-failure")));
+
+		using StringWriter stderr = new();
+		int exitCode = host.Run(temporaryDirectory.Path, stderr);
+
+		Assert.Equal(1, exitCode);
+		string logPath = Path.Combine(temporaryDirectory.Path, "daemon.log");
+		Assert.True(File.Exists(logPath));
+
+		string logContent = File.ReadAllText(logPath);
+		Assert.Contains("event=\"host.unhandled_exception\"", logContent);
+		Assert.Contains("exception_type=\"System.InvalidOperationException\"", logContent);
+		Assert.Contains("exception=\"System.InvalidOperationException: runtime-failure", logContent);
+		Assert.Contains("\\n", logContent);
+	}
+
 	private static ConfigurationBootstrapResult CreateBootstrapResult(
 		string logRootPath,
 		string loggingLevel,
@@ -369,7 +392,7 @@ public sealed class ApplicationHostTests
 
 		public void Log(LogLevel level, string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
 		{
-			if (level == LogLevel.Debug)
+			if (level == LogLevel.Debug || level == LogLevel.Normal)
 			{
 				throw new InvalidOperationException("simulated logger failure");
 			}
@@ -383,6 +406,11 @@ public sealed class ApplicationHostTests
 		public void Debug(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
 		{
 			Log(LogLevel.Debug, eventId, message, context);
+		}
+
+		public void Normal(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
+		{
+			Log(LogLevel.Normal, eventId, message, context);
 		}
 
 		public void Warning(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)

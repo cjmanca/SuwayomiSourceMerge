@@ -114,14 +114,14 @@ public sealed partial class MergeMountWorkflowTests
 	{
 		using TemporaryDirectory temporaryDirectory = new();
 		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
-		fixture.MountSnapshotService.NextSnapshot = new MountSnapshot(
+		fixture.MountSnapshotService.EnqueueSnapshot(new MountSnapshot(
 			[],
 			[
 				new MountSnapshotWarning(
 					"MOUNT-SNAP-001",
 					"degraded visibility",
 					MountSnapshotWarningSeverity.DegradedVisibility)
-			]);
+			]));
 		fixture.ReconciliationService.NextPlanFactory = input => new MountReconciliationPlan(
 		[
 			new MountReconciliationAction(

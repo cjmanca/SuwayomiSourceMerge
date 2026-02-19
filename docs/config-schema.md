@@ -70,8 +70,9 @@ runtime:
   startup_cleanup: true
   rescan_now: true
   enable_mount_healthcheck: false
+  max_consecutive_mount_failures: 5
   details_description_mode: text
-  mergerfs_options_base: allow_other,default_permissions,use_ino,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0
+  mergerfs_options_base: allow_other,default_permissions,use_ino,threads=1,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0
   excluded_sources:
     - Local source
 
@@ -79,7 +80,7 @@ logging:
   file_name: daemon.log
   max_file_size_mb: 10
   retained_file_count: 10
-  level: warning
+  level: normal
 ```
 
 ### Validation rules
@@ -96,6 +97,7 @@ logging:
 - `scan.merge_trigger_request_timeout_buffer_seconds` is accepted for backward compatibility but deprecated for runtime use; the persistent inotify monitor path ignores this value and emits a startup warning.
 - `shutdown.cleanup_high_priority` controls startup/shutdown cleanup wrapper execution.
 - `shutdown.cleanup_apply_high_priority` controls reconciliation apply-path wrapper execution.
+- `runtime.max_consecutive_mount_failures` controls merge-pass apply fail-fast behavior after repeated mount/remount failures.
 - Runtime bootstrap/settings parse (`ConfigurationSchemaService.ParseSettingsForRuntime`) uses strict validation for shutdown cleanup profile fields (`cleanup_apply_high_priority`, `cleanup_priority_ionice_class`, `cleanup_priority_nice_value`).
 - Tooling/schema-only settings parse (`ConfigurationSchemaService.ParseSettingsForTooling`) may omit those shutdown cleanup profile fields; when provided, numeric ranges are still validated.
 - `details_description_mode` allowed values: `text`, `br`, `html`
@@ -104,7 +106,7 @@ logging:
 - `logging.file_name` must not end with `.` or space
 - On Windows hosts, `logging.file_name` must not resolve to a reserved device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1`-`COM9`, `LPT1`-`LPT9`)
 - Entrypoint privileged log-file ownership adjustment is restricted to paths resolved under `/ssm/config`; custom absolute `paths.log_root_path` values remain valid but skip root-run ownership updates when outside that trusted root.
-- `logging.level` allowed values: `trace`, `debug`, `warning`, `error`, `none`
+- `logging.level` allowed values: `trace`, `debug`, `normal`, `warning`, `error`, `none`
 - `excluded_sources` cannot contain empty items or duplicates after normalization
 
 ## manga_equivalents.yml

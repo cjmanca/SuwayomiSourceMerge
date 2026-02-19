@@ -119,6 +119,17 @@ internal sealed class RollingFileLogger : ISsmLogger
 	}
 
 	/// <summary>
+	/// Emits a normal-level event.
+	/// </summary>
+	/// <param name="eventId">Stable event identifier.</param>
+	/// <param name="message">Human-readable message.</param>
+	/// <param name="context">Optional structured key/value context.</param>
+	public void Normal(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
+	{
+		Log(LogLevel.Normal, eventId, message, context);
+	}
+
+	/// <summary>
 	/// Emits a warning-level event.
 	/// </summary>
 	/// <param name="eventId">Stable event identifier.</param>

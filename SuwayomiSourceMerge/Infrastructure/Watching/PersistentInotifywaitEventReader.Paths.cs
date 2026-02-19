@@ -8,7 +8,7 @@ internal sealed partial class PersistentInotifywaitEventReader
 	/// <param name="watchRoots">Raw watch roots.</param>
 	/// <param name="warnings">Warning sink for invalid watch-root inputs.</param>
 	/// <returns>Normalized watch-root paths.</returns>
-	private static string[] NormalizeWatchRoots(IReadOnlyList<string> watchRoots, ICollection<string> warnings)
+	private static string[] NormalizeWatchRoots(IReadOnlyList<string> watchRoots, BoundedFifoBuffer<string> warnings)
 	{
 		HashSet<string> roots = new(_pathComparer);
 		for (int index = 0; index < watchRoots.Count; index++)

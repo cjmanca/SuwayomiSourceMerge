@@ -171,7 +171,7 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 
 		ChapterRenameProcessResult finalizedResult = processResult ?? throw new InvalidOperationException("Queue transform did not produce a process result.");
 
-		_logger.Debug(
+		_logger.Normal(
 			ProcessSummaryEvent,
 			"Processed chapter rename queue.",
 			BuildContext(
@@ -234,7 +234,7 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 		}
 
 		ChapterRenameRescanResult result = new(candidates, enqueued);
-		_logger.Debug(
+		_logger.Normal(
 			RescanSummaryEvent,
 			"Rescanned chapter directories for rename candidates.",
 			BuildContext(

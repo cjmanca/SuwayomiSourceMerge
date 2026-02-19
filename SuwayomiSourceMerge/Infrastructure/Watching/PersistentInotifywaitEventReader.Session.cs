@@ -31,9 +31,9 @@ internal sealed partial class PersistentInotifywaitEventReader
 			WatchPath = watchPath;
 			IsRecursive = recursive;
 			_process = process;
-			_stdoutTask = Task.Run(ReadStandardOutputAsync);
-			_stderrTask = Task.Run(ReadStandardErrorAsync);
-			_exitTask = Task.Run(ObserveExit);
+			_stdoutTask = ReadStandardOutputAsync();
+			_stderrTask = ReadStandardErrorAsync();
+			_exitTask = ObserveExitAsync();
 		}
 
 		public string WatchPath
@@ -219,11 +219,11 @@ internal sealed partial class PersistentInotifywaitEventReader
 			}
 		}
 
-		private void ObserveExit()
+		private async Task ObserveExitAsync()
 		{
 			try
 			{
-				_process.WaitForExit();
+				await _process.WaitForExitAsync(_disposeTokenSource.Token).ConfigureAwait(false);
 				if (!_disposeTokenSource.IsCancellationRequested)
 				{
 					_warnings.Enqueue(
@@ -231,6 +231,10 @@ internal sealed partial class PersistentInotifywaitEventReader
 							CultureInfo.InvariantCulture,
 							$"inotifywait monitor exited unexpectedly for '{WatchPath}' with exit code {_process.ExitCode}."));
 				}
+			}
+			catch (OperationCanceledException) when (_disposeTokenSource.IsCancellationRequested)
+			{
+				// Cooperative shutdown.
 			}
 			catch (Exception exception)
 			{

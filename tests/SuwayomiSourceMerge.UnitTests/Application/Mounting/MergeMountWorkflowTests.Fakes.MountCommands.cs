@@ -23,6 +23,11 @@ public sealed partial class MergeMountWorkflowTests
 		private readonly Queue<MountActionApplyOutcome> _unmountOutcomeSequence = [];
 
 		/// <summary>
+		/// Sequence of readiness-probe outcomes consumed per probe call.
+		/// </summary>
+		private readonly Queue<MountReadinessProbeResult> _readinessProbeSequence = [];
+
+		/// <summary>
 		/// Gets applied reconciliation actions.
 		/// </summary>
 		public List<MountReconciliationAction> AppliedActions
@@ -58,12 +63,30 @@ public sealed partial class MergeMountWorkflowTests
 		}
 
 		/// <summary>
+		/// Gets or sets a value indicating whether successful mount/remount actions should create mountpoint directories.
+		/// </summary>
+		public bool AutoCreateMountPointOnSuccess
+		{
+			get;
+			set;
+		} = true;
+
+		/// <summary>
 		/// Gets recorded unmounted mountpoints.
 		/// </summary>
 		public List<string> UnmountedMountPoints
 		{
 			get;
 		} = [];
+
+		/// <summary>
+		/// Gets or sets default readiness-probe result.
+		/// </summary>
+		public MountReadinessProbeResult ReadinessProbeResult
+		{
+			get;
+			set;
+		} = MountReadinessProbeResult.Ready("probe");
 
 		/// <summary>
 		/// Enqueues one apply outcome.
@@ -83,6 +106,15 @@ public sealed partial class MergeMountWorkflowTests
 			_unmountOutcomeSequence.Enqueue(outcome);
 		}
 
+		/// <summary>
+		/// Enqueues one readiness-probe result.
+		/// </summary>
+		/// <param name="result">Probe result.</param>
+		public void EnqueueReadinessProbeResult(MountReadinessProbeResult result)
+		{
+			_readinessProbeSequence.Enqueue(result);
+		}
+
 		/// <inheritdoc />
 		public MountActionApplyResult ApplyAction(
 			MountReconciliationAction action,
@@ -99,6 +131,13 @@ public sealed partial class MergeMountWorkflowTests
 			MountActionApplyOutcome outcome = _applyOutcomeSequence.Count > 0
 				? _applyOutcomeSequence.Dequeue()
 				: ApplyOutcome;
+			if (outcome == MountActionApplyOutcome.Success &&
+				AutoCreateMountPointOnSuccess &&
+				(action.Kind == MountReconciliationActionKind.Mount || action.Kind == MountReconciliationActionKind.Remount))
+			{
+				Directory.CreateDirectory(action.MountPoint);
+			}
+
 			return new MountActionApplyResult(action, outcome, "apply");
 		}
 
@@ -125,6 +164,18 @@ public sealed partial class MergeMountWorkflowTests
 					MountReconciliationReason.StaleMount),
 				outcome,
 				"unmount");
+		}
+
+		/// <inheritdoc />
+		public MountReadinessProbeResult ProbeMountPointReadiness(
+			string mountPoint,
+			TimeSpan commandTimeout,
+			TimeSpan pollInterval,
+			CancellationToken cancellationToken = default)
+		{
+			return _readinessProbeSequence.Count > 0
+				? _readinessProbeSequence.Dequeue()
+				: ReadinessProbeResult;
 		}
 	}
 }

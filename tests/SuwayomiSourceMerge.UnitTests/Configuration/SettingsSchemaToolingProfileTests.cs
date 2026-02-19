@@ -98,6 +98,7 @@ public sealed class SettingsSchemaToolingProfileTests
               startup_cleanup: true
               rescan_now: true
               enable_mount_healthcheck: false
+              max_consecutive_mount_failures: 5
               details_description_mode: text
               mergerfs_options_base: allow_other
               excluded_sources:
@@ -162,6 +163,7 @@ public sealed class SettingsSchemaToolingProfileTests
               startup_cleanup: true
               rescan_now: true
               enable_mount_healthcheck: false
+              max_consecutive_mount_failures: 5
               details_description_mode: text
               mergerfs_options_base: allow_other
               excluded_sources:

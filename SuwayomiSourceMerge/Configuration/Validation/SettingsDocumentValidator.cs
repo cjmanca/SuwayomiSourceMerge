@@ -184,6 +184,7 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
 			ValidateRequired(document.Runtime.StartupCleanup, file, "$.runtime.startup_cleanup", result);
 			ValidateRequired(document.Runtime.RescanNow, file, "$.runtime.rescan_now", result);
 			ValidateRequired(document.Runtime.EnableMountHealthcheck, file, "$.runtime.enable_mount_healthcheck", result);
+			ValidatePositive(document.Runtime.MaxConsecutiveMountFailures, file, "$.runtime.max_consecutive_mount_failures", result);
 			ValidateRequired(document.Runtime.MergerfsOptionsBase, file, "$.runtime.mergerfs_options_base", result);
 			ValidateDetailsDescriptionMode(document.Runtime.DetailsDescriptionMode, file, "$.runtime.details_description_mode", result);
 			ValidateExcludedSources(document.Runtime.ExcludedSources, file, "$.runtime.excluded_sources", result);

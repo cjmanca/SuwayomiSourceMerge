@@ -85,8 +85,9 @@ public static class SettingsDocumentDefaults
 				StartupCleanup = true,
 				RescanNow = true,
 				EnableMountHealthcheck = false,
+				MaxConsecutiveMountFailures = 5,
 				DetailsDescriptionMode = "text",
-				MergerfsOptionsBase = "allow_other,default_permissions,use_ino,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0",
+				MergerfsOptionsBase = "allow_other,default_permissions,use_ino,threads=1,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0",
 				ExcludedSources = ["Local source"]
 			},
 			Logging = new SettingsLoggingSection
@@ -94,7 +95,7 @@ public static class SettingsDocumentDefaults
 				FileName = "daemon.log",
 				MaxFileSizeMb = 10,
 				RetainedFileCount = 10,
-				Level = "warning"
+				Level = "normal"
 			}
 		};
 	}

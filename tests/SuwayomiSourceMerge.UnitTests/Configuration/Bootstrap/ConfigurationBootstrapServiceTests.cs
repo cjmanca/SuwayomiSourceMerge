@@ -160,6 +160,7 @@ public sealed class ConfigurationBootstrapServiceTests
               startup_cleanup: true
               rescan_now: true
               enable_mount_healthcheck: false
+              max_consecutive_mount_failures: 5
               details_description_mode: markdown
               mergerfs_options_base: allow_other
               excluded_sources:
@@ -324,7 +325,7 @@ public sealed class ConfigurationBootstrapServiceTests
         Assert.Equal(5, result.Documents.Settings.Scan!.MergeTriggerPollSeconds);
         Assert.Equal(300, result.Documents.Settings.Scan!.MergeTriggerRequestTimeoutBufferSeconds);
         Assert.Equal("progressive", result.Documents.Settings.Scan!.WatchStartupMode);
-        Assert.Equal("warning", result.Documents.Settings.Logging!.Level);
+        Assert.Equal("normal", result.Documents.Settings.Logging!.Level);
     }
 
     [Fact]
@@ -452,8 +453,9 @@ public sealed class ConfigurationBootstrapServiceTests
               startup_cleanup: true
               rescan_now: true
               enable_mount_healthcheck: false
+              max_consecutive_mount_failures: 5
               details_description_mode: text
-              mergerfs_options_base: allow_other,default_permissions,use_ino,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0
+              mergerfs_options_base: allow_other,default_permissions,use_ino,threads=1,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0
               excluded_sources:
                 - Local source
             logging:
@@ -535,6 +537,7 @@ public sealed class ConfigurationBootstrapServiceTests
               startup_cleanup: true
               rescan_now: true
               enable_mount_healthcheck: false
+              max_consecutive_mount_failures: 5
               details_description_mode: text
               mergerfs_options_base: allow_other
               excluded_sources:

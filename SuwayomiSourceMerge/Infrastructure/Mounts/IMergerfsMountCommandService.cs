@@ -50,4 +50,18 @@ internal interface IMergerfsMountCommandService
 		int cleanupPriorityIoniceClass,
 		int cleanupPriorityNiceValue,
 		CancellationToken cancellationToken = default);
+
+	/// <summary>
+	/// Probes one mounted path for readiness using a timeout-bounded command execution path.
+	/// </summary>
+	/// <param name="mountPoint">Mounted path to probe.</param>
+	/// <param name="commandTimeout">Per-command timeout.</param>
+	/// <param name="pollInterval">Per-command process poll interval.</param>
+	/// <param name="cancellationToken">Cancellation token.</param>
+	/// <returns>Readiness probe result with diagnostic details.</returns>
+	MountReadinessProbeResult ProbeMountPointReadiness(
+		string mountPoint,
+		TimeSpan commandTimeout,
+		TimeSpan pollInterval,
+		CancellationToken cancellationToken = default);
 }

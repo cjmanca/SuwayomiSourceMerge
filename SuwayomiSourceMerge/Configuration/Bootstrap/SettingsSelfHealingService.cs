@@ -152,6 +152,7 @@ internal sealed class SettingsSelfHealingService
 				StartupCleanup = existingRuntime?.StartupCleanup ?? UseDefault(defaultRuntime.StartupCleanup, ref wasHealed),
 				RescanNow = existingRuntime?.RescanNow ?? UseDefault(defaultRuntime.RescanNow, ref wasHealed),
 				EnableMountHealthcheck = existingRuntime?.EnableMountHealthcheck ?? UseDefault(defaultRuntime.EnableMountHealthcheck, ref wasHealed),
+				MaxConsecutiveMountFailures = existingRuntime?.MaxConsecutiveMountFailures ?? UseDefault(defaultRuntime.MaxConsecutiveMountFailures, ref wasHealed),
 				DetailsDescriptionMode = existingRuntime?.DetailsDescriptionMode ?? UseDefault(defaultRuntime.DetailsDescriptionMode, ref wasHealed),
 				MergerfsOptionsBase = existingRuntime?.MergerfsOptionsBase ?? UseDefault(defaultRuntime.MergerfsOptionsBase, ref wasHealed),
 				ExcludedSources = existingRuntime?.ExcludedSources ?? UseDefault(defaultRuntime.ExcludedSources, ref wasHealed)

@@ -44,7 +44,7 @@ public sealed partial class MergerfsMountCommandServiceTests
 		Assert.Equal(MountActionApplyOutcome.Success, result.Outcome);
 		Assert.Single(executor.Requests);
 		Assert.Equal("mergerfs", executor.Requests[0].FileName);
-		Assert.Contains("allow_other,fsname=suwayomi_hash", executor.Requests[0].Arguments);
+		Assert.Contains("allow_other,threads=1,fsname=suwayomi_hash", executor.Requests[0].Arguments);
 	}
 
 	/// <summary>

@@ -136,7 +136,7 @@ internal sealed partial class MergeMountWorkflow
 			_branchLinkStagingService.CleanupStaleBranchDirectories(_options.BranchLinksRootPath, activeBranchDirectories);
 		}
 
-		_logger.Debug(
+		_logger.Normal(
 			MergeCleanupEvent,
 			"Lifecycle cleanup pass completed.",
 			BuildContext(

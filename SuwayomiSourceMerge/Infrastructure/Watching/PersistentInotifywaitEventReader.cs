@@ -174,7 +174,7 @@ internal sealed partial class PersistentInotifywaitEventReader : IInotifyEventRe
 			throw new ArgumentOutOfRangeException(nameof(timeout), "Timeout must be > 0.");
 		}
 
-		List<string> warnings = [];
+		BoundedFifoBuffer<string> warnings = new(MaxPollWarnings);
 		string[] normalizedRoots = NormalizeWatchRoots(watchRoots, warnings);
 		if (normalizedRoots.Length == 0)
 		{
@@ -184,7 +184,8 @@ internal sealed partial class PersistentInotifywaitEventReader : IInotifyEventRe
 				ReconcileDesiredMonitorState([]);
 			}
 
-			return new InotifyPollResult(InotifyPollOutcome.Success, [], warnings);
+			AddPollOverflowWarning(warnings, droppedEventCount: 0, warnings.DroppedCount);
+			return new InotifyPollResult(InotifyPollOutcome.Success, [], warnings.ToArray());
 		}
 
 		List<string> existingRoots = [];
@@ -224,10 +225,11 @@ internal sealed partial class PersistentInotifywaitEventReader : IInotifyEventRe
 
 		if (!hasExistingRoots)
 		{
-			return new InotifyPollResult(InotifyPollOutcome.Success, [], warnings);
+			AddPollOverflowWarning(warnings, droppedEventCount: 0, warnings.DroppedCount);
+			return new InotifyPollResult(InotifyPollOutcome.Success, [], warnings.ToArray());
 		}
 
-		List<InotifyEventRecord> events = [];
+		BoundedFifoBuffer<InotifyEventRecord> events = new(MaxPollEvents);
 		DrainSessionQueues(events, warnings, queueDeepRoots: true);
 
 		if (events.Count == 0)
@@ -263,8 +265,9 @@ internal sealed partial class PersistentInotifywaitEventReader : IInotifyEventRe
 		}
 
 		DrainSessionQueues(events, warnings, queueDeepRoots: false);
+		AddPollOverflowWarning(warnings, events.DroppedCount, warnings.DroppedCount);
 		InotifyPollOutcome outcome = ClassifyOutcome(events.Count, toolNotFound, commandFailed);
-		return new InotifyPollResult(outcome, events, warnings);
+		return new InotifyPollResult(outcome, events.ToArray(), warnings.ToArray());
 	}
 
 	/// <inheritdoc />
@@ -303,7 +306,7 @@ internal sealed partial class PersistentInotifywaitEventReader : IInotifyEventRe
 	private void EnsureSessions(
 		IReadOnlyList<string> existingRoots,
 		DateTimeOffset nowUtc,
-		ICollection<string> warnings,
+		BoundedFifoBuffer<string> warnings,
 		ref bool toolNotFound,
 		ref bool commandFailed)
 	{
@@ -356,7 +359,7 @@ internal sealed partial class PersistentInotifywaitEventReader : IInotifyEventRe
 	/// <param name="events">Event sink.</param>
 	/// <param name="warnings">Warning sink.</param>
 	/// <param name="queueDeepRoots">Whether progressive-mode deep roots should be discovered from shallow events.</param>
-	private void DrainSessionQueues(ICollection<InotifyEventRecord> events, ICollection<string> warnings, bool queueDeepRoots)
+	private void DrainSessionQueues(BoundedFifoBuffer<InotifyEventRecord> events, BoundedFifoBuffer<string> warnings, bool queueDeepRoots)
 	{
 		IPersistentInotifyMonitorSession[] snapshot;
 		lock (_syncRoot)

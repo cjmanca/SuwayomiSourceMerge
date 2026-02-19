@@ -22,7 +22,8 @@ public sealed partial class MergeMountWorkflowTests
 	private static WorkflowFixture CreateFixture(
 		TemporaryDirectory temporaryDirectory,
 		bool cleanupApplyHighPriority = false,
-		IReadOnlyList<string>? excludedSources = null)
+		IReadOnlyList<string>? excludedSources = null,
+		int maxConsecutiveMountFailures = 5)
 	{
 		string sourcesRootPath = Path.Combine(temporaryDirectory.Path, "sources");
 		string sourceVolumePath = Path.Combine(sourcesRootPath, "disk1");
@@ -48,6 +49,7 @@ public sealed partial class MergeMountWorkflowTests
 			mergerfsOptionsBase: "allow_other",
 			excludedSources: excludedSources ?? [],
 			enableMountHealthcheck: false,
+			maxConsecutiveMountFailures: maxConsecutiveMountFailures,
 			startupCleanupEnabled: true,
 			unmountOnExit: true,
 			cleanupHighPriority: true,
@@ -88,6 +90,7 @@ public sealed partial class MergeMountWorkflowTests
 			MountCommandService = new RecordingMountCommandService();
 			BranchStagingService = new RecordingBranchLinkStagingService();
 			DetailsService = new RecordingOverrideDetailsService();
+			MountSnapshotService.AppliedActionsProvider = () => MountCommandService.AppliedActions;
 		}
 
 		/// <summary>
@@ -360,6 +363,33 @@ public sealed partial class MergeMountWorkflowTests
 		} = new MountSnapshot([], []);
 
 		/// <summary>
+		/// Gets the number of capture invocations.
+		/// </summary>
+		public int CaptureCount
+		{
+			get;
+			private set;
+		}
+
+		/// <summary>
+		/// Gets or sets a provider for applied actions used to synthesize readiness snapshots.
+		/// </summary>
+		public Func<IReadOnlyList<MountReconciliationAction>>? AppliedActionsProvider
+		{
+			get;
+			set;
+		}
+
+		/// <summary>
+		/// Gets or sets a value indicating whether synthesized readiness snapshots are enabled.
+		/// </summary>
+		public bool AutoIncludeAppliedMountActions
+		{
+			get;
+			set;
+		} = true;
+
+		/// <summary>
 		/// Enqueues one snapshot for subsequent capture calls.
 		/// </summary>
 		/// <param name="snapshot">Snapshot value.</param>
@@ -372,9 +402,41 @@ public sealed partial class MergeMountWorkflowTests
 		/// <inheritdoc />
 		public MountSnapshot Capture()
 		{
+			CaptureCount++;
 			if (_queuedSnapshots.Count > 0)
 			{
 				return _queuedSnapshots.Dequeue();
+			}
+
+			if (NextSnapshot.Entries.Count > 0 || NextSnapshot.Warnings.Count > 0)
+			{
+				return NextSnapshot;
+			}
+
+			if (AutoIncludeAppliedMountActions && AppliedActionsProvider is not null)
+			{
+				HashSet<string> seenMountPoints = new(StringComparer.Ordinal);
+				List<MountSnapshotEntry> entries = [];
+				IReadOnlyList<MountReconciliationAction> appliedActions = AppliedActionsProvider();
+				for (int index = 0; index < appliedActions.Count; index++)
+				{
+					MountReconciliationAction action = appliedActions[index];
+					if (action.Kind != MountReconciliationActionKind.Mount &&
+						action.Kind != MountReconciliationActionKind.Remount)
+					{
+						continue;
+					}
+
+					if (seenMountPoints.Add(action.MountPoint))
+					{
+						entries.Add(new MountSnapshotEntry(action.MountPoint, "fuse.mergerfs", "test", "rw", isHealthy: null));
+					}
+				}
+
+				if (entries.Count > 0)
+				{
+					return new MountSnapshot(entries, []);
+				}
 			}
 
 			return NextSnapshot;

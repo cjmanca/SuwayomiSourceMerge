@@ -53,60 +53,64 @@ internal sealed class FilesystemEventDaemonWorker : IDaemonWorker
 	/// <inheritdoc />
 	public Task RunAsync(CancellationToken cancellationToken, CancellationToken shutdownCancellationToken = default)
 	{
-		return Task.Run(
-			() =>
+		return Task.Factory.StartNew(
+			RunWorkerLoop,
+			CancellationToken.None,
+			TaskCreationOptions.DenyChildAttach | TaskCreationOptions.LongRunning,
+			TaskScheduler.Default);
+
+		void RunWorkerLoop()
+		{
+			_logger.Normal(WorkerStartedEvent, "Filesystem event daemon worker started.");
+
+			try
 			{
-				_logger.Debug(WorkerStartedEvent, "Filesystem event daemon worker started.");
+				_mergeRuntimeLifecycle.OnWorkerStarting(cancellationToken);
+				while (true)
+				{
+					cancellationToken.ThrowIfCancellationRequested();
+					_triggerPipeline.Tick(DateTimeOffset.UtcNow, cancellationToken);
+				}
+			}
+			finally
+			{
+				try
+				{
+					_mergeRuntimeLifecycle.OnWorkerStopping(shutdownCancellationToken);
+				}
+				catch (OperationCanceledException exception) when (CancellationClassification.IsCooperative(exception, shutdownCancellationToken))
+				{
+					_logger.Normal(
+						WorkerStoppedEvent,
+						"Merge runtime shutdown lifecycle hook observed cooperative cancellation.");
+				}
+				catch (Exception exception)
+				{
+					_logger.Warning(
+						WorkerLifecycleWarningEvent,
+						"Merge runtime shutdown lifecycle hook threw a non-fatal exception.",
+						BuildContext(
+							("exception_type", exception.GetType().FullName ?? exception.GetType().Name),
+							("message", exception.Message)));
+				}
 
 				try
 				{
-					_mergeRuntimeLifecycle.OnWorkerStarting(cancellationToken);
-					while (true)
-					{
-						cancellationToken.ThrowIfCancellationRequested();
-						_triggerPipeline.Tick(DateTimeOffset.UtcNow, cancellationToken);
-					}
+					_triggerPipeline.Dispose();
 				}
-				finally
+				catch (Exception exception)
 				{
-					try
-					{
-						_mergeRuntimeLifecycle.OnWorkerStopping(shutdownCancellationToken);
-					}
-					catch (OperationCanceledException exception) when (CancellationClassification.IsCooperative(exception, shutdownCancellationToken))
-					{
-						_logger.Debug(
-							WorkerStoppedEvent,
-							"Merge runtime shutdown lifecycle hook observed cooperative cancellation.");
-					}
-					catch (Exception exception)
-					{
-						_logger.Warning(
-							WorkerLifecycleWarningEvent,
-							"Merge runtime shutdown lifecycle hook threw a non-fatal exception.",
-							BuildContext(
-								("exception_type", exception.GetType().FullName ?? exception.GetType().Name),
-								("message", exception.Message)));
-					}
-
-					try
-					{
-						_triggerPipeline.Dispose();
-					}
-					catch (Exception exception)
-					{
-						_logger.Warning(
-							WorkerLifecycleWarningEvent,
-							"Filesystem trigger pipeline dispose threw a non-fatal exception.",
-							BuildContext(
-								("exception_type", exception.GetType().FullName ?? exception.GetType().Name),
-								("message", exception.Message)));
-					}
-
-					_logger.Debug(WorkerStoppedEvent, "Filesystem event daemon worker stopped.");
+					_logger.Warning(
+						WorkerLifecycleWarningEvent,
+						"Filesystem trigger pipeline dispose threw a non-fatal exception.",
+						BuildContext(
+							("exception_type", exception.GetType().FullName ?? exception.GetType().Name),
+							("message", exception.Message)));
 				}
-			},
-			CancellationToken.None);
+
+				_logger.Normal(WorkerStoppedEvent, "Filesystem event daemon worker stopped.");
+			}
+		}
 	}
 
 	/// <summary>

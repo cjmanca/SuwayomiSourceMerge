@@ -746,6 +746,12 @@ public sealed class ChapterRenameQueueProcessorTests
 		}
 
 		/// <inheritdoc />
+		public void Normal(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
+		{
+			Events.Add((LogLevel.Normal, eventId, message));
+		}
+
+		/// <inheritdoc />
 		public void Error(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
 		{
 			Events.Add((LogLevel.Error, eventId, message));

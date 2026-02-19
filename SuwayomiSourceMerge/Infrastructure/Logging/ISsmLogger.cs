@@ -49,6 +49,14 @@ internal interface ISsmLogger
 	void Debug(string eventId, string message, IReadOnlyDictionary<string, string>? context = null);
 
 	/// <summary>
+	/// Emits a <see cref="LogLevel.Normal"/> event.
+	/// </summary>
+	/// <param name="eventId">Stable event identifier used for correlation and filtering.</param>
+	/// <param name="message">Human-readable message describing the event.</param>
+	/// <param name="context">Optional key/value context data to include with the event.</param>
+	void Normal(string eventId, string message, IReadOnlyDictionary<string, string>? context = null);
+
+	/// <summary>
 	/// Emits a <see cref="LogLevel.Warning"/> event.
 	/// </summary>
 	/// <param name="eventId">Stable event identifier used for correlation and filtering.</param>

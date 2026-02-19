@@ -7,10 +7,10 @@ public sealed class LogLevelParserTests
     [Fact]
     public void TryParse_ShouldReturnTrue_ForSupportedLevel()
     {
-        bool parsed = LogLevelParser.TryParse("warning", out LogLevel level);
+        bool parsed = LogLevelParser.TryParse("normal", out LogLevel level);
 
         Assert.True(parsed);
-        Assert.Equal(LogLevel.Warning, level);
+        Assert.Equal(LogLevel.Normal, level);
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public sealed class LogLevelParserTests
         InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
             () => LogLevelParser.ParseOrThrow("information", "Settings logging.level is required for logger creation."));
 
-        Assert.Contains("Supported values are: trace, debug, warning, error, none.", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("Supported values are: trace, debug, normal, warning, error, none.", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
