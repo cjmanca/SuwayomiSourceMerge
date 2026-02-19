@@ -172,33 +172,19 @@ internal static class TitleKeyNormalizer
 			return false;
 		}
 
-		char closing = value[^1];
-		char opening = closing switch
-		{
-			')' => '(',
-			']' => '[',
-			_ => '\0'
-		};
-
-		if (opening == '\0')
+		if (!TryGetTrailingBracketSuffixRange(value, out int openingIndex, out int closingIndex))
 		{
 			return false;
 		}
 
-		int openingIndex = value.LastIndexOf(opening);
-		if (openingIndex < 0)
-		{
-			return false;
-		}
-
-		int tagLength = value.Length - openingIndex - 2;
+		int tagLength = closingIndex - openingIndex - 1;
 		if (tagLength <= 0)
 		{
 			return false;
 		}
 
 		string candidate = value.Substring(openingIndex + 1, tagLength).Trim();
-		if (!sceneTagMatcher.IsMatch(candidate))
+		if (!TryMatchSceneTagCandidate(candidate, sceneTagMatcher))
 		{
 			return false;
 		}
@@ -233,13 +219,116 @@ internal static class TitleKeyNormalizer
 			}
 
 			string candidate = value[(delimiterIndex + 1)..].Trim();
-			if (sceneTagMatcher.IsMatch(candidate))
+			if (TryMatchSceneTagCandidate(candidate, sceneTagMatcher))
 			{
 				strippedValue = value[..delimiterIndex].TrimEnd();
 				return true;
 			}
 
 			searchStart = delimiterIndex - 1;
+		}
+
+		return false;
+	}
+
+	/// <summary>
+	/// Attempts scene-tag candidate matching with fallback trimming of trailing punctuation noise.
+	/// </summary>
+	/// <param name="candidate">Candidate suffix text.</param>
+	/// <param name="sceneTagMatcher">Matcher used for scene-tag checks.</param>
+	/// <returns><see langword="true"/> when candidate matches one configured scene tag.</returns>
+	private static bool TryMatchSceneTagCandidate(string candidate, ISceneTagMatcher sceneTagMatcher)
+	{
+		if (sceneTagMatcher.IsMatch(candidate))
+		{
+			return true;
+		}
+
+		if (!ContainsLetterOrDigit(candidate))
+		{
+			return false;
+		}
+
+		string trimmedCandidate = TrimTrailingNonAlphanumeric(candidate);
+		if (trimmedCandidate.Length == 0 || string.Equals(trimmedCandidate, candidate, StringComparison.Ordinal))
+		{
+			return false;
+		}
+
+		return sceneTagMatcher.IsMatch(trimmedCandidate);
+	}
+
+	/// <summary>
+	/// Attempts to locate the opening/closing bracket range for one trailing bracketed suffix.
+	/// </summary>
+	/// <param name="value">Title text being inspected.</param>
+	/// <param name="openingIndex">Opening bracket index when found.</param>
+	/// <param name="closingIndex">Closing bracket index when found.</param>
+	/// <returns><see langword="true"/> when one trailing bracketed suffix range is found.</returns>
+	private static bool TryGetTrailingBracketSuffixRange(string value, out int openingIndex, out int closingIndex)
+	{
+		openingIndex = -1;
+		closingIndex = -1;
+
+		for (int index = value.Length - 1; index >= 0; index--)
+		{
+			char current = value[index];
+			if (current is ')' or ']')
+			{
+				closingIndex = index;
+				break;
+			}
+
+			if (char.IsLetterOrDigit(current))
+			{
+				return false;
+			}
+		}
+
+		if (closingIndex < 0)
+		{
+			return false;
+		}
+
+		if (closingIndex == 0)
+		{
+			return false;
+		}
+
+		char opening = value[closingIndex] == ')' ? '(' : '[';
+		openingIndex = value.LastIndexOf(opening, closingIndex - 1);
+		return openingIndex >= 0;
+	}
+
+	/// <summary>
+	/// Trims trailing non-alphanumeric characters from one candidate suffix.
+	/// </summary>
+	/// <param name="candidate">Candidate suffix text.</param>
+	/// <returns>Candidate text trimmed to the last alphanumeric character.</returns>
+	private static string TrimTrailingNonAlphanumeric(string candidate)
+	{
+		int endExclusive = candidate.Length;
+		while (endExclusive > 0 && !char.IsLetterOrDigit(candidate[endExclusive - 1]))
+		{
+			endExclusive--;
+		}
+
+		return candidate[..endExclusive].TrimEnd();
+	}
+
+	/// <summary>
+	/// Determines whether candidate text contains at least one alphanumeric character.
+	/// </summary>
+	/// <param name="candidate">Candidate text.</param>
+	/// <returns><see langword="true"/> when one letter or digit exists; otherwise <see langword="false"/>.</returns>
+	private static bool ContainsLetterOrDigit(string candidate)
+	{
+		for (int index = 0; index < candidate.Length; index++)
+		{
+			if (char.IsLetterOrDigit(candidate[index]))
+			{
+				return true;
+			}
 		}
 
 		return false;

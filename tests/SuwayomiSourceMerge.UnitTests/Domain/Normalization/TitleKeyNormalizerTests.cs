@@ -85,4 +85,34 @@ public sealed class TitleKeyNormalizerTests
 	{
 		Assert.Throws<ArgumentNullException>(() => TitleKeyNormalizer.StripTrailingSceneTagSuffixes(null!, new SceneTagMatcher(["official"])));
 	}
+
+	[Fact]
+	public void StripTrailingSceneTagSuffixes_ShouldStripDelimitedSuffix_WhenTrailingPunctuationNoiseExists()
+	{
+		ISceneTagMatcher matcher = new SceneTagMatcher(["official"]);
+
+		string stripped = TitleKeyNormalizer.StripTrailingSceneTagSuffixes("The Legend of the Northern Blade - Official!!!", matcher);
+
+		Assert.Equal("The Legend of the Northern Blade", stripped);
+	}
+
+	[Theory]
+	[MemberData(nameof(GetBracketedSuffixBoundaryFixtures))]
+	public void StripTrailingSceneTagSuffixes_ShouldHandleBracketedSuffixBoundaryCases(string input, string expected)
+	{
+		ISceneTagMatcher matcher = new SceneTagMatcher(["official"]);
+
+		string stripped = TitleKeyNormalizer.StripTrailingSceneTagSuffixes(input, matcher);
+
+		Assert.Equal(expected, stripped);
+	}
+
+	public static IEnumerable<object[]> GetBracketedSuffixBoundaryFixtures()
+	{
+		yield return ["Disciple of the Holy Sword (Official)!", "Disciple of the Holy Sword"];
+		yield return ["Title2 (Official)", "Title2"];
+		yield return ["Title2 (Official) !!!", "Title2"];
+		yield return ["Disciple of the Holy Sword (Official) S1", "Disciple of the Holy Sword (Official) S1"];
+		yield return ["Disciple of the Holy Sword (Official)!S1", "Disciple of the Holy Sword (Official)!S1"];
+	}
 }

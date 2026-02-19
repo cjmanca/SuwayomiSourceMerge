@@ -15,18 +15,18 @@ internal sealed partial class MergeMountWorkflow
 	/// Builds title groups from discovered source volumes.
 	/// </summary>
 	/// <param name="sourceVolumePaths">Source volume roots.</param>
-	/// <param name="overrideTitles">Existing override titles.</param>
+	/// <param name="overrideTitleCatalog">Existing override title catalog entries.</param>
 	/// <param name="overrideCanonicalResolver">Override canonical resolver.</param>
 	/// <param name="cancellationToken">Cancellation token.</param>
 	/// <returns>Grouped title state.</returns>
 	private (IReadOnlyList<MergeTitleGroup> Groups, bool HadEnumerationFailure) BuildTitleGroups(
 		IReadOnlyList<string> sourceVolumePaths,
-		IReadOnlyList<string> overrideTitles,
+		IReadOnlyList<OverrideTitleCatalogEntry> overrideTitleCatalog,
 		OverrideCanonicalResolver overrideCanonicalResolver,
 		CancellationToken cancellationToken)
 	{
 		ArgumentNullException.ThrowIfNull(sourceVolumePaths);
-		ArgumentNullException.ThrowIfNull(overrideTitles);
+		ArgumentNullException.ThrowIfNull(overrideTitleCatalog);
 		ArgumentNullException.ThrowIfNull(overrideCanonicalResolver);
 
 		bool hadEnumerationFailure = false;
@@ -76,14 +76,11 @@ internal sealed partial class MergeMountWorkflow
 			}
 		}
 
-		for (int index = 0; index < overrideTitles.Count; index++)
+		for (int index = 0; index < overrideTitleCatalog.Count; index++)
 		{
 			cancellationToken.ThrowIfCancellationRequested();
-			string overrideTitle = overrideTitles[index];
-			if (string.IsNullOrWhiteSpace(overrideTitle))
-			{
-				continue;
-			}
+			OverrideTitleCatalogEntry overrideEntry = overrideTitleCatalog[index];
+			string overrideTitle = overrideEntry.Title;
 
 			string canonicalTitle = ResolveCanonicalTitle(overrideTitle, overrideCanonicalResolver);
 			string groupKey = BuildGroupKey(canonicalTitle, overrideTitle);
@@ -206,18 +203,17 @@ internal sealed partial class MergeMountWorkflow
 	}
 
 	/// <summary>
-	/// Discovers existing override title directory names.
+	/// Discovers existing override title catalog entries.
 	/// </summary>
 	/// <param name="overrideVolumePaths">Override volume paths.</param>
 	/// <param name="cancellationToken">Cancellation token.</param>
-	/// <returns>Directory names in deterministic first-seen order.</returns>
-	private (IReadOnlyList<string> Titles, bool HadEnumerationFailure) DiscoverExistingOverrideTitles(
+	/// <returns>Catalog entries in deterministic path order.</returns>
+	private (IReadOnlyList<OverrideTitleCatalogEntry> Catalog, bool HadEnumerationFailure) DiscoverExistingOverrideTitleCatalog(
 		IReadOnlyList<string> overrideVolumePaths,
 		CancellationToken cancellationToken)
 	{
 		bool hadEnumerationFailure = false;
-		HashSet<string> titles = new(StringComparer.Ordinal);
-		List<string> orderedTitles = [];
+		List<OverrideTitleCatalogEntry> catalog = [];
 		for (int volumeIndex = 0; volumeIndex < overrideVolumePaths.Count; volumeIndex++)
 		{
 			cancellationToken.ThrowIfCancellationRequested();
@@ -258,19 +254,74 @@ internal sealed partial class MergeMountWorkflow
 					continue;
 				}
 
-				if (!IsValidOverrideResolverTitle(title, titleDirectoryPath))
+				if (!TryCreateOverrideTitleCatalogEntry(title, titleDirectoryPath, out OverrideTitleCatalogEntry entry))
 				{
 					continue;
 				}
 
-				if (titles.Add(title))
-				{
-					orderedTitles.Add(title);
-				}
+				catalog.Add(entry);
 			}
 		}
 
-		return (orderedTitles, hadEnumerationFailure);
+		IReadOnlyList<OverrideTitleCatalogEntry> orderedCatalog = catalog
+			.OrderBy(static entry => entry.DirectoryPath, StringComparer.Ordinal)
+			.ThenBy(static entry => entry.Title, StringComparer.Ordinal)
+			.ToArray();
+		return (orderedCatalog, hadEnumerationFailure);
+	}
+
+	/// <summary>
+	/// Attempts to create one override title catalog entry from discovered directory metadata.
+	/// </summary>
+	/// <param name="title">Discovered override title directory name.</param>
+	/// <param name="titleDirectoryPath">Absolute override title directory path.</param>
+	/// <param name="entry">Created catalog entry when successful.</param>
+	/// <returns><see langword="true"/> when entry creation succeeds; otherwise <see langword="false"/>.</returns>
+	private bool TryCreateOverrideTitleCatalogEntry(
+		string title,
+		string titleDirectoryPath,
+		out OverrideTitleCatalogEntry entry)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(title);
+		ArgumentException.ThrowIfNullOrWhiteSpace(titleDirectoryPath);
+
+		entry = null!;
+		try
+		{
+			string normalizedKey = _titleComparisonNormalizer.NormalizeTitleKey(title);
+			if (string.IsNullOrWhiteSpace(normalizedKey))
+			{
+				_logger.Warning(
+					MergePassWarningEvent,
+					"Skipped override title that normalizes to an empty comparison key.",
+					BuildContext(
+						("path", titleDirectoryPath),
+						("title", title)));
+				return false;
+			}
+
+			string strippedTitle = TitleKeyNormalizer.StripTrailingSceneTagSuffixes(title, _sceneTagMatcher);
+			bool isSuffixTagged = !string.Equals(strippedTitle, title.Trim(), StringComparison.Ordinal);
+			entry = new OverrideTitleCatalogEntry(
+				title,
+				titleDirectoryPath,
+				normalizedKey,
+				strippedTitle,
+				isSuffixTagged);
+			return true;
+		}
+		catch (Exception exception)
+		{
+			_logger.Warning(
+				MergePassWarningEvent,
+				"Skipped override title because normalization failed.",
+				BuildContext(
+					("path", titleDirectoryPath),
+					("title", title),
+					("exception_type", exception.GetType().FullName ?? exception.GetType().Name),
+					("message", exception.Message)));
+			return false;
+		}
 	}
 
 	/// <summary>
@@ -349,43 +400,57 @@ internal sealed partial class MergeMountWorkflow
 	}
 
 	/// <summary>
-	/// Returns whether one discovered override title should be included in resolver lookup construction.
+	/// Logs override-canonical advisories for tagged-only title preservation.
 	/// </summary>
-	/// <param name="title">Discovered override title directory name.</param>
-	/// <param name="titleDirectoryPath">Absolute override title directory path.</param>
-	/// <returns><see langword="true"/> when title is valid for resolver lookup construction.</returns>
-	private bool IsValidOverrideResolverTitle(string title, string titleDirectoryPath)
+	/// <param name="advisories">Resolver advisories.</param>
+	private void LogOverrideCanonicalAdvisories(IReadOnlyList<OverrideCanonicalAdvisory> advisories)
 	{
-		ArgumentException.ThrowIfNullOrWhiteSpace(title);
-		ArgumentException.ThrowIfNullOrWhiteSpace(titleDirectoryPath);
+		ArgumentNullException.ThrowIfNull(advisories);
 
-		try
+		for (int index = 0; index < advisories.Count; index++)
 		{
-			string normalizedKey = _titleComparisonNormalizer.NormalizeTitleKey(title);
-			if (!string.IsNullOrWhiteSpace(normalizedKey))
+			OverrideCanonicalAdvisory advisory = advisories[index];
+			string selectedDirectoryPath = advisory.SelectedDirectoryPath;
+			string? selectedParentPath = Path.GetDirectoryName(selectedDirectoryPath);
+			if (string.IsNullOrWhiteSpace(selectedParentPath))
 			{
-				return true;
+				continue;
 			}
 
+			string suggestedDirectoryPath = Path.Combine(
+				selectedParentPath,
+				PathSafetyPolicy.EscapeReservedSegment(advisory.SuggestedStrippedTitle));
+			// Display-only operator hint. The application does not execute this shell command.
+			string renameCommand = string.Create(
+				System.Globalization.CultureInfo.InvariantCulture,
+				$"mv {QuoteForPosixShell(selectedDirectoryPath)} {QuoteForPosixShell(suggestedDirectoryPath)}");
 			_logger.Warning(
 				MergePassWarningEvent,
-				"Skipped override title that normalizes to an empty comparison key.",
+				"Preserved tagged-only override title to avoid creating a duplicate stripped directory. Rename manually to converge naming.",
 				BuildContext(
-					("path", titleDirectoryPath),
-					("title", title)));
-			return false;
+					("normalized_key", advisory.NormalizedKey),
+					("selected_title", advisory.SelectedTitle),
+					("suggested_title", advisory.SuggestedStrippedTitle),
+					("selected_path", selectedDirectoryPath),
+					("suggested_path", suggestedDirectoryPath),
+					("manual_rename_command", renameCommand)));
 		}
-		catch (Exception exception)
-		{
-			_logger.Warning(
-				MergePassWarningEvent,
-				"Skipped override title because normalization failed.",
-				BuildContext(
-					("path", titleDirectoryPath),
-					("title", title),
-					("exception_type", exception.GetType().FullName ?? exception.GetType().Name),
-					("message", exception.Message)));
-			return false;
-		}
+	}
+
+	/// <summary>
+	/// Quotes one path for POSIX shell usage with single-quote safety.
+	/// </summary>
+	/// <remarks>
+	/// This helper is used only for manual command text shown in warning logs.
+	/// The runtime does not execute shell text produced by this method.
+	/// </remarks>
+	/// <param name="path">Path text to quote.</param>
+	/// <returns>Quoted path safe for shell command rendering.</returns>
+	private static string QuoteForPosixShell(string path)
+	{
+		ArgumentNullException.ThrowIfNull(path);
+		return string.Create(
+			System.Globalization.CultureInfo.InvariantCulture,
+			$"'{path.Replace("'", "'\"'\"'", StringComparison.Ordinal)}'");
 	}
 }

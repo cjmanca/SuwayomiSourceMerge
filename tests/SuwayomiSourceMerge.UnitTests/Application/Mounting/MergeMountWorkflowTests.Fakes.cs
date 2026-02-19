@@ -171,7 +171,7 @@ public sealed partial class MergeMountWorkflowTests
 		/// <returns>Workflow instance.</returns>
 		public MergeMountWorkflow CreateWorkflow()
 		{
-			ISceneTagMatcher sceneTagMatcher = new SceneTagMatcher(["official"]);
+			ISceneTagMatcher sceneTagMatcher = new SceneTagMatcher(SceneTagsDocumentDefaults.Create().Tags ?? []);
 			IMangaEquivalenceService mangaEquivalenceService = new MangaEquivalenceService(
 				new MangaEquivalentsDocument
 				{

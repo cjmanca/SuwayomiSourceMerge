@@ -81,6 +81,26 @@ public sealed class ValidationKeyNormalizerTests
     }
 
     [Fact]
+    public void NormalizeTitleKey_ShouldStripTrailingBracketedSceneTag_WhenTrailingPunctuationNoiseExists()
+    {
+        ISceneTagMatcher matcher = new SceneTagMatcher(["official"]);
+
+        string normalized = ValidationKeyNormalizer.NormalizeTitleKey("Manga Title (Official)!!!", matcher);
+
+        Assert.Equal("mangatitle", normalized);
+    }
+
+    [Fact]
+    public void NormalizeTitleKey_ShouldStripTrailingDelimitedSceneTag_WhenTrailingPunctuationNoiseExists()
+    {
+        ISceneTagMatcher matcher = new SceneTagMatcher(["official"]);
+
+        string normalized = ValidationKeyNormalizer.NormalizeTitleKey("Manga Title - Official!!!", matcher);
+
+        Assert.Equal("mangatitle", normalized);
+    }
+
+    [Fact]
     public void NormalizeTitleKey_ShouldStripTrailingSceneTagsRepeatedly_WhenMatcherProvided()
     {
         ISceneTagMatcher matcher = new SceneTagMatcher(["official", "colored"]);

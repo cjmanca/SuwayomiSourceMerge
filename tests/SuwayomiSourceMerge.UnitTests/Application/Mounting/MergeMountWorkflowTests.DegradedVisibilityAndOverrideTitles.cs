@@ -210,6 +210,74 @@ public sealed partial class MergeMountWorkflowTests
 	}
 
 	/// <summary>
+	/// Verifies tagged-only override titles are preserved to avoid creating new stripped duplicates.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Edge_ShouldPreserveTaggedOnlyOverrideTitle_AndLogManualRenameWarning()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		fixture.VolumeDiscoveryService.SourceVolumePaths = [];
+		Directory.CreateDirectory(Path.Combine(fixture.VolumeDiscoveryService.OverrideVolumePaths[0], "Solo Leveling [Official]"));
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("interval elapsed", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Success, outcome);
+		Assert.NotNull(fixture.ReconciliationService.LastInput);
+		Assert.Contains(
+			fixture.ReconciliationService.LastInput!.DesiredMounts,
+			static mount => mount.MountPoint.EndsWith(
+				Path.DirectorySeparatorChar + "Solo Leveling [Official]",
+				StringComparison.Ordinal));
+		Assert.DoesNotContain(
+			fixture.ReconciliationService.LastInput.DesiredMounts,
+			static mount => mount.MountPoint.EndsWith(
+				Path.DirectorySeparatorChar + "Solo Leveling",
+				StringComparison.Ordinal));
+		Assert.Contains(
+			fixture.Logger.Events,
+			static entry => entry.EventId == "merge.workflow.warning"
+				&& entry.Level == LogLevel.Warning
+				&& entry.Message.Contains("Preserved tagged-only override title", StringComparison.Ordinal));
+	}
+
+	/// <summary>
+	/// Verifies duplicate override-title variants collapse to stripped canonical titles.
+	/// </summary>
+	/// <param name="strippedTitle">Expected stripped canonical title.</param>
+	/// <param name="taggedTitle">Tagged variant that should collapse into <paramref name="strippedTitle"/>.</param>
+	[Theory]
+	[MemberData(nameof(GetTaggedDuplicateFixtures))]
+	public void RunMergePass_Expected_ShouldChooseStrippedCanonical_WhenTaggedAndStrippedOverrideVariantsExist(
+		string strippedTitle,
+		string taggedTitle)
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		fixture.VolumeDiscoveryService.SourceVolumePaths = [];
+		string overrideVolumePath = fixture.VolumeDiscoveryService.OverrideVolumePaths[0];
+		Directory.CreateDirectory(Path.Combine(overrideVolumePath, strippedTitle));
+		Directory.CreateDirectory(Path.Combine(overrideVolumePath, taggedTitle));
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("interval elapsed", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Success, outcome);
+		Assert.NotNull(fixture.ReconciliationService.LastInput);
+		Assert.Contains(
+			fixture.ReconciliationService.LastInput!.DesiredMounts,
+			mount => mount.MountPoint.EndsWith(
+				Path.DirectorySeparatorChar + strippedTitle,
+				StringComparison.Ordinal));
+		Assert.DoesNotContain(
+			fixture.ReconciliationService.LastInput.DesiredMounts,
+			mount => mount.MountPoint.EndsWith(
+				Path.DirectorySeparatorChar + taggedTitle,
+				StringComparison.Ordinal));
+	}
+
+	/// <summary>
 	/// Verifies source-discovery warning suppression does not mask non-stale mount-action failures.
 	/// </summary>
 	[Fact]
@@ -234,5 +302,20 @@ public sealed partial class MergeMountWorkflowTests
 		Assert.Equal(MergeScanDispatchOutcome.Failure, outcome);
 		Assert.Single(fixture.MountCommandService.AppliedActions);
 		Assert.Equal(MountReconciliationActionKind.Mount, fixture.MountCommandService.AppliedActions[0].Kind);
+	}
+
+	public static IEnumerable<object[]> GetTaggedDuplicateFixtures()
+	{
+		yield return ["Becoming a Magic School Mage", "Becoming a Magic School Mage (Official)"];
+		yield return ["Disciple of the Holy Sword", "Disciple of the Holy Sword (Official)"];
+		yield return ["Heavenly Demon Reborn!", "Heavenly Demon Reborn! [Official]"];
+		yield return ["I Stole the First Ranker's Soul", "I Stole the First Ranker's Soul [Official]"];
+		yield return ["Illusion Hunter from Another World", "Illusion Hunter from Another World [Official]"];
+		yield return ["I'm a Curse Crafter, and I Don't Need an S-Rank Party!", "I'm a Curse Crafter, and I Don't Need an S-Rank Party! [Official]"];
+		yield return ["Log Into The Future", "Log Into The Future [Tapas Official]"];
+		yield return ["Magic Academy's Genius Blinker", "Magic Academy's Genius Blinker (Asura Scans)"];
+		yield return ["Solo Leveling", "Solo Leveling [Official]"];
+		yield return ["The Legend of the Northern Blade", "The Legend of the Northern Blade (Official)"];
+		yield return ["The Legendary Spearman Returns", "The Legendary Spearman Returns (Official)"];
 	}
 }

@@ -50,13 +50,14 @@ internal sealed partial class MergeMountWorkflow
 			return MergeScanDispatchOutcome.Failure;
 		}
 
-		(IReadOnlyList<string> existingOverrideTitles, bool hadOverrideEnumerationFailure) = DiscoverExistingOverrideTitles(
+		(IReadOnlyList<OverrideTitleCatalogEntry> existingOverrideTitleCatalog, bool hadOverrideEnumerationFailure) = DiscoverExistingOverrideTitleCatalog(
 			discoveryResult.OverrideVolumePaths,
 			cancellationToken);
-		OverrideCanonicalResolver overrideCanonicalResolver = new(existingOverrideTitles, _sceneTagMatcher);
+		OverrideCanonicalResolver overrideCanonicalResolver = new(existingOverrideTitleCatalog, _sceneTagMatcher);
+		LogOverrideCanonicalAdvisories(overrideCanonicalResolver.Advisories);
 		(IReadOnlyList<MergeTitleGroup> groups, bool hadSourceEnumerationFailure) = BuildTitleGroups(
 			discoveryResult.SourceVolumePaths,
-			existingOverrideTitles,
+			existingOverrideTitleCatalog,
 			overrideCanonicalResolver,
 			cancellationToken);
 
@@ -124,7 +125,7 @@ internal sealed partial class MergeMountWorkflow
 					("groups", groups.Count.ToString()),
 					("source_volumes", discoveryResult.SourceVolumePaths.Count.ToString()),
 					("override_volumes", discoveryResult.OverrideVolumePaths.Count.ToString()),
-					("override_titles", existingOverrideTitles.Count.ToString()),
+					("override_titles", existingOverrideTitleCatalog.Count.ToString()),
 					("build_failure", buildFailure ? "true" : "false")));
 		}
 
