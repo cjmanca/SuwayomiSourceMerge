@@ -170,6 +170,10 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 		});
 
 		ChapterRenameProcessResult finalizedResult = processResult ?? throw new InvalidOperationException("Queue transform did not produce a process result.");
+		if (finalizedResult.ProcessedEntries == 0)
+		{
+			return finalizedResult;
+		}
 
 		_logger.Normal(
 			ProcessSummaryEvent,
