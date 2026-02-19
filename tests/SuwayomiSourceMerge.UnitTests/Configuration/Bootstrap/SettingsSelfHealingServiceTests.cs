@@ -38,7 +38,7 @@ public sealed class SettingsSelfHealingServiceTests
         Assert.Equal("/ssm/sources", result.Document.Paths.SourcesRootPath);
         Assert.Equal(60, result.Document.Scan!.MergeIntervalSeconds);
         Assert.Equal(5, result.Document.Scan.MergeTriggerPollSeconds);
-        Assert.Equal(300, result.Document.Scan.MergeTriggerRequestTimeoutBufferSeconds);
+        Assert.Null(result.Document.Scan.MergeTriggerRequestTimeoutBufferSeconds);
         Assert.Equal("progressive", result.Document.Scan.WatchStartupMode);
         Assert.NotNull(result.Document.Runtime);
         Assert.NotNull(result.Document.Shutdown);
@@ -64,6 +64,26 @@ public sealed class SettingsSelfHealingServiceTests
         Assert.Equal("text", result.Document.Runtime!.DetailsDescriptionMode);
         Assert.Equal("/ssm/config", result.Document.Paths!.ConfigRootPath);
         Assert.Equal("warning", result.Document.Logging!.Level);
+    }
+
+    [Fact]
+    public void SelfHeal_ShouldNotPatch_WhenOnlyDeprecatedMergeTimeoutBufferIsMissing()
+    {
+        using TemporaryDirectory tempDirectory = new();
+        string settingsPath = Path.Combine(tempDirectory.Path, "settings.yml");
+        File.WriteAllText(
+            settingsPath,
+            CreateValidSettingsYaml(includeUnknownKey: false).Replace(
+                "  merge_trigger_request_timeout_buffer_seconds: 300\n",
+                string.Empty,
+                StringComparison.Ordinal));
+
+        SettingsSelfHealingService service = new(new YamlDocumentParser());
+
+        SettingsSelfHealingResult result = service.SelfHeal(settingsPath);
+
+        Assert.False(result.WasHealed);
+        Assert.Null(result.Document.Scan!.MergeTriggerRequestTimeoutBufferSeconds);
     }
 
     [Fact]

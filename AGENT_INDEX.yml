@@ -285,6 +285,7 @@ modules:
     do_not_reimplement:
       - Canonical burst merge-request coalescing with latest-reason and latest-force replacement semantics; use MergeScanRequestCoalescer.
       - Canonical handler/coalescer token-aware mapping for cancellation exceptions (cooperative cancellation rethrow when caller token is canceled and exception token matches or is tokenless, non-cooperative cancellation mapped to failure with failed-event emission); use ProductionMergeScanRequestHandler.DispatchMergeScan, MergeScanRequestCoalescer.DispatchPending, and CancellationClassification.IsCooperative.
+      - Canonical inotify request-timeout-buffer fallback (`300`) when deprecated scan timeout buffer setting is omitted; use FilesystemEventTriggerOptions.FromSettings.
       - Canonical merge-request interval/retry gate decisions including mixed retry behavior; use MergeScanRequestCoalescer.DispatchPending.
       - Canonical normalization of unexpected handler dispatch outcomes to failure with failed-event emission; use ProductionMergeScanRequestHandler.DispatchMergeScan.
       - Canonical one-pass filesystem event routing plus periodic rename/merge fallback scheduling; use FilesystemEventTriggerPipeline.Tick.
@@ -479,6 +480,7 @@ modules:
       - Canonical legacy manga-equivalents parsing and warning behavior; use LegacyMangaEquivalentsMigrator.
       - Canonical legacy source-priority parsing behavior; use LegacySourcePriorityMigrator.
       - Canonical scene-tag-aware cross-document manga-equivalents validation in bootstrap; use ConfigurationBootstrapService.Bootstrap.
+      - Canonical settings self-heal deprecated-scan-timeout compatibility behavior (preserve when present, do not regenerate when absent); use SettingsSelfHealingService.
       - Canonical settings self-heal merge behavior; use SettingsSelfHealingService.
       - Canonical YAML bootstrap write format; use YamlDocumentWriter.
       - Per-file bootstrap orchestration and validation failure policy; use ConfigurationBootstrapService.Bootstrap.
@@ -615,6 +617,7 @@ modules:
       - Document-level parse-and-validate orchestration; use ConfigurationSchemaService.
       - Manga equivalents conflict detection rules; use MangaEquivalentsDocumentValidator.
       - Scene tag matcher-equivalent dedup rules; use SceneTagsDocumentValidator.
+      - Settings deprecated scan timeout buffer validation behavior (optional field; range-validated when provided); use SettingsDocumentValidator.
       - Settings logging level and logging section validation rules; use SettingsDocumentValidator.
       - Settings default log-level baseline (`logging.level: normal`) and schema/docs parity; use SettingsDocumentDefaults.Create and docs/config-schema.md.
       - Settings strict-runtime versus tooling-relaxed shutdown cleanup profile validation behavior; use SettingsDocumentValidator and ConfigurationSchemaService.ParseSettingsForRuntime/ParseSettingsForTooling.

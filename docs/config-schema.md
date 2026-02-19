@@ -29,7 +29,6 @@ scan:
   merge_trigger_poll_seconds: 5
   merge_min_seconds_between_scans: 15
   merge_lock_retry_seconds: 30
-  merge_trigger_request_timeout_buffer_seconds: 300
   watch_startup_mode: progressive
 rename:
   rename_delay_seconds: 300
@@ -94,7 +93,8 @@ logging:
   - Must be in range `1..3`: `shutdown.cleanup_priority_ionice_class`
   - Must be in range `-20..19`: `shutdown.cleanup_priority_nice_value`
 - `scan.watch_startup_mode` allowed values: `full`, `progressive` (default: `progressive`)
-- `scan.merge_trigger_request_timeout_buffer_seconds` is accepted for backward compatibility but deprecated for runtime use; the persistent inotify monitor path ignores this value and emits a startup warning.
+- `scan.merge_trigger_request_timeout_buffer_seconds` is optional, accepted for backward compatibility, and deprecated for runtime use; the persistent inotify monitor path ignores this value and emits a startup warning when present.
+- `scan.merge_trigger_request_timeout_buffer_seconds` is not self-healed back into existing `settings.yml` files when omitted.
 - `shutdown.cleanup_high_priority` controls startup/shutdown cleanup wrapper execution.
 - `shutdown.cleanup_apply_high_priority` controls reconciliation apply-path wrapper execution.
 - `runtime.max_consecutive_mount_failures` controls merge-pass apply fail-fast behavior after repeated mount/remount failures.
