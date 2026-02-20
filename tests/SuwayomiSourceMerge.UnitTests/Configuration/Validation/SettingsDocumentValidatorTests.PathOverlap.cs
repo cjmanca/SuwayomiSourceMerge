@@ -67,6 +67,25 @@ public sealed partial class SettingsDocumentValidatorTests
 	}
 
 	/// <summary>
+	/// Verifies overlap detection still rejects nested paths when config has a trailing directory separator.
+	/// </summary>
+	[Fact]
+	public void Validate_PathOverlap_Edge_ShouldRejectMergedPathInsideConfigPath_WhenConfigHasTrailingSeparator()
+	{
+		SettingsDocumentValidator validator = new();
+		SettingsDocument baseline = ConfigurationTestData.CreateValidSettingsDocument();
+		SettingsDocument document = CloneWithPaths(
+			baseline,
+			configRootPath: "/ssm/config/",
+			mergedRootPath: "/ssm/config/merged");
+
+		ValidationResult result = validator.Validate(document, "settings.yml");
+
+		Assert.Contains(result.Errors, static error => error.Path == "$.paths.config_root_path" && error.Code == "CFG-SET-008");
+		Assert.Contains(result.Errors, static error => error.Path == "$.paths.merged_root_path" && error.Code == "CFG-SET-008");
+	}
+
+	/// <summary>
 	/// Verifies non-overlapping sibling config and merged paths are accepted.
 	/// </summary>
 	[Fact]

@@ -117,12 +117,14 @@ public sealed partial class SettingsDocumentValidator
 		ArgumentException.ThrowIfNullOrWhiteSpace(candidatePath);
 		ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
 
-		if (string.Equals(candidatePath, rootPath, comparison))
+		string normalizedCandidatePath = Path.TrimEndingDirectorySeparator(candidatePath);
+		string normalizedRootPath = Path.TrimEndingDirectorySeparator(rootPath);
+		if (string.Equals(normalizedCandidatePath, normalizedRootPath, comparison))
 		{
 			return false;
 		}
 
-		string strictChildPrefix = rootPath + Path.DirectorySeparatorChar;
-		return candidatePath.StartsWith(strictChildPrefix, comparison);
+		string strictChildPrefix = normalizedRootPath + Path.DirectorySeparatorChar;
+		return normalizedCandidatePath.StartsWith(strictChildPrefix, comparison);
 	}
 }

@@ -150,3 +150,4 @@
 - [x] 2026-02-19 - Fix lifecycle cleanup merged-root handling by removing empty residual mount directories and quarantining non-empty residual directories under config cleanup storage when no managed mounts remain active.
 - [x] 2026-02-19 - Close merged cleanup safety gaps by skipping merged-root cleanup when mount snapshot visibility is degraded and enforcing settings validation that rejects overlapping `paths.config_root_path`/`paths.merged_root_path`.
 - [x] 2026-02-19 - Apply accurate-only review-note cleanup follow-up by documenting intentional double snapshot enqueue in merged-root cleanup tests and asserting pre/post snapshot capture count.
+- [x] 2026-02-20 - Address unresolved PR #27 review thread by hardening config/merged overlap child-path detection for trailing directory separators and adding regression coverage.

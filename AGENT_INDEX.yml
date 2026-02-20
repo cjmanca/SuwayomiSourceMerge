@@ -629,7 +629,7 @@ modules:
       - Scene tag matcher-equivalent dedup rules; use SceneTagsDocumentValidator.
       - Settings deprecated scan timeout buffer validation behavior (optional field; range-validated when provided); use SettingsDocumentValidator.
       - Settings logging level and logging section validation rules; use SettingsDocumentValidator.
-      - Settings path-overlap safety validation between config and merged roots; use SettingsDocumentValidator.ValidateNonOverlappingConfigAndMergedPaths.
+      - Settings path-overlap safety validation between config and merged roots (including trailing-separator-safe child detection); use SettingsDocumentValidator.ValidateNonOverlappingConfigAndMergedPaths.
       - Settings default log-level baseline (`logging.level: normal`) and schema/docs parity; use SettingsDocumentDefaults.Create and docs/config-schema.md.
       - Settings strict-runtime versus tooling-relaxed shutdown cleanup profile validation behavior; use SettingsDocumentValidator and ConfigurationSchemaService.ParseSettingsForRuntime/ParseSettingsForTooling.
       - Settings validation code map and field constraints; use SettingsDocumentValidator.
