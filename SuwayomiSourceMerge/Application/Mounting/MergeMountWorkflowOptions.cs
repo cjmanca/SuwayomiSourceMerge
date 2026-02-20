@@ -10,6 +10,7 @@ internal sealed class MergeMountWorkflowOptions
 	/// <summary>
 	/// Initializes a new instance of the <see cref="MergeMountWorkflowOptions"/> class.
 	/// </summary>
+	/// <param name="configRootPath">Configuration root path.</param>
 	/// <param name="sourcesRootPath">Sources root path.</param>
 	/// <param name="overrideRootPath">Override root path.</param>
 	/// <param name="mergedRootPath">Merged mount root path.</param>
@@ -28,6 +29,7 @@ internal sealed class MergeMountWorkflowOptions
 	/// <param name="unmountCommandTimeout">Unmount command timeout.</param>
 	/// <param name="commandPollInterval">Command polling interval.</param>
 	public MergeMountWorkflowOptions(
+		string configRootPath,
 		string sourcesRootPath,
 		string overrideRootPath,
 		string mergedRootPath,
@@ -46,6 +48,7 @@ internal sealed class MergeMountWorkflowOptions
 		TimeSpan unmountCommandTimeout,
 		TimeSpan commandPollInterval)
 	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(configRootPath);
 		ArgumentException.ThrowIfNullOrWhiteSpace(sourcesRootPath);
 		ArgumentException.ThrowIfNullOrWhiteSpace(overrideRootPath);
 		ArgumentException.ThrowIfNullOrWhiteSpace(mergedRootPath);
@@ -79,6 +82,7 @@ internal sealed class MergeMountWorkflowOptions
 			throw new ArgumentOutOfRangeException(nameof(maxConsecutiveMountFailures), maxConsecutiveMountFailures, "Maximum consecutive mount failures must be > 0.");
 		}
 
+		ConfigRootPath = Path.GetFullPath(configRootPath);
 		SourcesRootPath = Path.GetFullPath(sourcesRootPath);
 		OverrideRootPath = Path.GetFullPath(overrideRootPath);
 		MergedRootPath = Path.GetFullPath(mergedRootPath);
@@ -99,6 +103,14 @@ internal sealed class MergeMountWorkflowOptions
 		CleanupPriorityNiceValue = cleanupPriorityNiceValue;
 		UnmountCommandTimeout = unmountCommandTimeout;
 		CommandPollInterval = commandPollInterval;
+	}
+
+	/// <summary>
+	/// Gets configuration root path.
+	/// </summary>
+	public string ConfigRootPath
+	{
+		get;
 	}
 
 	/// <summary>
@@ -272,12 +284,13 @@ internal sealed class MergeMountWorkflowOptions
 		SettingsDiagnosticsSection diagnostics = settings.Diagnostics;
 
 		if (paths.SourcesRootPath is null ||
+			paths.ConfigRootPath is null ||
 			paths.OverrideRootPath is null ||
 			paths.MergedRootPath is null ||
 			paths.BranchLinksRootPath is null)
 		{
 			throw new ArgumentException(
-				"Settings paths.sources_root_path, paths.override_root_path, paths.merged_root_path, and paths.branch_links_root_path are required.",
+				"Settings paths.config_root_path, paths.sources_root_path, paths.override_root_path, paths.merged_root_path, and paths.branch_links_root_path are required.",
 				nameof(settings));
 		}
 
@@ -310,6 +323,7 @@ internal sealed class MergeMountWorkflowOptions
 		}
 
 		return new MergeMountWorkflowOptions(
+			paths.ConfigRootPath,
 			paths.SourcesRootPath,
 			paths.OverrideRootPath,
 			paths.MergedRootPath,

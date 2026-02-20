@@ -136,6 +136,26 @@ internal sealed partial class MergeMountWorkflow
 			_branchLinkStagingService.CleanupStaleBranchDirectories(_options.BranchLinksRootPath, activeBranchDirectories);
 		}
 
+		int removedEmptyMergedDirectories = 0;
+		int movedNonEmptyMergedDirectories = 0;
+		bool skippedMergedDirectoryCleanup = false;
+		if (hasDegradedVisibilityPreOrPostWarning)
+		{
+			skippedMergedDirectoryCleanup = true;
+			_logger.Warning(
+				MergeCleanupEvent,
+				"Skipped merged-root directory cleanup because mount snapshot reliability was degraded by pre/post warning severity.",
+				BuildContext(
+					("phase", phase),
+					("pre_unmount_warning_count", mountSnapshot.Warnings.Count.ToString()),
+					("post_unmount_warning_count", postUnmountSnapshot.Warnings.Count.ToString())));
+		}
+		else
+		{
+			(removedEmptyMergedDirectories, movedNonEmptyMergedDirectories, skippedMergedDirectoryCleanup) =
+				CleanupMergedRootDirectories(phase, stillMountedManagedMountPoints, cancellationToken);
+		}
+
 		_logger.Normal(
 			MergeCleanupEvent,
 			"Lifecycle cleanup pass completed.",
@@ -145,7 +165,10 @@ internal sealed partial class MergeMountWorkflow
 				("still_mounted_managed_mounts", stillMountedManagedMountPoints.Count.ToString()),
 				("inferred_unmapped_branch_count", inferredUnmappedStillMountedBranchCount.ToString()),
 				("unresolved_unmapped_branch_count", unresolvedUnmappedStillMountedBranchCount.ToString()),
-				("active_branch_dirs", activeBranchDirectories.Count.ToString())));
+				("active_branch_dirs", activeBranchDirectories.Count.ToString()),
+				("removed_empty_merged_dirs", removedEmptyMergedDirectories.ToString()),
+				("moved_non_empty_merged_dirs", movedNonEmptyMergedDirectories.ToString()),
+				("skipped_merged_dir_cleanup", skippedMergedDirectoryCleanup.ToString())));
 	}
 
 	/// <summary>
