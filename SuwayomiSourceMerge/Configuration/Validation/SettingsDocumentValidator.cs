@@ -13,7 +13,7 @@ namespace SuwayomiSourceMerge.Configuration.Validation;
 /// bootstrap/loading flows before runtime services are created.
 /// Errors are additive: validation continues after each failure so callers receive a complete list.
 /// </remarks>
-public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocument>
+public sealed partial class SettingsDocumentValidator : IConfigValidator<SettingsDocument>
 {
 	/// <summary>
 	/// Validation profile used by this validator instance.
@@ -68,6 +68,11 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
 	/// Validation code emitted when <c>logging.file_name</c> is not a safe single file name.
 	/// </summary>
 	private const string InvalidFileNameCode = "CFG-SET-007";
+
+	/// <summary>
+	/// Validation code emitted when required path roots overlap in an unsafe way.
+	/// </summary>
+	private const string OverlappingPathCode = "CFG-SET-008";
 	/// <summary>
 	/// Validates a settings document and accumulates all validation errors discovered in a single pass.
 	/// </summary>
@@ -115,6 +120,7 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
 			ValidateRequiredPath(document.Paths.StateRootPath, file, "$.paths.state_root_path", result);
 			ValidateRequiredPath(document.Paths.LogRootPath, file, "$.paths.log_root_path", result);
 			ValidateRequiredPath(document.Paths.BranchLinksRootPath, file, "$.paths.branch_links_root_path", result);
+			ValidateNonOverlappingConfigAndMergedPaths(document.Paths.ConfigRootPath, document.Paths.MergedRootPath, file, result);
 		}
 
 		if (document.Scan is not null)
@@ -465,41 +471,6 @@ public sealed class SettingsDocumentValidator : IConfigValidator<SettingsDocumen
 		}
 	}
 
-	/// <summary>
-	/// Validates the <c>runtime.excluded_sources</c> list for required values and normalized uniqueness.
-	/// </summary>
-	/// <param name="values">Source names excluded from processing.</param>
-	/// <param name="file">File name associated with the validation result.</param>
-	/// <param name="path">JSON path-like location for the list in validation output.</param>
-	/// <param name="result">Collector that receives validation errors.</param>
-	private static void ValidateExcludedSources(List<string>? values, string file, string path, ValidationResult result)
-	{
-		if (values is null)
-		{
-			result.Add(new ValidationError(file, path, MissingFieldCode, "Required list is missing."));
-			return;
-		}
-
-		HashSet<string> seen = new(StringComparer.Ordinal);
-
-		for (int i = 0; i < values.Count; i++)
-		{
-			string? value = values[i];
-			string itemPath = $"{path}[{i}]";
-
-			if (string.IsNullOrWhiteSpace(value))
-			{
-				result.Add(new ValidationError(file, itemPath, MissingFieldCode, "List item must not be empty."));
-				continue;
-			}
-
-			string key = ValidationKeyNormalizer.NormalizeTokenKey(value);
-			if (!seen.Add(key))
-			{
-				result.Add(new ValidationError(file, itemPath, DuplicateListCode, "Duplicate excluded source value."));
-			}
-		}
-	}
 }
 
 /// <summary>

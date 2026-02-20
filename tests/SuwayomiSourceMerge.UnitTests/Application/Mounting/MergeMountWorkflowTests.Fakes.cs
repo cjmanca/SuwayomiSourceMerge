@@ -30,6 +30,9 @@ public sealed partial class MergeMountWorkflowTests
 		string sourceTitlePath = Path.Combine(sourceVolumePath, "SourceA", "Title One");
 		Directory.CreateDirectory(sourceTitlePath);
 
+		string configRootPath = Path.Combine(temporaryDirectory.Path, "config");
+		Directory.CreateDirectory(configRootPath);
+
 		string overrideRootPath = Path.Combine(temporaryDirectory.Path, "override");
 		string overrideVolumePath = Path.Combine(overrideRootPath, "priority");
 		Directory.CreateDirectory(overrideVolumePath);
@@ -41,6 +44,7 @@ public sealed partial class MergeMountWorkflowTests
 		Directory.CreateDirectory(branchLinksRootPath);
 
 		MergeMountWorkflowOptions options = new(
+			configRootPath,
 			sourcesRootPath,
 			overrideRootPath,
 			mergedRootPath,

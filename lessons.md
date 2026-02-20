@@ -6,3 +6,5 @@
 - 2026-02-18: With default `logging.level: warning`, startup can appear idle unless failure/diagnostic warnings exist; emit warning-level diagnostics for zero-source and zero-desired-mount merge passes to avoid silent misconfiguration states.
 - 2026-02-18: Container shutdown behavior must be validated with `SIGTERM` (not only `SIGINT`), because `docker stop` sends `SIGTERM` and can bypass cleanup unless explicitly intercepted cooperatively.
 - 2026-02-18: Keep startup/shutdown and high-level workflow progress on a default-visible log band (`normal`) so long-running maintenance phases are observable without enabling verbose debug logs.
+- 2026-02-19: Lifecycle cleanup must not leave stale mountpoint directories under merged; remove empty trees and quarantine non-empty residual directories under config once managed mounts are fully unmounted.
+- 2026-02-19: Never run merged-root residual cleanup when mount snapshot visibility is degraded, and validate config/merged root non-overlap at settings validation time to prevent unsafe self-relocation paths.
