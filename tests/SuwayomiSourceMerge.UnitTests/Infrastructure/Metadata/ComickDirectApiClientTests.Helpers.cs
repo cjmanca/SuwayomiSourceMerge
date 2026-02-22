@@ -198,7 +198,7 @@ public sealed partial class ComickDirectApiClientTests
 			    "mu_comics": { "year": 2020 },
 			    "iso639_1": "ja",
 			    "lang_name": "Japanese",
-			    "lang_native": "æ—¥æœ¬èªž"
+			    "lang_native": "\u65e5\u672c\u8a9e (\u306b\u307b\u3093\u3054\uff0f\u306b\u3063\u307d\u3093\u3054)"
 			  },
 			  "artists": [ { "name": "Artist One", "slug": "artist-one" } ],
 			  "authors": [ { "name": "Author One", "slug": "author-one" } ],

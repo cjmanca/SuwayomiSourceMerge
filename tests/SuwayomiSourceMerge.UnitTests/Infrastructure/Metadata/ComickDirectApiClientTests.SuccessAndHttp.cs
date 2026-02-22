@@ -56,6 +56,7 @@ public sealed partial class ComickDirectApiClientTests
 		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
 		Assert.NotNull(result.Payload);
 		Assert.Equal("slug-1", result.Payload!.Comic!.Slug);
+		Assert.Equal("日本語 (にほんご／にっぽんご)", result.Payload.Comic.LanguageNative);
 		Assert.NotNull(result.Payload.Comic.MdTitles);
 		Assert.NotNull(result.Payload.Comic.Recommendations);
 		Assert.Single(result.Payload.Comic.MdTitles!);
