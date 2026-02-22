@@ -46,7 +46,7 @@ Startup mount safeguards:
 Planned implementation scope for the next feature iteration:
 
 - Enrich per-title metadata during merge passes by generating missing `cover.jpg` and missing `details.json` without overwriting existing artifacts.
-- Use Comick API data as the primary metadata source for `details.json`, then fallback to ComicInfo/source-derived behavior for missing fields.
+- Use Comick API data (`https://api.comick.dev/`) as the primary metadata source for `details.json`, then fallback to ComicInfo/source-derived behavior for missing fields.
 - Append a language-coded bullet-list block of the main title and alternate titles to the end of `details.json` description.
 - Update `manga_equivalents.yml` from Comick alternate titles:
   - append only missing aliases when an equivalent group already exists;
