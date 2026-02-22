@@ -70,6 +70,10 @@ runtime:
   rescan_now: true
   enable_mount_healthcheck: false
   max_consecutive_mount_failures: 5
+  comick_metadata_cooldown_hours: 24
+  flaresolverr_server_url: ""
+  flaresolverr_direct_retry_minutes: 60
+  preferred_language: en
   details_description_mode: text
   mergerfs_options_base: allow_other,default_permissions,use_ino,threads=1,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0
   excluded_sources:
@@ -99,7 +103,12 @@ logging:
 - `shutdown.cleanup_apply_high_priority` controls reconciliation apply-path wrapper execution.
 - `runtime.max_consecutive_mount_failures` controls merge-pass apply fail-fast behavior after repeated mount/remount failures.
 - Runtime bootstrap/settings parse (`ConfigurationSchemaService.ParseSettingsForRuntime`) uses strict validation for shutdown cleanup profile fields (`cleanup_apply_high_priority`, `cleanup_priority_ionice_class`, `cleanup_priority_nice_value`).
-- Tooling/schema-only settings parse (`ConfigurationSchemaService.ParseSettingsForTooling`) may omit those shutdown cleanup profile fields; when provided, numeric ranges are still validated.
+- Runtime bootstrap/settings parse (`ConfigurationSchemaService.ParseSettingsForRuntime`) also requires `runtime.comick_metadata_cooldown_hours`, `runtime.flaresolverr_server_url`, `runtime.flaresolverr_direct_retry_minutes`, and `runtime.preferred_language`.
+- Tooling/schema-only settings parse (`ConfigurationSchemaService.ParseSettingsForTooling`) may omit those shutdown cleanup profile fields and the new Comick/FlareSolverr runtime fields; when provided, numeric ranges and URL/token constraints are still validated.
+- `runtime.comick_metadata_cooldown_hours` and `runtime.flaresolverr_direct_retry_minutes` must be `> 0` when required or provided.
+- `runtime.flaresolverr_server_url` may be empty; when non-empty it must be an absolute `http` or `https` URI.
+- `runtime.preferred_language` must be non-empty when required or provided.
+- Settings self-heal canonicalizes `runtime.preferred_language` and `runtime.flaresolverr_server_url` by trimming surrounding whitespace when present; `runtime.preferred_language` falls back to default `en` when canonicalization yields an empty value.
 - `details_description_mode` allowed values: `text`, `br`, `html`
 - `logging.file_name` must be a single file name (no rooted path, directory separators, or traversal segments)
 - `logging.file_name` must not contain cross-platform strict invalid file-name characters (`U+0000`-`U+001F`, `<`, `>`, `:`, `"`, `/`, `\`, `|`, `?`, `*`)

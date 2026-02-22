@@ -104,6 +104,10 @@ public sealed partial class SettingsDocumentValidatorTests
                 RescanNow = baseline.Runtime.RescanNow,
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
+                ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                FlaresolverrServerUrl = baseline.Runtime.FlaresolverrServerUrl,
+                FlaresolverrDirectRetryMinutes = baseline.Runtime.FlaresolverrDirectRetryMinutes,
+                PreferredLanguage = baseline.Runtime.PreferredLanguage,
                 DetailsDescriptionMode = baseline.Runtime.DetailsDescriptionMode,
                 MergerfsOptionsBase = baseline.Runtime.MergerfsOptionsBase,
                 ExcludedSources = ["Source A", " source-a "]
@@ -205,6 +209,10 @@ public sealed partial class SettingsDocumentValidatorTests
                 RescanNow = true,
                 EnableMountHealthcheck = true,
                 MaxConsecutiveMountFailures = 5,
+                ComickMetadataCooldownHours = 0,
+                FlaresolverrServerUrl = "ftp://flaresolverr.example.local",
+                FlaresolverrDirectRetryMinutes = 0,
+                PreferredLanguage = " ",
                 DetailsDescriptionMode = null,
                 MergerfsOptionsBase = "allow_other",
                 ExcludedSources = null
@@ -229,6 +237,10 @@ public sealed partial class SettingsDocumentValidatorTests
         Assert.Contains(result.Errors, error => error.Path == "$.shutdown.cleanup_apply_high_priority" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.shutdown.cleanup_priority_ionice_class" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.shutdown.cleanup_priority_nice_value" && error.Code == "CFG-SET-004");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_metadata_cooldown_hours" && error.Code == "CFG-SET-004");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.flaresolverr_server_url" && error.Code == "CFG-SET-005");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.flaresolverr_direct_retry_minutes" && error.Code == "CFG-SET-004");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.preferred_language" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.details_description_mode" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.excluded_sources" && error.Code == "CFG-SET-002");
     }
@@ -253,6 +265,10 @@ public sealed partial class SettingsDocumentValidatorTests
                 RescanNow = baseline.Runtime.RescanNow,
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
+                ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                FlaresolverrServerUrl = baseline.Runtime.FlaresolverrServerUrl,
+                FlaresolverrDirectRetryMinutes = baseline.Runtime.FlaresolverrDirectRetryMinutes,
+                PreferredLanguage = baseline.Runtime.PreferredLanguage,
                 DetailsDescriptionMode = baseline.Runtime.DetailsDescriptionMode,
                 MergerfsOptionsBase = baseline.Runtime.MergerfsOptionsBase,
                 ExcludedSources = [" ", "Source A"]
@@ -326,6 +342,116 @@ public sealed partial class SettingsDocumentValidatorTests
 
         ValidationError error = Assert.Single(result.Errors);
         Assert.Equal("$.scan.watch_startup_mode", error.Path);
+        Assert.Equal("CFG-SET-005", error.Code);
+    }
+
+    [Fact]
+    public void Validate_ShouldAllowEmptyFlaresolverrServerUrl()
+    {
+        SettingsDocumentValidator validator = new();
+        SettingsDocument baseline = ConfigurationTestData.CreateValidSettingsDocument();
+        SettingsDocument document = new()
+        {
+            Paths = baseline.Paths,
+            Scan = baseline.Scan,
+            Rename = baseline.Rename,
+            Diagnostics = baseline.Diagnostics,
+            Shutdown = baseline.Shutdown,
+            Permissions = baseline.Permissions,
+            Runtime = new SettingsRuntimeSection
+            {
+                LowPriority = baseline.Runtime!.LowPriority,
+                StartupCleanup = baseline.Runtime.StartupCleanup,
+                RescanNow = baseline.Runtime.RescanNow,
+                EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
+                MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
+                ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                FlaresolverrServerUrl = string.Empty,
+                FlaresolverrDirectRetryMinutes = baseline.Runtime.FlaresolverrDirectRetryMinutes,
+                PreferredLanguage = baseline.Runtime.PreferredLanguage,
+                DetailsDescriptionMode = baseline.Runtime.DetailsDescriptionMode,
+                MergerfsOptionsBase = baseline.Runtime.MergerfsOptionsBase,
+                ExcludedSources = baseline.Runtime.ExcludedSources
+            },
+            Logging = baseline.Logging
+        };
+
+        ValidationResult result = validator.Validate(document, "settings.yml");
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Validate_ShouldAllowFlaresolverrHttpsUrlWithTrailingSlashAndLanguageTag()
+    {
+        SettingsDocumentValidator validator = new();
+        SettingsDocument baseline = ConfigurationTestData.CreateValidSettingsDocument();
+        SettingsDocument document = new()
+        {
+            Paths = baseline.Paths,
+            Scan = baseline.Scan,
+            Rename = baseline.Rename,
+            Diagnostics = baseline.Diagnostics,
+            Shutdown = baseline.Shutdown,
+            Permissions = baseline.Permissions,
+            Runtime = new SettingsRuntimeSection
+            {
+                LowPriority = baseline.Runtime!.LowPriority,
+                StartupCleanup = baseline.Runtime.StartupCleanup,
+                RescanNow = baseline.Runtime.RescanNow,
+                EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
+                MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
+                ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                FlaresolverrServerUrl = "https://flaresolverr.example.local/",
+                FlaresolverrDirectRetryMinutes = baseline.Runtime.FlaresolverrDirectRetryMinutes,
+                PreferredLanguage = "zh-CN",
+                DetailsDescriptionMode = baseline.Runtime.DetailsDescriptionMode,
+                MergerfsOptionsBase = baseline.Runtime.MergerfsOptionsBase,
+                ExcludedSources = baseline.Runtime.ExcludedSources
+            },
+            Logging = baseline.Logging
+        };
+
+        ValidationResult result = validator.Validate(document, "settings.yml");
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Validate_ShouldReportDeterministicError_WhenFlaresolverrServerUrlIsRelative()
+    {
+        SettingsDocumentValidator validator = new();
+        SettingsDocument baseline = ConfigurationTestData.CreateValidSettingsDocument();
+        SettingsDocument document = new()
+        {
+            Paths = baseline.Paths,
+            Scan = baseline.Scan,
+            Rename = baseline.Rename,
+            Diagnostics = baseline.Diagnostics,
+            Shutdown = baseline.Shutdown,
+            Permissions = baseline.Permissions,
+            Runtime = new SettingsRuntimeSection
+            {
+                LowPriority = baseline.Runtime!.LowPriority,
+                StartupCleanup = baseline.Runtime.StartupCleanup,
+                RescanNow = baseline.Runtime.RescanNow,
+                EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
+                MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
+                ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                FlaresolverrServerUrl = "/flaresolverr",
+                FlaresolverrDirectRetryMinutes = baseline.Runtime.FlaresolverrDirectRetryMinutes,
+                PreferredLanguage = baseline.Runtime.PreferredLanguage,
+                DetailsDescriptionMode = baseline.Runtime.DetailsDescriptionMode,
+                MergerfsOptionsBase = baseline.Runtime.MergerfsOptionsBase,
+                ExcludedSources = baseline.Runtime.ExcludedSources
+            },
+            Logging = baseline.Logging
+        };
+
+        ValidationResult result = validator.Validate(document, "settings.yml");
+
+        ValidationError error = Assert.Single(result.Errors);
+        Assert.Equal("$.runtime.flaresolverr_server_url", error.Path);
         Assert.Equal("CFG-SET-005", error.Code);
     }
 

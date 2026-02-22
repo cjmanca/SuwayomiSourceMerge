@@ -41,6 +41,10 @@ public sealed class SettingsSelfHealingServiceTests
         Assert.Null(result.Document.Scan.MergeTriggerRequestTimeoutBufferSeconds);
         Assert.Equal("progressive", result.Document.Scan.WatchStartupMode);
         Assert.NotNull(result.Document.Runtime);
+        Assert.Equal(24, result.Document.Runtime!.ComickMetadataCooldownHours);
+        Assert.Equal(string.Empty, result.Document.Runtime.FlaresolverrServerUrl);
+        Assert.Equal(60, result.Document.Runtime.FlaresolverrDirectRetryMinutes);
+        Assert.Equal("en", result.Document.Runtime.PreferredLanguage);
         Assert.NotNull(result.Document.Shutdown);
         Assert.Equal("daemon.log", result.Document.Logging!.FileName);
         Assert.False(result.Document.Shutdown!.CleanupApplyHighPriority);
@@ -62,8 +66,92 @@ public sealed class SettingsSelfHealingServiceTests
 
         Assert.False(result.WasHealed);
         Assert.Equal("text", result.Document.Runtime!.DetailsDescriptionMode);
+        Assert.Equal(48, result.Document.Runtime.ComickMetadataCooldownHours);
+        Assert.Equal("https://flaresolverr.example.local/", result.Document.Runtime.FlaresolverrServerUrl);
+        Assert.Equal(90, result.Document.Runtime.FlaresolverrDirectRetryMinutes);
+        Assert.Equal("ja", result.Document.Runtime.PreferredLanguage);
         Assert.Equal("/ssm/config", result.Document.Paths!.ConfigRootPath);
         Assert.Equal("warning", result.Document.Logging!.Level);
+    }
+
+    [Fact]
+    public void SelfHeal_ShouldTrimPreferredLanguageAndMarkHealed_WhenValueHasPadding()
+    {
+        using TemporaryDirectory tempDirectory = new();
+        string settingsPath = Path.Combine(tempDirectory.Path, "settings.yml");
+        File.WriteAllText(
+            settingsPath,
+            CreateValidSettingsYaml(includeUnknownKey: false).Replace(
+                "  preferred_language: ja\n",
+                "  preferred_language: \"  ja  \"\n",
+                StringComparison.Ordinal));
+
+        SettingsSelfHealingService service = new(new YamlDocumentParser());
+
+        SettingsSelfHealingResult result = service.SelfHeal(settingsPath);
+
+        Assert.True(result.WasHealed);
+        Assert.Equal("ja", result.Document.Runtime!.PreferredLanguage);
+    }
+
+    [Fact]
+    public void SelfHeal_ShouldFallbackPreferredLanguageToDefaultAndMarkHealed_WhenValueIsWhitespaceOnly()
+    {
+        using TemporaryDirectory tempDirectory = new();
+        string settingsPath = Path.Combine(tempDirectory.Path, "settings.yml");
+        File.WriteAllText(
+            settingsPath,
+            CreateValidSettingsYaml(includeUnknownKey: false).Replace(
+                "  preferred_language: ja\n",
+                "  preferred_language: \"   \"\n",
+                StringComparison.Ordinal));
+
+        SettingsSelfHealingService service = new(new YamlDocumentParser());
+
+        SettingsSelfHealingResult result = service.SelfHeal(settingsPath);
+
+        Assert.True(result.WasHealed);
+        Assert.Equal("en", result.Document.Runtime!.PreferredLanguage);
+    }
+
+    [Fact]
+    public void SelfHeal_ShouldTrimFlareSolverrServerUrlAndMarkHealed_WhenValueHasPadding()
+    {
+        using TemporaryDirectory tempDirectory = new();
+        string settingsPath = Path.Combine(tempDirectory.Path, "settings.yml");
+        File.WriteAllText(
+            settingsPath,
+            CreateValidSettingsYaml(includeUnknownKey: false).Replace(
+                "  flaresolverr_server_url: https://flaresolverr.example.local/\n",
+                "  flaresolverr_server_url: \"  https://flaresolverr.example.local/  \"\n",
+                StringComparison.Ordinal));
+
+        SettingsSelfHealingService service = new(new YamlDocumentParser());
+
+        SettingsSelfHealingResult result = service.SelfHeal(settingsPath);
+
+        Assert.True(result.WasHealed);
+        Assert.Equal("https://flaresolverr.example.local/", result.Document.Runtime!.FlaresolverrServerUrl);
+    }
+
+    [Fact]
+    public void SelfHeal_ShouldTrimFlareSolverrServerUrlToEmptyAndMarkHealed_WhenValueIsWhitespaceOnly()
+    {
+        using TemporaryDirectory tempDirectory = new();
+        string settingsPath = Path.Combine(tempDirectory.Path, "settings.yml");
+        File.WriteAllText(
+            settingsPath,
+            CreateValidSettingsYaml(includeUnknownKey: false).Replace(
+                "  flaresolverr_server_url: https://flaresolverr.example.local/\n",
+                "  flaresolverr_server_url: \"    \"\n",
+                StringComparison.Ordinal));
+
+        SettingsSelfHealingService service = new(new YamlDocumentParser());
+
+        SettingsSelfHealingResult result = service.SelfHeal(settingsPath);
+
+        Assert.True(result.WasHealed);
+        Assert.Equal(string.Empty, result.Document.Runtime!.FlaresolverrServerUrl);
     }
 
     [Fact]
@@ -194,6 +282,10 @@ public sealed class SettingsSelfHealingServiceTests
               rescan_now: true
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
+              comick_metadata_cooldown_hours: 48
+              flaresolverr_server_url: https://flaresolverr.example.local/
+              flaresolverr_direct_retry_minutes: 90
+              preferred_language: ja
               details_description_mode: text
               mergerfs_options_base: allow_other,default_permissions,use_ino,threads=1,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0
               excluded_sources:

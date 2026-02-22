@@ -466,7 +466,7 @@ modules:
       - symbol: SettingsSelfHealingService
         kind: class
         path: SuwayomiSourceMerge/Configuration/Bootstrap/SettingsSelfHealingService.cs
-        purpose: Fills missing settings keys from defaults while preserving existing values.
+        purpose: Fills missing settings keys from defaults and applies targeted canonicalization for selected runtime settings.
     extension_points:
       - how: Add cross-document validation rules that depend on multiple parsed config documents inside bootstrap orchestration.
         symbols: [ConfigurationBootstrapService, ConfigurationBootstrapService.Bootstrap]
@@ -488,6 +488,7 @@ modules:
       - Canonical legacy source-priority parsing behavior; use LegacySourcePriorityMigrator.
       - Canonical scene-tag-aware cross-document manga-equivalents validation in bootstrap; use ConfigurationBootstrapService.Bootstrap.
       - Canonical settings self-heal deprecated-scan-timeout compatibility behavior (preserve when present, do not regenerate when absent); use SettingsSelfHealingService.
+      - Canonical settings self-heal preferred-language and FlareSolverr URL canonicalization (trim surrounding whitespace and persist when changed; preferred language falls back to default when trim yields empty); use SettingsSelfHealingService.
       - Canonical settings self-heal merge behavior; use SettingsSelfHealingService.
       - Canonical YAML bootstrap write format; use YamlDocumentWriter.
       - Per-file bootstrap orchestration and validation failure policy; use ConfigurationBootstrapService.Bootstrap.
@@ -585,7 +586,7 @@ modules:
       - symbol: ConfigurationSchemaService.ParseSettingsForTooling
         kind: method
         path: SuwayomiSourceMerge/Configuration/Loading/ConfigurationSchemaService.cs
-        purpose: Parses settings.yml with relaxed-tooling profile that tolerates omitted self-healed shutdown cleanup fields.
+        purpose: Parses settings.yml with relaxed-tooling profile that tolerates omitted self-healed shutdown cleanup and Comick metadata fields.
       - symbol: SettingsDocument
         kind: class
         path: SuwayomiSourceMerge/Configuration/Documents/SettingsDocument.cs
@@ -627,6 +628,7 @@ modules:
       - Document-level parse-and-validate orchestration; use ConfigurationSchemaService.
       - Manga equivalents conflict detection rules; use MangaEquivalentsDocumentValidator.
       - Scene tag matcher-equivalent dedup rules; use SceneTagsDocumentValidator.
+      - Settings Comick metadata and FlareSolverr runtime field defaults/validation rules (strict required, relaxed optional, URL constraints); use SettingsDocumentDefaults.Create and SettingsDocumentValidator.
       - Settings deprecated scan timeout buffer validation behavior (optional field; range-validated when provided); use SettingsDocumentValidator.
       - Settings logging level and logging section validation rules; use SettingsDocumentValidator.
       - Settings path-overlap safety validation between config and merged roots (including trailing-separator-safe child detection); use SettingsDocumentValidator.ValidateNonOverlappingConfigAndMergedPaths.

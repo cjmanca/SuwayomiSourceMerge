@@ -65,6 +65,10 @@ public sealed class SettingsSchemaTests
               rescan_now: true
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
+              comick_metadata_cooldown_hours: 24
+              flaresolverr_server_url: ''
+              flaresolverr_direct_retry_minutes: 60
+              preferred_language: en
               details_description_mode: text
               mergerfs_options_base: allow_other,default_permissions,use_ino,threads=1,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0
               excluded_sources:
@@ -139,6 +143,10 @@ public sealed class SettingsSchemaTests
               rescan_now: true
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
+              comick_metadata_cooldown_hours: 24
+              flaresolverr_server_url: ''
+              flaresolverr_direct_retry_minutes: 60
+              preferred_language: en
               details_description_mode: html
               mergerfs_options_base: allow_other
               excluded_sources:
@@ -212,6 +220,10 @@ public sealed class SettingsSchemaTests
               rescan_now: true
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
+              comick_metadata_cooldown_hours: 24
+              flaresolverr_server_url: ''
+              flaresolverr_direct_retry_minutes: 60
+              preferred_language: en
               details_description_mode: markdown
               mergerfs_options_base: allow_other
               excluded_sources:
@@ -287,6 +299,10 @@ public sealed class SettingsSchemaTests
               rescan_now: true
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
+              comick_metadata_cooldown_hours: 24
+              flaresolverr_server_url: ''
+              flaresolverr_direct_retry_minutes: 60
+              preferred_language: en
               details_description_mode: text
               mergerfs_options_base: allow_other
               excluded_sources:
@@ -362,6 +378,10 @@ public sealed class SettingsSchemaTests
               rescan_now: true
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
+              comick_metadata_cooldown_hours: 24
+              flaresolverr_server_url: ''
+              flaresolverr_direct_retry_minutes: 60
+              preferred_language: en
               details_description_mode: text
               mergerfs_options_base: allow_other
               excluded_sources:
@@ -437,6 +457,10 @@ public sealed class SettingsSchemaTests
               rescan_now: true
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
+              comick_metadata_cooldown_hours: 24
+              flaresolverr_server_url: ''
+              flaresolverr_direct_retry_minutes: 60
+              preferred_language: en
               details_description_mode: text
               mergerfs_options_base: allow_other
               excluded_sources:
@@ -507,6 +531,10 @@ public sealed class SettingsSchemaTests
               rescan_now: true
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
+              comick_metadata_cooldown_hours: 24
+              flaresolverr_server_url: ''
+              flaresolverr_direct_retry_minutes: 60
+              preferred_language: en
               details_description_mode: text
               mergerfs_options_base: allow_other
               excluded_sources:
@@ -582,6 +610,10 @@ public sealed class SettingsSchemaTests
               rescan_now: true
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
+              comick_metadata_cooldown_hours: 24
+              flaresolverr_server_url: ''
+              flaresolverr_direct_retry_minutes: 60
+              preferred_language: en
               details_description_mode: text
               mergerfs_options_base: allow_other
               excluded_sources:

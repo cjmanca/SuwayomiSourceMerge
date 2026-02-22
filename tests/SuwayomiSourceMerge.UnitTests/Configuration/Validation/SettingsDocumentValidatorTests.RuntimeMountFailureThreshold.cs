@@ -73,6 +73,10 @@ public sealed partial class SettingsDocumentValidatorTests
 				RescanNow = baseline.Runtime.RescanNow,
 				EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
 				MaxConsecutiveMountFailures = threshold,
+				ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+				FlaresolverrServerUrl = baseline.Runtime.FlaresolverrServerUrl,
+				FlaresolverrDirectRetryMinutes = baseline.Runtime.FlaresolverrDirectRetryMinutes,
+				PreferredLanguage = baseline.Runtime.PreferredLanguage,
 				DetailsDescriptionMode = baseline.Runtime.DetailsDescriptionMode,
 				MergerfsOptionsBase = baseline.Runtime.MergerfsOptionsBase,
 				ExcludedSources = baseline.Runtime.ExcludedSources

@@ -7,8 +7,9 @@ namespace SuwayomiSourceMerge.Configuration.Bootstrap;
 /// Repairs partially populated <c>settings.yml</c> documents by filling missing values from defaults.
 /// </summary>
 /// <remarks>
-/// Existing values are preserved verbatim. Missing values are populated from
-/// <see cref="SettingsDocumentDefaults"/> and the caller can decide whether to persist the result.
+/// Missing values are populated from <see cref="SettingsDocumentDefaults"/> and the caller can decide
+/// whether to persist the result. The self-heal pass may also canonicalize selected values
+/// (for example trimming <c>runtime.preferred_language</c> and <c>runtime.flaresolverr_server_url</c>).
 /// </remarks>
 internal sealed class SettingsSelfHealingService
 {
@@ -58,7 +59,7 @@ internal sealed class SettingsSelfHealingService
 	}
 
 	/// <summary>
-	/// Merges an existing settings document with defaults, filling only missing values.
+	/// Merges an existing settings document with defaults, filling missing values and applying targeted canonicalization.
 	/// </summary>
 	/// <param name="existing">Existing parsed settings document.</param>
 	/// <param name="defaults">Default settings document used as fallback source.</param>
@@ -154,6 +155,10 @@ internal sealed class SettingsSelfHealingService
 				RescanNow = existingRuntime?.RescanNow ?? UseDefault(defaultRuntime.RescanNow, ref wasHealed),
 				EnableMountHealthcheck = existingRuntime?.EnableMountHealthcheck ?? UseDefault(defaultRuntime.EnableMountHealthcheck, ref wasHealed),
 				MaxConsecutiveMountFailures = existingRuntime?.MaxConsecutiveMountFailures ?? UseDefault(defaultRuntime.MaxConsecutiveMountFailures, ref wasHealed),
+				ComickMetadataCooldownHours = existingRuntime?.ComickMetadataCooldownHours ?? UseDefault(defaultRuntime.ComickMetadataCooldownHours, ref wasHealed),
+				FlaresolverrServerUrl = CanonicalizeFlaresolverrServerUrl(existingRuntime?.FlaresolverrServerUrl, defaultRuntime.FlaresolverrServerUrl, ref wasHealed),
+				FlaresolverrDirectRetryMinutes = existingRuntime?.FlaresolverrDirectRetryMinutes ?? UseDefault(defaultRuntime.FlaresolverrDirectRetryMinutes, ref wasHealed),
+				PreferredLanguage = CanonicalizePreferredLanguage(existingRuntime?.PreferredLanguage, defaultRuntime.PreferredLanguage, ref wasHealed),
 				DetailsDescriptionMode = existingRuntime?.DetailsDescriptionMode ?? UseDefault(defaultRuntime.DetailsDescriptionMode, ref wasHealed),
 				MergerfsOptionsBase = existingRuntime?.MergerfsOptionsBase ?? UseDefault(defaultRuntime.MergerfsOptionsBase, ref wasHealed),
 				ExcludedSources = existingRuntime?.ExcludedSources ?? UseDefault(defaultRuntime.ExcludedSources, ref wasHealed)
@@ -166,6 +171,58 @@ internal sealed class SettingsSelfHealingService
 				Level = existingLogging?.Level ?? UseDefault(defaultLogging.Level, ref wasHealed)
 			}
 		};
+	}
+
+	/// <summary>
+	/// Applies defaulting and canonicalization for <c>runtime.preferred_language</c>,
+	/// including fallback to default when canonicalization yields an empty value.
+	/// </summary>
+	/// <param name="value">Configured preferred language value.</param>
+	/// <param name="defaultValue">Default preferred language value.</param>
+	/// <param name="wasHealed">Healing flag set when defaulting/canonicalization occurs.</param>
+	/// <returns>Canonicalized preferred language value.</returns>
+	private static string? CanonicalizePreferredLanguage(string? value, string? defaultValue, ref bool wasHealed)
+	{
+		if (value is null)
+		{
+			return UseDefault(defaultValue, ref wasHealed);
+		}
+
+		string trimmed = value.Trim();
+		if (!string.Equals(trimmed, value, StringComparison.Ordinal))
+		{
+			wasHealed = true;
+		}
+
+		if (trimmed.Length == 0)
+		{
+			return UseDefault(defaultValue, ref wasHealed);
+		}
+
+		return trimmed;
+	}
+
+	/// <summary>
+	/// Applies defaulting and canonicalization for <c>runtime.flaresolverr_server_url</c>.
+	/// </summary>
+	/// <param name="value">Configured FlareSolverr server URL value.</param>
+	/// <param name="defaultValue">Default FlareSolverr server URL value.</param>
+	/// <param name="wasHealed">Healing flag set when defaulting/canonicalization occurs.</param>
+	/// <returns>Canonicalized FlareSolverr server URL value.</returns>
+	private static string? CanonicalizeFlaresolverrServerUrl(string? value, string? defaultValue, ref bool wasHealed)
+	{
+		if (value is null)
+		{
+			return UseDefault(defaultValue, ref wasHealed);
+		}
+
+		string trimmed = value.Trim();
+		if (!string.Equals(trimmed, value, StringComparison.Ordinal))
+		{
+			wasHealed = true;
+		}
+
+		return trimmed;
 	}
 
 	/// <summary>
