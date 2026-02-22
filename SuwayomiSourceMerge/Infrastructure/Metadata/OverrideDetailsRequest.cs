@@ -13,6 +13,7 @@ internal sealed class OverrideDetailsRequest
 	/// <param name="orderedSourceDirectoryPaths">Ordered source title directory paths used for seeding and ComicInfo.xml discovery.</param>
 	/// <param name="displayTitle">Canonical display title written to the details.json title field.</param>
 	/// <param name="detailsDescriptionMode">Description rendering mode. Supported values are <c>text</c>, <c>br</c>, and <c>html</c>.</param>
+	/// <param name="metadataOrchestration">Comick metadata orchestration settings for this request.</param>
 	/// <exception cref="ArgumentException">Thrown when required string arguments are missing or invalid.</exception>
 	/// <exception cref="ArgumentNullException">Thrown when required collections are <see langword="null"/>.</exception>
 	public OverrideDetailsRequest(
@@ -20,13 +21,15 @@ internal sealed class OverrideDetailsRequest
 		IReadOnlyList<string> allOverrideDirectoryPaths,
 		IReadOnlyList<string> orderedSourceDirectoryPaths,
 		string displayTitle,
-		string detailsDescriptionMode)
+		string detailsDescriptionMode,
+		MetadataOrchestrationOptions metadataOrchestration)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(preferredOverrideDirectoryPath);
 		ArgumentNullException.ThrowIfNull(allOverrideDirectoryPaths);
 		ArgumentNullException.ThrowIfNull(orderedSourceDirectoryPaths);
 		ArgumentException.ThrowIfNullOrWhiteSpace(displayTitle);
 		ArgumentException.ThrowIfNullOrWhiteSpace(detailsDescriptionMode);
+		ArgumentNullException.ThrowIfNull(metadataOrchestration);
 
 		if (allOverrideDirectoryPaths.Count == 0)
 		{
@@ -68,6 +71,7 @@ internal sealed class OverrideDetailsRequest
 		OrderedSourceDirectoryPaths = sourceDirectories;
 		DisplayTitle = displayTitle.Trim();
 		DetailsDescriptionMode = NormalizeDescriptionMode(detailsDescriptionMode);
+		MetadataOrchestration = metadataOrchestration;
 	}
 
 	/// <summary>
@@ -106,6 +110,14 @@ internal sealed class OverrideDetailsRequest
 	/// Gets normalized description rendering mode.
 	/// </summary>
 	public string DetailsDescriptionMode
+	{
+		get;
+	}
+
+	/// <summary>
+	/// Gets metadata orchestration options used for Comick/Flaresolverr request behavior.
+	/// </summary>
+	public MetadataOrchestrationOptions MetadataOrchestration
 	{
 		get;
 	}

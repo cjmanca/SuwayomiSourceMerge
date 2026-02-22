@@ -88,6 +88,7 @@ modules:
       - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.Pass.Grouping.cs
       - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.cs
       - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflowOptions.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.CleanupMergedRoot.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.DegradedVisibilityAndOverrideTitles.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.FailFastMountFailures.cs
@@ -134,9 +135,11 @@ modules:
     do_not_reimplement:
       - Canonical cancellation propagation during merge-pass branch planning and override-title discovery enumeration; use MergeMountWorkflow.RunMergePass and MergeMountWorkflow.Pass.Grouping helpers.
       - Canonical cleanup stale-prune safety gate that infers still-mounted branch directories from mergerfs source payloads and skips pruning only for degraded-visibility or unresolved mappings; use MergeMountWorkflow.RunCleanupPass.
+      - Canonical FlareSolverr URL scheme guard parity for settings-to-workflow mapping (allow only absolute http/https when non-empty); use MergeMountWorkflowOptions.TryParseAbsoluteUriOrNull.
       - Canonical merged-root residual cleanup should delete empty merged directories and quarantine non-empty residual directories under config only when mount visibility is healthy and managed mounts are inactive; use MergeMountWorkflow.CleanupMergedRootDirectories.
       - Canonical merge-pass degraded-visibility safety gate that suppresses stale-unmount apply actions when source discovery/build/snapshot visibility is degraded while still allowing mount/remount actions; use MergeMountWorkflow.RunMergePass.
       - Canonical merge-pass helper partitioning for action apply, force-remount resolution, and grouping helpers; use MergeMountWorkflow partial pass files.
+      - Canonical merge-pass metadata orchestration option propagation into details requests; use MergeMountWorkflow.EnsureDetailsJson and OverrideDetailsRequest.
       - Canonical merge-pass outcome mapping from action results (mixed when busy+failure, then busy over failure over success); use MergeMountWorkflow.RunMergePass.
       - Canonical merge-pass override-title catalog discovery/filtering before resolver construction; use MergeMountWorkflow.DiscoverExistingOverrideTitleCatalog and MergeMountWorkflow.TryCreateOverrideTitleCatalogEntry.
       - Canonical merge-workflow lifecycle status-event emission (`merge.workflow.started`, `merge.workflow.completed`, cleanup pass summary) at normal severity; use MergeMountWorkflow.RunMergePass and MergeMountWorkflow.RunCleanupPass.
@@ -796,11 +799,13 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IComicInfoMetadataParser.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideDetailsService.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/MetadataOrchestrationOptions.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsOutcome.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsRequest.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsResult.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComicInfoMetadataParserTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataOrchestrationOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsServiceTests.cs
     entrypoints:
       - symbol: ComicInfoMetadataParser
@@ -837,6 +842,9 @@ modules:
       - how: Extend result metadata semantics exposed to callers (for example existence flags) in the override result model and service return construction.
         symbols: [OverrideDetailsResult, OverrideDetailsService.EnsureDetailsJson]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsResult.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
+      - how: Thread metadata orchestration runtime settings through details requests by extending MetadataOrchestrationOptions and OverrideDetailsRequest.
+        symbols: [MetadataOrchestrationOptions, OverrideDetailsRequest]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/MetadataOrchestrationOptions.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsRequest.cs]
       - how: Wire runtime orchestration to metadata ensure behavior through IOverrideDetailsService instead of duplicating seed/generate logic.
         symbols: [IOverrideDetailsService, OverrideDetailsService]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideDetailsService.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
@@ -846,6 +854,8 @@ modules:
       - Canonical metadata best-effort IO/race handling for source seeding, candidate traversal, and details writes; use OverrideDetailsService.EnsureDetailsJson.
       - Canonical details.json existence flag semantics returned to callers; use OverrideDetailsResult.DetailsJsonExists.
       - Canonical details.json request validation and description-mode normalization; use OverrideDetailsRequest.
+      - Canonical metadata orchestration settings carrier and guards for Comick/Flaresolverr runtime values; use MetadataOrchestrationOptions.
+      - Canonical metadata orchestration FlareSolverr URI invariants (non-null must be absolute http/https); use MetadataOrchestrationOptions.
       - Canonical runtime contract for details.json ensure operations; use IOverrideDetailsService.
     related: [runtime-host, unit-test-suite]
   - id: infrastructure-mounts
