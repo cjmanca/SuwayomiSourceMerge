@@ -191,6 +191,22 @@ public sealed partial class SettingsDocumentValidator : IConfigValidator<Setting
 			ValidateRequired(document.Runtime.RescanNow, file, "$.runtime.rescan_now", result);
 			ValidateRequired(document.Runtime.EnableMountHealthcheck, file, "$.runtime.enable_mount_healthcheck", result);
 			ValidatePositive(document.Runtime.MaxConsecutiveMountFailures, file, "$.runtime.max_consecutive_mount_failures", result);
+
+			if (_profile == SettingsValidationProfile.StrictRuntime)
+			{
+				ValidatePositive(document.Runtime.ComickMetadataCooldownHours, file, "$.runtime.comick_metadata_cooldown_hours", result);
+				ValidateRequiredFlareSolverrServerUrl(document.Runtime.FlaresolverrServerUrl, file, "$.runtime.flaresolverr_server_url", result);
+				ValidatePositive(document.Runtime.FlaresolverrDirectRetryMinutes, file, "$.runtime.flaresolverr_direct_retry_minutes", result);
+				ValidateRequired(document.Runtime.PreferredLanguage, file, "$.runtime.preferred_language", result);
+			}
+			else
+			{
+				ValidateOptionalPositive(document.Runtime.ComickMetadataCooldownHours, file, "$.runtime.comick_metadata_cooldown_hours", result);
+				ValidateOptionalFlareSolverrServerUrl(document.Runtime.FlaresolverrServerUrl, file, "$.runtime.flaresolverr_server_url", result);
+				ValidateOptionalPositive(document.Runtime.FlaresolverrDirectRetryMinutes, file, "$.runtime.flaresolverr_direct_retry_minutes", result);
+				ValidateOptionalNonWhitespaceString(document.Runtime.PreferredLanguage, file, "$.runtime.preferred_language", result);
+			}
+
 			ValidateRequired(document.Runtime.MergerfsOptionsBase, file, "$.runtime.mergerfs_options_base", result);
 			ValidateDetailsDescriptionMode(document.Runtime.DetailsDescriptionMode, file, "$.runtime.details_description_mode", result);
 			ValidateExcludedSources(document.Runtime.ExcludedSources, file, "$.runtime.excluded_sources", result);
@@ -468,6 +484,71 @@ public sealed partial class SettingsDocumentValidator : IConfigValidator<Setting
 		if (!LogFilePathPolicy.TryValidateFileName(value, out _))
 		{
 			result.Add(new ValidationError(file, path, InvalidFileNameCode, LogFilePathPolicy.InvalidFileNameMessage));
+		}
+	}
+
+	/// <summary>
+	/// Validates required <c>runtime.flaresolverr_server_url</c> values where empty indicates disabled mode.
+	/// </summary>
+	/// <param name="value">Configured FlareSolverr server URL.</param>
+	/// <param name="file">File name associated with the validation result.</param>
+	/// <param name="path">JSON path-like location for the field in validation output.</param>
+	/// <param name="result">Collector that receives validation errors.</param>
+	private static void ValidateRequiredFlareSolverrServerUrl(string? value, string file, string path, ValidationResult result)
+	{
+		if (value is null)
+		{
+			result.Add(new ValidationError(file, path, MissingFieldCode, "Required field is missing."));
+			return;
+		}
+
+		ValidateOptionalFlareSolverrServerUrl(value, file, path, result);
+	}
+
+	/// <summary>
+	/// Validates optional <c>runtime.flaresolverr_server_url</c> values.
+	/// </summary>
+	/// <param name="value">Configured FlareSolverr server URL.</param>
+	/// <param name="file">File name associated with the validation result.</param>
+	/// <param name="path">JSON path-like location for the field in validation output.</param>
+	/// <param name="result">Collector that receives validation errors.</param>
+	private static void ValidateOptionalFlareSolverrServerUrl(string? value, string file, string path, ValidationResult result)
+	{
+		if (value is null)
+		{
+			return;
+		}
+
+		string trimmed = value.Trim();
+		if (trimmed.Length == 0)
+		{
+			return;
+		}
+
+		if (!Uri.TryCreate(trimmed, UriKind.Absolute, out Uri? uri) ||
+			(uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+		{
+			result.Add(new ValidationError(file, path, InvalidEnumCode, "Allowed values: empty string or absolute HTTP/HTTPS URI."));
+		}
+	}
+
+	/// <summary>
+	/// Validates optional string fields that must be non-whitespace when present.
+	/// </summary>
+	/// <param name="value">String value to validate.</param>
+	/// <param name="file">File name associated with the validation result.</param>
+	/// <param name="path">JSON path-like location for the field in validation output.</param>
+	/// <param name="result">Collector that receives validation errors.</param>
+	private static void ValidateOptionalNonWhitespaceString(string? value, string file, string path, ValidationResult result)
+	{
+		if (value is null)
+		{
+			return;
+		}
+
+		if (string.IsNullOrWhiteSpace(value))
+		{
+			result.Add(new ValidationError(file, path, MissingFieldCode, "Field must not be empty when provided."));
 		}
 	}
 

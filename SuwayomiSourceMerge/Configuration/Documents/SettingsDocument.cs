@@ -479,6 +479,38 @@ public sealed class SettingsRuntimeSection
 	}
 
 	/// <summary>
+	/// Gets or sets the per-title cooldown window in hours for Comick metadata requests.
+	/// </summary>
+	public int? ComickMetadataCooldownHours
+	{
+		get; init;
+	}
+
+	/// <summary>
+	/// Gets or sets the optional FlareSolverr server URL used for Cloudflare-blocked Comick requests.
+	/// </summary>
+	public string? FlaresolverrServerUrl
+	{
+		get; init;
+	}
+
+	/// <summary>
+	/// Gets or sets the retry interval in minutes before probing direct Comick access after sticky FlareSolverr routing.
+	/// </summary>
+	public int? FlaresolverrDirectRetryMinutes
+	{
+		get; init;
+	}
+
+	/// <summary>
+	/// Gets or sets the preferred language code used for metadata canonical-title selection.
+	/// </summary>
+	public string? PreferredLanguage
+	{
+		get; init;
+	}
+
+	/// <summary>
 	/// Gets or sets the rendering mode for details description output.
 	/// </summary>
 	public string? DetailsDescriptionMode

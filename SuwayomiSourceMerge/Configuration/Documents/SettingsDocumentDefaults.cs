@@ -85,6 +85,10 @@ public static class SettingsDocumentDefaults
 				RescanNow = true,
 				EnableMountHealthcheck = false,
 				MaxConsecutiveMountFailures = 5,
+				ComickMetadataCooldownHours = 24,
+				FlaresolverrServerUrl = string.Empty,
+				FlaresolverrDirectRetryMinutes = 60,
+				PreferredLanguage = "en",
 				DetailsDescriptionMode = "text",
 				MergerfsOptionsBase = "allow_other,default_permissions,use_ino,threads=1,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0",
 				ExcludedSources = ["Local source"]

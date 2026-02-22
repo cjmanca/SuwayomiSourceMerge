@@ -161,6 +161,10 @@ public sealed class ConfigurationBootstrapServiceTests
               rescan_now: true
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
+              comick_metadata_cooldown_hours: 24
+              flaresolverr_server_url: ''
+              flaresolverr_direct_retry_minutes: 60
+              preferred_language: en
               details_description_mode: markdown
               mergerfs_options_base: allow_other
               excluded_sources:
@@ -321,6 +325,10 @@ public sealed class ConfigurationBootstrapServiceTests
         Assert.Equal(900, result.Documents.Settings.Scan!.MergeIntervalSeconds);
         Assert.Equal(45, result.Documents.Settings.Rename!.RenameDelaySeconds);
         Assert.Equal(false, result.Documents.Settings.Runtime!.LowPriority);
+        Assert.Equal(24, result.Documents.Settings.Runtime.ComickMetadataCooldownHours);
+        Assert.Equal(string.Empty, result.Documents.Settings.Runtime.FlaresolverrServerUrl);
+        Assert.Equal(60, result.Documents.Settings.Runtime.FlaresolverrDirectRetryMinutes);
+        Assert.Equal("en", result.Documents.Settings.Runtime.PreferredLanguage);
         Assert.Equal("/ssm/sources", result.Documents.Settings.Paths!.SourcesRootPath);
         Assert.Equal(5, result.Documents.Settings.Scan!.MergeTriggerPollSeconds);
         Assert.Null(result.Documents.Settings.Scan!.MergeTriggerRequestTimeoutBufferSeconds);
@@ -454,6 +462,10 @@ public sealed class ConfigurationBootstrapServiceTests
               rescan_now: true
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
+              comick_metadata_cooldown_hours: 24
+              flaresolverr_server_url: ''
+              flaresolverr_direct_retry_minutes: 60
+              preferred_language: en
               details_description_mode: text
               mergerfs_options_base: allow_other,default_permissions,use_ino,threads=1,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0
               excluded_sources:
@@ -477,6 +489,122 @@ public sealed class ConfigurationBootstrapServiceTests
         Assert.False(settingsState.UsedDefaults);
         Assert.Equal(settingsWithUnknownKey, after);
         Assert.Contains("unexpected_runtime_hint: keep_me", after);
+    }
+
+    [Fact]
+    public void Bootstrap_ShouldCanonicalizePreferredLanguageAndFlareSolverrServerUrlPadding_WhenSettingsAreOtherwiseComplete()
+    {
+        using TemporaryDirectory tempDirectory = new();
+
+        string settingsPath = Path.Combine(tempDirectory.Path, "settings.yml");
+        string settingsWithPaddedPreferredLanguage = """
+            paths:
+              config_root_path: /ssm/config
+              sources_root_path: /ssm/sources
+              override_root_path: /ssm/override
+              merged_root_path: /ssm/merged
+              state_root_path: /ssm/state
+              log_root_path: /ssm/config
+              branch_links_root_path: /ssm/state/.mergerfs-branches
+              unraid_cache_pool_name: ""
+            scan:
+              merge_interval_seconds: 3600
+              merge_trigger_poll_seconds: 5
+              merge_min_seconds_between_scans: 15
+              merge_lock_retry_seconds: 30
+              merge_trigger_request_timeout_buffer_seconds: 300
+              watch_startup_mode: progressive
+            rename:
+              rename_delay_seconds: 300
+              rename_quiet_seconds: 120
+              rename_poll_seconds: 20
+              rename_rescan_seconds: 172800
+            diagnostics:
+              debug_timing: true
+              debug_timing_top_n: 15
+              debug_timing_min_item_ms: 250
+              debug_timing_slow_ms: 5000
+              debug_timing_live: true
+              debug_scan_progress_every: 250
+              debug_scan_progress_seconds: 60
+              debug_comic_info: false
+              timeout_poll_ms: 100
+              timeout_poll_ms_fast: 10
+            shutdown:
+              unmount_on_exit: true
+              stop_timeout_seconds: 120
+              child_exit_grace_seconds: 5
+              unmount_command_timeout_seconds: 8
+              unmount_detach_wait_seconds: 5
+              cleanup_high_priority: true
+              cleanup_apply_high_priority: false
+              cleanup_priority_ionice_class: 3
+              cleanup_priority_nice_value: -20
+            permissions:
+              inherit_from_parent: true
+              enforce_existing: false
+              reference_path: /ssm/sources
+            runtime:
+              low_priority: true
+              startup_cleanup: true
+              rescan_now: true
+              enable_mount_healthcheck: false
+              max_consecutive_mount_failures: 5
+              comick_metadata_cooldown_hours: 24
+              flaresolverr_server_url: "  https://flaresolverr.example.local/  "
+              flaresolverr_direct_retry_minutes: 60
+              preferred_language: "  ja  "
+              details_description_mode: text
+              mergerfs_options_base: allow_other,default_permissions,use_ino,threads=1,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0
+              excluded_sources:
+                - Local source
+            logging:
+              file_name: daemon.log
+              max_file_size_mb: 10
+              retained_file_count: 10
+              level: warning
+            """;
+        File.WriteAllText(settingsPath, settingsWithPaddedPreferredLanguage);
+
+        ConfigurationBootstrapService service = ConfigurationSchemaServiceFactory.CreateBootstrapService();
+
+        ConfigurationBootstrapResult result = service.Bootstrap(tempDirectory.Path);
+        string after = File.ReadAllText(settingsPath);
+
+        ConfigurationBootstrapFileState settingsState = Assert.Single(result.Files, file => file.FileName == "settings.yml");
+        Assert.True(settingsState.WasSelfHealed);
+        Assert.Equal("https://flaresolverr.example.local/", result.Documents.Settings.Runtime!.FlaresolverrServerUrl);
+        Assert.Equal("ja", result.Documents.Settings.Runtime!.PreferredLanguage);
+        Assert.Contains("flaresolverr_server_url: https://flaresolverr.example.local/", after);
+        Assert.DoesNotContain("flaresolverr_server_url: \"  https://flaresolverr.example.local/  \"", after);
+        Assert.Contains("preferred_language: ja", after);
+        Assert.DoesNotContain("preferred_language: \"  ja  \"", after);
+    }
+
+    [Fact]
+    public void Bootstrap_ShouldFallbackPreferredLanguageToDefault_WhenValueIsWhitespaceOnly()
+    {
+        using TemporaryDirectory tempDirectory = new();
+
+        ConfigurationBootstrapService service = ConfigurationSchemaServiceFactory.CreateBootstrapService();
+        _ = service.Bootstrap(tempDirectory.Path);
+
+        string settingsPath = Path.Combine(tempDirectory.Path, "settings.yml");
+        string settingsWithWhitespacePreferredLanguage = File.ReadAllText(settingsPath).Replace(
+            "preferred_language: en\n",
+            "preferred_language: \"   \"\n",
+            StringComparison.Ordinal);
+        File.WriteAllText(settingsPath, settingsWithWhitespacePreferredLanguage);
+
+        ConfigurationBootstrapResult result = service.Bootstrap(tempDirectory.Path);
+
+        string after = File.ReadAllText(settingsPath);
+        ConfigurationBootstrapFileState settingsState = Assert.Single(result.Files, file => file.FileName == "settings.yml");
+        Assert.True(settingsState.WasSelfHealed);
+        Assert.Equal("en", result.Documents.Settings.Runtime!.PreferredLanguage);
+
+        Assert.Contains("preferred_language: en", after);
+        Assert.DoesNotContain("preferred_language: \"   \"", after);
     }
 
     [Fact]
@@ -538,6 +666,10 @@ public sealed class ConfigurationBootstrapServiceTests
               rescan_now: true
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
+              comick_metadata_cooldown_hours: 24
+              flaresolverr_server_url: ''
+              flaresolverr_direct_retry_minutes: 60
+              preferred_language: en
               details_description_mode: text
               mergerfs_options_base: allow_other
               excluded_sources:

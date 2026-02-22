@@ -22,6 +22,10 @@ public sealed class SettingsDocumentDefaultsTests
         Assert.Equal("normal", document.Logging.Level);
         Assert.Null(document.Scan!.MergeTriggerRequestTimeoutBufferSeconds);
         Assert.Equal("progressive", document.Scan.WatchStartupMode);
+        Assert.Equal(24, document.Runtime!.ComickMetadataCooldownHours);
+        Assert.Equal(string.Empty, document.Runtime.FlaresolverrServerUrl);
+        Assert.Equal(60, document.Runtime.FlaresolverrDirectRetryMinutes);
+        Assert.Equal("en", document.Runtime.PreferredLanguage);
         Assert.False(document.Shutdown!.CleanupApplyHighPriority);
         Assert.Equal(3, document.Shutdown!.CleanupPriorityIoniceClass);
         Assert.Equal(-20, document.Shutdown.CleanupPriorityNiceValue);
