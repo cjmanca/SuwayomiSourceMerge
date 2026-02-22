@@ -136,6 +136,7 @@ modules:
       - Canonical cancellation propagation during merge-pass branch planning and override-title discovery enumeration; use MergeMountWorkflow.RunMergePass and MergeMountWorkflow.Pass.Grouping helpers.
       - Canonical cleanup stale-prune safety gate that infers still-mounted branch directories from mergerfs source payloads and skips pruning only for degraded-visibility or unresolved mappings; use MergeMountWorkflow.RunCleanupPass.
       - Canonical FlareSolverr URL scheme guard parity for settings-to-workflow mapping (allow only absolute http/https when non-empty); use MergeMountWorkflowOptions.TryParseAbsoluteUriOrNull.
+      - Canonical settings-to-workflow FlareSolverr parse diagnostics should throw with `ParamName=settings` and keep strict key-presence semantics where empty value disables routing; use MergeMountWorkflowOptions.FromSettings.
       - Canonical merged-root residual cleanup should delete empty merged directories and quarantine non-empty residual directories under config only when mount visibility is healthy and managed mounts are inactive; use MergeMountWorkflow.CleanupMergedRootDirectories.
       - Canonical merge-pass degraded-visibility safety gate that suppresses stale-unmount apply actions when source discovery/build/snapshot visibility is degraded while still allowing mount/remount actions; use MergeMountWorkflow.RunMergePass.
       - Canonical merge-pass helper partitioning for action apply, force-remount resolution, and grouping helpers; use MergeMountWorkflow partial pass files.

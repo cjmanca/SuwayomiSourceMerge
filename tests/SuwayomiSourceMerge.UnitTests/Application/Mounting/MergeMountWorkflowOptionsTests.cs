@@ -94,7 +94,9 @@ public sealed class MergeMountWorkflowOptionsTests
 			Logging = defaults.Logging
 		};
 
-		Assert.Throws<ArgumentException>(() => MergeMountWorkflowOptions.FromSettings(settings));
+		ArgumentException exception = Assert.Throws<ArgumentException>(() => MergeMountWorkflowOptions.FromSettings(settings));
+		Assert.Equal("settings", exception.ParamName);
+		Assert.Contains("required key; empty value disables FlareSolverr", exception.Message, StringComparison.Ordinal);
 	}
 
 	/// <summary>
@@ -210,10 +212,12 @@ public sealed class MergeMountWorkflowOptionsTests
 			Logging = defaults.Logging
 		};
 
-		Assert.Throws<ArgumentException>(() => MergeMountWorkflowOptions.FromSettings(invalidUriSettings));
+		ArgumentException invalidUriException = Assert.Throws<ArgumentException>(() => MergeMountWorkflowOptions.FromSettings(invalidUriSettings));
 		Assert.Throws<ArgumentOutOfRangeException>(() => MergeMountWorkflowOptions.FromSettings(invalidCooldownSettings));
-		Assert.Throws<ArgumentException>(() => MergeMountWorkflowOptions.FromSettings(invalidSchemeSettings));
+		ArgumentException invalidSchemeException = Assert.Throws<ArgumentException>(() => MergeMountWorkflowOptions.FromSettings(invalidSchemeSettings));
 		Assert.Throws<ArgumentException>(() => MergeMountWorkflowOptions.FromSettings(invalidLanguageSettings));
+		Assert.Equal("settings", invalidUriException.ParamName);
+		Assert.Equal("settings", invalidSchemeException.ParamName);
 	}
 }
 

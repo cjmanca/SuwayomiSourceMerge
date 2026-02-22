@@ -318,7 +318,7 @@ internal sealed class MergeMountWorkflowOptions
 			runtime.StartupCleanup is null)
 		{
 			throw new ArgumentException(
-				"Settings runtime.enable_mount_healthcheck, runtime.max_consecutive_mount_failures, runtime.comick_metadata_cooldown_hours, runtime.flaresolverr_server_url, runtime.flaresolverr_direct_retry_minutes, runtime.preferred_language, runtime.details_description_mode, runtime.mergerfs_options_base, and runtime.startup_cleanup are required.",
+				"Settings runtime.enable_mount_healthcheck, runtime.max_consecutive_mount_failures, runtime.comick_metadata_cooldown_hours, runtime.flaresolverr_server_url (required key; empty value disables FlareSolverr), runtime.flaresolverr_direct_retry_minutes, runtime.preferred_language, runtime.details_description_mode, runtime.mergerfs_options_base, and runtime.startup_cleanup are required.",
 				nameof(settings));
 		}
 
@@ -348,7 +348,7 @@ internal sealed class MergeMountWorkflowOptions
 			runtime.DetailsDescriptionMode,
 			new MetadataOrchestrationOptions(
 				TimeSpan.FromHours(runtime.ComickMetadataCooldownHours.Value),
-				TryParseAbsoluteUriOrNull(runtime.FlaresolverrServerUrl),
+				TryParseAbsoluteUriOrNull(runtime.FlaresolverrServerUrl, nameof(settings)),
 				TimeSpan.FromMinutes(runtime.FlaresolverrDirectRetryMinutes.Value),
 				runtime.PreferredLanguage),
 			runtime.MergerfsOptionsBase,
@@ -369,9 +369,12 @@ internal sealed class MergeMountWorkflowOptions
 	/// Parses a string value to an absolute URI, returning <see langword="null"/> when the value is blank.
 	/// </summary>
 	/// <param name="value">Settings value to parse.</param>
+	/// <param name="paramName">Parameter name used for guard exceptions.</param>
 	/// <returns>Parsed absolute URI or <see langword="null"/> when blank.</returns>
-	private static Uri? TryParseAbsoluteUriOrNull(string value)
+	private static Uri? TryParseAbsoluteUriOrNull(string value, string paramName)
 	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(paramName);
+
 		string trimmed = value.Trim();
 		if (trimmed.Length == 0)
 		{
@@ -382,7 +385,7 @@ internal sealed class MergeMountWorkflowOptions
 		{
 			throw new ArgumentException(
 				"Settings runtime.flaresolverr_server_url must be an absolute URI when non-empty.",
-				nameof(value));
+				paramName);
 		}
 
 		if (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
@@ -390,7 +393,7 @@ internal sealed class MergeMountWorkflowOptions
 		{
 			throw new ArgumentException(
 				"Settings runtime.flaresolverr_server_url must use http or https when non-empty.",
-				nameof(value));
+				paramName);
 		}
 
 		return uri;

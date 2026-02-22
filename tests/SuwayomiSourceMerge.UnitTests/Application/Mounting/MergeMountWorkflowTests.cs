@@ -30,7 +30,7 @@ public sealed partial class MergeMountWorkflowTests
 		Assert.Single(fixture.ReconciliationService.LastInput!.DesiredMounts);
 		Assert.Single(fixture.BranchStagingService.StagedPlans);
 		Assert.Single(fixture.DetailsService.Requests);
-		Assert.Equal(
+		Assert.Same(
 			fixture.Options.MetadataOrchestration,
 			fixture.DetailsService.Requests[0].MetadataOrchestration);
 	}
