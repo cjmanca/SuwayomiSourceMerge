@@ -793,11 +793,22 @@ modules:
       - Canonical separator-safe title/link validation for planner request and link models; use MergerfsBranchPlanningRequest and MergerfsBranchLinkDefinition.
     related: [config-resolution, infrastructure-mounts, infrastructure-volumes, unit-test-suite]
   - id: infrastructure-metadata
-    summary: Override metadata generation plus persisted metadata-orchestration state for cooldown and sticky routing behavior.
+    summary: Direct Comick API client plus override metadata generation and persisted metadata orchestration state.
     tags: [comicinfo, details, infrastructure, metadata, persistence, state]
     paths:
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadata.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickComicDetails.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickComicRelatedModels.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickComicResponse.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClientOptions.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiOutcome.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiResult.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickSearchComic.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickSearchResponse.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickSharedModels.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickDirectApiClient.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/FileBackedMetadataStateStore.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IComicInfoMetadataParser.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IMetadataStateStore.cs
@@ -809,6 +820,11 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsRequest.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsResult.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientOptionsTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.CancellationAndTransport.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.Helpers.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.PayloadValidation.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.SuccessAndHttp.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComicInfoMetadataParserTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/FileBackedMetadataStateStoreTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataOrchestrationOptionsTests.cs
@@ -820,30 +836,39 @@ modules:
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs
         purpose: Parses ComicInfo files with strict XDocument parsing (including inline Summary break-markup preservation) first and tolerant line-scanner fallback for malformed XML.
-      - symbol: ComicInfoMetadataParser.TryParse
+      - symbol: ComickDirectApiClient
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs
+        purpose: Executes direct search and comic-detail requests against api.comick.dev with deterministic transport/http/cloudflare/malformed classification.
+      - symbol: ComickDirectApiClient.GetComicAsync
         kind: method
-        path: SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs
-        purpose: Parses one ComicInfo.xml path into metadata fields used by details generation with race-tolerant read failure handling.
-      - symbol: IComicInfoMetadataParser
+        path: SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs
+        purpose: Queries the direct /comic/{slug}/ endpoint and returns classified typed comic payload results.
+      - symbol: ComickDirectApiClient.SearchAsync
+        kind: method
+        path: SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs
+        purpose: Queries the direct /v1.0/search/ endpoint and returns classified typed search payload results.
+      - symbol: IComickDirectApiClient
         kind: interface
-        path: SuwayomiSourceMerge/Infrastructure/Metadata/IComicInfoMetadataParser.cs
-        purpose: Defines parser contract consumed by override details generation services.
-      - symbol: IOverrideDetailsService
-        kind: interface
-        path: SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideDetailsService.cs
-        purpose: Defines canonical details.json ensure contract for seeding and ComicInfo fallback behavior.
+        path: SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickDirectApiClient.cs
+        purpose: Defines canonical direct Comick endpoint client contract for search and comic-detail operations.
       - symbol: OverrideDetailsService
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs
         purpose: Ensures details.json by checking existing overrides, seeding from sources, and generating from ComicInfo candidates.
-      - symbol: OverrideDetailsService.EnsureDetailsJson
-        kind: method
-        path: SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs
-        purpose: Executes deterministic ensure flow and returns typed outcome metadata for callers.
     extension_points:
       - how: Add alternate ComicInfo parsing strategies by implementing IComicInfoMetadataParser and injecting it into OverrideDetailsService.
         symbols: [ComicInfoMetadataParser, IComicInfoMetadataParser, OverrideDetailsService]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs, SuwayomiSourceMerge/Infrastructure/Metadata/IComicInfoMetadataParser.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
+      - how: Add alternate direct-Comick transport behavior by implementing IComickDirectApiClient and wiring it into metadata orchestration callers.
+        symbols: [ComickDirectApiClient, IComickDirectApiClient]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickDirectApiClient.cs]
+      - how: Adjust Cloudflare challenge detection and deterministic outcome mapping for direct Comick requests in ComickDirectApiClient.
+        symbols: [ComickDirectApiClient, ComickDirectApiOutcome]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiOutcome.cs]
+      - how: Adjust direct Comick DTO parsing and required-field validation behavior in ComickDirectApiClient.
+        symbols: [ComickComicResponse, ComickDirectApiClient, ComickSearchResponse]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickComicResponse.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickSearchResponse.cs]
       - how: Adjust details.json output mapping (status code, description mode, genre splitting, field shape) in the override details service.
         symbols: [OverrideDetailsService, OverrideDetailsService.EnsureDetailsJson]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
@@ -860,10 +885,14 @@ modules:
         symbols: [IOverrideDetailsService, OverrideDetailsService]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideDetailsService.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
     do_not_reimplement:
+      - Canonical Cloudflare challenge detection for direct Comick responses; use ComickDirectApiClient.
       - Canonical ComicInfo strict-then-fallback parsing behavior; use ComicInfoMetadataParser.TryParse.
       - Canonical details.json ensure flow (override check, source seed, ComicInfo fallback); use OverrideDetailsService.EnsureDetailsJson.
       - Canonical details.json existence flag semantics returned to callers; use OverrideDetailsResult.DetailsJsonExists.
       - Canonical details.json request validation and description-mode normalization; use OverrideDetailsRequest.
+      - Canonical direct Comick API outcome classification and typed payload parsing; use ComickDirectApiClient.
+      - Canonical direct Comick API full-lifecycle failure mapping (send, response-body read, parse) and cooperative-cancellation classification; use ComickDirectApiClient.ExecuteGetAsync.
+      - Canonical direct Comick endpoint request URI composition and JSON Accept header policy; use ComickDirectApiClient.SearchAsync and ComickDirectApiClient.GetComicAsync.
       - Canonical metadata best-effort IO/race handling for source seeding, candidate traversal, and details writes; use OverrideDetailsService.EnsureDetailsJson.
       - Canonical metadata orchestration FlareSolverr URI invariants (non-null must be absolute http/https); use MetadataOrchestrationOptions.
       - Canonical metadata orchestration settings carrier and guards for Comick/Flaresolverr runtime values; use MetadataOrchestrationOptions.
