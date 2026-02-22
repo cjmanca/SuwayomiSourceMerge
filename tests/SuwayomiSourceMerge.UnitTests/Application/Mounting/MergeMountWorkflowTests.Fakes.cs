@@ -50,6 +50,11 @@ public sealed partial class MergeMountWorkflowTests
 			mergedRootPath,
 			branchLinksRootPath,
 			detailsDescriptionMode: "text",
+			metadataOrchestration: new MetadataOrchestrationOptions(
+				comickMetadataCooldown: TimeSpan.FromHours(24),
+				flaresolverrServerUri: null,
+				flaresolverrDirectRetryInterval: TimeSpan.FromMinutes(60),
+				preferredLanguage: "en"),
 			mergerfsOptionsBase: "allow_other",
 			excludedSources: excludedSources ?? [],
 			enableMountHealthcheck: false,

@@ -536,7 +536,8 @@ public sealed class OverrideDetailsServiceTests
 				["/override"],
 				["/source"],
 				"Title",
-				"text"));
+				"text",
+				CreateMetadataOrchestrationOptions()));
 
 		Assert.ThrowsAny<ArgumentException>(
 			() => new OverrideDetailsRequest(
@@ -544,7 +545,8 @@ public sealed class OverrideDetailsServiceTests
 				[],
 				["/source"],
 				"Title",
-				"text"));
+				"text",
+				CreateMetadataOrchestrationOptions()));
 
 		Assert.ThrowsAny<ArgumentException>(
 			() => new OverrideDetailsRequest(
@@ -552,7 +554,26 @@ public sealed class OverrideDetailsServiceTests
 				["/override"],
 				["/source"],
 				"Title",
-				"markdown"));
+				"markdown",
+				CreateMetadataOrchestrationOptions()));
+	}
+
+	/// <summary>
+	/// Confirms request construction rejects null metadata orchestration options with deterministic parameter naming.
+	/// </summary>
+	[Fact]
+	public void OverrideDetailsRequest_Exception_ShouldThrow_WhenMetadataOrchestrationNull()
+	{
+		ArgumentNullException exception = Assert.Throws<ArgumentNullException>(
+			() => new OverrideDetailsRequest(
+				"/override",
+				["/override"],
+				["/source"],
+				"Title",
+				"text",
+				null!));
+
+		Assert.Equal("metadataOrchestration", exception.ParamName);
 	}
 
 	/// <summary>
@@ -576,7 +597,21 @@ public sealed class OverrideDetailsServiceTests
 			allOverrideDirectoryPaths,
 			orderedSourceDirectoryPaths,
 			displayTitle,
-			descriptionMode);
+			descriptionMode,
+			CreateMetadataOrchestrationOptions());
+	}
+
+	/// <summary>
+	/// Creates a standard metadata orchestration options model for request construction.
+	/// </summary>
+	/// <returns>Metadata orchestration options.</returns>
+	private static MetadataOrchestrationOptions CreateMetadataOrchestrationOptions()
+	{
+		return new MetadataOrchestrationOptions(
+			TimeSpan.FromHours(24),
+			null,
+			TimeSpan.FromMinutes(60),
+			"en");
 	}
 
 	/// <summary>

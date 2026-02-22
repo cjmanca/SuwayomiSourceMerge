@@ -124,7 +124,8 @@ internal sealed partial class MergeMountWorkflow
 			allOverrideDirectoryPaths,
 			orderedSourceDirectories,
 			BuildDisplayTitleFromMountPoint(branchPlan),
-			_options.DetailsDescriptionMode);
+			_options.DetailsDescriptionMode,
+			_options.MetadataOrchestration);
 		_ = _overrideDetailsService.EnsureDetailsJson(request);
 	}
 

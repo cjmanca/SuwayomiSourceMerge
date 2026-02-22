@@ -1,4 +1,5 @@
 using SuwayomiSourceMerge.Configuration.Documents;
+using SuwayomiSourceMerge.Infrastructure.Metadata;
 
 namespace SuwayomiSourceMerge.Application.Mounting;
 
@@ -16,6 +17,7 @@ internal sealed class MergeMountWorkflowOptions
 	/// <param name="mergedRootPath">Merged mount root path.</param>
 	/// <param name="branchLinksRootPath">Branch-link root path.</param>
 	/// <param name="detailsDescriptionMode">details.json description mode.</param>
+	/// <param name="metadataOrchestration">Comick metadata orchestration options.</param>
 	/// <param name="mergerfsOptionsBase">Base mergerfs options.</param>
 	/// <param name="excludedSources">Excluded source names.</param>
 	/// <param name="enableMountHealthcheck">Whether health checks are enabled in reconciliation.</param>
@@ -35,6 +37,7 @@ internal sealed class MergeMountWorkflowOptions
 		string mergedRootPath,
 		string branchLinksRootPath,
 		string detailsDescriptionMode,
+		MetadataOrchestrationOptions metadataOrchestration,
 		string mergerfsOptionsBase,
 		IReadOnlyList<string> excludedSources,
 		bool enableMountHealthcheck,
@@ -54,6 +57,7 @@ internal sealed class MergeMountWorkflowOptions
 		ArgumentException.ThrowIfNullOrWhiteSpace(mergedRootPath);
 		ArgumentException.ThrowIfNullOrWhiteSpace(branchLinksRootPath);
 		ArgumentException.ThrowIfNullOrWhiteSpace(detailsDescriptionMode);
+		ArgumentNullException.ThrowIfNull(metadataOrchestration);
 		ArgumentException.ThrowIfNullOrWhiteSpace(mergerfsOptionsBase);
 		ArgumentNullException.ThrowIfNull(excludedSources);
 
@@ -88,6 +92,7 @@ internal sealed class MergeMountWorkflowOptions
 		MergedRootPath = Path.GetFullPath(mergedRootPath);
 		BranchLinksRootPath = Path.GetFullPath(branchLinksRootPath);
 		DetailsDescriptionMode = detailsDescriptionMode.Trim();
+		MetadataOrchestration = metadataOrchestration;
 		MergerfsOptionsBase = mergerfsOptionsBase.Trim();
 		ExcludedSources = excludedSources
 			.Where(static sourceName => !string.IsNullOrWhiteSpace(sourceName))
@@ -149,6 +154,14 @@ internal sealed class MergeMountWorkflowOptions
 	/// Gets details.json description mode.
 	/// </summary>
 	public string DetailsDescriptionMode
+	{
+		get;
+	}
+
+	/// <summary>
+	/// Gets Comick metadata orchestration options.
+	/// </summary>
+	public MetadataOrchestrationOptions MetadataOrchestration
 	{
 		get;
 	}
@@ -296,12 +309,16 @@ internal sealed class MergeMountWorkflowOptions
 
 		if (runtime.EnableMountHealthcheck is null ||
 			runtime.MaxConsecutiveMountFailures is null ||
+			runtime.ComickMetadataCooldownHours is null ||
+			runtime.FlaresolverrServerUrl is null ||
+			runtime.FlaresolverrDirectRetryMinutes is null ||
+			runtime.PreferredLanguage is null ||
 			runtime.DetailsDescriptionMode is null ||
 			runtime.MergerfsOptionsBase is null ||
 			runtime.StartupCleanup is null)
 		{
 			throw new ArgumentException(
-				"Settings runtime.enable_mount_healthcheck, runtime.max_consecutive_mount_failures, runtime.details_description_mode, runtime.mergerfs_options_base, and runtime.startup_cleanup are required.",
+				"Settings runtime.enable_mount_healthcheck, runtime.max_consecutive_mount_failures, runtime.comick_metadata_cooldown_hours, runtime.flaresolverr_server_url (required key; empty value disables FlareSolverr), runtime.flaresolverr_direct_retry_minutes, runtime.preferred_language, runtime.details_description_mode, runtime.mergerfs_options_base, and runtime.startup_cleanup are required.",
 				nameof(settings));
 		}
 
@@ -329,6 +346,11 @@ internal sealed class MergeMountWorkflowOptions
 			paths.MergedRootPath,
 			paths.BranchLinksRootPath,
 			runtime.DetailsDescriptionMode,
+			new MetadataOrchestrationOptions(
+				TimeSpan.FromHours(runtime.ComickMetadataCooldownHours.Value),
+				TryParseAbsoluteUriOrNull(runtime.FlaresolverrServerUrl, nameof(settings)),
+				TimeSpan.FromMinutes(runtime.FlaresolverrDirectRetryMinutes.Value),
+				runtime.PreferredLanguage),
 			runtime.MergerfsOptionsBase,
 			runtime.ExcludedSources ?? [],
 			runtime.EnableMountHealthcheck.Value,
@@ -341,5 +363,39 @@ internal sealed class MergeMountWorkflowOptions
 			shutdown.CleanupPriorityNiceValue.Value,
 			TimeSpan.FromSeconds(shutdown.UnmountCommandTimeoutSeconds.Value),
 			TimeSpan.FromMilliseconds(diagnostics.TimeoutPollMsFast.Value));
+	}
+
+	/// <summary>
+	/// Parses a string value to an absolute URI, returning <see langword="null"/> when the value is blank.
+	/// </summary>
+	/// <param name="value">Settings value to parse.</param>
+	/// <param name="paramName">Parameter name used for guard exceptions.</param>
+	/// <returns>Parsed absolute URI or <see langword="null"/> when blank.</returns>
+	private static Uri? TryParseAbsoluteUriOrNull(string value, string paramName)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(paramName);
+
+		string trimmed = value.Trim();
+		if (trimmed.Length == 0)
+		{
+			return null;
+		}
+
+		if (!Uri.TryCreate(trimmed, UriKind.Absolute, out Uri? uri))
+		{
+			throw new ArgumentException(
+				"Settings runtime.flaresolverr_server_url must be an absolute URI when non-empty.",
+				paramName);
+		}
+
+		if (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+			!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+		{
+			throw new ArgumentException(
+				"Settings runtime.flaresolverr_server_url must use http or https when non-empty.",
+				paramName);
+		}
+
+		return uri;
 	}
 }
