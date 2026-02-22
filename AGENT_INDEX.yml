@@ -793,20 +793,27 @@ modules:
       - Canonical separator-safe title/link validation for planner request and link models; use MergerfsBranchPlanningRequest and MergerfsBranchLinkDefinition.
     related: [config-resolution, infrastructure-mounts, infrastructure-volumes, unit-test-suite]
   - id: infrastructure-metadata
-    summary: Override metadata seeding and ComicInfo fallback parsing that produces shell-parity details.json payloads.
-    tags: [comicinfo, details, infrastructure, metadata]
+    summary: Override metadata generation plus persisted metadata-orchestration state for cooldown and sticky routing behavior.
+    tags: [comicinfo, details, infrastructure, metadata, persistence, state]
     paths:
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadata.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/FileBackedMetadataStateStore.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IComicInfoMetadataParser.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/IMetadataStateStore.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideDetailsService.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/MetadataOrchestrationOptions.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/MetadataStatePaths.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/MetadataStateSnapshot.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsOutcome.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsRequest.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsResult.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComicInfoMetadataParserTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/FileBackedMetadataStateStoreTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataOrchestrationOptionsTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataStatePathsTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataStateSnapshotTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsServiceTests.cs
     entrypoints:
       - symbol: ComicInfoMetadataParser
@@ -843,6 +850,9 @@ modules:
       - how: Extend result metadata semantics exposed to callers (for example existence flags) in the override result model and service return construction.
         symbols: [OverrideDetailsResult, OverrideDetailsService.EnsureDetailsJson]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsResult.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
+      - how: Persist metadata orchestration cooldown and sticky-routing state by extending IMetadataStateStore or replacing FileBackedMetadataStateStore.
+        symbols: [FileBackedMetadataStateStore, IMetadataStateStore, MetadataStatePaths, MetadataStateSnapshot]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/FileBackedMetadataStateStore.cs, SuwayomiSourceMerge/Infrastructure/Metadata/IMetadataStateStore.cs, SuwayomiSourceMerge/Infrastructure/Metadata/MetadataStatePaths.cs, SuwayomiSourceMerge/Infrastructure/Metadata/MetadataStateSnapshot.cs]
       - how: Thread metadata orchestration runtime settings through details requests by extending MetadataOrchestrationOptions and OverrideDetailsRequest.
         symbols: [MetadataOrchestrationOptions, OverrideDetailsRequest]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/MetadataOrchestrationOptions.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsRequest.cs]
@@ -852,11 +862,12 @@ modules:
     do_not_reimplement:
       - Canonical ComicInfo strict-then-fallback parsing behavior; use ComicInfoMetadataParser.TryParse.
       - Canonical details.json ensure flow (override check, source seed, ComicInfo fallback); use OverrideDetailsService.EnsureDetailsJson.
-      - Canonical metadata best-effort IO/race handling for source seeding, candidate traversal, and details writes; use OverrideDetailsService.EnsureDetailsJson.
       - Canonical details.json existence flag semantics returned to callers; use OverrideDetailsResult.DetailsJsonExists.
       - Canonical details.json request validation and description-mode normalization; use OverrideDetailsRequest.
-      - Canonical metadata orchestration settings carrier and guards for Comick/Flaresolverr runtime values; use MetadataOrchestrationOptions.
+      - Canonical metadata best-effort IO/race handling for source seeding, candidate traversal, and details writes; use OverrideDetailsService.EnsureDetailsJson.
       - Canonical metadata orchestration FlareSolverr URI invariants (non-null must be absolute http/https); use MetadataOrchestrationOptions.
+      - Canonical metadata orchestration settings carrier and guards for Comick/Flaresolverr runtime values; use MetadataOrchestrationOptions.
+      - Canonical persisted metadata state load/transform semantics with atomic JSON persistence and corrupt file/directory recovery; use FileBackedMetadataStateStore.
       - Canonical runtime contract for details.json ensure operations; use IOverrideDetailsService.
     related: [runtime-host, unit-test-suite]
   - id: infrastructure-mounts
