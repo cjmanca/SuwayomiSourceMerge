@@ -183,7 +183,10 @@ internal sealed class ComickSearchComic
 		init;
 	}
 
-	/// <summary>Gets or sets alternate titles.</summary>
+	/// <summary>
+	/// Gets or sets alternate titles returned by the search payload.
+	/// Search payload aliases can be incomplete, so callers should use comic-details payloads for full alias coverage.
+	/// </summary>
 	[JsonPropertyName("md_titles")]
 	public IReadOnlyList<ComickTitleAlias>? MdTitles
 	{

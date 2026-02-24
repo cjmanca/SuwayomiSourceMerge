@@ -793,8 +793,8 @@ modules:
       - Canonical separator-safe title/link validation for planner request and link models; use MergerfsBranchPlanningRequest and MergerfsBranchLinkDefinition.
     related: [config-resolution, infrastructure-mounts, infrastructure-volumes, unit-test-suite]
   - id: infrastructure-metadata
-    summary: Cloudflare-aware Comick gateway, direct clients, and override metadata plus persisted orchestration state.
-    tags: [comicinfo, details, infrastructure, metadata, persistence, state]
+    summary: Cloudflare-aware Comick gateway plus override details/cover metadata and persisted orchestration state.
+    tags: [comicinfo, cover, details, infrastructure, metadata, persistence, state]
     paths:
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadata.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs
@@ -825,10 +825,18 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/FileBackedMetadataStateStore.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IComicInfoMetadataParser.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IMetadataStateStore.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideCoverService.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideDetailsService.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/MetadataOrchestrationOptions.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/MetadataStatePaths.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/MetadataStateSnapshot.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverOutcome.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideCoverFileOperations.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverPhysicalFileOperations.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverRequest.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverResult.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverService.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverService.UriResolution.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsOutcome.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsRequest.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsResult.cs
@@ -852,6 +860,8 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataOrchestrationOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataStatePathsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataStateSnapshotTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.FailureDeterminism.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsServiceTests.cs
     entrypoints:
       - symbol: CloudflareAwareComickGateway
@@ -897,6 +907,9 @@ modules:
       - how: Adjust Cloudflare challenge detection and deterministic outcome mapping for direct Comick requests in ComickDirectApiClient.
         symbols: [ComickDirectApiClient, ComickDirectApiOutcome]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiOutcome.cs]
+      - how: Adjust cover.jpg download/conversion and non-overwrite write behavior in the override cover service.
+        symbols: [OverrideCoverService, OverrideCoverService.EnsureCoverJpgAsync]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverService.cs]
       - how: Adjust details.json output mapping (status code, description mode, genre splitting, field shape) in the override details service.
         symbols: [OverrideDetailsService, OverrideDetailsService.EnsureDetailsJson]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
@@ -915,6 +928,9 @@ modules:
       - how: Thread metadata orchestration runtime settings through details requests by extending MetadataOrchestrationOptions and OverrideDetailsRequest.
         symbols: [MetadataOrchestrationOptions, OverrideDetailsRequest]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/MetadataOrchestrationOptions.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsRequest.cs]
+      - how: Wire runtime orchestration to cover ensure behavior through IOverrideCoverService instead of duplicating cover write logic.
+        symbols: [IOverrideCoverService, OverrideCoverService]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideCoverService.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverService.cs]
       - how: Wire runtime orchestration to metadata ensure behavior through IOverrideDetailsService instead of duplicating seed/generate logic.
         symbols: [IOverrideDetailsService, OverrideDetailsService]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideDetailsService.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
@@ -922,6 +938,13 @@ modules:
       - Canonical Cloudflare-aware direct-first routing with sticky FlareSolverr fallback and timed direct retry probing; use CloudflareAwareComickGateway.
       - Canonical Comick candidate selection and score/tie semantics for strict exact-key matching; use ComickCandidateMatcher.Match.
       - Canonical Comick gateway base-URI normalization (absolute http/https + exactly one trailing slash) should be centralized and reused; use CloudflareAwareComickGateway.NormalizeBaseUri.
+      - Canonical cover.jpg ensure flow (override-exists short-circuit, download, optional JPEG conversion, atomic non-overwrite write); use OverrideCoverService.EnsureCoverJpgAsync.
+      - Canonical cover already-exists result construction should be centralized to preserve consistent CoverJpgPath/ExistingCoverPath semantics; use OverrideCoverService.CreateAlreadyExistsResult.
+      - Canonical cover-key invalid absolute-scheme and malformed URI-composition handling should return deterministic DownloadFailed outcomes (not throw), preferred-directory setup failures plus write-stage path failures (`NotSupportedException`, `PathTooLongException`) should map to WriteFailed, and AlreadyExists should surface the actual on-disk cover path; use OverrideCoverService.EnsureCoverJpgAsync and OverrideCoverResult.
+      - Canonical cover download path should use response-header prechecks plus bounded streaming capped at 32 MiB and map oversize payloads to DownloadFailed outcomes; use OverrideCoverService.DownloadCoverBytesAsync.
+      - Canonical JPEG fast-path must decode-validate JPEG-signature payloads before reporting WrittenDownloadedJpeg; decode failures should map to UnsupportedImage outcomes; use OverrideCoverService.TryValidateJpegPayload and OverrideCoverService.EnsureCoverJpgAsync.
+      - Canonical cover conversion failure mapping intentionally uses broad conversion exception capture to preserve deterministic UnsupportedImage outcomes for payload decode/encode failures; use OverrideCoverService.TryConvertToJpeg.
+      - Canonical cover.jpg request validation and cover-key URI resolution semantics; use OverrideCoverRequest and OverrideCoverService.
       - Canonical expired-sticky clear should be guarded inside metadata-state transform and only clear when current persisted sticky is not in the future after non-cloudflare direct outcomes; use CloudflareAwareComickGateway.TryClearExpiredStickyAfterDirectNonCloudflare.
       - Canonical sticky retry anchor uses post-direct block-detection timestamp (not request-start time) when computing sticky expiry; use CloudflareAwareComickGateway.ExecuteWithRoutingAsync.
       - Canonical sticky-window clock reads should normalize provider timestamps to UTC at use sites for deterministic comparisons; use CloudflareAwareComickGateway.ExecuteWithRoutingAsync.
@@ -940,6 +963,7 @@ modules:
       - Canonical metadata orchestration settings carrier and guards for Comick/Flaresolverr runtime values; use MetadataOrchestrationOptions.
       - Canonical persisted metadata state load/transform semantics with atomic JSON persistence and corrupt file/directory recovery; use FileBackedMetadataStateStore.
       - Canonical sticky FlareSolverr persistence must be monotonic and never reduce an existing later expiry; use CloudflareAwareComickGateway.PersistStickyFlaresolverrUntil.
+      - Canonical runtime contract for cover.jpg ensure operations; use IOverrideCoverService.
       - Canonical runtime contract for details.json ensure operations; use IOverrideDetailsService.
       - Canonical shared Comick endpoint request URI composition; use ComickEndpointUriBuilder.
       - Canonical shared Comick payload parsing and required-field validation; use ComickPayloadParser.
@@ -1601,6 +1625,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/SsmLoggerFactoryTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/StructuredTextLogFormatterTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComicInfoMetadataParserTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/BranchLinkStagingServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.MountPointCreation.cs
