@@ -809,6 +809,11 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickSearchResponse.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickSharedModels.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickDirectApiClient.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrApiOutcome.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrApiResult.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrClient.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrClientOptions.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/IFlaresolverrClient.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/FileBackedMetadataStateStore.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IComicInfoMetadataParser.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IMetadataStateStore.cs
@@ -827,6 +832,11 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.SuccessAndHttp.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComicInfoMetadataParserTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/FileBackedMetadataStateStoreTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/FlaresolverrClientOptionsTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/FlaresolverrClientTests.CancellationAndTransport.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/FlaresolverrClientTests.Helpers.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/FlaresolverrClientTests.PayloadValidation.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/FlaresolverrClientTests.SuccessAndHttp.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataOrchestrationOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataStatePathsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataStateSnapshotTests.cs
@@ -840,18 +850,18 @@ modules:
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs
         purpose: Executes direct search and comic-detail requests against api.comick.dev with deterministic transport/http/cloudflare/malformed classification.
-      - symbol: ComickDirectApiClient.GetComicAsync
-        kind: method
-        path: SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs
-        purpose: Queries the direct /comic/{slug}/ endpoint and returns classified typed comic payload results.
-      - symbol: ComickDirectApiClient.SearchAsync
-        kind: method
-        path: SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs
-        purpose: Queries the direct /v1.0/search/ endpoint and returns classified typed search payload results.
+      - symbol: FlaresolverrClient
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrClient.cs
+        purpose: Executes generic JSON passthrough wrapper requests against the FlareSolverr /v1 endpoint with strict payload extraction.
       - symbol: IComickDirectApiClient
         kind: interface
         path: SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickDirectApiClient.cs
         purpose: Defines canonical direct Comick endpoint client contract for search and comic-detail operations.
+      - symbol: IFlaresolverrClient
+        kind: interface
+        path: SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/IFlaresolverrClient.cs
+        purpose: Defines canonical FlareSolverr /v1 wrapper request contract for metadata gateway callers.
       - symbol: OverrideDetailsService
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs
@@ -863,6 +873,9 @@ modules:
       - how: Add alternate direct-Comick transport behavior by implementing IComickDirectApiClient and wiring it into metadata orchestration callers.
         symbols: [ComickDirectApiClient, IComickDirectApiClient]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickDirectApiClient.cs]
+      - how: Add alternate FlareSolverr transport behavior by implementing IFlaresolverrClient and wiring it into metadata gateway callers.
+        symbols: [FlaresolverrClient, IFlaresolverrClient]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrClient.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/IFlaresolverrClient.cs]
       - how: Adjust Cloudflare challenge detection and deterministic outcome mapping for direct Comick requests in ComickDirectApiClient.
         symbols: [ComickDirectApiClient, ComickDirectApiOutcome]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiOutcome.cs]
@@ -893,6 +906,8 @@ modules:
       - Canonical direct Comick API outcome classification and typed payload parsing; use ComickDirectApiClient.
       - Canonical direct Comick API full-lifecycle failure mapping (send, response-body read, parse) and cooperative-cancellation classification; use ComickDirectApiClient.ExecuteGetAsync.
       - Canonical direct Comick endpoint request URI composition and JSON Accept header policy; use ComickDirectApiClient.SearchAsync and ComickDirectApiClient.GetComicAsync.
+      - Canonical FlareSolverr /v1 wrapper request/response handling and deterministic outcome classification; use FlaresolverrClient.PostV1Async.
+      - Canonical FlareSolverr wrapper result contract exposing extracted upstream status/body fields; use FlaresolverrApiResult.
       - Canonical metadata best-effort IO/race handling for source seeding, candidate traversal, and details writes; use OverrideDetailsService.EnsureDetailsJson.
       - Canonical metadata orchestration FlareSolverr URI invariants (non-null must be absolute http/https); use MetadataOrchestrationOptions.
       - Canonical metadata orchestration settings carrier and guards for Comick/Flaresolverr runtime values; use MetadataOrchestrationOptions.
