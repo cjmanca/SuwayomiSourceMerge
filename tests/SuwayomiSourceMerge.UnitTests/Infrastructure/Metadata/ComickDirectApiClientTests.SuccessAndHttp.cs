@@ -61,6 +61,11 @@ public sealed partial class ComickDirectApiClientTests
 		Assert.NotNull(result.Payload.Comic.Recommendations);
 		Assert.Single(result.Payload.Comic.MdTitles!);
 		Assert.Single(result.Payload.Comic.Recommendations!);
+		Assert.NotNull(result.Payload.Comic.MuComics?.MuComicCategories);
+		Assert.Equal(2, result.Payload.Comic.MuComics!.MuComicCategories!.Count);
+		Assert.Equal("Pirate/s", result.Payload.Comic.MuComics.MuComicCategories[0].Category?.Title);
+		Assert.Equal(10, result.Payload.Comic.MuComics.MuComicCategories[0].PositiveVote);
+		Assert.Equal(1, result.Payload.Comic.MuComics.MuComicCategories[0].NegativeVote);
 	}
 
 	/// <summary>

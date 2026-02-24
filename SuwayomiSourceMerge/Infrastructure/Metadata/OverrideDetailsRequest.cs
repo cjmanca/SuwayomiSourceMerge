@@ -1,3 +1,5 @@
+using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
+
 namespace SuwayomiSourceMerge.Infrastructure.Metadata;
 
 /// <summary>
@@ -14,6 +16,10 @@ internal sealed class OverrideDetailsRequest
 	/// <param name="displayTitle">Canonical display title written to the details.json title field.</param>
 	/// <param name="detailsDescriptionMode">Description rendering mode. Supported values are <c>text</c>, <c>br</c>, and <c>html</c>.</param>
 	/// <param name="metadataOrchestration">Comick metadata orchestration settings for this request.</param>
+	/// <param name="matchedComickComic">
+	/// Optional matched Comick comic payload used for API-first details generation.
+	/// When <see langword="null"/>, generation falls back to source-seeded and ComicInfo-only behavior.
+	/// </param>
 	/// <exception cref="ArgumentException">Thrown when required string arguments are missing or invalid.</exception>
 	/// <exception cref="ArgumentNullException">Thrown when required collections are <see langword="null"/>.</exception>
 	public OverrideDetailsRequest(
@@ -22,7 +28,8 @@ internal sealed class OverrideDetailsRequest
 		IReadOnlyList<string> orderedSourceDirectoryPaths,
 		string displayTitle,
 		string detailsDescriptionMode,
-		MetadataOrchestrationOptions metadataOrchestration)
+		MetadataOrchestrationOptions metadataOrchestration,
+		ComickComicResponse? matchedComickComic = null)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(preferredOverrideDirectoryPath);
 		ArgumentNullException.ThrowIfNull(allOverrideDirectoryPaths);
@@ -72,6 +79,7 @@ internal sealed class OverrideDetailsRequest
 		DisplayTitle = displayTitle.Trim();
 		DetailsDescriptionMode = NormalizeDescriptionMode(detailsDescriptionMode);
 		MetadataOrchestration = metadataOrchestration;
+		MatchedComickComic = matchedComickComic;
 	}
 
 	/// <summary>
@@ -118,6 +126,14 @@ internal sealed class OverrideDetailsRequest
 	/// Gets metadata orchestration options used for Comick/Flaresolverr request behavior.
 	/// </summary>
 	public MetadataOrchestrationOptions MetadataOrchestration
+	{
+		get;
+	}
+
+	/// <summary>
+	/// Gets the optional matched Comick comic payload used for API-first generation.
+	/// </summary>
+	public ComickComicResponse? MatchedComickComic
 	{
 		get;
 	}

@@ -90,7 +90,21 @@ public sealed partial class ComickDirectApiClientTests
 			    "is_english_title": null,
 			    "md_titles": [ { "title": "Title One" } ],
 			    "md_covers": [ { "w": 100, "h": 200, "b2key": "cover.jpg" } ],
-			    "mu_comics": { "year": 2020 },
+			    "mu_comics": {
+			      "year": 2020,
+			      "mu_comic_categories": [
+			        {
+			          "mu_categories": { "title": "Pirate/s", "slug": "pirate-s" },
+			          "positive_vote": 10,
+			          "negative_vote": 1
+			        },
+			        {
+			          "mu_categories": { "title": "Comedy", "slug": "comedy" },
+			          "positive_vote": 2,
+			          "negative_vote": 5
+			        }
+			      ]
+			    },
 			    "highlight": "<mark>Title</mark>"
 			  }
 			]
@@ -195,7 +209,21 @@ public sealed partial class ComickDirectApiClientTests
 			      }
 			    ],
 			    "md_covers": [ { "vol": "1", "w": 100, "h": 200, "b2key": "cover.jpg" } ],
-			    "mu_comics": { "year": 2020 },
+			    "mu_comics": {
+			      "year": 2020,
+			      "mu_comic_categories": [
+			        {
+			          "mu_categories": { "title": "Pirate/s", "slug": "pirate-s" },
+			          "positive_vote": 10,
+			          "negative_vote": 1
+			        },
+			        {
+			          "mu_categories": { "title": "Comedy", "slug": "comedy" },
+			          "positive_vote": 2,
+			          "negative_vote": 5
+			        }
+			      ]
+			    },
 			    "iso639_1": "ja",
 			    "lang_name": "Japanese",
 			    "lang_native": "\u65e5\u672c\u8a9e (\u306b\u307b\u3093\u3054\uff0f\u306b\u3063\u307d\u3093\u3054)"
