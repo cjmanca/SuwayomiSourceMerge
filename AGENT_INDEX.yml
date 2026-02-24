@@ -875,7 +875,7 @@ modules:
       - symbol: ComickCandidateMatcher
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatcher.cs
-        purpose: Selects one best Comick comic candidate via strict normalized exact-key matching across comic title and md_titles with deterministic tie-first behavior.
+        purpose: Resolves search candidates via /comic/{slug}/ and matches on detail title/md_titles with deterministic ordered probing.
       - symbol: ComickDirectApiClient
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs
@@ -901,7 +901,7 @@ modules:
       - how: Add alternate FlareSolverr transport behavior by implementing IFlaresolverrClient and wiring it into metadata gateway callers.
         symbols: [FlaresolverrClient, IFlaresolverrClient]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrClient.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/IFlaresolverrClient.cs]
-      - how: Adjust candidate-match scoring and tie-selection policy for Comick comic payloads in ComickCandidateMatcher.
+      - how: Adjust search-candidate ranking, detail-fetch probing order, and exact-key match scoring policy in ComickCandidateMatcher.
         symbols: [ComickCandidateMatcher, ComickCandidateMatchResult, IComickCandidateMatcher]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatcher.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatchResult.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickCandidateMatcher.cs]
       - how: Adjust Cloudflare challenge detection and deterministic outcome mapping for direct Comick requests in ComickDirectApiClient.
@@ -936,7 +936,7 @@ modules:
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideDetailsService.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
     do_not_reimplement:
       - Canonical Cloudflare-aware direct-first routing with sticky FlareSolverr fallback and timed direct retry probing; use CloudflareAwareComickGateway.
-      - Canonical Comick candidate selection and score/tie semantics for strict exact-key matching; use ComickCandidateMatcher.Match.
+      - Canonical Comick candidate resolution and detail-only exact-key matching semantics (search entries are ranking hints only); use ComickCandidateMatcher.MatchAsync.
       - Canonical Comick gateway base-URI normalization (absolute http/https + exactly one trailing slash) should be centralized and reused; use CloudflareAwareComickGateway.NormalizeBaseUri.
       - Canonical cover.jpg ensure flow (override-exists short-circuit, download, optional JPEG conversion, atomic non-overwrite write); use OverrideCoverService.EnsureCoverJpgAsync.
       - Canonical cover already-exists result construction should be centralized to preserve consistent CoverJpgPath/ExistingCoverPath semantics; use OverrideCoverService.CreateAlreadyExistsResult.

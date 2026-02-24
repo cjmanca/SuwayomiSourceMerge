@@ -1,9 +1,9 @@
 namespace SuwayomiSourceMerge.UnitTests.Infrastructure.Metadata;
 
+using System.Net;
 using SuwayomiSourceMerge.Configuration.Documents;
 using SuwayomiSourceMerge.Domain.Normalization;
 using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
-using SuwayomiSourceMerge.UnitTests.Configuration.Validation;
 
 /// <summary>
 /// Verifies expected, edge, and failure behavior for <see cref="ComickCandidateMatcher"/>.
@@ -11,192 +11,279 @@ using SuwayomiSourceMerge.UnitTests.Configuration.Validation;
 public sealed class ComickCandidateMatcherTests
 {
 	/// <summary>
-	/// Verifies a unique exact comic-title match is selected with the highest score.
+	/// Verifies the first search result is selected when its comic-detail title matches expected keys.
 	/// </summary>
 	[Fact]
-	public void Match_Expected_ShouldSelectUniqueComicTitleMatch()
+	public async Task MatchAsync_Expected_ShouldSelectFirstSearchResult_WhenDetailComicTitleMatches()
 	{
-		ComickCandidateMatcher matcher = new();
-		ComickComicResponse firstCandidate = CreateCandidate("Unrelated Title", "Alias One");
-		ComickComicResponse secondCandidate = CreateCandidate("The Target Title", "Other Alias");
+		RecordingComickApiGateway gateway = new(
+			slug => CreateSuccessResult(
+				CreateDetailPayload(
+					comicTitle: slug == "first-slug" ? "Target Title" : "Different Title")));
+		ComickCandidateMatcher matcher = new(gateway);
 
-		ComickCandidateMatchResult result = matcher.Match(
-			[firstCandidate, secondCandidate],
-			["target title", "input title"]);
-
-		Assert.Equal(ComickCandidateMatchOutcome.Matched, result.Outcome);
-		Assert.Same(secondCandidate, result.MatchedCandidate);
-		Assert.Equal(1, result.MatchedCandidateIndex);
-		Assert.False(result.HadTopTie);
-		Assert.Equal(2, result.MatchScore);
-	}
-
-	/// <summary>
-	/// Verifies a unique exact alternate-title match is selected when comic title does not match.
-	/// </summary>
-	[Fact]
-	public void Match_Expected_ShouldSelectUniqueMdTitleMatch_WhenComicTitleDoesNotMatch()
-	{
-		ComickCandidateMatcher matcher = new();
-		ComickComicResponse candidate = CreateCandidate("Different Title", "Target Alias");
-
-		ComickCandidateMatchResult result = matcher.Match(
-			[candidate],
-			["target alias", "input title"]);
-
-		Assert.Equal(ComickCandidateMatchOutcome.Matched, result.Outcome);
-		Assert.Same(candidate, result.MatchedCandidate);
-		Assert.Equal(0, result.MatchedCandidateIndex);
-		Assert.False(result.HadTopTie);
-		Assert.Equal(1, result.MatchScore);
-	}
-
-	/// <summary>
-	/// Verifies equal top-score ties keep first candidate and set tie indicator.
-	/// </summary>
-	[Fact]
-	public void Match_Edge_ShouldSelectFirstCandidate_WhenTopScoreIsTied()
-	{
-		ComickCandidateMatcher matcher = new();
-		ComickComicResponse firstCandidate = CreateCandidate("Shared Title");
-		ComickComicResponse secondCandidate = CreateCandidate("The Shared Title");
-		ComickComicResponse thirdCandidate = CreateCandidate("Unrelated");
-
-		ComickCandidateMatchResult result = matcher.Match(
-			[firstCandidate, secondCandidate, thirdCandidate],
-			["shared title"]);
-
-		Assert.Equal(ComickCandidateMatchOutcome.Matched, result.Outcome);
-		Assert.Same(firstCandidate, result.MatchedCandidate);
-		Assert.Equal(0, result.MatchedCandidateIndex);
-		Assert.True(result.HadTopTie);
-		Assert.Equal(2, result.MatchScore);
-	}
-
-	/// <summary>
-	/// Verifies comic-title matches outrank alternate-title matches.
-	/// </summary>
-	[Fact]
-	public void Match_Edge_ShouldPreferComicTitleMatch_OverMdTitleMatch()
-	{
-		ComickCandidateMatcher matcher = new();
-		ComickComicResponse mdTitleOnlyCandidate = CreateCandidate("Different", "Target Title");
-		ComickComicResponse comicTitleCandidate = CreateCandidate("Target Title", "Other Alias");
-
-		ComickCandidateMatchResult result = matcher.Match(
-			[mdTitleOnlyCandidate, comicTitleCandidate],
+		ComickCandidateMatchResult result = await matcher.MatchAsync(
+			[
+				CreateSearchCandidate("first-slug", "Unrelated Search Title"),
+				CreateSearchCandidate("second-slug", "Target Title")
+			],
 			["target title"]);
 
 		Assert.Equal(ComickCandidateMatchOutcome.Matched, result.Outcome);
-		Assert.Same(comicTitleCandidate, result.MatchedCandidate);
-		Assert.Equal(1, result.MatchedCandidateIndex);
+		Assert.Equal(0, result.MatchedCandidateIndex);
 		Assert.False(result.HadTopTie);
 		Assert.Equal(2, result.MatchScore);
+		Assert.Equal(["first-slug"], gateway.RequestedSlugs);
 	}
 
 	/// <summary>
-	/// Verifies no exact matches produce no-high-confidence outcome.
+	/// Verifies detail aliases are used for matching while search aliases are not used as matching input.
 	/// </summary>
 	[Fact]
-	public void Match_Failure_ShouldReturnNoHighConfidenceMatch_WhenNoExactMatchesExist()
+	public async Task MatchAsync_Expected_ShouldIgnoreSearchMdTitles_WhenDetailDoesNotMatch()
 	{
-		ComickCandidateMatcher matcher = new();
+		RecordingComickApiGateway gateway = new(
+			slug => slug switch
+			{
+				"first-slug" => CreateSuccessResult(CreateDetailPayload("Wrong Detail Title", "Wrong Detail Alias")),
+				"second-slug" => CreateSuccessResult(CreateDetailPayload("Different Title", "Target Alias")),
+				_ => CreateOutcomeOnlyResult(ComickDirectApiOutcome.NotFound)
+			});
+		ComickCandidateMatcher matcher = new(gateway);
 
-		ComickCandidateMatchResult result = matcher.Match(
-			[CreateCandidate("First"), CreateCandidate("Second", "Another")],
-			["unmatched"]);
+		ComickCandidateMatchResult result = await matcher.MatchAsync(
+			[
+				CreateSearchCandidate("first-slug", "Wrong Search Title", "Target Alias"),
+				CreateSearchCandidate("second-slug", "Second Search Title", "Other Search Alias")
+			],
+			["target alias"]);
+
+		Assert.Equal(ComickCandidateMatchOutcome.Matched, result.Outcome);
+		Assert.Equal(1, result.MatchedCandidateIndex);
+		Assert.False(result.HadTopTie);
+		Assert.Equal(1, result.MatchScore);
+		Assert.Equal(["first-slug", "second-slug"], gateway.RequestedSlugs);
+	}
+
+	/// <summary>
+	/// Verifies remaining candidates are ordered by normalized Levenshtein similarity and can use search aliases as ranking hints.
+	/// </summary>
+	[Fact]
+	public async Task MatchAsync_Edge_ShouldOrderRemainingCandidatesByLevenshtein_UsingSearchAliasHints()
+	{
+		RecordingComickApiGateway gateway = new(
+			_ => CreateSuccessResult(CreateDetailPayload("No Match")));
+		ComickCandidateMatcher matcher = new(gateway);
+
+		_ = await matcher.MatchAsync(
+			[
+				CreateSearchCandidate("first-slug", "first"),
+				CreateSearchCandidate("ranked-by-alias", "zzz", "target title"),
+				CreateSearchCandidate("ranked-by-title", "target titel"),
+				CreateSearchCandidate("ranked-last", "abc")
+			],
+			["target title"]);
+
+		Assert.Equal(
+			["first-slug", "ranked-by-alias", "ranked-by-title", "ranked-last"],
+			gateway.RequestedSlugs);
+	}
+
+	/// <summary>
+	/// Verifies equal similarity ties for remaining candidates preserve original index ordering.
+	/// </summary>
+	[Fact]
+	public async Task MatchAsync_Edge_ShouldUseOriginalIndexOrder_WhenRemainingSimilarityTies()
+	{
+		RecordingComickApiGateway gateway = new(
+			_ => CreateSuccessResult(CreateDetailPayload("No Match")));
+		ComickCandidateMatcher matcher = new(gateway);
+
+		_ = await matcher.MatchAsync(
+			[
+				CreateSearchCandidate("first-slug", "first"),
+				CreateSearchCandidate("second-slug", "abc"),
+				CreateSearchCandidate("third-slug", "abc")
+			],
+			["target title"]);
+
+		Assert.Equal(["first-slug", "second-slug", "third-slug"], gateway.RequestedSlugs);
+	}
+
+	/// <summary>
+	/// Verifies candidates with empty slugs are skipped safely.
+	/// </summary>
+	[Fact]
+	public async Task MatchAsync_Edge_ShouldSkipCandidate_WhenSlugIsBlank()
+	{
+		RecordingComickApiGateway gateway = new(
+			_ => CreateSuccessResult(CreateDetailPayload("Target Title")));
+		ComickCandidateMatcher matcher = new(gateway);
+
+		ComickCandidateMatchResult result = await matcher.MatchAsync(
+			[
+				CreateSearchCandidate(string.Empty, "target title"),
+				CreateSearchCandidate("second-slug", "target title")
+			],
+			["target title"]);
+
+		Assert.Equal(ComickCandidateMatchOutcome.Matched, result.Outcome);
+		Assert.Equal(1, result.MatchedCandidateIndex);
+		Assert.Equal(["second-slug"], gateway.RequestedSlugs);
+	}
+
+	/// <summary>
+	/// Verifies the matcher continues through mixed detail failures and selects a later successful match.
+	/// </summary>
+	[Fact]
+	public async Task MatchAsync_Failure_ShouldContinueOnNonSuccessOutcomes_AndSelectLaterMatch()
+	{
+		RecordingComickApiGateway gateway = new(
+			slug => slug switch
+			{
+				"cloudflare" => CreateOutcomeOnlyResult(ComickDirectApiOutcome.CloudflareBlocked),
+				"http-failure" => CreateOutcomeOnlyResult(ComickDirectApiOutcome.HttpFailure),
+				"success" => CreateSuccessResult(CreateDetailPayload("Target Title")),
+				_ => CreateOutcomeOnlyResult(ComickDirectApiOutcome.NotFound)
+			});
+		ComickCandidateMatcher matcher = new(gateway);
+
+		ComickCandidateMatchResult result = await matcher.MatchAsync(
+			[
+				CreateSearchCandidate("cloudflare", "target title"),
+				CreateSearchCandidate("http-failure", "target title"),
+				CreateSearchCandidate("success", "target title")
+			],
+			["target title"]);
+
+		Assert.Equal(ComickCandidateMatchOutcome.Matched, result.Outcome);
+		Assert.Equal(2, result.MatchedCandidateIndex);
+		Assert.Equal(["cloudflare", "http-failure", "success"], gateway.RequestedSlugs);
+	}
+
+	/// <summary>
+	/// Verifies no successful detail matches return no-high-confidence output.
+	/// </summary>
+	[Fact]
+	public async Task MatchAsync_Failure_ShouldReturnNoHighConfidenceMatch_WhenNoDetailMatchesFound()
+	{
+		RecordingComickApiGateway gateway = new(
+			_ => CreateOutcomeOnlyResult(ComickDirectApiOutcome.MalformedPayload));
+		ComickCandidateMatcher matcher = new(gateway);
+
+		ComickCandidateMatchResult result = await matcher.MatchAsync(
+			[
+				CreateSearchCandidate("first-slug", "first"),
+				CreateSearchCandidate("second-slug", "second")
+			],
+			["target title"]);
 
 		Assert.Equal(ComickCandidateMatchOutcome.NoHighConfidenceMatch, result.Outcome);
 		Assert.Null(result.MatchedCandidate);
 		Assert.Equal(ComickCandidateMatchResult.NoMatchCandidateIndex, result.MatchedCandidateIndex);
 		Assert.False(result.HadTopTie);
 		Assert.Equal(0, result.MatchScore);
+		Assert.Equal(["first-slug", "second-slug"], gateway.RequestedSlugs);
 	}
 
 	/// <summary>
-	/// Verifies null input collections are rejected with argument-null guards.
+	/// Verifies scene-tag normalization continues to work when matching comic-detail titles.
 	/// </summary>
 	[Fact]
-	public void Match_Failure_ShouldThrow_WhenArgumentsAreNull()
+	public async Task MatchAsync_Expected_ShouldMatchDetailTitleAfterSceneTagNormalization()
 	{
-		ComickCandidateMatcher matcher = new();
+		RecordingComickApiGateway gateway = new(
+			_ => CreateSuccessResult(CreateDetailPayload("Manga Title")));
+		ComickCandidateMatcher matcher = new(
+			gateway,
+			new SceneTagMatcher(SceneTagsDocumentDefaults.Create().Tags!));
 
-		Assert.Throws<ArgumentNullException>(() => matcher.Match(null!, ["title"]));
-		Assert.Throws<ArgumentNullException>(() => matcher.Match([], null!));
-	}
-
-	/// <summary>
-	/// Verifies matcher normalization stays aligned with established scene-tag stripping fixtures.
-	/// </summary>
-	/// <param name="rawTitle">Raw fixture title text.</param>
-	/// <param name="expectedStrippedTitle">Expected stripped fixture title text.</param>
-	[Theory]
-	[MemberData(nameof(ValidationKeyNormalizerTests.GetTagStrippingFixtures), MemberType = typeof(ValidationKeyNormalizerTests))]
-	public void Match_Expected_ShouldReuseNormalizationFixtures_WhenSceneTagMatcherConfigured(
-		string rawTitle,
-		string expectedStrippedTitle)
-	{
-		ComickCandidateMatcher matcher = new(new SceneTagMatcher(SceneTagsDocumentDefaults.Create().Tags!));
-		ComickComicResponse candidate = CreateCandidate(expectedStrippedTitle);
-
-		ComickCandidateMatchResult result = matcher.Match([candidate], [rawTitle]);
+		ComickCandidateMatchResult result = await matcher.MatchAsync(
+			[CreateSearchCandidate("slug-1", "Manga Title [Official]")],
+			["Manga Title [Official]"]);
 
 		Assert.Equal(ComickCandidateMatchOutcome.Matched, result.Outcome);
-		Assert.Same(candidate, result.MatchedCandidate);
 		Assert.Equal(0, result.MatchedCandidateIndex);
-		Assert.False(result.HadTopTie);
 		Assert.Equal(2, result.MatchScore);
 	}
 
 	/// <summary>
-	/// Verifies trailing scene-tag normalization on comic title yields a high-confidence primary-title match.
+	/// Verifies null argument guards for candidate and expected title collections.
 	/// </summary>
 	[Fact]
-	public void Match_Expected_ShouldMatchComicTitleAfterTrailingSceneTagNormalization()
+	public async Task MatchAsync_Failure_ShouldThrow_WhenArgumentsAreNull()
 	{
-		ComickCandidateMatcher matcher = new(new SceneTagMatcher(["official", "digital"]));
-		ComickComicResponse candidate = CreateCandidate("Manga Title");
+		RecordingComickApiGateway gateway = new(_ => CreateOutcomeOnlyResult(ComickDirectApiOutcome.NotFound));
+		ComickCandidateMatcher matcher = new(gateway);
 
-		ComickCandidateMatchResult result = matcher.Match(
-			[candidate],
-			["Manga Title [Official]"]);
-
-		Assert.Equal(ComickCandidateMatchOutcome.Matched, result.Outcome);
-		Assert.Same(candidate, result.MatchedCandidate);
-		Assert.Equal(0, result.MatchedCandidateIndex);
-		Assert.False(result.HadTopTie);
-		Assert.Equal(2, result.MatchScore);
+		await Assert.ThrowsAsync<ArgumentNullException>(() => matcher.MatchAsync(null!, ["title"]));
+		await Assert.ThrowsAsync<ArgumentNullException>(() => matcher.MatchAsync([], null!));
 	}
 
 	/// <summary>
-	/// Verifies trailing scene-tag normalization on alternate titles yields an alias-only match score.
+	/// Verifies null candidate entries are rejected deterministically.
 	/// </summary>
 	[Fact]
-	public void Match_Expected_ShouldMatchMdTitleAfterTrailingSceneTagNormalization()
+	public async Task MatchAsync_Failure_ShouldThrow_WhenCandidatesContainNullEntry()
 	{
-		ComickCandidateMatcher matcher = new(new SceneTagMatcher(["official", "digital"]));
-		ComickComicResponse candidate = CreateCandidate(
-			"Different Display Title",
-			"Manga Title");
+		RecordingComickApiGateway gateway = new(_ => CreateOutcomeOnlyResult(ComickDirectApiOutcome.NotFound));
+		ComickCandidateMatcher matcher = new(gateway);
 
-		ComickCandidateMatchResult result = matcher.Match(
-			[candidate],
-			["Manga Title [Official]"]);
-
-		Assert.Equal(ComickCandidateMatchOutcome.Matched, result.Outcome);
-		Assert.Same(candidate, result.MatchedCandidate);
-		Assert.Equal(0, result.MatchedCandidateIndex);
-		Assert.False(result.HadTopTie);
-		Assert.Equal(1, result.MatchScore);
+		await Assert.ThrowsAsync<ArgumentException>(() => matcher.MatchAsync([null!], ["title"]));
 	}
 
 	/// <summary>
-	/// Creates one minimal candidate payload for matcher tests.
+	/// Verifies empty/invalid expected keys short-circuit to no-match without detail requests.
 	/// </summary>
-	/// <param name="comicTitle">Primary comic title.</param>
-	/// <param name="mdTitles">Alternate titles.</param>
-	/// <returns>Candidate payload.</returns>
-	private static ComickComicResponse CreateCandidate(string comicTitle, params string[] mdTitles)
+	[Fact]
+	public async Task MatchAsync_Failure_ShouldReturnNoMatchWithoutRequests_WhenExpectedKeysAreEmptyAfterNormalization()
+	{
+		RecordingComickApiGateway gateway = new(_ => CreateSuccessResult(CreateDetailPayload("Target")));
+		ComickCandidateMatcher matcher = new(gateway);
+
+		ComickCandidateMatchResult result = await matcher.MatchAsync(
+			[CreateSearchCandidate("slug-1", "Target")],
+			["   "]);
+
+		Assert.Equal(ComickCandidateMatchOutcome.NoHighConfidenceMatch, result.Outcome);
+		Assert.Empty(gateway.RequestedSlugs);
+	}
+
+	/// <summary>
+	/// Creates one search-candidate payload.
+	/// </summary>
+	/// <param name="slug">Search candidate slug.</param>
+	/// <param name="title">Search candidate title.</param>
+	/// <param name="searchMdTitles">Search alias hints.</param>
+	/// <returns>Search candidate.</returns>
+	private static ComickSearchComic CreateSearchCandidate(
+		string slug,
+		string title,
+		params string[] searchMdTitles)
+	{
+		ArgumentNullException.ThrowIfNull(searchMdTitles);
+
+		return new ComickSearchComic
+		{
+			Slug = slug,
+			Title = title,
+			MdTitles = searchMdTitles
+				.Select(
+					aliasTitle => new ComickTitleAlias
+					{
+						Title = aliasTitle
+					})
+				.ToArray()
+		};
+	}
+
+	/// <summary>
+	/// Creates one comic-detail payload used by match outcomes.
+	/// </summary>
+	/// <param name="comicTitle">Primary detail title.</param>
+	/// <param name="mdTitles">Detail alias values.</param>
+	/// <returns>Comic detail payload.</returns>
+	private static ComickComicResponse CreateDetailPayload(string comicTitle, params string[] mdTitles)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(comicTitle);
 		ArgumentNullException.ThrowIfNull(mdTitles);
@@ -215,5 +302,89 @@ public sealed class ComickCandidateMatcherTests
 					.ToArray()
 			}
 		};
+	}
+
+	/// <summary>
+	/// Creates one successful comic-detail API result.
+	/// </summary>
+	/// <param name="payload">Payload value.</param>
+	/// <returns>Success result.</returns>
+	private static ComickDirectApiResult<ComickComicResponse> CreateSuccessResult(ComickComicResponse payload)
+	{
+		return new ComickDirectApiResult<ComickComicResponse>(
+			ComickDirectApiOutcome.Success,
+			payload,
+			HttpStatusCode.OK,
+			"Success.");
+	}
+
+	/// <summary>
+	/// Creates one non-success result with no payload.
+	/// </summary>
+	/// <param name="outcome">Non-success outcome.</param>
+	/// <returns>Result instance.</returns>
+	private static ComickDirectApiResult<ComickComicResponse> CreateOutcomeOnlyResult(ComickDirectApiOutcome outcome)
+	{
+		return new ComickDirectApiResult<ComickComicResponse>(
+			outcome,
+			payload: null,
+			statusCode: null,
+			diagnostic: outcome.ToString());
+	}
+
+	/// <summary>
+	/// Recording gateway test double for candidate matcher tests.
+	/// </summary>
+	private sealed class RecordingComickApiGateway : IComickApiGateway
+	{
+		/// <summary>
+		/// Detail-result callback.
+		/// </summary>
+		private readonly Func<string, ComickDirectApiResult<ComickComicResponse>> _comicHandler;
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="RecordingComickApiGateway"/> class.
+		/// </summary>
+		/// <param name="comicHandler">Detail result callback by slug.</param>
+		public RecordingComickApiGateway(Func<string, ComickDirectApiResult<ComickComicResponse>> comicHandler)
+		{
+			_comicHandler = comicHandler ?? throw new ArgumentNullException(nameof(comicHandler));
+		}
+
+		/// <summary>
+		/// Gets requested comic slugs in call order.
+		/// </summary>
+		public List<string> RequestedSlugs
+		{
+			get;
+		} = [];
+
+		/// <inheritdoc />
+		public Task<ComickDirectApiResult<ComickSearchResponse>> SearchAsync(
+			string query,
+			CancellationToken cancellationToken = default)
+		{
+			ArgumentException.ThrowIfNullOrWhiteSpace(query);
+			cancellationToken.ThrowIfCancellationRequested();
+
+			return Task.FromResult(
+				new ComickDirectApiResult<ComickSearchResponse>(
+					ComickDirectApiOutcome.Success,
+					new ComickSearchResponse([]),
+					HttpStatusCode.OK,
+					"Success."));
+		}
+
+		/// <inheritdoc />
+		public Task<ComickDirectApiResult<ComickComicResponse>> GetComicAsync(
+			string slug,
+			CancellationToken cancellationToken = default)
+		{
+			ArgumentException.ThrowIfNullOrWhiteSpace(slug);
+			cancellationToken.ThrowIfCancellationRequested();
+
+			RequestedSlugs.Add(slug);
+			return Task.FromResult(_comicHandler(slug));
+		}
 	}
 }
