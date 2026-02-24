@@ -799,6 +799,9 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadata.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatcher.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatchOutcome.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatchResult.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickComicDetails.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickComicRelatedModels.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickComicResponse.cs
@@ -812,6 +815,7 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickSearchResponse.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickSharedModels.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickApiGateway.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickCandidateMatcher.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickDirectApiClient.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrApiOutcome.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrApiResult.cs
@@ -829,6 +833,7 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsRequest.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsResult.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickCandidateMatcherTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.CancellationAndTransport.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.Helpers.cs
@@ -857,6 +862,10 @@ modules:
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs
         purpose: Parses ComicInfo files with strict XDocument parsing (including inline Summary break-markup preservation) first and tolerant line-scanner fallback for malformed XML.
+      - symbol: ComickCandidateMatcher
+        kind: class
+        path: SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatcher.cs
+        purpose: Selects one best Comick comic candidate via strict normalized exact-key matching across comic title and md_titles with deterministic tie-first behavior.
       - symbol: ComickDirectApiClient
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs
@@ -865,10 +874,6 @@ modules:
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrClient.cs
         purpose: Executes generic JSON passthrough wrapper requests against the FlareSolverr /v1 endpoint with strict payload extraction.
-      - symbol: IComickApiGateway
-        kind: interface
-        path: SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickApiGateway.cs
-        purpose: Defines canonical Cloudflare-aware Comick gateway contract returning typed direct-client parity results.
       - symbol: OverrideDetailsService
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs
@@ -886,6 +891,9 @@ modules:
       - how: Add alternate FlareSolverr transport behavior by implementing IFlaresolverrClient and wiring it into metadata gateway callers.
         symbols: [FlaresolverrClient, IFlaresolverrClient]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrClient.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/IFlaresolverrClient.cs]
+      - how: Adjust candidate-match scoring and tie-selection policy for Comick comic payloads in ComickCandidateMatcher.
+        symbols: [ComickCandidateMatcher, ComickCandidateMatchResult, IComickCandidateMatcher]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatcher.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatchResult.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickCandidateMatcher.cs]
       - how: Adjust Cloudflare challenge detection and deterministic outcome mapping for direct Comick requests in ComickDirectApiClient.
         symbols: [ComickDirectApiClient, ComickDirectApiOutcome]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiOutcome.cs]
@@ -912,6 +920,7 @@ modules:
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideDetailsService.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
     do_not_reimplement:
       - Canonical Cloudflare-aware direct-first routing with sticky FlareSolverr fallback and timed direct retry probing; use CloudflareAwareComickGateway.
+      - Canonical Comick candidate selection and score/tie semantics for strict exact-key matching; use ComickCandidateMatcher.Match.
       - Canonical Comick gateway base-URI normalization (absolute http/https + exactly one trailing slash) should be centralized and reused; use CloudflareAwareComickGateway.NormalizeBaseUri.
       - Canonical expired-sticky clear should be guarded inside metadata-state transform and only clear when current persisted sticky is not in the future after non-cloudflare direct outcomes; use CloudflareAwareComickGateway.TryClearExpiredStickyAfterDirectNonCloudflare.
       - Canonical sticky retry anchor uses post-direct block-detection timestamp (not request-start time) when computing sticky expiry; use CloudflareAwareComickGateway.ExecuteWithRoutingAsync.
