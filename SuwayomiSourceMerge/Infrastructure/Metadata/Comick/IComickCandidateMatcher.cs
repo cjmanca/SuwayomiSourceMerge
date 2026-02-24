@@ -6,12 +6,14 @@ namespace SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 internal interface IComickCandidateMatcher
 {
 	/// <summary>
-	/// Attempts to select one best candidate from the provided candidate list.
+	/// Attempts to select one best candidate by resolving search candidates to comic-detail payloads.
 	/// </summary>
-	/// <param name="candidates">Candidate comic payloads to evaluate.</param>
+	/// <param name="candidates">Search candidates to evaluate and resolve by slug.</param>
 	/// <param name="expectedTitles">Expected raw title values used to build normalized match keys.</param>
+	/// <param name="cancellationToken">Cancellation token for detail requests.</param>
 	/// <returns>Deterministic candidate-match result.</returns>
-	ComickCandidateMatchResult Match(
-		IReadOnlyList<ComickComicResponse> candidates,
-		IReadOnlyList<string> expectedTitles);
+	Task<ComickCandidateMatchResult> MatchAsync(
+		IReadOnlyList<ComickSearchComic> candidates,
+		IReadOnlyList<string> expectedTitles,
+		CancellationToken cancellationToken = default);
 }
