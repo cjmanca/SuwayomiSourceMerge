@@ -61,6 +61,34 @@ public sealed partial class ComickDirectApiClientTests
 		Assert.NotNull(result.Payload.Comic.Recommendations);
 		Assert.Single(result.Payload.Comic.MdTitles!);
 		Assert.Single(result.Payload.Comic.Recommendations!);
+		Assert.NotNull(result.Payload.Comic.MuComics?.MuComicCategories);
+		Assert.Equal(2, result.Payload.Comic.MuComics!.MuComicCategories!.Count);
+		Assert.Equal("Pirate/s", result.Payload.Comic.MuComics.MuComicCategories[0].Category?.Title);
+		Assert.Equal(10, result.Payload.Comic.MuComics.MuComicCategories[0].PositiveVote);
+		Assert.Equal(1, result.Payload.Comic.MuComics.MuComicCategories[0].NegativeVote);
+	}
+
+	/// <summary>
+	/// Verifies null MU vote fields are tolerated and parsed without failing the full comic payload.
+	/// </summary>
+	[Fact]
+	public async Task GetComicAsync_Edge_ShouldParsePayload_WhenMuCategoryVoteFieldsAreNullAsync()
+	{
+		string responseBody = CreateComicJson()
+			.Replace("\"positive_vote\": 10", "\"positive_vote\": null", StringComparison.Ordinal)
+			.Replace("\"negative_vote\": 5", "\"negative_vote\": null", StringComparison.Ordinal);
+		RecordingHttpMessageHandler handler = new(
+			_ => CreateResponse(HttpStatusCode.OK, responseBody));
+		using HttpClient httpClient = new(handler);
+		ComickDirectApiClient client = CreateClient(httpClient);
+
+		ComickDirectApiResult<ComickComicResponse> result = await client.GetComicAsync("slug-1");
+
+		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
+		Assert.NotNull(result.Payload?.Comic?.MuComics?.MuComicCategories);
+		Assert.Equal(2, result.Payload!.Comic!.MuComics!.MuComicCategories!.Count);
+		Assert.Null(result.Payload.Comic.MuComics.MuComicCategories[0].PositiveVote);
+		Assert.Null(result.Payload.Comic.MuComics.MuComicCategories[1].NegativeVote);
 	}
 
 	/// <summary>

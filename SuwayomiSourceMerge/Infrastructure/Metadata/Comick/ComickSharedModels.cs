@@ -223,10 +223,82 @@ internal sealed class ComickMuComics
 	}
 
 	/// <summary>
+	/// Gets or sets MangaUpdates category vote entries.
+	/// </summary>
+	[JsonPropertyName("mu_comic_categories")]
+	public IReadOnlyList<ComickMuComicCategoryVote>? MuComicCategories
+	{
+		get;
+		init;
+	}
+
+	/// <summary>
 	/// Gets or sets additional unknown properties.
 	/// </summary>
 	[JsonExtensionData]
 	public IDictionary<string, JsonElement>? AdditionalProperties
+	{
+		get;
+		init;
+	}
+}
+
+/// <summary>
+/// Represents one MangaUpdates category vote aggregate entry.
+/// </summary>
+internal sealed class ComickMuComicCategoryVote
+{
+	/// <summary>
+	/// Gets or sets category descriptor metadata.
+	/// </summary>
+	[JsonPropertyName("mu_categories")]
+	public ComickMuCategoryDescriptor? Category
+	{
+		get;
+		init;
+	}
+
+	/// <summary>
+	/// Gets or sets positive vote count.
+	/// </summary>
+	[JsonPropertyName("positive_vote")]
+	public int? PositiveVote
+	{
+		get;
+		init;
+	}
+
+	/// <summary>
+	/// Gets or sets negative vote count.
+	/// </summary>
+	[JsonPropertyName("negative_vote")]
+	public int? NegativeVote
+	{
+		get;
+		init;
+	}
+}
+
+/// <summary>
+/// Represents one MangaUpdates category descriptor.
+/// </summary>
+internal sealed class ComickMuCategoryDescriptor
+{
+	/// <summary>
+	/// Gets or sets category title text.
+	/// </summary>
+	[JsonPropertyName("title")]
+	public string? Title
+	{
+		get;
+		init;
+	}
+
+	/// <summary>
+	/// Gets or sets category slug text.
+	/// </summary>
+	[JsonPropertyName("slug")]
+	public string? Slug
 	{
 		get;
 		init;

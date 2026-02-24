@@ -16,18 +16,23 @@ internal enum OverrideDetailsOutcome
 	SeededFromSource = 1,
 
 	/// <summary>
+	/// A details.json file was generated using Comick API payloads with optional ComicInfo field fallback.
+	/// </summary>
+	GeneratedFromComick = 2,
+
+	/// <summary>
 	/// A details.json file was generated from a parsed ComicInfo.xml file.
 	/// </summary>
-	GeneratedFromComicInfo = 2,
+	GeneratedFromComicInfo = 3,
 
 	/// <summary>
 	/// No ComicInfo.xml candidate files were discovered.
 	/// </summary>
-	SkippedNoComicInfo = 3,
+	SkippedNoComicInfo = 4,
 
 	/// <summary>
 	/// ComicInfo.xml candidates were discovered, but none parsed successfully.
 	/// </summary>
-	SkippedParseFailure = 4
+	SkippedParseFailure = 5
 
 }

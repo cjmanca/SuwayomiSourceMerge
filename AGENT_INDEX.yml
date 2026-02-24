@@ -840,6 +840,13 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsOutcome.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsRequest.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsResult.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.CandidateDiscovery.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Fallback.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Description.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Mapping.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Models.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Write.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickCandidateMatcherTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientOptionsTests.cs
@@ -862,6 +869,9 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataStateSnapshotTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.FailureDeterminism.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.ApiFirstHardeningTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.ApiFirstTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.Generation.WriteTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsServiceTests.cs
     entrypoints:
       - symbol: CloudflareAwareComickGateway
@@ -887,7 +897,7 @@ modules:
       - symbol: OverrideDetailsService
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs
-        purpose: Ensures details.json by checking existing overrides, seeding from sources, and generating from ComicInfo candidates.
+        purpose: Ensures details.json by checking overrides, seeding from sources, then generating via Comick-first mapping with ComicInfo fallback.
     extension_points:
       - how: Add alternate ComicInfo parsing strategies by implementing IComicInfoMetadataParser and injecting it into OverrideDetailsService.
         symbols: [ComicInfoMetadataParser, IComicInfoMetadataParser, OverrideDetailsService]
@@ -912,10 +922,10 @@ modules:
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverService.cs]
       - how: Adjust details.json output mapping (status code, description mode, genre splitting, field shape) in the override details service.
         symbols: [OverrideDetailsService, OverrideDetailsService.EnsureDetailsJson]
-        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Fallback.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Description.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Mapping.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Write.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
       - how: Adjust direct Comick DTO parsing and required-field validation behavior in ComickDirectApiClient.
-        symbols: [ComickComicResponse, ComickDirectApiClient, ComickSearchResponse]
-        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickComicResponse.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickSearchResponse.cs]
+        symbols: [ComickComicResponse, ComickDirectApiClient, ComickMuComics, ComickSearchResponse]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickComicResponse.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickSearchResponse.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickSharedModels.cs]
       - how: Adjust shared Comick endpoint URI composition and payload parsing behavior used by direct and gateway request paths.
         symbols: [ComickEndpointUriBuilder, ComickPayloadParser]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickEndpointUriBuilder.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickPayloadParser.cs]
@@ -950,9 +960,13 @@ modules:
       - Canonical sticky-window clock reads should normalize provider timestamps to UTC at use sites for deterministic comparisons; use CloudflareAwareComickGateway.ExecuteWithRoutingAsync.
       - Canonical Cloudflare challenge detection for Comick responses; use ComickPayloadParser.
       - Canonical ComicInfo strict-then-fallback parsing behavior; use ComicInfoMetadataParser.TryParse.
-      - Canonical details.json ensure flow (override check, source seed, ComicInfo fallback); use OverrideDetailsService.EnsureDetailsJson.
+      - Canonical details.json ComicInfo fallback provenance semantics should report ComicInfoXmlPath only when fallback values actually contributed to output fields; use OverrideDetailsService.EnsureDetailsJson and OverrideDetailsResult.ComicInfoXmlPath.
+      - Canonical details.json ensure flow (override check, source seed, Comick-first field mapping with per-field ComicInfo fallback, race-safe atomic write); use OverrideDetailsService.EnsureDetailsJson.
       - Canonical details.json existence flag semantics returned to callers; use OverrideDetailsResult.DetailsJsonExists.
+      - Canonical details.json non-overwrite write failure mapping for IOException/UnauthorizedAccessException/NotSupportedException should be centralized; use OverrideDetailsService.TryWriteDetailsJsonNonOverwriting.
+      - Canonical details temp-file cleanup should be best-effort and swallow known filesystem exceptions only; use OverrideDetailsService.TryDeleteTemporaryFile.
       - Canonical details.json request validation and description-mode normalization; use OverrideDetailsRequest.
+      - Canonical details.json title-bullet append format (`Titles:` header + `- [lang] title`) and mode conversion (`text`/`br`/`html`); use OverrideDetailsService.EnsureDetailsJson.
       - Canonical direct Comick API outcome classification and typed payload parsing; use ComickDirectApiClient.
       - Canonical direct Comick API full-lifecycle failure mapping (send, response-body read, parse) and cooperative-cancellation classification; use ComickDirectApiClient.ExecuteGetAsync.
       - Canonical FlareSolverr /v1 wrapper request/response handling and deterministic outcome classification; use FlaresolverrClient.PostV1Async.
@@ -966,7 +980,7 @@ modules:
       - Canonical runtime contract for cover.jpg ensure operations; use IOverrideCoverService.
       - Canonical runtime contract for details.json ensure operations; use IOverrideDetailsService.
       - Canonical shared Comick endpoint request URI composition; use ComickEndpointUriBuilder.
-      - Canonical shared Comick payload parsing and required-field validation; use ComickPayloadParser.
+      - Canonical shared Comick payload parsing and required-field validation (including tolerant nullable MU category votes) should be centralized; use ComickPayloadParser and ComickSharedModels.
     related: [runtime-host, unit-test-suite]
   - id: infrastructure-mounts
     summary: Mount snapshots, reconciliation, command apply, and branch-link staging used by production merge runtime.
@@ -1626,6 +1640,9 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/StructuredTextLogFormatterTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComicInfoMetadataParserTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.ApiFirstHardeningTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.ApiFirstTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.Generation.WriteTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/BranchLinkStagingServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.MountPointCreation.cs

@@ -1,7 +1,7 @@
 namespace SuwayomiSourceMerge.Infrastructure.Metadata;
 
 /// <summary>
-/// Ensures override details.json metadata exists by using seed-first then ComicInfo.xml fallback behavior.
+/// Ensures override details.json metadata exists by using non-overwrite checks, source seeding, API-first generation, and ComicInfo fallback behavior.
 /// </summary>
 internal interface IOverrideDetailsService
 {
