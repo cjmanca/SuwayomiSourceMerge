@@ -162,6 +162,33 @@ public sealed class ComickCandidateMatcherTests
 	}
 
 	/// <summary>
+	/// Verifies cancelled detail requests are surfaced as cancellation instead of no-match.
+	/// </summary>
+	[Fact]
+	public async Task MatchAsync_Failure_ShouldThrowOperationCanceledException_WhenDetailRequestReturnsCancelled()
+	{
+		RecordingComickApiGateway gateway = new(
+			slug => slug switch
+			{
+				"cancelled" => CreateOutcomeOnlyResult(ComickDirectApiOutcome.Cancelled),
+				"success" => CreateSuccessResult(CreateDetailPayload("Target Title")),
+				_ => CreateOutcomeOnlyResult(ComickDirectApiOutcome.NotFound)
+			});
+		ComickCandidateMatcher matcher = new(gateway);
+		using CancellationTokenSource cancellationTokenSource = new();
+
+		await Assert.ThrowsAnyAsync<OperationCanceledException>(
+			() => matcher.MatchAsync(
+				[
+					CreateSearchCandidate("cancelled", "target title"),
+					CreateSearchCandidate("success", "target title")
+				],
+				["target title"],
+				cancellationTokenSource.Token));
+		Assert.Equal(["cancelled"], gateway.RequestedSlugs);
+	}
+
+	/// <summary>
 	/// Verifies no successful detail matches return no-high-confidence output.
 	/// </summary>
 	[Fact]

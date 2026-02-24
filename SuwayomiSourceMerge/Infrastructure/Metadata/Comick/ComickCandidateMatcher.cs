@@ -75,6 +75,11 @@ internal sealed class ComickCandidateMatcher : IComickCandidateMatcher
 			ComickDirectApiResult<ComickComicResponse> detailResult = await _comickApiGateway
 				.GetComicAsync(searchCandidate.Slug, cancellationToken)
 				.ConfigureAwait(false);
+			if (detailResult.Outcome == ComickDirectApiOutcome.Cancelled)
+			{
+				throw new OperationCanceledException(cancellationToken);
+			}
+
 			if (detailResult.Outcome != ComickDirectApiOutcome.Success || detailResult.Payload is null)
 			{
 				continue;

@@ -936,7 +936,7 @@ modules:
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideDetailsService.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
     do_not_reimplement:
       - Canonical Cloudflare-aware direct-first routing with sticky FlareSolverr fallback and timed direct retry probing; use CloudflareAwareComickGateway.
-      - Canonical Comick candidate resolution and detail-only exact-key matching semantics (search entries are ranking hints only); use ComickCandidateMatcher.MatchAsync.
+      - Canonical Comick candidate resolution and detail-only exact-key matching semantics (search entries are ranking hints only), including propagation of detail-request Cancelled outcomes as OperationCanceledException; use ComickCandidateMatcher.MatchAsync.
       - Canonical Comick gateway base-URI normalization (absolute http/https + exactly one trailing slash) should be centralized and reused; use CloudflareAwareComickGateway.NormalizeBaseUri.
       - Canonical cover.jpg ensure flow (override-exists short-circuit, download, optional JPEG conversion, atomic non-overwrite write); use OverrideCoverService.EnsureCoverJpgAsync.
       - Canonical cover already-exists result construction should be centralized to preserve consistent CoverJpgPath/ExistingCoverPath semantics; use OverrideCoverService.CreateAlreadyExistsResult.
