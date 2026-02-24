@@ -1,6 +1,6 @@
-using SuwayomiSourceMerge.Infrastructure.Metadata.Flaresolverr;
-
 namespace SuwayomiSourceMerge.UnitTests.Infrastructure.Metadata;
+
+using SuwayomiSourceMerge.Infrastructure.Metadata.Flaresolverr;
 
 /// <summary>
 /// Verifies expected, edge, and failure behavior for <see cref="FlaresolverrClientOptions"/>.
