@@ -105,10 +105,57 @@ internal sealed partial class OverrideDetailsService
 		}
 		finally
 		{
-			if (File.Exists(temporaryPath))
+			TryDeleteTemporaryFile(temporaryPath);
+		}
+	}
+
+	/// <summary>
+	/// Tries to delete one temporary details.json path using best-effort semantics.
+	/// </summary>
+	/// <param name="temporaryPath">Temporary path to delete.</param>
+	private static void TryDeleteTemporaryFile(string temporaryPath)
+	{
+		TryDeleteTemporaryFile(
+			temporaryPath,
+			static path => File.Exists(path),
+			static path => File.Delete(path));
+	}
+
+	/// <summary>
+	/// Tries to delete one temporary details.json path using provided filesystem delegates.
+	/// </summary>
+	/// <param name="temporaryPath">Temporary path to delete.</param>
+	/// <param name="fileExists">Delegate that determines file existence for one path.</param>
+	/// <param name="deleteFile">Delegate that deletes one path.</param>
+	internal static void TryDeleteTemporaryFile(
+		string temporaryPath,
+		Func<string, bool> fileExists,
+		Action<string> deleteFile)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(temporaryPath);
+		ArgumentNullException.ThrowIfNull(fileExists);
+		ArgumentNullException.ThrowIfNull(deleteFile);
+
+		try
+		{
+			if (!fileExists(temporaryPath))
 			{
-				File.Delete(temporaryPath);
+				return;
 			}
+
+			deleteFile(temporaryPath);
+		}
+		catch (IOException)
+		{
+			// Best-effort cleanup; ignore known filesystem failures.
+		}
+		catch (UnauthorizedAccessException)
+		{
+			// Best-effort cleanup; ignore known filesystem failures.
+		}
+		catch (NotSupportedException)
+		{
+			// Best-effort cleanup; ignore known filesystem failures.
 		}
 	}
 }

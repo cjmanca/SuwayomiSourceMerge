@@ -262,7 +262,7 @@ internal sealed class ComickMuComicCategoryVote
 	/// Gets or sets positive vote count.
 	/// </summary>
 	[JsonPropertyName("positive_vote")]
-	public int PositiveVote
+	public int? PositiveVote
 	{
 		get;
 		init;
@@ -272,7 +272,7 @@ internal sealed class ComickMuComicCategoryVote
 	/// Gets or sets negative vote count.
 	/// </summary>
 	[JsonPropertyName("negative_vote")]
-	public int NegativeVote
+	public int? NegativeVote
 	{
 		get;
 		init;

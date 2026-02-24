@@ -65,6 +65,106 @@ public sealed class OverrideDetailsServiceApiFirstHardeningTests
 	}
 
 	/// <summary>
+	/// Verifies MU category entries with missing vote fields are skipped while valid vote entries still map.
+	/// </summary>
+	[Fact]
+	public void EnsureDetailsJson_Edge_ShouldSkipMuCategoryEntries_WhenVotesAreMissing()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string preferredOverrideDirectoryPath = CreateDirectory(temporaryDirectory.Path, "override", "priority", "Manga Title");
+
+		OverrideDetailsRequest request = CreateRequest(
+			preferredOverrideDirectoryPath,
+			[preferredOverrideDirectoryPath],
+			orderedSourceDirectoryPaths: [],
+			matchedComickComic: CreateComickPayload(
+				description: "Description",
+				status: 1,
+				authors: [new ComickCreator { Name = "Author Name" }],
+				artists: [new ComickCreator { Name = "Artist Name" }],
+				genreMappings: [],
+				muCategoryVotes:
+				[
+					new ComickMuComicCategoryVote
+					{
+						Category = new ComickMuCategoryDescriptor
+						{
+							Title = "Missing Positive Vote"
+						},
+						PositiveVote = null,
+						NegativeVote = 1
+					},
+					new ComickMuComicCategoryVote
+					{
+						Category = new ComickMuCategoryDescriptor
+						{
+							Title = "Pirate/s"
+						},
+						PositiveVote = 8,
+						NegativeVote = 1
+					}
+				]));
+		OverrideDetailsService service = new();
+
+		OverrideDetailsResult result = service.EnsureDetailsJson(request);
+		using JsonDocument document = ParseJsonFile(Path.Combine(preferredOverrideDirectoryPath, "details.json"));
+
+		Assert.Equal(OverrideDetailsOutcome.GeneratedFromComick, result.Outcome);
+		Assert.Equal(
+			["Pirate/s"],
+			document.RootElement.GetProperty("genre").EnumerateArray().Select(static value => value.GetString() ?? string.Empty).ToArray());
+	}
+
+	/// <summary>
+	/// Verifies all invalid MU category vote rows are tolerated deterministically without throwing.
+	/// </summary>
+	[Fact]
+	public void EnsureDetailsJson_Failure_ShouldRemainDeterministic_WhenAllMuVotesAreInvalid()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string preferredOverrideDirectoryPath = CreateDirectory(temporaryDirectory.Path, "override", "priority", "Manga Title");
+
+		OverrideDetailsRequest request = CreateRequest(
+			preferredOverrideDirectoryPath,
+			[preferredOverrideDirectoryPath],
+			orderedSourceDirectoryPaths: [],
+			matchedComickComic: CreateComickPayload(
+				description: "Description",
+				status: 1,
+				authors: [new ComickCreator { Name = "Author Name" }],
+				artists: [new ComickCreator { Name = "Artist Name" }],
+				genreMappings: [],
+				muCategoryVotes:
+				[
+					new ComickMuComicCategoryVote
+					{
+						Category = new ComickMuCategoryDescriptor
+						{
+							Title = "Missing Positive Vote"
+						},
+						PositiveVote = null,
+						NegativeVote = 1
+					},
+					new ComickMuComicCategoryVote
+					{
+						Category = new ComickMuCategoryDescriptor
+						{
+							Title = "Missing Negative Vote"
+						},
+						PositiveVote = 3,
+						NegativeVote = null
+					}
+				]));
+		OverrideDetailsService service = new();
+
+		OverrideDetailsResult result = service.EnsureDetailsJson(request);
+		using JsonDocument document = ParseJsonFile(Path.Combine(preferredOverrideDirectoryPath, "details.json"));
+
+		Assert.Equal(OverrideDetailsOutcome.GeneratedFromComick, result.Outcome);
+		Assert.Empty(document.RootElement.GetProperty("genre").EnumerateArray().ToArray());
+	}
+
+	/// <summary>
 	/// Verifies fallback parsing is skipped entirely when Comick fields are complete.
 	/// </summary>
 	[Fact]

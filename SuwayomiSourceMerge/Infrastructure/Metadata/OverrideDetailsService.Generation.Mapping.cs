@@ -195,7 +195,12 @@ internal sealed partial class OverrideDetailsService
 				continue;
 			}
 
-			if (voteEntry.PositiveVote <= voteEntry.NegativeVote)
+			if (!voteEntry.PositiveVote.HasValue || !voteEntry.NegativeVote.HasValue)
+			{
+				continue;
+			}
+
+			if (voteEntry.PositiveVote.Value <= voteEntry.NegativeVote.Value)
 			{
 				continue;
 			}

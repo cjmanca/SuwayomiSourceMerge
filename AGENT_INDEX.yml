@@ -871,6 +871,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.ApiFirstHardeningTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.ApiFirstTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.Generation.WriteTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsServiceTests.cs
     entrypoints:
       - symbol: CloudflareAwareComickGateway
@@ -963,6 +964,7 @@ modules:
       - Canonical details.json ensure flow (override check, source seed, Comick-first field mapping with per-field ComicInfo fallback, race-safe atomic write); use OverrideDetailsService.EnsureDetailsJson.
       - Canonical details.json existence flag semantics returned to callers; use OverrideDetailsResult.DetailsJsonExists.
       - Canonical details.json non-overwrite write failure mapping for IOException/UnauthorizedAccessException/NotSupportedException should be centralized; use OverrideDetailsService.TryWriteDetailsJsonNonOverwriting.
+      - Canonical details temp-file cleanup should be best-effort and swallow known filesystem exceptions only; use OverrideDetailsService.TryDeleteTemporaryFile.
       - Canonical details.json request validation and description-mode normalization; use OverrideDetailsRequest.
       - Canonical details.json title-bullet append format (`Titles:` header + `- [lang] title`) and mode conversion (`text`/`br`/`html`); use OverrideDetailsService.EnsureDetailsJson.
       - Canonical direct Comick API outcome classification and typed payload parsing; use ComickDirectApiClient.
@@ -978,7 +980,7 @@ modules:
       - Canonical runtime contract for cover.jpg ensure operations; use IOverrideCoverService.
       - Canonical runtime contract for details.json ensure operations; use IOverrideDetailsService.
       - Canonical shared Comick endpoint request URI composition; use ComickEndpointUriBuilder.
-      - Canonical shared Comick payload parsing and required-field validation; use ComickPayloadParser.
+      - Canonical shared Comick payload parsing and required-field validation (including tolerant nullable MU category votes) should be centralized; use ComickPayloadParser and ComickSharedModels.
     related: [runtime-host, unit-test-suite]
   - id: infrastructure-mounts
     summary: Mount snapshots, reconciliation, command apply, and branch-link staging used by production merge runtime.
@@ -1640,6 +1642,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.ApiFirstHardeningTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.ApiFirstTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.Generation.WriteTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/BranchLinkStagingServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.MountPointCreation.cs
