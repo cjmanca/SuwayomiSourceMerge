@@ -46,7 +46,9 @@ Startup mount safeguards:
 Planned implementation scope for the next feature iteration:
 
 - Enrich per-title metadata during merge passes by generating missing `cover.jpg` and missing `details.json` without overwriting existing artifacts.
-- Use Comick API data (`https://api.comick.dev/`) as the primary metadata source for `details.json`, then fallback to ComicInfo/source-derived behavior for missing fields.
+- Use Comick API data (`https://api.comick.dev/`) as the primary metadata source for `details.json`, then fallback to ComicInfo/source-derived behavior for missing fields. Information for every field in `details.json` should be able to be found in the comick API.
+	- When populating `genre`, use both `md_comic_md_genres` (first) and `mu_comic_categories` (second). Both should be placed in the `details.json` `genre` array, but ordered so `md_comic_md_genres` is before `mu_comic_categories`.
+	- Only include each `mu_comic_categories` entry if it has more positive than negative votes.
 - Append a language-coded bullet-list block of the main title and alternate titles to the end of `details.json` description.
 - Update `manga_equivalents.yml` from Comick alternate titles:
   - append only missing aliases when an equivalent group already exists;
@@ -66,6 +68,8 @@ Planned runtime settings for this feature:
 Planned Comick/Flaresolverr routing behavior:
 
 - API routing is direct-first for Comick (`/v1.0/search/`, `/comic/{slug}/`).
+- Check each search result via `/comic/{slug}/`, using the `md_titles` (normalized) it returns to check against entries in `manga_equivalents.yml` (or normalized title if no matching entry in `manga_equivalents.yml`).
+- The first search result is often the correct one, so try that first. If that doesn't match, sort the remaining search results by most likely to least likely to reduce API hits on retrieving the full comic info. Short circuit out once a valid matching entry is found.
 - If direct access is Cloudflare-blocked and FlareSolverr is configured, switch to sticky FlareSolverr mode.
 - After `runtime.flaresolverr_direct_retry_minutes`, retry direct mode; if Cloudflare still blocks, return to sticky FlareSolverr mode.
 - If FlareSolverr is not configured, Cloudflare-blocked requests fall back to existing ComicInfo/source-only metadata paths.
