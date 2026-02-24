@@ -1,6 +1,8 @@
 namespace SuwayomiSourceMerge.UnitTests.Infrastructure.Metadata;
 
+using System.IO;
 using System.Net;
+using System.Net.Http;
 using SuwayomiSourceMerge.Infrastructure.Metadata;
 using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 
@@ -127,6 +129,74 @@ public sealed partial class OverrideCoverServiceTests
 	}
 
 	/// <summary>
+	/// Verifies oversized payloads are rejected deterministically before full content materialization.
+	/// </summary>
+	[Fact]
+	public async Task EnsureCoverJpgAsync_Failure_ShouldReturnDownloadFailed_WhenContentLengthExceedsMaximumSize()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string preferredOverrideDirectoryPath = CreateDirectory(temporaryDirectory.Path, "override", "priority", "Manga Title");
+		const long oversizedBytes = (32L * 1024L * 1024L) + 1L;
+
+		RecordingHttpMessageHandler handler = new(
+			_ => new HttpResponseMessage(HttpStatusCode.OK)
+			{
+				Content = new OversizedContentLengthHttpContent(oversizedBytes, "image/jpeg")
+			});
+		using HttpClient httpClient = new(handler);
+		using OverrideCoverService service = new(httpClient, coverBaseUri: null);
+
+		OverrideCoverResult result = await service.EnsureCoverJpgAsync(
+			new OverrideCoverRequest(
+				preferredOverrideDirectoryPath,
+				[preferredOverrideDirectoryPath],
+				"covers/sample.jpg"));
+
+		Assert.Equal(OverrideCoverOutcome.DownloadFailed, result.Outcome);
+		Assert.False(result.CoverJpgExists);
+		Assert.NotNull(result.Diagnostic);
+		Assert.Contains("maximum size", result.Diagnostic, StringComparison.Ordinal);
+		Assert.False(File.Exists(Path.Combine(preferredOverrideDirectoryPath, "cover.jpg")));
+	}
+
+	/// <summary>
+	/// Verifies payloads matching JPEG magic bytes but failing decode validation map to unsupported-image outcomes.
+	/// </summary>
+	[Fact]
+	public async Task EnsureCoverJpgAsync_Failure_ShouldReturnUnsupportedImage_WhenJpegSignaturePayloadFailsDecodeValidation()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string preferredOverrideDirectoryPath = CreateDirectory(temporaryDirectory.Path, "override", "priority", "Manga Title");
+		byte[] invalidJpegSignaturePayload =
+		[
+			0xFF,
+			0xD8,
+			0xFF,
+			0x00,
+			0x10,
+			0x20,
+			0x30,
+		];
+
+		RecordingHttpMessageHandler handler = new(
+			_ => CreateResponse(HttpStatusCode.OK, invalidJpegSignaturePayload, "image/jpeg"));
+		using HttpClient httpClient = new(handler);
+		using OverrideCoverService service = new(httpClient, coverBaseUri: null);
+
+		OverrideCoverResult result = await service.EnsureCoverJpgAsync(
+			new OverrideCoverRequest(
+				preferredOverrideDirectoryPath,
+				[preferredOverrideDirectoryPath],
+				"covers/sample.jpg"));
+
+		Assert.Equal(OverrideCoverOutcome.UnsupportedImage, result.Outcome);
+		Assert.False(result.CoverJpgExists);
+		Assert.NotNull(result.Diagnostic);
+		Assert.Contains("JPEG validation failure", result.Diagnostic, StringComparison.Ordinal);
+		Assert.False(File.Exists(Path.Combine(preferredOverrideDirectoryPath, "cover.jpg")));
+	}
+
+	/// <summary>
 	/// File-operation shim that allows injecting write-stage faults while using physical filesystem behavior otherwise.
 	/// </summary>
 	private sealed class FaultInjectingCoverFileOperations : IOverrideCoverFileOperations
@@ -199,6 +269,51 @@ public sealed partial class OverrideCoverServiceTests
 		public void DeleteFile(string path)
 		{
 			_inner.DeleteFile(path);
+		}
+	}
+
+	/// <summary>
+	/// HTTP content shim that reports an oversized content length and throws if stream reads are attempted.
+	/// </summary>
+	private sealed class OversizedContentLengthHttpContent : HttpContent
+	{
+		/// <summary>
+		/// Backing content-length value.
+		/// </summary>
+		private readonly long _contentLength;
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="OversizedContentLengthHttpContent"/> class.
+		/// </summary>
+		/// <param name="contentLength">Content length value to report.</param>
+		/// <param name="mediaType">Media type header value.</param>
+		public OversizedContentLengthHttpContent(long contentLength, string mediaType)
+		{
+			ArgumentOutOfRangeException.ThrowIfNegativeOrZero(contentLength);
+			ArgumentException.ThrowIfNullOrWhiteSpace(mediaType);
+
+			_contentLength = contentLength;
+			Headers.ContentLength = contentLength;
+			Headers.ContentType = new(mediaType);
+		}
+
+		/// <inheritdoc />
+		protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+		{
+			throw new InvalidOperationException("Oversized-content fixture should not be serialized.");
+		}
+
+		/// <inheritdoc />
+		protected override bool TryComputeLength(out long length)
+		{
+			length = _contentLength;
+			return true;
+		}
+
+		/// <inheritdoc />
+		protected override Task<Stream> CreateContentReadStreamAsync()
+		{
+			throw new InvalidOperationException("Oversized-content fixture should not be read as a stream.");
 		}
 	}
 }

@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.IO;
 using System.Net.Http.Headers;
 
@@ -21,6 +22,16 @@ internal sealed partial class OverrideCoverService : IOverrideCoverService, IDis
 	/// Canonical Comick cover base URI used for relative <c>b2key</c> values.
 	/// </summary>
 	private const string DefaultComickCoverBaseUri = "https://meo.comick.pictures/";
+
+	/// <summary>
+	/// Maximum supported cover-download size in bytes (32 MiB).
+	/// </summary>
+	private const long MaxCoverDownloadBytes = 32L * 1024L * 1024L;
+
+	/// <summary>
+	/// Buffered stream-read chunk size used for bounded cover downloads.
+	/// </summary>
+	private const int DownloadBufferSizeBytes = 81920;
 
 	/// <summary>
 	/// Default request timeout used for internally-owned HTTP clients.
@@ -182,6 +193,23 @@ internal sealed partial class OverrideCoverService : IOverrideCoverService, IDis
 		byte[] outputBytes;
 		if (IsJpegPayload(payloadBytes))
 		{
+			(bool jpegValidationSuccess, string jpegValidationDiagnostic) = TryValidateJpegPayload(payloadBytes);
+			if (!jpegValidationSuccess)
+			{
+				if (File.Exists(preferredCoverPath))
+				{
+					return CreateAlreadyExistsResult(preferredCoverPath, coverUri);
+				}
+
+				return new OverrideCoverResult(
+					OverrideCoverOutcome.UnsupportedImage,
+					preferredCoverPath,
+					coverJpgExists: false,
+					existingCoverPath: null,
+					coverUri,
+					jpegValidationDiagnostic);
+			}
+
 			successOutcome = OverrideCoverOutcome.WrittenDownloadedJpeg;
 			outputBytes = payloadBytes;
 		}
@@ -323,7 +351,43 @@ internal sealed partial class OverrideCoverService : IOverrideCoverService, IDis
 				return (false, null, $"Cover download HTTP failure status code: {(int)response.StatusCode}.");
 			}
 
-			byte[] payloadBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+			long? contentLength = response.Content.Headers.ContentLength;
+			if (contentLength.HasValue && contentLength.Value > MaxCoverDownloadBytes)
+			{
+				return (false, null, $"Cover download exceeded maximum size of {MaxCoverDownloadBytes} bytes.");
+			}
+
+			await using Stream payloadStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+			using MemoryStream payloadBuffer = new();
+			byte[] chunkBuffer = ArrayPool<byte>.Shared.Rent(DownloadBufferSizeBytes);
+			long totalBytesRead = 0;
+			try
+			{
+				while (true)
+				{
+					int bytesRead = await payloadStream
+						.ReadAsync(chunkBuffer.AsMemory(0, chunkBuffer.Length), cancellationToken)
+						.ConfigureAwait(false);
+					if (bytesRead == 0)
+					{
+						break;
+					}
+
+					totalBytesRead += bytesRead;
+					if (totalBytesRead > MaxCoverDownloadBytes)
+					{
+						return (false, null, $"Cover download exceeded maximum size of {MaxCoverDownloadBytes} bytes.");
+					}
+
+					payloadBuffer.Write(chunkBuffer, 0, bytesRead);
+				}
+			}
+			finally
+			{
+				ArrayPool<byte>.Shared.Return(chunkBuffer);
+			}
+
+			byte[] payloadBytes = payloadBuffer.ToArray();
 			if (payloadBytes.Length == 0)
 			{
 				return (false, null, "Cover download returned empty content.");
@@ -361,6 +425,27 @@ internal sealed partial class OverrideCoverService : IOverrideCoverService, IDis
 			payloadBytes[0] == 0xFF &&
 			payloadBytes[1] == 0xD8 &&
 			payloadBytes[2] == 0xFF;
+	}
+
+	/// <summary>
+	/// Attempts to validate one payload advertised as JPEG by decoding it.
+	/// </summary>
+	/// <param name="payloadBytes">JPEG-signature payload bytes.</param>
+	/// <returns>Validation outcome tuple.</returns>
+	private static (bool Success, string Diagnostic) TryValidateJpegPayload(byte[] payloadBytes)
+	{
+		ArgumentNullException.ThrowIfNull(payloadBytes);
+
+		try
+		{
+			using Image image = Image.Load(payloadBytes);
+			return (true, "Success.");
+		}
+		catch (Exception exception)
+		{
+			// Intentional broad catch: decode-validation faults must map to deterministic UnsupportedImage outcomes.
+			return (false, $"Cover JPEG validation failure: {exception.Message}");
+		}
 	}
 
 	/// <summary>
