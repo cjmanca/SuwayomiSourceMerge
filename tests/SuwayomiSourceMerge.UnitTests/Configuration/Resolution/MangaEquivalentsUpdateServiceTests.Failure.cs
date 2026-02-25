@@ -1,6 +1,7 @@
 namespace SuwayomiSourceMerge.UnitTests.Configuration.Resolution;
 
 using SuwayomiSourceMerge.Configuration.Resolution;
+using SuwayomiSourceMerge.Domain.Normalization;
 using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 
 /// <summary>
@@ -146,5 +147,16 @@ public sealed partial class MangaEquivalentsUpdateServiceTests
 		Assert.Equal(MangaEquivalentsUpdateOutcome.WriteFailed, result.Outcome);
 		Assert.Equal("Injected persistence failure.", result.Diagnostic);
 		Assert.Equal(beforeContent, afterContent);
+	}
+
+	/// <summary>
+	/// Verifies startup scene-tag override constructor guards against null matcher values.
+	/// </summary>
+	[Fact]
+	public void Constructor_Failure_ShouldThrowWhenSceneTagMatcherOverrideIsNull()
+	{
+		ArgumentNullException exception = Assert.Throws<ArgumentNullException>(
+			() => new MangaEquivalentsUpdateService((ISceneTagMatcher)null!));
+		Assert.Equal("sceneTagMatcherOverride", exception.ParamName);
 	}
 }

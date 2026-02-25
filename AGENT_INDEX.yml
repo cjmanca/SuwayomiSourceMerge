@@ -526,6 +526,7 @@ modules:
       - SuwayomiSourceMerge/Configuration/Resolution/OverrideTitleCatalogEntry.cs
       - SuwayomiSourceMerge/Configuration/Resolution/SourcePriorityService.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalenceServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalenceCatalogTests.ReloadRecoveryAndFatal.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalenceCatalogTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalentsUpdateServiceTests.ExpectedAndEdge.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalentsUpdateServiceTests.Failure.cs
@@ -585,7 +586,7 @@ modules:
         symbols: [IMangaEquivalenceService, IOverrideCanonicalResolver, ISourcePriorityService]
         paths: [SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceService.cs, SuwayomiSourceMerge/Configuration/Resolution/IOverrideCanonicalResolver.cs, SuwayomiSourceMerge/Configuration/Resolution/ISourcePriorityService.cs]
     do_not_reimplement:
-      - Canonical mutable runtime equivalence-catalog update flow (persist-first, reload-from-disk rebuild, atomic swap, reload-failure rollback, updater-exception mapping to UpdateFailed/UnhandledException); use MangaEquivalenceCatalog.
+      - Canonical mutable runtime equivalence-catalog update flow (persist-first, reload-from-disk rebuild, atomic swap, pending-reload self-heal on later no-change updates, reload-failure rollback, updater-exception mapping to UpdateFailed/UnhandledException, and fatal exception rethrow); use MangaEquivalenceCatalog.
       - Canonical manga equivalence canonical/alias lookup construction and conflict checks; use MangaEquivalenceService.
       - Canonical manga-equivalents update flow (preferred-language canonical selection from raw alternates with non-empty normalized keys before mutation dedupe, scene-tag-aware validation, write-stage mapping through IMangaEquivalentsAtomicPersistence with atomic replace persistence, and optional startup scene-tag matcher override for runtime-pinned behavior); use MangaEquivalentsUpdateService and FileSystemMangaEquivalentsAtomicPersistence.
       - Canonical override-title normalized lookup with deterministic untagged-over-tagged canonical arbitration; use OverrideCanonicalResolver.

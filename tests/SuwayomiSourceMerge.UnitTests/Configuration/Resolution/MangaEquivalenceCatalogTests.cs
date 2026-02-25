@@ -9,7 +9,7 @@ using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 /// <summary>
 /// Verifies mutable runtime manga-equivalence catalog behavior.
 /// </summary>
-public sealed class MangaEquivalenceCatalogTests
+public sealed partial class MangaEquivalenceCatalogTests
 {
 	/// <summary>
 	/// Verifies successful persistence refreshes resolver behavior immediately in-process.

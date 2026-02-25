@@ -43,6 +43,11 @@ internal sealed class MangaEquivalenceCatalog : IMangaEquivalenceCatalog
 	private IMangaEquivalenceService _currentSnapshot;
 
 	/// <summary>
+	/// Persisted manga-equivalents path pending runtime snapshot reload after a previous reload failure.
+	/// </summary>
+	private string? _pendingReloadMangaEquivalentsYamlPath;
+
+	/// <summary>
 	/// Initializes a new instance of the <see cref="MangaEquivalenceCatalog"/> class.
 	/// </summary>
 	/// <param name="document">Initial manga-equivalents document loaded during startup.</param>
@@ -50,8 +55,8 @@ internal sealed class MangaEquivalenceCatalog : IMangaEquivalenceCatalog
 	public MangaEquivalenceCatalog(MangaEquivalentsDocument document, ISceneTagMatcher sceneTagMatcher)
 		: this(
 			document,
-			sceneTagMatcher,
-			new MangaEquivalentsUpdateService(sceneTagMatcher),
+			ThrowIfNullSceneTagMatcher(sceneTagMatcher),
+			CreateUpdateServiceWithPinnedSceneTagMatcher(sceneTagMatcher),
 			new YamlDocumentParser())
 	{
 	}
@@ -106,7 +111,7 @@ internal sealed class MangaEquivalenceCatalog : IMangaEquivalenceCatalog
 			{
 				updateResult = _mangaEquivalentsUpdateService.Update(request);
 			}
-			catch (Exception exception)
+			catch (Exception exception) when (!IsFatalException(exception))
 			{
 				updateResult = new MangaEquivalentsUpdateResult(
 					MangaEquivalentsUpdateOutcome.UnhandledException,
@@ -122,6 +127,23 @@ internal sealed class MangaEquivalenceCatalog : IMangaEquivalenceCatalog
 
 			if (updateResult.Outcome == MangaEquivalentsUpdateOutcome.NoChanges)
 			{
+				if (!string.IsNullOrWhiteSpace(_pendingReloadMangaEquivalentsYamlPath))
+				{
+					if (!TryBuildReloadedSnapshot(
+						_pendingReloadMangaEquivalentsYamlPath,
+						out IMangaEquivalenceService pendingReloadedSnapshot,
+						out string pendingReloadDiagnostic))
+					{
+						return new MangaEquivalenceCatalogUpdateResult(
+							MangaEquivalenceCatalogUpdateOutcome.ReloadFailed,
+							updateResult,
+							pendingReloadDiagnostic);
+					}
+
+					Volatile.Write(ref _currentSnapshot, pendingReloadedSnapshot);
+					_pendingReloadMangaEquivalentsYamlPath = null;
+				}
+
 				return new MangaEquivalenceCatalogUpdateResult(
 					MangaEquivalenceCatalogUpdateOutcome.NoChanges,
 					updateResult,
@@ -141,6 +163,7 @@ internal sealed class MangaEquivalenceCatalog : IMangaEquivalenceCatalog
 				out IMangaEquivalenceService reloadedSnapshot,
 				out string reloadDiagnostic))
 			{
+				_pendingReloadMangaEquivalentsYamlPath = updateResult.MangaEquivalentsYamlPath;
 				return new MangaEquivalenceCatalogUpdateResult(
 					MangaEquivalenceCatalogUpdateOutcome.ReloadFailed,
 					updateResult,
@@ -148,6 +171,7 @@ internal sealed class MangaEquivalenceCatalog : IMangaEquivalenceCatalog
 			}
 
 			Volatile.Write(ref _currentSnapshot, reloadedSnapshot);
+			_pendingReloadMangaEquivalentsYamlPath = null;
 			return new MangaEquivalenceCatalogUpdateResult(
 				MangaEquivalenceCatalogUpdateOutcome.Applied,
 				updateResult,
@@ -164,6 +188,29 @@ internal sealed class MangaEquivalenceCatalog : IMangaEquivalenceCatalog
 	{
 		return outcome == MangaEquivalentsUpdateOutcome.UpdatedExistingGroup
 			|| outcome == MangaEquivalentsUpdateOutcome.CreatedNewGroup;
+	}
+
+	/// <summary>
+	/// Creates an updater pinned to one startup scene-tag matcher.
+	/// </summary>
+	/// <param name="sceneTagMatcher">Startup scene-tag matcher.</param>
+	/// <returns>Updater instance pinned to the provided matcher.</returns>
+	private static IMangaEquivalentsUpdateService CreateUpdateServiceWithPinnedSceneTagMatcher(
+		ISceneTagMatcher sceneTagMatcher)
+	{
+		ArgumentNullException.ThrowIfNull(sceneTagMatcher);
+		return new MangaEquivalentsUpdateService(sceneTagMatcher);
+	}
+
+	/// <summary>
+	/// Validates required startup scene-tag matcher dependencies.
+	/// </summary>
+	/// <param name="sceneTagMatcher">Scene-tag matcher dependency.</param>
+	/// <returns>Validated scene-tag matcher dependency.</returns>
+	private static ISceneTagMatcher ThrowIfNullSceneTagMatcher(ISceneTagMatcher sceneTagMatcher)
+	{
+		ArgumentNullException.ThrowIfNull(sceneTagMatcher);
+		return sceneTagMatcher;
 	}
 
 	/// <summary>
@@ -211,11 +258,24 @@ internal sealed class MangaEquivalenceCatalog : IMangaEquivalenceCatalog
 			diagnostic = string.Empty;
 			return true;
 		}
-		catch (Exception exception)
+		catch (Exception exception) when (!IsFatalException(exception))
 		{
 			diagnostic = ResolutionExceptionDiagnosticFormatter.Format(exception);
 			return false;
 		}
+	}
+
+	/// <summary>
+	/// Determines whether an exception should be treated as fatal and rethrown.
+	/// </summary>
+	/// <param name="exception">Exception to inspect.</param>
+	/// <returns><see langword="true"/> when exception is fatal; otherwise <see langword="false"/>.</returns>
+	private static bool IsFatalException(Exception exception)
+	{
+		ArgumentNullException.ThrowIfNull(exception);
+		return exception is OutOfMemoryException
+			|| exception is StackOverflowException
+			|| exception is AccessViolationException;
 	}
 
 	/// <summary>

@@ -55,7 +55,7 @@ internal sealed partial class MangaEquivalentsUpdateService : IMangaEquivalentsU
 		: this(
 			new YamlDocumentParser(),
 			new FileSystemMangaEquivalentsAtomicPersistence(new Configuration.Bootstrap.YamlDocumentWriter()),
-			sceneTagMatcherOverride)
+			ThrowIfNullSceneTagMatcherOverride(sceneTagMatcherOverride))
 	{
 	}
 
@@ -246,5 +246,16 @@ internal sealed partial class MangaEquivalentsUpdateService : IMangaEquivalentsU
 		sceneTagMatcher = new SceneTagMatcher(parsedSceneTags.Document.Tags ?? []);
 		failureResult = null;
 		return true;
+	}
+
+	/// <summary>
+	/// Validates required startup scene-tag matcher overrides and returns the validated value.
+	/// </summary>
+	/// <param name="sceneTagMatcherOverride">Startup scene-tag matcher override.</param>
+	/// <returns>Validated startup scene-tag matcher override.</returns>
+	private static ISceneTagMatcher ThrowIfNullSceneTagMatcherOverride(ISceneTagMatcher sceneTagMatcherOverride)
+	{
+		ArgumentNullException.ThrowIfNull(sceneTagMatcherOverride);
+		return sceneTagMatcherOverride;
 	}
 }
