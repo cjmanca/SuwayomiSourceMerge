@@ -501,10 +501,14 @@ modules:
     summary: YAML-backed canonical title, source-priority, and override-title resolution services with shared cached normalized lookups.
     tags: [config, priority, resolution, titles]
     paths:
+      - SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceCatalog.cs
       - SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceService.cs
       - SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalentsAtomicPersistence.cs
       - SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalentsUpdateService.cs
       - SuwayomiSourceMerge/Configuration/Resolution/FileSystemMangaEquivalentsAtomicPersistence.cs
+      - SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceCatalog.cs
+      - SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceCatalogUpdateOutcome.cs
+      - SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceCatalogUpdateResult.cs
       - SuwayomiSourceMerge/Configuration/Resolution/ResolutionExceptionDiagnosticFormatter.cs
       - SuwayomiSourceMerge/Configuration/Resolution/IOverrideCanonicalResolver.cs
       - SuwayomiSourceMerge/Configuration/Resolution/ISourcePriorityService.cs
@@ -522,16 +526,25 @@ modules:
       - SuwayomiSourceMerge/Configuration/Resolution/OverrideTitleCatalogEntry.cs
       - SuwayomiSourceMerge/Configuration/Resolution/SourcePriorityService.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalenceServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalenceCatalogTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalentsUpdateServiceTests.ExpectedAndEdge.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalentsUpdateServiceTests.Failure.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalentsUpdateServiceTests.Helpers.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/OverrideCanonicalResolverTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/SourcePriorityServiceTests.cs
     entrypoints:
+      - symbol: IMangaEquivalenceCatalog
+        kind: interface
+        path: SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceCatalog.cs
+        purpose: Defines mutable runtime equivalence-catalog behavior with deterministic in-process update/refresh semantics.
       - symbol: IMangaEquivalenceService
         kind: interface
         path: SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceService.cs
         purpose: Defines canonical title resolution operations over YAML equivalence mappings.
+      - symbol: MangaEquivalenceCatalog
+        kind: class
+        path: SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceCatalog.cs
+        purpose: Maintains runtime resolver snapshots and atomically swaps after persisted updater success plus reload/rebuild validation.
       - symbol: IOverrideCanonicalResolver
         kind: interface
         path: SuwayomiSourceMerge/Configuration/Resolution/IOverrideCanonicalResolver.cs
@@ -554,20 +567,27 @@ modules:
         purpose: Resolves normalized source keys to configured priority indexes with deterministic fallback handling and shared cached normalization.
     extension_points:
       - how: Add additional resolution behavior by extending service interfaces and implementations in the resolution module.
-        symbols: [IMangaEquivalenceService, IOverrideCanonicalResolver, ISourcePriorityService, MangaEquivalenceService, OverrideCanonicalResolver, SourcePriorityService]
-        paths: [SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceService.cs, SuwayomiSourceMerge/Configuration/Resolution/IOverrideCanonicalResolver.cs, SuwayomiSourceMerge/Configuration/Resolution/ISourcePriorityService.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceService.cs, SuwayomiSourceMerge/Configuration/Resolution/OverrideCanonicalResolver.cs, SuwayomiSourceMerge/Configuration/Resolution/SourcePriorityService.cs]
+        symbols: [IMangaEquivalenceCatalog, IMangaEquivalenceService, IOverrideCanonicalResolver, ISourcePriorityService, MangaEquivalenceCatalog, MangaEquivalenceService, OverrideCanonicalResolver, SourcePriorityService]
+        paths: [SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceCatalog.cs, SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceService.cs, SuwayomiSourceMerge/Configuration/Resolution/IOverrideCanonicalResolver.cs, SuwayomiSourceMerge/Configuration/Resolution/ISourcePriorityService.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceCatalog.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceService.cs, SuwayomiSourceMerge/Configuration/Resolution/OverrideCanonicalResolver.cs, SuwayomiSourceMerge/Configuration/Resolution/SourcePriorityService.cs]
       - how: Swap scene-tag-aware normalization behavior by injecting alternate ISceneTagMatcher implementations into title-based resolvers.
-        symbols: [MangaEquivalenceService, OverrideCanonicalResolver, ISceneTagMatcher]
-        paths: [SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceService.cs, SuwayomiSourceMerge/Configuration/Resolution/OverrideCanonicalResolver.cs, SuwayomiSourceMerge/Domain/Normalization/ISceneTagMatcher.cs]
+        symbols: [MangaEquivalenceCatalog, MangaEquivalenceService, OverrideCanonicalResolver, ISceneTagMatcher]
+        paths: [SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceCatalog.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceService.cs, SuwayomiSourceMerge/Configuration/Resolution/OverrideCanonicalResolver.cs, SuwayomiSourceMerge/Domain/Normalization/ISceneTagMatcher.cs]
       - how: Update Comick-driven manga-equivalents persistence behavior by extending IMangaEquivalentsUpdateService request mapping and mutation rules.
         symbols: [IMangaEquivalentsUpdateService, MangaEquivalentsUpdateRequest, MangaEquivalentsUpdateService]
         paths: [SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalentsAtomicPersistence.cs, SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalentsUpdateService.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalentsUpdateRequest.cs, SuwayomiSourceMerge/Configuration/Resolution/FileSystemMangaEquivalentsAtomicPersistence.cs, SuwayomiSourceMerge/Configuration/Resolution/ResolutionExceptionDiagnosticFormatter.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalentsUpdateService.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalentsUpdateService.CanonicalSelection.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalentsUpdateService.TitleProcessing.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalentsUpdateService.ValidationAndPersistence.cs]
+      - how: Pin runtime catalog update scene-tag behavior to startup matcher by wiring MangaEquivalentsUpdateService scene-tag override construction in runtime composition.
+        symbols: [MangaEquivalentsUpdateService, MangaEquivalentsUpdateService.Update, DefaultRuntimeSupervisorRunner]
+        paths: [SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalentsUpdateService.cs, SuwayomiSourceMerge/Application/Hosting/DefaultRuntimeSupervisorRunner.cs]
+      - how: Wire mutable runtime resolver refresh behavior by extending IMangaEquivalenceCatalog update flow and persisted-reload swap logic.
+        symbols: [IMangaEquivalenceCatalog, MangaEquivalenceCatalog, MangaEquivalenceCatalogUpdateResult]
+        paths: [SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceCatalog.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceCatalog.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceCatalogUpdateResult.cs]
       - how: Wire runtime grouping or mount pipelines to these lookup services via interfaces instead of duplicating dictionary-building logic.
         symbols: [IMangaEquivalenceService, IOverrideCanonicalResolver, ISourcePriorityService]
         paths: [SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceService.cs, SuwayomiSourceMerge/Configuration/Resolution/IOverrideCanonicalResolver.cs, SuwayomiSourceMerge/Configuration/Resolution/ISourcePriorityService.cs]
     do_not_reimplement:
+      - Canonical mutable runtime equivalence-catalog update flow (persist-first, reload-from-disk rebuild, atomic swap, reload-failure rollback, updater-exception mapping to UpdateFailed/UnhandledException); use MangaEquivalenceCatalog.
       - Canonical manga equivalence canonical/alias lookup construction and conflict checks; use MangaEquivalenceService.
-      - Canonical manga-equivalents update flow (preferred-language canonical selection from raw alternates with non-empty normalized keys before mutation dedupe, scene-tag-aware validation, and write-stage mapping through IMangaEquivalentsAtomicPersistence with atomic replace persistence); use MangaEquivalentsUpdateService and FileSystemMangaEquivalentsAtomicPersistence.
+      - Canonical manga-equivalents update flow (preferred-language canonical selection from raw alternates with non-empty normalized keys before mutation dedupe, scene-tag-aware validation, write-stage mapping through IMangaEquivalentsAtomicPersistence with atomic replace persistence, and optional startup scene-tag matcher override for runtime-pinned behavior); use MangaEquivalentsUpdateService and FileSystemMangaEquivalentsAtomicPersistence.
       - Canonical override-title normalized lookup with deterministic untagged-over-tagged canonical arbitration; use OverrideCanonicalResolver.
       - Canonical source-priority normalized token matching and fallback behavior; use SourcePriorityService.
     related: [config-schema-validation, domain-normalization, unit-test-suite]

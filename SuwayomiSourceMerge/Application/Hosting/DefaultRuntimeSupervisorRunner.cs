@@ -4,6 +4,7 @@ using SuwayomiSourceMerge.Application.Mounting;
 using SuwayomiSourceMerge.Application.Supervision;
 using SuwayomiSourceMerge.Application.Watching;
 using SuwayomiSourceMerge.Configuration.Bootstrap;
+using SuwayomiSourceMerge.Configuration.Loading;
 using SuwayomiSourceMerge.Configuration.Resolution;
 using SuwayomiSourceMerge.Domain.Normalization;
 using SuwayomiSourceMerge.Infrastructure.Logging;
@@ -68,7 +69,12 @@ internal sealed class DefaultRuntimeSupervisorRunner : IRuntimeSupervisorRunner
 				});
 		}
 
-		IMangaEquivalenceService mangaEquivalenceService = new MangaEquivalenceService(documents.MangaEquivalents, sceneTagMatcher);
+		IMangaEquivalentsUpdateService mangaEquivalentsUpdateService = new MangaEquivalentsUpdateService(sceneTagMatcher);
+		IMangaEquivalenceService mangaEquivalenceService = new MangaEquivalenceCatalog(
+			documents.MangaEquivalents,
+			sceneTagMatcher,
+			mangaEquivalentsUpdateService,
+			new YamlDocumentParser());
 		ISourcePriorityService sourcePriorityService = new SourcePriorityService(documents.SourcePriority);
 		MergeMountWorkflow mergeMountWorkflow = new(
 			mergeOptions,

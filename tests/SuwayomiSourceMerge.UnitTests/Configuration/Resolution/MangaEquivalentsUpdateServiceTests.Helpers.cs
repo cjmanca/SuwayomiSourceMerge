@@ -3,6 +3,7 @@ namespace SuwayomiSourceMerge.UnitTests.Configuration.Resolution;
 using SuwayomiSourceMerge.Configuration.Documents;
 using SuwayomiSourceMerge.Configuration.Loading;
 using SuwayomiSourceMerge.Configuration.Resolution;
+using SuwayomiSourceMerge.Domain.Normalization;
 using SuwayomiSourceMerge.UnitTests.Configuration;
 using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 
@@ -38,6 +39,17 @@ public sealed partial class MangaEquivalentsUpdateServiceTests
 	{
 		ArgumentNullException.ThrowIfNull(atomicPersistence);
 		return new MangaEquivalentsUpdateService(new YamlDocumentParser(), atomicPersistence);
+	}
+
+	/// <summary>
+	/// Creates one update service instance with a startup scene-tag matcher override.
+	/// </summary>
+	/// <param name="sceneTagMatcher">Startup scene-tag matcher override.</param>
+	/// <returns>Update service.</returns>
+	private static MangaEquivalentsUpdateService CreateService(ISceneTagMatcher sceneTagMatcher)
+	{
+		ArgumentNullException.ThrowIfNull(sceneTagMatcher);
+		return new MangaEquivalentsUpdateService(sceneTagMatcher);
 	}
 
 	/// <summary>

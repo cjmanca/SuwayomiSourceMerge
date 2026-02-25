@@ -98,6 +98,30 @@ public sealed partial class MangaEquivalentsUpdateServiceTests
 	}
 
 	/// <summary>
+	/// Verifies default update behavior reads scene_tags.yml from disk and fails when it is missing.
+	/// </summary>
+	[Fact]
+	public void Update_Failure_ShouldReturnReadFailed_WhenSceneTagsFileIsMissingWithoutStartupOverride()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string mangaYamlPath = WriteConfigFiles(
+			temporaryDirectory,
+			CreateSingleGroupYaml("Manga Alpha", "Alias One"));
+		File.Delete(Path.Combine(temporaryDirectory.Path, "scene_tags.yml"));
+		MangaEquivalentsUpdateService service = CreateService();
+
+		MangaEquivalentsUpdateResult result = service.Update(
+			CreateRequest(
+				mangaYamlPath,
+				"Manga Alpha",
+				"en",
+				("Alias Two", null)));
+
+		Assert.Equal(MangaEquivalentsUpdateOutcome.ReadFailed, result.Outcome);
+		Assert.Contains("Failed to read scene tags", result.Diagnostic, StringComparison.Ordinal);
+	}
+
+	/// <summary>
 	/// Verifies write-stage filesystem failures return deterministic write-failure outcomes.
 	/// </summary>
 	[Fact]
