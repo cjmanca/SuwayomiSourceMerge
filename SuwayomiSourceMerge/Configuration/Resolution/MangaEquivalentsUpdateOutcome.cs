@@ -38,5 +38,10 @@ internal enum MangaEquivalentsUpdateOutcome
 	/// <summary>
 	/// Persisting the updated document failed.
 	/// </summary>
-	WriteFailed
+	WriteFailed,
+
+	/// <summary>
+	/// An unexpected exception escaped update processing.
+	/// </summary>
+	UnhandledException
 }

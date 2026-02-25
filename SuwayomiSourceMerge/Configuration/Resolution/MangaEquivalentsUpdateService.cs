@@ -29,12 +29,33 @@ internal sealed partial class MangaEquivalentsUpdateService : IMangaEquivalentsU
 	private readonly IMangaEquivalentsAtomicPersistence _atomicPersistence;
 
 	/// <summary>
+	/// Optional startup scene-tag matcher override used to keep runtime update behavior in-process consistent.
+	/// </summary>
+	private readonly ISceneTagMatcher? _sceneTagMatcherOverride;
+
+	/// <summary>
 	/// Initializes a new instance of the <see cref="MangaEquivalentsUpdateService"/> class.
 	/// </summary>
 	public MangaEquivalentsUpdateService()
 		: this(
 			new YamlDocumentParser(),
-			new FileSystemMangaEquivalentsAtomicPersistence(new Configuration.Bootstrap.YamlDocumentWriter()))
+			new FileSystemMangaEquivalentsAtomicPersistence(new Configuration.Bootstrap.YamlDocumentWriter()),
+			sceneTagMatcherOverride: null)
+	{
+	}
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="MangaEquivalentsUpdateService"/> class.
+	/// </summary>
+	/// <param name="sceneTagMatcherOverride">
+	/// Startup scene-tag matcher override used for runtime update consistency.
+	/// When provided, update processing does not reload <c>scene_tags.yml</c> from disk.
+	/// </param>
+	internal MangaEquivalentsUpdateService(ISceneTagMatcher sceneTagMatcherOverride)
+		: this(
+			new YamlDocumentParser(),
+			new FileSystemMangaEquivalentsAtomicPersistence(new Configuration.Bootstrap.YamlDocumentWriter()),
+			ThrowIfNullSceneTagMatcherOverride(sceneTagMatcherOverride))
 	{
 	}
 
@@ -46,9 +67,30 @@ internal sealed partial class MangaEquivalentsUpdateService : IMangaEquivalentsU
 	internal MangaEquivalentsUpdateService(
 		YamlDocumentParser yamlDocumentParser,
 		IMangaEquivalentsAtomicPersistence atomicPersistence)
+		: this(
+			yamlDocumentParser,
+			atomicPersistence,
+			sceneTagMatcherOverride: null)
+	{
+	}
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="MangaEquivalentsUpdateService"/> class.
+	/// </summary>
+	/// <param name="yamlDocumentParser">YAML parser dependency.</param>
+	/// <param name="atomicPersistence">Atomic persistence dependency.</param>
+	/// <param name="sceneTagMatcherOverride">
+	/// Optional startup scene-tag matcher override.
+	/// When provided, update processing skips disk-based scene-tags reload.
+	/// </param>
+	internal MangaEquivalentsUpdateService(
+		YamlDocumentParser yamlDocumentParser,
+		IMangaEquivalentsAtomicPersistence atomicPersistence,
+		ISceneTagMatcher? sceneTagMatcherOverride)
 	{
 		_yamlDocumentParser = yamlDocumentParser ?? throw new ArgumentNullException(nameof(yamlDocumentParser));
 		_atomicPersistence = atomicPersistence ?? throw new ArgumentNullException(nameof(atomicPersistence));
+		_sceneTagMatcherOverride = sceneTagMatcherOverride;
 	}
 
 	/// <inheritdoc />
@@ -57,32 +99,25 @@ internal sealed partial class MangaEquivalentsUpdateService : IMangaEquivalentsU
 		ArgumentNullException.ThrowIfNull(request);
 
 		string mangaFilePath = request.MangaEquivalentsYamlPath;
-		string configRootPath = Path.GetDirectoryName(mangaFilePath) ?? string.Empty;
-		string sceneTagsFilePath = Path.GetFullPath(Path.Combine(configRootPath, SceneTagsFileName));
 
 		if (!TryReadTextFile(mangaFilePath, out string mangaYamlContent, out string? mangaReadDiagnostic))
 		{
 			return CreateReadFailureResult(mangaFilePath, mangaReadDiagnostic);
 		}
 
-		if (!TryReadTextFile(sceneTagsFilePath, out string sceneTagsYamlContent, out string? sceneTagsReadDiagnostic))
-		{
-			return CreateReadFailureResult(
-				mangaFilePath,
-				$"Failed to read scene tags from '{sceneTagsFilePath}'. {sceneTagsReadDiagnostic}");
-		}
-
 		ParsedDocument<MangaEquivalentsDocument> parsedManga = ParseMangaEquivalents(mangaFilePath, mangaYamlContent);
-		ParsedDocument<SceneTagsDocument> parsedSceneTags = ParseSceneTags(sceneTagsFilePath, sceneTagsYamlContent);
-		if (!parsedManga.Validation.IsValid || parsedManga.Document is null ||
-			!parsedSceneTags.Validation.IsValid || parsedSceneTags.Document is null)
+		if (!parsedManga.Validation.IsValid || parsedManga.Document is null)
 		{
 			return CreateValidationFailureResult(
 				mangaFilePath,
-				MergeValidationErrors(parsedManga.Validation.Errors, parsedSceneTags.Validation.Errors));
+				parsedManga.Validation.Errors);
 		}
 
-		SceneTagMatcher sceneTagMatcher = new(parsedSceneTags.Document.Tags ?? []);
+		if (!TryResolveSceneTagMatcherForUpdate(mangaFilePath, out ISceneTagMatcher sceneTagMatcher, out MangaEquivalentsUpdateResult? failureResult))
+		{
+			return failureResult!;
+		}
+
 		ITitleComparisonNormalizer titleComparisonNormalizer = TitleComparisonNormalizerProvider.Get(sceneTagMatcher);
 
 		List<IncomingTitleCandidate> dedupedIncomingTitles = BuildDedupedIncomingTitles(request, titleComparisonNormalizer);
@@ -164,5 +199,63 @@ internal sealed partial class MangaEquivalentsUpdateService : IMangaEquivalentsU
 			affectedGroupIndex,
 			addedAliasCount,
 			diagnostic: null);
+	}
+
+	/// <summary>
+	/// Resolves the scene-tag matcher used for update normalization and validation.
+	/// </summary>
+	/// <param name="mangaFilePath">Manga-equivalents YAML path.</param>
+	/// <param name="sceneTagMatcher">Resolved matcher on success.</param>
+	/// <param name="failureResult">Deterministic failure result on failure.</param>
+	/// <returns><see langword="true"/> when matcher resolution succeeds; otherwise <see langword="false"/>.</returns>
+	private bool TryResolveSceneTagMatcherForUpdate(
+		string mangaFilePath,
+		out ISceneTagMatcher sceneTagMatcher,
+		out MangaEquivalentsUpdateResult? failureResult)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(mangaFilePath);
+
+		if (_sceneTagMatcherOverride is not null)
+		{
+			sceneTagMatcher = _sceneTagMatcherOverride;
+			failureResult = null;
+			return true;
+		}
+
+		string configRootPath = Path.GetDirectoryName(mangaFilePath) ?? string.Empty;
+		string sceneTagsFilePath = Path.GetFullPath(Path.Combine(configRootPath, SceneTagsFileName));
+		if (!TryReadTextFile(sceneTagsFilePath, out string sceneTagsYamlContent, out string? sceneTagsReadDiagnostic))
+		{
+			sceneTagMatcher = null!;
+			failureResult = CreateReadFailureResult(
+				mangaFilePath,
+				$"Failed to read scene tags from '{sceneTagsFilePath}'. {sceneTagsReadDiagnostic}");
+			return false;
+		}
+
+		ParsedDocument<SceneTagsDocument> parsedSceneTags = ParseSceneTags(sceneTagsFilePath, sceneTagsYamlContent);
+		if (!parsedSceneTags.Validation.IsValid || parsedSceneTags.Document is null)
+		{
+			sceneTagMatcher = null!;
+			failureResult = CreateValidationFailureResult(
+				mangaFilePath,
+				parsedSceneTags.Validation.Errors);
+			return false;
+		}
+
+		sceneTagMatcher = new SceneTagMatcher(parsedSceneTags.Document.Tags ?? []);
+		failureResult = null;
+		return true;
+	}
+
+	/// <summary>
+	/// Validates required startup scene-tag matcher overrides and returns the validated value.
+	/// </summary>
+	/// <param name="sceneTagMatcherOverride">Startup scene-tag matcher override.</param>
+	/// <returns>Validated startup scene-tag matcher override.</returns>
+	private static ISceneTagMatcher ThrowIfNullSceneTagMatcherOverride(ISceneTagMatcher sceneTagMatcherOverride)
+	{
+		ArgumentNullException.ThrowIfNull(sceneTagMatcherOverride);
+		return sceneTagMatcherOverride;
 	}
 }

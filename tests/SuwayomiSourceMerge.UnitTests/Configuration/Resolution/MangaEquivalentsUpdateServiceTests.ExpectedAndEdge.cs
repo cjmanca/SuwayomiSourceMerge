@@ -2,6 +2,7 @@ namespace SuwayomiSourceMerge.UnitTests.Configuration.Resolution;
 
 using SuwayomiSourceMerge.Configuration.Documents;
 using SuwayomiSourceMerge.Configuration.Resolution;
+using SuwayomiSourceMerge.Domain.Normalization;
 using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 
 /// <summary>
@@ -318,6 +319,31 @@ public sealed partial class MangaEquivalentsUpdateServiceTests
 		Assert.Equal(MangaEquivalentsUpdateOutcome.NoChanges, result.Outcome);
 		Assert.Equal(0, result.AddedAliasCount);
 		Assert.Equal(beforeContent, afterContent);
+	}
+
+	/// <summary>
+	/// Verifies startup matcher override keeps update behavior deterministic when scene_tags.yml is missing.
+	/// </summary>
+	[Fact]
+	public void Update_Edge_ShouldUseStartupSceneTagMatcherOverride_WhenSceneTagsFileIsMissing()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string mangaYamlPath = WriteConfigFiles(
+			temporaryDirectory,
+			CreateSingleGroupYaml("Manga Alpha", "Alias One"));
+		File.Delete(Path.Combine(temporaryDirectory.Path, "scene_tags.yml"));
+		MangaEquivalentsUpdateService service = CreateService(new SceneTagMatcher(["official"]));
+
+		MangaEquivalentsUpdateResult result = service.Update(
+			CreateRequest(
+				mangaYamlPath,
+				"Manga Alpha",
+				"en",
+				("Alias Two", null)));
+		MangaEquivalentsDocument document = ParseDocument(mangaYamlPath);
+
+		Assert.Equal(MangaEquivalentsUpdateOutcome.UpdatedExistingGroup, result.Outcome);
+		Assert.Equal(["Alias One", "Alias Two"], document.Groups![0].Aliases);
 	}
 
 	/// <summary>
