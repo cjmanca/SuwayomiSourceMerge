@@ -90,6 +90,32 @@ public sealed partial class MangaEquivalentsUpdateServiceTests
 	}
 
 	/// <summary>
+	/// Verifies exact preferred-language canonical selection skips alternates that normalize to empty keys.
+	/// </summary>
+	[Fact]
+	public void Update_Edge_ShouldSkipExactPreferredAlternate_WhenAlternateNormalizesToEmpty()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string mangaYamlPath = WriteConfigFiles(temporaryDirectory, CreateSingleGroupYaml("Other Manga"));
+		MangaEquivalentsUpdateService service = CreateService();
+
+		MangaEquivalentsUpdateResult result = service.Update(
+			CreateRequest(
+				mangaYamlPath,
+				"Main Title",
+				"ja",
+				("!!!", "ja"),
+				("Alt JA", "ja"),
+				("Alt EN", "en")));
+		MangaEquivalentsDocument document = ParseDocument(mangaYamlPath);
+		MangaEquivalentGroup createdGroup = document.Groups![1];
+
+		Assert.Equal(MangaEquivalentsUpdateOutcome.CreatedNewGroup, result.Outcome);
+		Assert.Equal("Alt JA", createdGroup.Canonical);
+		Assert.Equal(["Main Title", "Alt EN"], createdGroup.Aliases);
+	}
+
+	/// <summary>
 	/// Verifies preferred-language canonical selection still uses raw alternate order when normalized dedupe drops the matching alternate.
 	/// </summary>
 	[Fact]
@@ -136,6 +162,32 @@ public sealed partial class MangaEquivalentsUpdateServiceTests
 
 		Assert.Equal(MangaEquivalentsUpdateOutcome.CreatedNewGroup, result.Outcome);
 		Assert.Equal("Alt ZH HK", createdGroup.Canonical);
+		Assert.Equal(["Main Title", "Alt EN"], createdGroup.Aliases);
+	}
+
+	/// <summary>
+	/// Verifies preferred-language prefix canonical selection skips alternates that normalize to empty keys.
+	/// </summary>
+	[Fact]
+	public void Update_Edge_ShouldSkipPreferredPrefixAlternate_WhenAlternateNormalizesToEmpty()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string mangaYamlPath = WriteConfigFiles(temporaryDirectory, CreateSingleGroupYaml("Other Manga"));
+		MangaEquivalentsUpdateService service = CreateService();
+
+		MangaEquivalentsUpdateResult result = service.Update(
+			CreateRequest(
+				mangaYamlPath,
+				"Main Title",
+				"zh-CN",
+				("[Official]", "zh-HK"),
+				("Alt ZH TW", "zh-TW"),
+				("Alt EN", "en")));
+		MangaEquivalentsDocument document = ParseDocument(mangaYamlPath);
+		MangaEquivalentGroup createdGroup = document.Groups![1];
+
+		Assert.Equal(MangaEquivalentsUpdateOutcome.CreatedNewGroup, result.Outcome);
+		Assert.Equal("Alt ZH TW", createdGroup.Canonical);
 		Assert.Equal(["Main Title", "Alt EN"], createdGroup.Aliases);
 	}
 
@@ -187,6 +239,32 @@ public sealed partial class MangaEquivalentsUpdateServiceTests
 		Assert.Equal(MangaEquivalentsUpdateOutcome.CreatedNewGroup, result.Outcome);
 		Assert.Equal("Alt EN", createdGroup.Canonical);
 		Assert.Equal(["Main Title", "Alt DE"], createdGroup.Aliases);
+	}
+
+	/// <summary>
+	/// Verifies English fallback skips alternates that normalize to empty keys and falls back to main title.
+	/// </summary>
+	[Fact]
+	public void Update_Edge_ShouldFallbackToMain_WhenEnglishFallbackAlternateNormalizesToEmpty()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string mangaYamlPath = WriteConfigFiles(temporaryDirectory, CreateSingleGroupYaml("Other Manga"));
+		MangaEquivalentsUpdateService service = CreateService();
+
+		MangaEquivalentsUpdateResult result = service.Update(
+			CreateRequest(
+				mangaYamlPath,
+				"Main Title",
+				"fr",
+				("!!!", "en"),
+				("??", "de")));
+		MangaEquivalentsDocument document = ParseDocument(mangaYamlPath);
+		MangaEquivalentGroup createdGroup = document.Groups![1];
+
+		Assert.Equal(MangaEquivalentsUpdateOutcome.CreatedNewGroup, result.Outcome);
+		Assert.Equal("Main Title", createdGroup.Canonical);
+		Assert.NotNull(createdGroup.Aliases);
+		Assert.Empty(createdGroup.Aliases);
 	}
 
 	/// <summary>

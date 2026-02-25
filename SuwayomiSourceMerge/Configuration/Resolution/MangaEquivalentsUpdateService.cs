@@ -86,7 +86,7 @@ internal sealed partial class MangaEquivalentsUpdateService : IMangaEquivalentsU
 		ITitleComparisonNormalizer titleComparisonNormalizer = TitleComparisonNormalizerProvider.Get(sceneTagMatcher);
 
 		List<IncomingTitleCandidate> dedupedIncomingTitles = BuildDedupedIncomingTitles(request, titleComparisonNormalizer);
-		List<IncomingTitleCandidate> canonicalSelectionAlternates = BuildCanonicalSelectionAlternates(request);
+		List<IncomingTitleCandidate> canonicalSelectionAlternates = BuildCanonicalSelectionAlternates(request, titleComparisonNormalizer);
 		if (dedupedIncomingTitles.Count == 0)
 		{
 			return CreateValidationFailureResult(

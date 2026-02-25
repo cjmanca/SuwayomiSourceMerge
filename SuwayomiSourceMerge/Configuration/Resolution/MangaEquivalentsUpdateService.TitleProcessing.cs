@@ -49,21 +49,32 @@ internal sealed partial class MangaEquivalentsUpdateService
 
 	/// <summary>
 	/// Builds canonical-selection candidates from alternate titles without normalized-key deduplication.
+	/// Alternates that normalize to empty keys are excluded.
 	/// </summary>
 	/// <param name="request">Update request.</param>
+	/// <param name="normalizer">Title normalizer used to exclude non-normalizable alternates.</param>
 	/// <returns>Alternate-title candidates preserving source order.</returns>
-	private static List<IncomingTitleCandidate> BuildCanonicalSelectionAlternates(MangaEquivalentsUpdateRequest request)
+	private static List<IncomingTitleCandidate> BuildCanonicalSelectionAlternates(
+		MangaEquivalentsUpdateRequest request,
+		ITitleComparisonNormalizer normalizer)
 	{
 		ArgumentNullException.ThrowIfNull(request);
+		ArgumentNullException.ThrowIfNull(normalizer);
 
 		List<IncomingTitleCandidate> alternates = [];
 		for (int index = 0; index < request.AlternateTitles.Count; index++)
 		{
 			MangaEquivalentAlternateTitle alternateTitle = request.AlternateTitles[index];
+			string normalizedKey = normalizer.NormalizeTitleKey(alternateTitle.Title);
+			if (string.IsNullOrWhiteSpace(normalizedKey))
+			{
+				continue;
+			}
+
 			alternates.Add(
 				new IncomingTitleCandidate(
 					alternateTitle.Title,
-					NormalizedKey: string.Empty,
+					normalizedKey,
 					NormalizeLanguage(alternateTitle.Language),
 					IsAlternate: true));
 		}

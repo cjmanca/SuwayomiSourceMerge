@@ -53,8 +53,8 @@ Planned implementation scope for the next feature iteration:
 - Update `manga_equivalents.yml` from Comick alternate titles:
   - append only missing aliases when an equivalent group already exists;
   - create a new group when missing, choosing canonical title in this order:
-    - first `md_titles` entry matching `runtime.preferred_language`;
-    - fallback `md_titles` entry matching `en`;
+    - first `md_titles` entry matching `runtime.preferred_language` among alternates with non-empty normalized keys;
+    - fallback `md_titles` entry matching `en` among alternates with non-empty normalized keys;
     - fallback Comick main title.
 - Apply equivalence updates immediately in-process after successful persistence so subsequent passes see the new mappings.
 
@@ -63,7 +63,7 @@ Planned runtime settings for this feature:
 - `runtime.comick_metadata_cooldown_hours` (default `24`): per-title API cooldown window used to reduce repeated Comick requests.
 - `runtime.flaresolverr_server_url` (default empty): optional FlareSolverr base URL used only when Cloudflare blocks direct API calls.
 - `runtime.flaresolverr_direct_retry_minutes` (default `60`): sticky FlareSolverr mode retry interval for probing direct Comick access again.
-- `runtime.preferred_language` (default `en`): preferred language code used for canonical-title selection from Comick alternate title lists. Allow any non-empty string. When matching, try to match exactly, but fall back to the first 2 characters (so `zh-CN` would fallback to just `zh` and match anything starting with that such as `zh`, `zh-TW`, `zh-HK`, etc). If none of that matches, still fall back to `en`, and then normal title if that also fails.
+- `runtime.preferred_language` (default `en`): preferred language code used for canonical-title selection from Comick alternate title lists. Canonical selection considers only alternate titles whose normalized title keys are non-empty. Allow any non-empty string. When matching, try to match exactly, but fall back to the first 2 characters (so `zh-CN` would fallback to just `zh` and match anything starting with that such as `zh`, `zh-TW`, `zh-HK`, etc). If none of that matches, still fall back to `en`, and then normal title if that also fails.
 
 Planned Comick/Flaresolverr routing behavior:
 

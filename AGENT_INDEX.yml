@@ -567,7 +567,7 @@ modules:
         paths: [SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceService.cs, SuwayomiSourceMerge/Configuration/Resolution/IOverrideCanonicalResolver.cs, SuwayomiSourceMerge/Configuration/Resolution/ISourcePriorityService.cs]
     do_not_reimplement:
       - Canonical manga equivalence canonical/alias lookup construction and conflict checks; use MangaEquivalenceService.
-      - Canonical manga-equivalents update flow (preferred-language canonical selection from raw alternates before mutation dedupe, scene-tag-aware validation, and write-stage mapping through IMangaEquivalentsAtomicPersistence with atomic replace persistence); use MangaEquivalentsUpdateService and FileSystemMangaEquivalentsAtomicPersistence.
+      - Canonical manga-equivalents update flow (preferred-language canonical selection from raw alternates with non-empty normalized keys before mutation dedupe, scene-tag-aware validation, and write-stage mapping through IMangaEquivalentsAtomicPersistence with atomic replace persistence); use MangaEquivalentsUpdateService and FileSystemMangaEquivalentsAtomicPersistence.
       - Canonical override-title normalized lookup with deterministic untagged-over-tagged canonical arbitration; use OverrideCanonicalResolver.
       - Canonical source-priority normalized token matching and fallback behavior; use SourcePriorityService.
     related: [config-schema-validation, domain-normalization, unit-test-suite]
