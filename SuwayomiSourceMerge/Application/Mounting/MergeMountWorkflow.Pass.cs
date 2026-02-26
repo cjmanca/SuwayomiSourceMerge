@@ -90,7 +90,11 @@ internal sealed partial class MergeMountWorkflow
 				MergerfsBranchPlan branchPlan = _branchPlanningService.Plan(planningRequest);
 				_branchLinkStagingService.StageBranchLinks(branchPlan);
 				desiredBranchDirectories.Add(branchPlan.BranchDirectoryPath);
-				EnsureDetailsJson(branchPlan);
+				bool hadMetadataServiceInterruption = EnsureTitleMetadata(branchPlan, cancellationToken);
+				if (hadMetadataServiceInterruption)
+				{
+					buildFailure = true;
+				}
 
 				string mountPoint = BuildMountPointPath(group.CanonicalTitle);
 				desiredMounts.Add(new DesiredMountDefinition(

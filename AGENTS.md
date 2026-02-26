@@ -114,8 +114,8 @@ SuwayomiSourceMerge (this project) uses MergerFS to combine all those separate s
 ### 2. Subagent Strategy
 - Use subagents liberally to keep main context window clean
 - Offload research, exploration, and parallel analysis to subagents
-- For complex problems, throw more compute at it via subagents
 - One task per subagent for focused execution
+- use #runSubagent to start a subagent
 
 ### 3. Self-Improvement Loop
 - After ANY correction from the user: update `lessons.md` with the pattern

@@ -9,6 +9,8 @@ using SuwayomiSourceMerge.Configuration.Resolution;
 using SuwayomiSourceMerge.Domain.Normalization;
 using SuwayomiSourceMerge.Infrastructure.Logging;
 using SuwayomiSourceMerge.Infrastructure.Metadata;
+using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
+using SuwayomiSourceMerge.Infrastructure.Metadata.Flaresolverr;
 using SuwayomiSourceMerge.Infrastructure.Mounts;
 using SuwayomiSourceMerge.Infrastructure.Rename;
 using SuwayomiSourceMerge.Infrastructure.Volumes;
@@ -70,12 +72,41 @@ internal sealed class DefaultRuntimeSupervisorRunner : IRuntimeSupervisorRunner
 		}
 
 		IMangaEquivalentsUpdateService mangaEquivalentsUpdateService = new MangaEquivalentsUpdateService(sceneTagMatcher);
-		IMangaEquivalenceService mangaEquivalenceService = new MangaEquivalenceCatalog(
+		IMangaEquivalenceCatalog mangaEquivalenceCatalog = new MangaEquivalenceCatalog(
 			documents.MangaEquivalents,
 			sceneTagMatcher,
 			mangaEquivalentsUpdateService,
 			new YamlDocumentParser());
+		IMangaEquivalenceService mangaEquivalenceService = mangaEquivalenceCatalog;
 		ISourcePriorityService sourcePriorityService = new SourcePriorityService(documents.SourcePriority);
+		ConfigurationPathSet configurationPaths = ConfigurationPathSet.FromRoot(mergeOptions.ConfigRootPath);
+		MetadataStatePaths metadataStatePaths = new(documents.Settings.Paths!.StateRootPath!);
+		IMetadataStateStore metadataStateStore = new FileBackedMetadataStateStore(metadataStatePaths);
+		IComickDirectApiClient comickDirectApiClient = new ComickDirectApiClient();
+		IFlaresolverrClient? flaresolverrClient = mergeOptions.MetadataOrchestration.FlaresolverrServerUri is null
+			? null
+			: new FlaresolverrClient(
+				new FlaresolverrClientOptions(
+					mergeOptions.MetadataOrchestration.FlaresolverrServerUri,
+					requestTimeout: TimeSpan.FromSeconds(60)));
+		IComickApiGateway comickApiGateway = new CloudflareAwareComickGateway(
+			comickDirectApiClient,
+			flaresolverrClient,
+			metadataStateStore,
+			mergeOptions.MetadataOrchestration);
+		IComickCandidateMatcher comickCandidateMatcher = new ComickCandidateMatcher(comickApiGateway, sceneTagMatcher);
+		IOverrideCoverService overrideCoverService = new OverrideCoverService();
+		IOverrideDetailsService overrideDetailsService = new OverrideDetailsService();
+		IComickMetadataCoordinator comickMetadataCoordinator = new ComickMetadataCoordinator(
+			comickApiGateway,
+			comickCandidateMatcher,
+			overrideCoverService,
+			overrideDetailsService,
+			metadataStateStore,
+			mergeOptions.DetailsDescriptionMode,
+			mangaEquivalenceCatalog,
+			configurationPaths.MangaEquivalentsYamlPath,
+			sceneTagMatcher);
 		MergeMountWorkflow mergeMountWorkflow = new(
 			mergeOptions,
 			mangaEquivalenceService,
@@ -86,7 +117,7 @@ internal sealed class DefaultRuntimeSupervisorRunner : IRuntimeSupervisorRunner
 			new MountReconciliationService(),
 			new MergerfsMountCommandService(),
 			new BranchLinkStagingService(),
-			new OverrideDetailsService(),
+			comickMetadataCoordinator,
 			logger);
 
 		IMergeScanRequestCoalescer mergeScanRequestCoalescer = new MergeScanRequestCoalescer(

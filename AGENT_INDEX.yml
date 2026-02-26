@@ -93,7 +93,9 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.DegradedVisibilityAndOverrideTitles.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.FailFastMountFailures.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.MountCommands.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.Services.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.MetadataCoordinator.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.OutcomesAndCancellation.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.WarningDiagnostics.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.cs
@@ -140,7 +142,7 @@ modules:
       - Canonical merged-root residual cleanup should delete empty merged directories and quarantine non-empty residual directories under config only when mount visibility is healthy and managed mounts are inactive; use MergeMountWorkflow.CleanupMergedRootDirectories.
       - Canonical merge-pass degraded-visibility safety gate that suppresses stale-unmount apply actions when source discovery/build/snapshot visibility is degraded while still allowing mount/remount actions; use MergeMountWorkflow.RunMergePass.
       - Canonical merge-pass helper partitioning for action apply, force-remount resolution, and grouping helpers; use MergeMountWorkflow partial pass files.
-      - Canonical merge-pass metadata orchestration option propagation into details requests; use MergeMountWorkflow.EnsureDetailsJson and OverrideDetailsRequest.
+      - Canonical merge-pass title metadata artifact orchestration and interruption signaling; use MergeMountWorkflow.EnsureTitleMetadata and IComickMetadataCoordinator.
       - Canonical merge-pass outcome mapping from action results (mixed when busy+failure, then busy over failure over success); use MergeMountWorkflow.RunMergePass.
       - Canonical merge-pass override-title catalog discovery/filtering before resolver construction; use MergeMountWorkflow.DiscoverExistingOverrideTitleCatalog and MergeMountWorkflow.TryCreateOverrideTitleCatalogEntry.
       - Canonical merge-workflow lifecycle status-event emission (`merge.workflow.started`, `merge.workflow.completed`, cleanup pass summary) at normal severity; use MergeMountWorkflow.RunMergePass and MergeMountWorkflow.RunCleanupPass.
@@ -833,7 +835,7 @@ modules:
       - Canonical separator-safe title/link validation for planner request and link models; use MergerfsBranchPlanningRequest and MergerfsBranchLinkDefinition.
     related: [config-resolution, infrastructure-mounts, infrastructure-volumes, unit-test-suite]
   - id: infrastructure-metadata
-    summary: Cloudflare-aware Comick gateway plus override details/cover metadata and persisted orchestration state.
+    summary: Cloudflare-aware Comick gateway with coordinator-driven cover/details orchestration and persisted state.
     tags: [comicinfo, cover, details, infrastructure, metadata, persistence, state]
     paths:
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadata.cs
@@ -857,6 +859,10 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickApiGateway.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickCandidateMatcher.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickDirectApiClient.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/ComickMetadataCoordinator.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/ComickMetadataCoordinator.Helpers.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/ComickMetadataCoordinatorRequest.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/ComickMetadataCoordinatorResult.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrApiOutcome.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrApiResult.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrClient.cs
@@ -864,14 +870,15 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/IFlaresolverrClient.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/FileBackedMetadataStateStore.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IComicInfoMetadataParser.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/IComickMetadataCoordinator.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IMetadataStateStore.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideCoverFileOperations.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideCoverService.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideDetailsService.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/MetadataOrchestrationOptions.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/MetadataStatePaths.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/MetadataStateSnapshot.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverOutcome.cs
-      - SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideCoverFileOperations.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverPhysicalFileOperations.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverRequest.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverResult.cs
@@ -894,6 +901,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.Helpers.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.PayloadValidation.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.SuccessAndHttp.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickMetadataCoordinatorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.Helpers.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.StickyAnchor.cs
@@ -930,10 +938,10 @@ modules:
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs
         purpose: Executes direct search and comic-detail requests against api.comick.dev with deterministic transport/http/cloudflare/malformed classification.
-      - symbol: FlaresolverrClient
+      - symbol: ComickMetadataCoordinator
         kind: class
-        path: SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrClient.cs
-        purpose: Executes generic JSON passthrough wrapper requests against the FlareSolverr /v1 endpoint with strict payload extraction.
+        path: SuwayomiSourceMerge/Infrastructure/Metadata/ComickMetadataCoordinator.cs
+        purpose: Coordinates title-level metadata artifact gating, Comick lookups, cooldown, and interruption signaling.
       - symbol: OverrideDetailsService
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs
@@ -981,12 +989,12 @@ modules:
       - how: Wire runtime orchestration to cover ensure behavior through IOverrideCoverService instead of duplicating cover write logic.
         symbols: [IOverrideCoverService, OverrideCoverService]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideCoverService.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverService.cs]
-      - how: Wire runtime orchestration to metadata ensure behavior through IOverrideDetailsService instead of duplicating seed/generate logic.
-        symbols: [IOverrideDetailsService, OverrideDetailsService]
-        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideDetailsService.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
+      - how: Wire runtime orchestration to merge-pass title metadata coordination through IComickMetadataCoordinator instead of duplicating artifact gates.
+        symbols: [ComickMetadataCoordinator, IComickMetadataCoordinator]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/ComickMetadataCoordinator.cs, SuwayomiSourceMerge/Infrastructure/Metadata/IComickMetadataCoordinator.cs]
     do_not_reimplement:
       - Canonical Cloudflare-aware direct-first routing with sticky FlareSolverr fallback and timed direct retry probing; use CloudflareAwareComickGateway.
-      - Canonical Comick candidate resolution and detail-only exact-key matching semantics (search entries are ranking hints only), including propagation of detail-request Cancelled outcomes as OperationCanceledException; use ComickCandidateMatcher.MatchAsync.
+      - Canonical Comick candidate resolution and detail-only exact-key matching semantics (search entries are ranking hints only), including interruption telemetry for non-cooperative detail failures and cancellation throws only when caller cancellation is requested; use ComickCandidateMatcher.MatchAsync and ComickCandidateMatchResult.HadServiceInterruption.
       - Canonical Comick gateway base-URI normalization (absolute http/https + exactly one trailing slash) should be centralized and reused; use CloudflareAwareComickGateway.NormalizeBaseUri.
       - Canonical cover.jpg ensure flow (override-exists short-circuit, download, optional JPEG conversion, atomic non-overwrite write); use OverrideCoverService.EnsureCoverJpgAsync.
       - Canonical cover already-exists result construction should be centralized to preserve consistent CoverJpgPath/ExistingCoverPath semantics; use OverrideCoverService.CreateAlreadyExistsResult.
@@ -1013,12 +1021,13 @@ modules:
       - Canonical FlareSolverr bridge request payload composition and wrapper-to-Comick outcome mapping; use CloudflareAwareComickGateway.
       - Canonical FlareSolverr wrapper result contract exposing extracted upstream status/body fields; use FlaresolverrApiResult.
       - Canonical metadata best-effort IO/race handling for source seeding, candidate traversal, and details writes; use OverrideDetailsService.EnsureDetailsJson.
+      - Canonical metadata cooldown persistence ordering should skip cooldown writes for cooperative cancellation during Comick search or candidate matching while preserving non-cooperative interruption persistence; use ComickMetadataCoordinator.ResolveMatchedComic.
       - Canonical metadata orchestration FlareSolverr URI invariants (non-null must be absolute http/https); use MetadataOrchestrationOptions.
       - Canonical metadata orchestration settings carrier and guards for Comick/Flaresolverr runtime values; use MetadataOrchestrationOptions.
       - Canonical persisted metadata state load/transform semantics with atomic JSON persistence and corrupt file/directory recovery; use FileBackedMetadataStateStore.
       - Canonical sticky FlareSolverr persistence must be monotonic and never reduce an existing later expiry; use CloudflareAwareComickGateway.PersistStickyFlaresolverrUntil.
       - Canonical runtime contract for cover.jpg ensure operations; use IOverrideCoverService.
-      - Canonical runtime contract for details.json ensure operations; use IOverrideDetailsService.
+      - Canonical runtime contract for merge-pass title metadata artifact coordination; use IComickMetadataCoordinator.
       - Canonical shared Comick endpoint request URI composition; use ComickEndpointUriBuilder.
       - Canonical shared Comick payload parsing and required-field validation (including tolerant nullable MU category votes) should be centralized; use ComickPayloadParser and ComickSharedModels.
     related: [runtime-host, unit-test-suite]
@@ -1618,7 +1627,9 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.CleanupMergedRoot.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.DegradedVisibilityAndOverrideTitles.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.FailFastMountFailures.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.Services.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.MetadataCoordinator.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.OutcomesAndCancellation.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.WarningDiagnostics.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.cs
@@ -1679,6 +1690,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/SsmLoggerFactoryTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/StructuredTextLogFormatterTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComicInfoMetadataParserTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickMetadataCoordinatorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.ApiFirstHardeningTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.ApiFirstTests.cs

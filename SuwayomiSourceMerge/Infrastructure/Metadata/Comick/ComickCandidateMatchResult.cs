@@ -18,12 +18,16 @@ internal sealed class ComickCandidateMatchResult
 	/// <param name="matchedCandidateIndex">Selected candidate index when matched; otherwise <see cref="NoMatchCandidateIndex"/>.</param>
 	/// <param name="hadTopTie">Whether one or more candidates tied at the selected top score.</param>
 	/// <param name="matchScore">Top match score used for selection.</param>
+	/// <param name="hadServiceInterruption">
+	/// Whether detail-probe attempts encountered one or more Comick service interruption outcomes.
+	/// </param>
 	public ComickCandidateMatchResult(
 		ComickCandidateMatchOutcome outcome,
 		ComickComicResponse? matchedCandidate,
 		int matchedCandidateIndex,
 		bool hadTopTie,
-		int matchScore)
+		int matchScore,
+		bool hadServiceInterruption = false)
 	{
 		if (matchScore < 0)
 		{
@@ -93,6 +97,7 @@ internal sealed class ComickCandidateMatchResult
 		MatchedCandidateIndex = matchedCandidateIndex;
 		HadTopTie = hadTopTie;
 		MatchScore = matchScore;
+		HadServiceInterruption = hadServiceInterruption;
 	}
 
 	/// <summary>
@@ -131,6 +136,14 @@ internal sealed class ComickCandidateMatchResult
 	/// Gets the selected top score.
 	/// </summary>
 	public int MatchScore
+	{
+		get;
+	}
+
+	/// <summary>
+	/// Gets a value indicating whether detail-probe attempts encountered service interruption outcomes.
+	/// </summary>
+	public bool HadServiceInterruption
 	{
 		get;
 	}

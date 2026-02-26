@@ -95,9 +95,9 @@ internal sealed partial class MergeMountWorkflow : IMergeMountWorkflow, IMergeRu
 	private readonly IBranchLinkStagingService _branchLinkStagingService;
 
 	/// <summary>
-	/// Override details service.
+	/// Per-title metadata coordinator service.
 	/// </summary>
-	private readonly IOverrideDetailsService _overrideDetailsService;
+	private readonly IComickMetadataCoordinator _comickMetadataCoordinator;
 
 	/// <summary>
 	/// Logger dependency.
@@ -136,7 +136,7 @@ internal sealed partial class MergeMountWorkflow : IMergeMountWorkflow, IMergeRu
 	/// <param name="mountReconciliationService">Mount reconciliation service.</param>
 	/// <param name="mountCommandService">Mount command service.</param>
 	/// <param name="branchLinkStagingService">Branch link staging service.</param>
-	/// <param name="overrideDetailsService">Override details service.</param>
+	/// <param name="comickMetadataCoordinator">Per-title metadata coordinator service.</param>
 	/// <param name="logger">Logger dependency.</param>
 	public MergeMountWorkflow(
 		MergeMountWorkflowOptions options,
@@ -148,7 +148,7 @@ internal sealed partial class MergeMountWorkflow : IMergeMountWorkflow, IMergeRu
 		IMountReconciliationService mountReconciliationService,
 		IMergerfsMountCommandService mountCommandService,
 		IBranchLinkStagingService branchLinkStagingService,
-		IOverrideDetailsService overrideDetailsService,
+		IComickMetadataCoordinator comickMetadataCoordinator,
 		ISsmLogger logger)
 	{
 		_options = options ?? throw new ArgumentNullException(nameof(options));
@@ -160,7 +160,7 @@ internal sealed partial class MergeMountWorkflow : IMergeMountWorkflow, IMergeRu
 		_mountReconciliationService = mountReconciliationService ?? throw new ArgumentNullException(nameof(mountReconciliationService));
 		_mountCommandService = mountCommandService ?? throw new ArgumentNullException(nameof(mountCommandService));
 		_branchLinkStagingService = branchLinkStagingService ?? throw new ArgumentNullException(nameof(branchLinkStagingService));
-		_overrideDetailsService = overrideDetailsService ?? throw new ArgumentNullException(nameof(overrideDetailsService));
+		_comickMetadataCoordinator = comickMetadataCoordinator ?? throw new ArgumentNullException(nameof(comickMetadataCoordinator));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
 		_titleComparisonNormalizer = TitleComparisonNormalizerProvider.Get(_sceneTagMatcher);

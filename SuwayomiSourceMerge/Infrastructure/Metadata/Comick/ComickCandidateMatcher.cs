@@ -62,6 +62,7 @@ internal sealed class ComickCandidateMatcher : IComickCandidateMatcher
 		}
 
 		IReadOnlyList<int> evaluationOrder = BuildEvaluationOrder(candidates, expectedTitleKeys);
+		bool hadServiceInterruption = false;
 		for (int orderIndex = 0; orderIndex < evaluationOrder.Count; orderIndex++)
 		{
 			cancellationToken.ThrowIfCancellationRequested();
@@ -72,12 +73,33 @@ internal sealed class ComickCandidateMatcher : IComickCandidateMatcher
 				continue;
 			}
 
-			ComickDirectApiResult<ComickComicResponse> detailResult = await _comickApiGateway
-				.GetComicAsync(searchCandidate.Slug, cancellationToken)
-				.ConfigureAwait(false);
+			ComickDirectApiResult<ComickComicResponse> detailResult;
+			try
+			{
+				detailResult = await _comickApiGateway
+					.GetComicAsync(searchCandidate.Slug, cancellationToken)
+					.ConfigureAwait(false);
+			}
+			catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+			{
+				hadServiceInterruption = true;
+				continue;
+			}
+
 			if (detailResult.Outcome == ComickDirectApiOutcome.Cancelled)
 			{
-				throw new OperationCanceledException(cancellationToken);
+				if (cancellationToken.IsCancellationRequested)
+				{
+					throw new OperationCanceledException(cancellationToken);
+				}
+
+				hadServiceInterruption = true;
+				continue;
+			}
+
+			if (IsServiceInterruptionOutcome(detailResult.Outcome))
+			{
+				hadServiceInterruption = true;
 			}
 
 			if (detailResult.Outcome != ComickDirectApiOutcome.Success || detailResult.Payload is null)
@@ -96,24 +118,39 @@ internal sealed class ComickCandidateMatcher : IComickCandidateMatcher
 				detailResult.Payload,
 				candidateIndex,
 				hadTopTie: false,
-				matchScore);
+				matchScore,
+				hadServiceInterruption);
 		}
 
-		return CreateNoHighConfidenceResult();
+		return CreateNoHighConfidenceResult(hadServiceInterruption);
 	}
 
 	/// <summary>
 	/// Creates a no-match result with canonical sentinel values.
 	/// </summary>
 	/// <returns>No-high-confidence match result.</returns>
-	private static ComickCandidateMatchResult CreateNoHighConfidenceResult()
+	private static ComickCandidateMatchResult CreateNoHighConfidenceResult(bool hadServiceInterruption = false)
 	{
 		return new ComickCandidateMatchResult(
 			ComickCandidateMatchOutcome.NoHighConfidenceMatch,
 			matchedCandidate: null,
 			ComickCandidateMatchResult.NoMatchCandidateIndex,
 			hadTopTie: false,
-			matchScore: NoMatchScore);
+			matchScore: NoMatchScore,
+			hadServiceInterruption);
+	}
+
+	/// <summary>
+	/// Determines whether one direct-API detail outcome indicates Comick service interruption.
+	/// </summary>
+	/// <param name="outcome">Detail-request outcome.</param>
+	/// <returns><see langword="true"/> when outcome indicates interruption; otherwise <see langword="false"/>.</returns>
+	private static bool IsServiceInterruptionOutcome(ComickDirectApiOutcome outcome)
+	{
+		return outcome == ComickDirectApiOutcome.TransportFailure
+			|| outcome == ComickDirectApiOutcome.CloudflareBlocked
+			|| outcome == ComickDirectApiOutcome.HttpFailure
+			|| outcome == ComickDirectApiOutcome.MalformedPayload;
 	}
 
 	/// <summary>

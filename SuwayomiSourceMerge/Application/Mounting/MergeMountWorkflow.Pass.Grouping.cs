@@ -102,10 +102,14 @@ internal sealed partial class MergeMountWorkflow
 	}
 
 	/// <summary>
-	/// Ensures details.json for one branch plan.
+	/// Ensures title metadata artifacts for one branch plan.
 	/// </summary>
 	/// <param name="branchPlan">Branch planning output.</param>
-	private void EnsureDetailsJson(MergerfsBranchPlan branchPlan)
+	/// <param name="cancellationToken">Cancellation token.</param>
+	/// <returns><see langword="true"/> when Comick API service interruption occurred; otherwise <see langword="false"/>.</returns>
+	private bool EnsureTitleMetadata(
+		MergerfsBranchPlan branchPlan,
+		CancellationToken cancellationToken)
 	{
 		ArgumentNullException.ThrowIfNull(branchPlan);
 
@@ -119,14 +123,16 @@ internal sealed partial class MergeMountWorkflow
 			.Select(static link => link.TargetPath)
 			.ToArray();
 
-		OverrideDetailsRequest request = new(
+		ComickMetadataCoordinatorRequest request = new(
 			branchPlan.PreferredOverridePath,
 			allOverrideDirectoryPaths,
 			orderedSourceDirectories,
 			BuildDisplayTitleFromMountPoint(branchPlan),
-			_options.DetailsDescriptionMode,
 			_options.MetadataOrchestration);
-		_ = _overrideDetailsService.EnsureDetailsJson(request);
+		ComickMetadataCoordinatorResult result = _comickMetadataCoordinator.EnsureMetadata(
+			request,
+			cancellationToken);
+		return result.HadServiceInterruption;
 	}
 
 	/// <summary>
