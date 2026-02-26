@@ -158,34 +158,56 @@ public sealed class ComickCandidateMatcherTests
 
 		Assert.Equal(ComickCandidateMatchOutcome.Matched, result.Outcome);
 		Assert.Equal(2, result.MatchedCandidateIndex);
+		Assert.True(result.HadServiceInterruption);
 		Assert.Equal(["cloudflare", "http-failure", "success"], gateway.RequestedSlugs);
 	}
 
 	/// <summary>
-	/// Verifies cancelled detail requests are surfaced as cancellation instead of no-match.
+	/// Verifies cancelled detail outcomes without caller cancellation are tracked as service interruptions.
 	/// </summary>
 	[Fact]
-	public async Task MatchAsync_Failure_ShouldThrowOperationCanceledException_WhenDetailRequestReturnsCancelled()
+	public async Task MatchAsync_Failure_ShouldTrackInterruption_WhenDetailRequestReturnsCancelledWithoutCallerCancellation()
 	{
 		RecordingComickApiGateway gateway = new(
 			slug => slug switch
 			{
 				"cancelled" => CreateOutcomeOnlyResult(ComickDirectApiOutcome.Cancelled),
-				"success" => CreateSuccessResult(CreateDetailPayload("Target Title")),
+				"not-found" => CreateOutcomeOnlyResult(ComickDirectApiOutcome.NotFound),
 				_ => CreateOutcomeOnlyResult(ComickDirectApiOutcome.NotFound)
 			});
 		ComickCandidateMatcher matcher = new(gateway);
+
+		ComickCandidateMatchResult result = await matcher.MatchAsync(
+			[
+				CreateSearchCandidate("cancelled", "target title"),
+				CreateSearchCandidate("not-found", "target title")
+			],
+			["target title"]);
+
+		Assert.Equal(ComickCandidateMatchOutcome.NoHighConfidenceMatch, result.Outcome);
+		Assert.True(result.HadServiceInterruption);
+		Assert.Equal(["cancelled", "not-found"], gateway.RequestedSlugs);
+	}
+
+	/// <summary>
+	/// Verifies caller-requested cancellation still throws cooperatively.
+	/// </summary>
+	[Fact]
+	public async Task MatchAsync_Failure_ShouldThrowOperationCanceledException_WhenCallerCancellationIsRequested()
+	{
+		RecordingComickApiGateway gateway = new(_ => CreateSuccessResult(CreateDetailPayload("Target Title")));
+		ComickCandidateMatcher matcher = new(gateway);
 		using CancellationTokenSource cancellationTokenSource = new();
+		cancellationTokenSource.Cancel();
 
 		await Assert.ThrowsAnyAsync<OperationCanceledException>(
 			() => matcher.MatchAsync(
 				[
-					CreateSearchCandidate("cancelled", "target title"),
-					CreateSearchCandidate("success", "target title")
+					CreateSearchCandidate("slug-1", "target title")
 				],
 				["target title"],
 				cancellationTokenSource.Token));
-		Assert.Equal(["cancelled"], gateway.RequestedSlugs);
+		Assert.Empty(gateway.RequestedSlugs);
 	}
 
 	/// <summary>
@@ -209,7 +231,30 @@ public sealed class ComickCandidateMatcherTests
 		Assert.Null(result.MatchedCandidate);
 		Assert.Equal(ComickCandidateMatchResult.NoMatchCandidateIndex, result.MatchedCandidateIndex);
 		Assert.False(result.HadTopTie);
+		Assert.True(result.HadServiceInterruption);
 		Assert.Equal(0, result.MatchScore);
+		Assert.Equal(["first-slug", "second-slug"], gateway.RequestedSlugs);
+	}
+
+	/// <summary>
+	/// Verifies no-match results with only non-interruption outcomes keep interruption telemetry unset.
+	/// </summary>
+	[Fact]
+	public async Task MatchAsync_Failure_ShouldNotTrackInterruption_WhenNoMatchHasOnlyNonInterruptionOutcomes()
+	{
+		RecordingComickApiGateway gateway = new(
+			_ => CreateOutcomeOnlyResult(ComickDirectApiOutcome.NotFound));
+		ComickCandidateMatcher matcher = new(gateway);
+
+		ComickCandidateMatchResult result = await matcher.MatchAsync(
+			[
+				CreateSearchCandidate("first-slug", "first"),
+				CreateSearchCandidate("second-slug", "second")
+			],
+			["target title"]);
+
+		Assert.Equal(ComickCandidateMatchOutcome.NoHighConfidenceMatch, result.Outcome);
+		Assert.False(result.HadServiceInterruption);
 		Assert.Equal(["first-slug", "second-slug"], gateway.RequestedSlugs);
 	}
 
@@ -273,6 +318,7 @@ public sealed class ComickCandidateMatcherTests
 			["   "]);
 
 		Assert.Equal(ComickCandidateMatchOutcome.NoHighConfidenceMatch, result.Outcome);
+		Assert.False(result.HadServiceInterruption);
 		Assert.Empty(gateway.RequestedSlugs);
 	}
 
