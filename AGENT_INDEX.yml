@@ -1021,7 +1021,7 @@ modules:
       - Canonical FlareSolverr bridge request payload composition and wrapper-to-Comick outcome mapping; use CloudflareAwareComickGateway.
       - Canonical FlareSolverr wrapper result contract exposing extracted upstream status/body fields; use FlaresolverrApiResult.
       - Canonical metadata best-effort IO/race handling for source seeding, candidate traversal, and details writes; use OverrideDetailsService.EnsureDetailsJson.
-      - Canonical metadata cooldown persistence ordering should skip cooldown writes for cooperative Comick-search cancellation while preserving non-cooperative interruption persistence; use ComickMetadataCoordinator.ResolveMatchedComic.
+      - Canonical metadata cooldown persistence ordering should skip cooldown writes for cooperative cancellation during Comick search or candidate matching while preserving non-cooperative interruption persistence; use ComickMetadataCoordinator.ResolveMatchedComic.
       - Canonical metadata orchestration FlareSolverr URI invariants (non-null must be absolute http/https); use MetadataOrchestrationOptions.
       - Canonical metadata orchestration settings carrier and guards for Comick/Flaresolverr runtime values; use MetadataOrchestrationOptions.
       - Canonical persisted metadata state load/transform semantics with atomic JSON persistence and corrupt file/directory recovery; use FileBackedMetadataStateStore.

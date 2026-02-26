@@ -174,33 +174,30 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 		DateTimeOffset nowUtc,
 		CancellationToken cancellationToken)
 	{
-		ComickDirectApiResult<ComickSearchResponse> searchResult = _comickApiGateway
-			.SearchAsync(request.DisplayTitle, cancellationToken)
-			.GetAwaiter()
-			.GetResult();
-
-		if (searchResult.Outcome == ComickDirectApiOutcome.Cancelled &&
-			cancellationToken.IsCancellationRequested)
-		{
-			throw new OperationCanceledException(cancellationToken);
-		}
-
-		TryPersistCooldown(
-			normalizedTitleKey,
-			nowUtc + request.MetadataOrchestration.ComickMetadataCooldown);
-
-		if (IsServiceInterruptionOutcome(searchResult.Outcome))
-		{
-			return (true, true, null);
-		}
-
-		if (searchResult.Outcome != ComickDirectApiOutcome.Success || searchResult.Payload is null)
-		{
-			return (true, false, null);
-		}
-
+		bool shouldPersistCooldown = true;
 		try
 		{
+			ComickDirectApiResult<ComickSearchResponse> searchResult = _comickApiGateway
+				.SearchAsync(request.DisplayTitle, cancellationToken)
+				.GetAwaiter()
+				.GetResult();
+
+			if (searchResult.Outcome == ComickDirectApiOutcome.Cancelled &&
+				cancellationToken.IsCancellationRequested)
+			{
+				throw new OperationCanceledException(cancellationToken);
+			}
+
+			if (IsServiceInterruptionOutcome(searchResult.Outcome))
+			{
+				return (true, true, null);
+			}
+
+			if (searchResult.Outcome != ComickDirectApiOutcome.Success || searchResult.Payload is null)
+			{
+				return (true, false, null);
+			}
+
 			ComickCandidateMatchResult matchResult = _comickCandidateMatcher
 				.MatchAsync(
 					searchResult.Payload.Comics,
@@ -221,9 +218,23 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 
 			return (true, false, null);
 		}
+		catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+		{
+			shouldPersistCooldown = false;
+			throw;
+		}
 		catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
 		{
 			return (true, true, null);
+		}
+		finally
+		{
+			if (shouldPersistCooldown)
+			{
+				TryPersistCooldown(
+					normalizedTitleKey,
+					nowUtc + request.MetadataOrchestration.ComickMetadataCooldown);
+			}
 		}
 	}
 

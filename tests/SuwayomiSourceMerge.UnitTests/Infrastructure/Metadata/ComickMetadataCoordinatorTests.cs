@@ -61,6 +61,31 @@ public sealed class ComickMetadataCoordinatorTests
 	}
 
 	/// <summary>
+	/// Verifies cooperative cancellation during candidate matching skips cooldown persistence and throws cooperatively.
+	/// </summary>
+	[Fact]
+	public void EnsureMetadata_Edge_ShouldThrowAndSkipCooldown_WhenCandidateMatchingIsCancelledCooperatively()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		using CancellationTokenSource cancellationTokenSource = new();
+		TestFixture fixture = CreateFixture(
+			temporaryDirectory.Path,
+			static (_, _) => CreateSearchResult(ComickDirectApiOutcome.Success));
+		fixture.CandidateMatcher.ThrowOperationCanceledOnCall = true;
+		fixture.CandidateMatcher.BeforeThrowOperationCanceled = cancellationTokenSource.Cancel;
+		ComickMetadataCoordinatorRequest request = fixture.CreateRequestWithExistingDetails("Canonical Title");
+
+		Assert.ThrowsAny<OperationCanceledException>(
+			() => fixture.Coordinator.EnsureMetadata(request, cancellationTokenSource.Token));
+
+		Assert.Equal(0, fixture.MetadataStateStore.TransformCallCount);
+		Assert.Empty(fixture.MetadataStateStore.Read().TitleCooldownsUtc);
+		Assert.Equal(1, fixture.CandidateMatcher.MatchCallCount);
+		Assert.Equal(0, fixture.CoverService.CallCount);
+		Assert.Equal(0, fixture.DetailsService.CallCount);
+	}
+
+	/// <summary>
 	/// Verifies non-cooperative cancelled outcomes still persist cooldown and report interruption semantics.
 	/// </summary>
 	[Fact]
@@ -130,7 +155,7 @@ public sealed class ComickMetadataCoordinatorTests
 	{
 		return new ComickDirectApiResult<ComickSearchResponse>(
 			outcome,
-			payload: null,
+			payload: outcome == ComickDirectApiOutcome.Success ? new ComickSearchResponse([]) : null,
 			statusCode: outcome == ComickDirectApiOutcome.NotFound ? HttpStatusCode.NotFound : null,
 			diagnostic: outcome.ToString());
 	}
@@ -312,6 +337,24 @@ public sealed class ComickMetadataCoordinatorTests
 	private sealed class RecordingComickCandidateMatcher : IComickCandidateMatcher
 	{
 		/// <summary>
+		/// Gets or sets a value indicating whether the matcher should throw <see cref="OperationCanceledException"/>.
+		/// </summary>
+		public bool ThrowOperationCanceledOnCall
+		{
+			get;
+			set;
+		}
+
+		/// <summary>
+		/// Gets or sets an optional callback executed immediately before throwing cancellation.
+		/// </summary>
+		public Action? BeforeThrowOperationCanceled
+		{
+			get;
+			set;
+		}
+
+		/// <summary>
 		/// Gets the number of match calls.
 		/// </summary>
 		public int MatchCallCount
@@ -327,6 +370,12 @@ public sealed class ComickMetadataCoordinatorTests
 			CancellationToken cancellationToken = default)
 		{
 			MatchCallCount++;
+			if (ThrowOperationCanceledOnCall)
+			{
+				BeforeThrowOperationCanceled?.Invoke();
+				throw new OperationCanceledException(cancellationToken);
+			}
+
 			return Task.FromResult(
 				new ComickCandidateMatchResult(
 					ComickCandidateMatchOutcome.NoHighConfidenceMatch,
