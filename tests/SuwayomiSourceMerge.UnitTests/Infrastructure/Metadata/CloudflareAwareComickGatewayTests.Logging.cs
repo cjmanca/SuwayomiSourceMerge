@@ -6,7 +6,7 @@ using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 
 /// <summary>
-/// Logging coverage for <see cref="CloudflareAwareComickGatewayTests"/>.
+/// Logging coverage for <see cref="CloudflareAwareComickGateway"/>.
 /// </summary>
 public sealed partial class CloudflareAwareComickGatewayTests
 {
