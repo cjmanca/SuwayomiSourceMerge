@@ -1041,8 +1041,8 @@ modules:
       - Canonical FlareSolverr wrapper result contract exposing extracted upstream status/body fields; use FlaresolverrApiResult.
       - Canonical metadata best-effort IO/race handling for source seeding, candidate traversal, and details writes; use OverrideDetailsService.EnsureDetailsJson.
       - Canonical metadata cooldown persistence ordering should skip cooldown writes for cooperative cancellation during Comick search or candidate matching while preserving non-cooperative interruption persistence; use ComickMetadataCoordinator.ResolveMatchedComic.
-      - Canonical metadata structured logging for cooldown skips, artifact writes/skips/failures, and equivalents update outcomes should remain coordinator-owned; use ComickMetadataCoordinator.
-      - Canonical metadata expected-title expansion for candidate matching should include display title, resolved canonical title, and runtime equivalent-title groups with normalized-key dedupe in deterministic order; use ComickMetadataCoordinator.BuildExpectedTitles.
+      - Canonical metadata structured logging for cooldown skips plus cooldown state-store best-effort read/persist failures, artifact writes/skips/failures, and equivalents update outcomes should remain coordinator-owned; use ComickMetadataCoordinator.
+      - Canonical metadata expected-title expansion for candidate matching should include display title, resolved canonical title, and runtime equivalent-title groups with normalized-key dedupe in deterministic order, including canonical-title fallback equivalent lookup even when canonical dedupes against display normalization (fallback resolution is independent of canonical-title append dedupe success); use ComickMetadataCoordinator.BuildExpectedTitles.
       - Canonical metadata orchestration FlareSolverr URI invariants (non-null must be absolute http/https); use MetadataOrchestrationOptions.
       - Canonical metadata orchestration settings carrier and guards for Comick/Flaresolverr runtime values; use MetadataOrchestrationOptions.
       - Canonical persisted metadata state load/transform semantics with atomic JSON persistence and corrupt file/directory recovery; use FileBackedMetadataStateStore.
@@ -1050,7 +1050,7 @@ modules:
       - Canonical runtime contract for cover.jpg ensure operations; use IOverrideCoverService.
       - Canonical runtime contract for merge-pass title metadata artifact coordination; use IComickMetadataCoordinator.
       - Canonical shared Comick endpoint request URI composition; use ComickEndpointUriBuilder.
-      - Canonical shared Comick payload parsing and required-field validation (including tolerant nullable MU category votes) should be centralized; use ComickPayloadParser and ComickSharedModels.
+      - Canonical shared Comick payload parsing and required-field validation (including deterministic malformed classification for null search/comic items and null alias/cover list entries, plus tolerant nullable MU category votes) should be centralized; use ComickPayloadParser and ComickSharedModels.
     related: [runtime-host, unit-test-suite]
   - id: infrastructure-mounts
     summary: Mount snapshots, reconciliation, command apply, and branch-link staging used by production merge runtime.

@@ -125,6 +125,10 @@ internal sealed partial class ComickMetadataCoordinator
 		}
 		catch (Exception exception) when (!IsFatalException(exception))
 		{
+			LogCooldownStateStoreOperationFailed(
+				normalizedTitleKey,
+				"cooldown_read",
+				exception);
 			return false;
 		}
 	}
@@ -159,7 +163,35 @@ internal sealed partial class ComickMetadataCoordinator
 		catch (Exception exception) when (!IsFatalException(exception))
 		{
 			// Cooldown persistence is best-effort and must not block merge-pass metadata flow.
+			LogCooldownStateStoreOperationFailed(
+				normalizedTitleKey,
+				"cooldown_persist",
+				exception);
 		}
+	}
+
+	/// <summary>
+	/// Logs cooldown state-store operation failure diagnostics when best-effort fallback behavior is applied.
+	/// </summary>
+	/// <param name="normalizedTitleKey">Normalized title key associated with the failed operation.</param>
+	/// <param name="operation">Operation identifier.</param>
+	/// <param name="exception">Observed non-fatal exception.</param>
+	private void LogCooldownStateStoreOperationFailed(
+		string normalizedTitleKey,
+		string operation,
+		Exception exception)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(operation);
+		ArgumentNullException.ThrowIfNull(exception);
+
+		_logger.Warning(
+			CooldownStateStoreFailedEvent,
+			"Cooldown metadata state-store operation failed; continuing with best-effort fallback behavior.",
+			BuildContext(
+				("normalized_title_key", normalizedTitleKey),
+				("operation", operation),
+				("exception_type", exception.GetType().FullName ?? exception.GetType().Name),
+				("message", exception.Message)));
 	}
 
 	/// <summary>
@@ -194,10 +226,11 @@ internal sealed partial class ComickMetadataCoordinator
 		}
 
 		string? resolvedCanonicalTitle = null;
-		if (_mangaEquivalenceCatalog.TryResolveCanonicalTitle(displayTitle, out string canonicalTitle) &&
-			TryAddExpectedTitle(expectedTitles, seenNormalizedKeys, canonicalTitle))
+		if (_mangaEquivalenceCatalog.TryResolveCanonicalTitle(displayTitle, out string canonicalTitle))
 		{
 			resolvedCanonicalTitle = canonicalTitle;
+			// Canonical lookup fallback should remain enabled even when canonical title dedupes against display title.
+			_ = TryAddExpectedTitle(expectedTitles, seenNormalizedKeys, canonicalTitle);
 		}
 
 		if (_mangaEquivalenceCatalog.TryGetEquivalentTitles(displayTitle, out IReadOnlyList<string> equivalentTitles) ||

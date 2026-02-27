@@ -67,9 +67,32 @@ public sealed partial class ComickMetadataCoordinatorTests
 			private set;
 		}
 
+		/// <summary>
+		/// Gets or sets the exception to throw for read operations.
+		/// </summary>
+		public Exception? ReadException
+		{
+			get;
+			set;
+		}
+
+		/// <summary>
+		/// Gets or sets the exception to throw for transform operations.
+		/// </summary>
+		public Exception? TransformException
+		{
+			get;
+			set;
+		}
+
 		/// <inheritdoc />
 		public MetadataStateSnapshot Read()
 		{
+			if (ReadException is not null)
+			{
+				throw ReadException;
+			}
+
 			return _snapshot;
 		}
 
@@ -78,6 +101,11 @@ public sealed partial class ComickMetadataCoordinatorTests
 		{
 			ArgumentNullException.ThrowIfNull(transformer);
 			TransformCallCount++;
+			if (TransformException is not null)
+			{
+				throw TransformException;
+			}
+
 			_snapshot = transformer(_snapshot);
 		}
 

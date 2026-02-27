@@ -349,6 +349,40 @@ public sealed partial class CloudflareAwareComickGatewayTests
 	}
 
 	/// <summary>
+	/// Verifies FlareSolverr fallback payloads with null search entries map to malformed outcomes without throw leakage.
+	/// </summary>
+	[Fact]
+	public async Task SearchAsync_Failure_ShouldReturnMalformedPayload_WhenFlaresolverrUpstreamSearchItemIsNull()
+	{
+		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-02-24T06:10:00+00:00");
+		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchCloudflareBlocked(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.Success,
+				HttpStatusCode.OK,
+				200,
+				"""[null]""",
+				"Success."));
+		InMemoryMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty);
+		CloudflareAwareComickGateway gateway = CreateGateway(
+			directClient,
+			stateStore,
+			flaresolverrClient,
+			new Uri("http://flaresolverr.local/"),
+			TimeSpan.FromMinutes(60),
+			nowUtc);
+
+		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
+
+		Assert.Equal(ComickDirectApiOutcome.MalformedPayload, result.Outcome);
+		Assert.Null(result.Payload);
+		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(1, flaresolverrClient.CallCount);
+	}
+
+	/// <summary>
 	/// Verifies sticky updates are monotonic and never shorten an existing later sticky expiry.
 	/// </summary>
 	[Fact]
