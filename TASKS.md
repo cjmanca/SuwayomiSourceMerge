@@ -1,6 +1,7 @@
 # TASKS.md
 
 
+- [x] 2026-02-27 - Resolve PR #42 unresolved AI review thread by strengthening `MangaEquivalenceCatalogTests` shared fixture/assertions to use distinct canonical-vs-alias values for deterministic equivalent-title content/order validation, then reply and resolve the thread after green full-suite validation.
 - [x] 2026-02-27 - Harden metadata matching/routing by expanding Comick expected-title scope to full equivalence groups (normalized dedupe), making candidate `HadTopTie` semantics accurate, and making Cloudflare gateway sticky state-store reads/transforms best-effort with warning telemetry and fatal-exception rethrow behavior.
 - [x] 2026-02-09 - Analyze existing markdown docs and `suwayomi_manga_daemon.sh`, then finalize implementation requirements for the C# port.
 - [x] 2026-02-09 - Update documentation to reflect agreed C# port requirements and architecture decisions.

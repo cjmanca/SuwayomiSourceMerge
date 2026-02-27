@@ -1785,6 +1785,7 @@ modules:
     do_not_reimplement:
       - Baseline test-harness smoke coverage; extend ProjectLayoutTests.
       - Canonical unit-test project wiring; use SuwayomiSourceMerge.UnitTests.csproj.
+      - Canonical equivalence-catalog group-order assertions should use distinct canonical vs alias fixture values; extend MangaEquivalenceCatalogTests.
       - Canonical YAML schema validation test scenarios; extend configuration schema test classes.
       - Host lifecycle and stderr fallback coverage; extend ApplicationHostTests.
       - Logging formatter/filter/rolling behavior coverage; extend Infrastructure/Logging test classes.

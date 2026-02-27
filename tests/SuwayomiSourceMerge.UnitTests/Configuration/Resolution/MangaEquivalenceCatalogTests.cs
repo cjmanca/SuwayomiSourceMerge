@@ -53,7 +53,7 @@ public sealed partial class MangaEquivalenceCatalogTests
 		bool wasResolved = catalog.TryGetEquivalentTitles("Manga Alpha", out IReadOnlyList<string> equivalentTitles);
 
 		Assert.True(wasResolved);
-		Assert.Equal(["Manga Alpha", "Manga Alpha"], equivalentTitles);
+		Assert.Equal(["Manga Alpha", "Manga Alpha Variant"], equivalentTitles);
 	}
 
 	/// <summary>
@@ -355,7 +355,7 @@ public sealed partial class MangaEquivalenceCatalogTests
 				new MangaEquivalentGroup
 				{
 					Canonical = "Manga Alpha",
-					Aliases = ["Manga Alpha"]
+					Aliases = ["Manga Alpha Variant"]
 				}
 			]
 		};
