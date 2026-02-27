@@ -185,16 +185,29 @@ internal sealed partial class ComickMetadataCoordinator
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(displayTitle);
 
-		List<string> expectedTitles = [displayTitle];
+		List<string> expectedTitles = [];
+		HashSet<string> seenNormalizedKeys = new(StringComparer.Ordinal);
+		TryAddExpectedTitle(expectedTitles, seenNormalizedKeys, displayTitle);
 		if (_mangaEquivalenceCatalog is null)
 		{
 			return expectedTitles;
 		}
 
+		string? resolvedCanonicalTitle = null;
 		if (_mangaEquivalenceCatalog.TryResolveCanonicalTitle(displayTitle, out string canonicalTitle) &&
-			!string.Equals(canonicalTitle, displayTitle, StringComparison.Ordinal))
+			TryAddExpectedTitle(expectedTitles, seenNormalizedKeys, canonicalTitle))
 		{
-			expectedTitles.Add(canonicalTitle);
+			resolvedCanonicalTitle = canonicalTitle;
+		}
+
+		if (_mangaEquivalenceCatalog.TryGetEquivalentTitles(displayTitle, out IReadOnlyList<string> equivalentTitles) ||
+			(resolvedCanonicalTitle is not null &&
+				_mangaEquivalenceCatalog.TryGetEquivalentTitles(resolvedCanonicalTitle, out equivalentTitles)))
+		{
+			for (int index = 0; index < equivalentTitles.Count; index++)
+			{
+				TryAddExpectedTitle(expectedTitles, seenNormalizedKeys, equivalentTitles[index]);
+			}
 		}
 
 		return expectedTitles;

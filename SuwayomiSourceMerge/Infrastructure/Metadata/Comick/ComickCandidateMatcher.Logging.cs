@@ -20,42 +20,60 @@ internal sealed partial class ComickCandidateMatcher
 	private const double SimilarityTieEpsilon = 1e-9d;
 
 	/// <summary>
-	/// Computes top-similarity tie information from ranking hints.
+	/// Represents top-similarity tie metadata derived from ranking-hint scores.
 	/// </summary>
-	/// <param name="candidates">Candidate collection.</param>
-	/// <param name="expectedTitleKeys">Expected normalized title keys.</param>
-	/// <returns>Tuple containing tie state, top similarity, and tied candidate count.</returns>
-	private (bool HasTopSimilarityTie, double TopSimilarity, int TiedCandidateCount) GetTopSimilarityTieInfo(
-		IReadOnlyList<ComickSearchComic> candidates,
-		IReadOnlySet<string> expectedTitleKeys)
+	private readonly record struct TopSimilarityTieInfo(
+		bool HasTopSimilarityTie,
+		double TopSimilarity,
+		int TiedCandidateCount,
+		IReadOnlySet<int> TiedCandidateIndices)
 	{
-		ArgumentNullException.ThrowIfNull(candidates);
-		ArgumentNullException.ThrowIfNull(expectedTitleKeys);
-
-		if (candidates.Count < 2)
+		/// <summary>
+		/// Determines whether the provided candidate index is part of the top-similarity tie set.
+		/// </summary>
+		/// <param name="candidateIndex">Candidate index.</param>
+		/// <returns><see langword="true"/> when candidate index is tied at top similarity; otherwise <see langword="false"/>.</returns>
+		public bool IsCandidateInTie(int candidateIndex)
 		{
-			return (false, 0d, 0);
+			return HasTopSimilarityTie && TiedCandidateIndices.Contains(candidateIndex);
+		}
+	}
+
+	/// <summary>
+	/// Computes top-similarity tie information from ranking-hint scores.
+	/// </summary>
+	/// <param name="candidateSimilarityScores">Ranking-hint similarity scores by candidate index.</param>
+	/// <returns>Top-similarity tie metadata.</returns>
+	private static TopSimilarityTieInfo GetTopSimilarityTieInfo(IReadOnlyList<double> candidateSimilarityScores)
+	{
+		ArgumentNullException.ThrowIfNull(candidateSimilarityScores);
+
+		if (candidateSimilarityScores.Count < 2)
+		{
+			return new TopSimilarityTieInfo(false, 0d, 0, new HashSet<int>());
 		}
 
 		double topSimilarity = double.NegativeInfinity;
-		int topSimilarityCount = 0;
-		for (int index = 0; index < candidates.Count; index++)
+		HashSet<int> tiedCandidateIndices = new();
+		for (int index = 0; index < candidateSimilarityScores.Count; index++)
 		{
-			ComickSearchComic candidate = candidates[index];
-			double similarity = ComputeSearchCandidateOrderingSimilarity(candidate, expectedTitleKeys);
+			double similarity = candidateSimilarityScores[index];
 			if (similarity > topSimilarity + SimilarityTieEpsilon)
 			{
 				topSimilarity = similarity;
-				topSimilarityCount = 1;
+				tiedCandidateIndices.Clear();
+				tiedCandidateIndices.Add(index);
 			}
 			else if (Math.Abs(similarity - topSimilarity) <= SimilarityTieEpsilon)
 			{
-				topSimilarityCount++;
+				tiedCandidateIndices.Add(index);
 			}
 		}
 
-		bool hasTie = topSimilarityCount > 1 && topSimilarity > 0d;
-		return (hasTie, hasTie ? topSimilarity : 0d, hasTie ? topSimilarityCount : 0);
+		bool hasTie = tiedCandidateIndices.Count > 1 && topSimilarity > 0d;
+		return hasTie
+			? new TopSimilarityTieInfo(true, topSimilarity, tiedCandidateIndices.Count, tiedCandidateIndices)
+			: new TopSimilarityTieInfo(false, 0d, 0, new HashSet<int>());
 	}
 
 	/// <summary>

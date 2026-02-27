@@ -28,6 +28,11 @@ internal sealed partial class CloudflareAwareComickGateway
 	private const string StickyClearedEvent = "metadata.cloudflare.fallback.sticky_cleared";
 
 	/// <summary>
+	/// Event id emitted when metadata state-store operations fail and fallback behavior is applied.
+	/// </summary>
+	private const string StateStoreFailedEvent = "metadata.cloudflare.state_store.failed";
+
+	/// <summary>
 	/// Logs sticky-route diagnostics.
 	/// </summary>
 	/// <param name="endpointUri">Endpoint URI.</param>
@@ -88,6 +93,28 @@ internal sealed partial class CloudflareAwareComickGateway
 				("endpoint", endpointUri.AbsoluteUri),
 				("direct_outcome", directOutcome.ToString()),
 				("timestamp_utc", nowUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture))));
+	}
+
+	/// <summary>
+	/// Logs metadata state-store operation failure diagnostics when best-effort fallback behavior is applied.
+	/// </summary>
+	/// <param name="endpointUri">Endpoint URI associated with the failed state operation.</param>
+	/// <param name="operation">Operation identifier.</param>
+	/// <param name="exception">Observed non-fatal exception.</param>
+	private void LogStateStoreOperationFailed(Uri endpointUri, string operation, Exception exception)
+	{
+		ArgumentNullException.ThrowIfNull(endpointUri);
+		ArgumentException.ThrowIfNullOrWhiteSpace(operation);
+		ArgumentNullException.ThrowIfNull(exception);
+
+		_logger.Warning(
+			StateStoreFailedEvent,
+			"Metadata state-store operation failed; continuing with best-effort fallback behavior.",
+			BuildContext(
+				("endpoint", endpointUri.AbsoluteUri),
+				("operation", operation),
+				("exception_type", exception.GetType().FullName ?? exception.GetType().Name),
+				("message", exception.Message)));
 	}
 
 	/// <summary>

@@ -38,7 +38,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 	/// <returns>Configured gateway instance.</returns>
 	private static CloudflareAwareComickGateway CreateGateway(
 		StubComickDirectApiClient directClient,
-		InMemoryMetadataStateStore stateStore,
+		IMetadataStateStore stateStore,
 		StubFlaresolverrClient? flaresolverrClient,
 		Uri? flaresolverrServerUri,
 		TimeSpan directRetryInterval,
@@ -67,7 +67,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 	/// <returns>Configured gateway instance.</returns>
 	private static CloudflareAwareComickGateway CreateGateway(
 		StubComickDirectApiClient directClient,
-		InMemoryMetadataStateStore stateStore,
+		IMetadataStateStore stateStore,
 		StubFlaresolverrClient? flaresolverrClient,
 		Uri? flaresolverrServerUri,
 		TimeSpan directRetryInterval,
@@ -276,6 +276,89 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		{
 			ArgumentNullException.ThrowIfNull(transformer);
 			TransformCallCount++;
+			MetadataStateSnapshot transformed = transformer(Read());
+			_snapshot = new MetadataStateSnapshot(transformed.TitleCooldownsUtc, transformed.StickyFlaresolverrUntilUtc);
+		}
+	}
+
+	/// <summary>
+	/// Fault-injecting metadata state store used for best-effort fallback behavior tests.
+	/// </summary>
+	private sealed class FaultInjectingMetadataStateStore : IMetadataStateStore
+	{
+		/// <summary>
+		/// Backing snapshot.
+		/// </summary>
+		private MetadataStateSnapshot _snapshot;
+
+		/// <summary>
+		/// Initializes a new instance of the <see cref="FaultInjectingMetadataStateStore"/> class.
+		/// </summary>
+		/// <param name="initialSnapshot">Initial snapshot.</param>
+		public FaultInjectingMetadataStateStore(MetadataStateSnapshot initialSnapshot)
+		{
+			ArgumentNullException.ThrowIfNull(initialSnapshot);
+			_snapshot = initialSnapshot;
+		}
+
+		/// <summary>
+		/// Gets or sets the exception to throw for read operations.
+		/// </summary>
+		public Exception? ReadException
+		{
+			get;
+			set;
+		}
+
+		/// <summary>
+		/// Gets or sets the exception to throw for transform operations.
+		/// </summary>
+		public Exception? TransformException
+		{
+			get;
+			set;
+		}
+
+		/// <summary>
+		/// Gets the number of read calls executed.
+		/// </summary>
+		public int ReadCallCount
+		{
+			get;
+			private set;
+		}
+
+		/// <summary>
+		/// Gets the number of transform calls executed.
+		/// </summary>
+		public int TransformCallCount
+		{
+			get;
+			private set;
+		}
+
+		/// <inheritdoc />
+		public MetadataStateSnapshot Read()
+		{
+			ReadCallCount++;
+			if (ReadException is not null)
+			{
+				throw ReadException;
+			}
+
+			return new MetadataStateSnapshot(_snapshot.TitleCooldownsUtc, _snapshot.StickyFlaresolverrUntilUtc);
+		}
+
+		/// <inheritdoc />
+		public void Transform(Func<MetadataStateSnapshot, MetadataStateSnapshot> transformer)
+		{
+			ArgumentNullException.ThrowIfNull(transformer);
+			TransformCallCount++;
+			if (TransformException is not null)
+			{
+				throw TransformException;
+			}
+
 			MetadataStateSnapshot transformed = transformer(Read());
 			_snapshot = new MetadataStateSnapshot(transformed.TitleCooldownsUtc, transformed.StickyFlaresolverrUntilUtc);
 		}

@@ -101,6 +101,15 @@ public sealed partial class ComickMetadataCoordinatorTests
 			private set;
 		}
 
+		/// <summary>
+		/// Gets the most recent expected-title list passed to the matcher.
+		/// </summary>
+		public IReadOnlyList<string> LastExpectedTitles
+		{
+			get;
+			private set;
+		} = [];
+
 		/// <inheritdoc />
 		public Task<ComickCandidateMatchResult> MatchAsync(
 			IReadOnlyList<ComickSearchComic> candidates,
@@ -108,6 +117,7 @@ public sealed partial class ComickMetadataCoordinatorTests
 			CancellationToken cancellationToken = default)
 		{
 			MatchCallCount++;
+			LastExpectedTitles = expectedTitles.ToArray();
 			if (ThrowOperationCanceledOnCall)
 			{
 				BeforeThrowOperationCanceled?.Invoke();

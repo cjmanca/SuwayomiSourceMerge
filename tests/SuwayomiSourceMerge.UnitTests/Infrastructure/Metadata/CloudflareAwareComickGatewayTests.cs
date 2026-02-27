@@ -435,4 +435,5 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		Assert.NotNull(url);
 		Assert.StartsWith("https://api.comick.dev/", url, StringComparison.Ordinal);
 	}
+
 }

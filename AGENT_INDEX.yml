@@ -540,7 +540,7 @@ modules:
       - symbol: IMangaEquivalenceCatalog
         kind: interface
         path: SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceCatalog.cs
-        purpose: Defines mutable runtime equivalence-catalog behavior with deterministic in-process update/refresh semantics.
+        purpose: Defines mutable runtime equivalence-catalog behavior with deterministic in-process update/refresh semantics plus equivalent-title group lookup for matched keys.
       - symbol: IMangaEquivalenceService
         kind: interface
         path: SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceService.cs
@@ -560,7 +560,7 @@ modules:
       - symbol: MangaEquivalenceService
         kind: class
         path: SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceService.cs
-        purpose: Builds frozen canonical title lookups from canonical and alias mappings with shared cached key normalization.
+        purpose: Builds frozen canonical and equivalent-title lookups from canonical/alias mappings with shared cached key normalization.
       - symbol: OverrideCanonicalResolver
         kind: class
         path: SuwayomiSourceMerge/Configuration/Resolution/OverrideCanonicalResolver.cs
@@ -591,6 +591,7 @@ modules:
     do_not_reimplement:
       - Canonical mutable runtime equivalence-catalog update flow (persist-first, reload-from-disk rebuild, atomic swap, pending-reload self-heal on later no-change updates, reload-failure rollback, updater-exception mapping to UpdateFailed/UnhandledException, and fatal exception rethrow); use MangaEquivalenceCatalog.
       - Canonical manga equivalence canonical/alias lookup construction and conflict checks; use MangaEquivalenceService.
+      - Canonical equivalent-title group lookup semantics (canonical-first group order with key-based lookup through active runtime snapshots); use IMangaEquivalenceCatalog.TryGetEquivalentTitles and MangaEquivalenceService.TryGetEquivalentTitles.
       - Canonical manga-equivalents update flow (preferred-language canonical selection from raw alternates with non-empty normalized keys before mutation dedupe, scene-tag-aware validation, write-stage mapping through IMangaEquivalentsAtomicPersistence with atomic replace persistence, and optional startup scene-tag matcher override for runtime-pinned behavior); use MangaEquivalentsUpdateService and FileSystemMangaEquivalentsAtomicPersistence.
       - Canonical override-title normalized lookup with deterministic untagged-over-tagged canonical arbitration; use OverrideCanonicalResolver.
       - Canonical source-priority normalized token matching and fallback behavior; use SourcePriorityService.
@@ -842,9 +843,12 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadata.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.BaseUri.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.Logging.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.StateStore.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatcher.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatcher.Logging.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatcher.Ranking.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatchOutcome.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatchResult.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickComicDetails.cs
@@ -863,6 +867,7 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickCandidateMatcher.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickDirectApiClient.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComickMetadataCoordinator.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/ComickMetadataCoordinator.ExpectedTitles.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComickMetadataCoordinator.Helpers.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComickMetadataCoordinatorRequest.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComickMetadataCoordinatorResult.cs
@@ -901,10 +906,12 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.Helpers.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.Logging.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.StateStoreFallback.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.StickyAnchor.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComicInfoMetadataParserTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickCandidateMatcherTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickCandidateMatcherTests.Logging.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickCandidateMatcherTests.TopTie.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.CancellationAndTransport.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.Helpers.cs
@@ -1003,7 +1010,7 @@ modules:
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/ComickMetadataCoordinator.cs, SuwayomiSourceMerge/Infrastructure/Metadata/IComickMetadataCoordinator.cs]
     do_not_reimplement:
       - Canonical Cloudflare-aware direct-first routing with sticky FlareSolverr fallback and timed direct retry probing; use CloudflareAwareComickGateway.
-      - Canonical Comick candidate resolution and detail-only exact-key matching semantics (search entries are ranking hints only), including interruption telemetry for non-cooperative detail failures and cancellation throws only when caller cancellation is requested; use ComickCandidateMatcher.MatchAsync and ComickCandidateMatchResult.HadServiceInterruption.
+      - Canonical Comick candidate resolution and detail-only exact-key matching semantics (search entries are ranking hints only), including interruption telemetry for non-cooperative detail failures, accurate `HadTopTie` result semantics for matched tied candidates only, and cancellation throws only when caller cancellation is requested; use ComickCandidateMatcher.MatchAsync.
       - Canonical Comick candidate-ambiguity warning semantics should detect only explicit top-similarity ranking-hint ties (>0 with epsilon tie comparison) and emit `metadata.candidate.ambiguity` even when a deterministic match is selected; use ComickCandidateMatcher.GetTopSimilarityTieInfo and ComickCandidateMatcher.LogCandidateAmbiguity.
       - Canonical Comick gateway base-URI normalization (absolute http/https + exactly one trailing slash) should be centralized and reused; use CloudflareAwareComickGateway.NormalizeBaseUri.
       - Canonical cover.jpg ensure flow (override-exists short-circuit, download, optional JPEG conversion, atomic non-overwrite write); use OverrideCoverService.EnsureCoverJpgAsync.
@@ -1015,6 +1022,7 @@ modules:
       - Canonical cover.jpg request validation and cover-key URI resolution semantics; use OverrideCoverRequest and OverrideCoverService.
       - Canonical expired-sticky clear should be guarded inside metadata-state transform and only clear when current persisted sticky is not in the future after non-cloudflare direct outcomes; use CloudflareAwareComickGateway.TryClearExpiredStickyAfterDirectNonCloudflare.
       - Canonical Cloudflare fallback transition logging (`sticky_route`, `activated`, `unavailable`, `sticky_cleared`) with structured context should remain gateway-owned; use CloudflareAwareComickGateway logging helpers.
+      - Canonical Cloudflare gateway metadata-state read/transform handling should be best-effort for non-fatal exceptions (warning telemetry + request-flow continuation) while fatal exceptions are rethrown; use CloudflareAwareComickGateway.TryReadMetadataStateSnapshot and CloudflareAwareComickGateway.TryTransformMetadataStateSnapshot.
       - Canonical sticky retry anchor uses post-direct block-detection timestamp (not request-start time) when computing sticky expiry; use CloudflareAwareComickGateway.ExecuteWithRoutingAsync.
       - Canonical sticky-window clock reads should normalize provider timestamps to UTC at use sites for deterministic comparisons; use CloudflareAwareComickGateway.ExecuteWithRoutingAsync.
       - Canonical Cloudflare challenge detection for Comick responses; use ComickPayloadParser.
@@ -1034,6 +1042,7 @@ modules:
       - Canonical metadata best-effort IO/race handling for source seeding, candidate traversal, and details writes; use OverrideDetailsService.EnsureDetailsJson.
       - Canonical metadata cooldown persistence ordering should skip cooldown writes for cooperative cancellation during Comick search or candidate matching while preserving non-cooperative interruption persistence; use ComickMetadataCoordinator.ResolveMatchedComic.
       - Canonical metadata structured logging for cooldown skips, artifact writes/skips/failures, and equivalents update outcomes should remain coordinator-owned; use ComickMetadataCoordinator.
+      - Canonical metadata expected-title expansion for candidate matching should include display title, resolved canonical title, and runtime equivalent-title groups with normalized-key dedupe in deterministic order; use ComickMetadataCoordinator.BuildExpectedTitles.
       - Canonical metadata orchestration FlareSolverr URI invariants (non-null must be absolute http/https); use MetadataOrchestrationOptions.
       - Canonical metadata orchestration settings carrier and guards for Comick/Flaresolverr runtime values; use MetadataOrchestrationOptions.
       - Canonical persisted metadata state load/transform semantics with atomic JSON persistence and corrupt file/directory recovery; use FileBackedMetadataStateStore.

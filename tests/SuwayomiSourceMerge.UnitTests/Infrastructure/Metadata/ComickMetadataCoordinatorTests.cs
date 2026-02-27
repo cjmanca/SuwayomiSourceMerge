@@ -110,6 +110,40 @@ public sealed partial class ComickMetadataCoordinatorTests
 	}
 
 	/// <summary>
+	/// Verifies candidate-matcher expected titles include display, canonical, and all equivalent titles with normalized deduplication.
+	/// </summary>
+	[Fact]
+	public void EnsureMetadata_Expected_ShouldPassExpandedEquivalentTitleSetToMatcher()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		StubEquivalentTitleCatalog catalog = new(
+			resolvedCanonicalTitle: "Canonical Title",
+			["Canonical Title", "Alt Title", "Display Title", " The Alt Title "]);
+		TestFixture fixture = CreateFixture(
+			temporaryDirectory.Path,
+			static (_, _) => new ComickDirectApiResult<ComickSearchResponse>(
+				ComickDirectApiOutcome.Success,
+				new ComickSearchResponse(
+				[
+					new ComickSearchComic
+					{
+						Slug = "candidate-slug"
+					}
+				]),
+				HttpStatusCode.OK,
+				"Success."),
+			catalog);
+		ComickMetadataCoordinatorRequest request = fixture.CreateRequestWithExistingDetails("Display Title");
+
+		_ = fixture.Coordinator.EnsureMetadata(request);
+
+		Assert.Equal(1, fixture.CandidateMatcher.MatchCallCount);
+		Assert.Equal(
+			["Display Title", "Canonical Title", "Alt Title"],
+			fixture.CandidateMatcher.LastExpectedTitles);
+	}
+
+	/// <summary>
 	/// Creates one coordinator test fixture rooted at a temporary test path.
 	/// </summary>
 	/// <param name="rootPath">Temporary root path.</param>
@@ -176,5 +210,69 @@ public sealed partial class ComickMetadataCoordinatorTests
 			flaresolverrServerUri: null,
 			flaresolverrDirectRetryInterval: TimeSpan.FromMinutes(60),
 			preferredLanguage: "en");
+	}
+
+	/// <summary>
+	/// Mutable equivalence-catalog stub used for expected-title expansion tests.
+	/// </summary>
+	private sealed class StubEquivalentTitleCatalog : IMangaEquivalenceCatalog
+	{
+		/// <summary>
+		/// Initializes a new instance of the <see cref="StubEquivalentTitleCatalog"/> class.
+		/// </summary>
+		/// <param name="resolvedCanonicalTitle">Resolved canonical title when lookup succeeds.</param>
+		/// <param name="equivalentTitles">Equivalent-title group entries returned by the stub.</param>
+		public StubEquivalentTitleCatalog(string resolvedCanonicalTitle, IReadOnlyList<string> equivalentTitles)
+		{
+			ArgumentException.ThrowIfNullOrWhiteSpace(resolvedCanonicalTitle);
+			ArgumentNullException.ThrowIfNull(equivalentTitles);
+			ResolvedCanonicalTitle = resolvedCanonicalTitle;
+			EquivalentTitles = equivalentTitles.ToArray();
+		}
+
+		/// <summary>
+		/// Gets resolved canonical title returned by this stub.
+		/// </summary>
+		private string ResolvedCanonicalTitle
+		{
+			get;
+		}
+
+		/// <summary>
+		/// Gets equivalent-title entries returned by this stub.
+		/// </summary>
+		private IReadOnlyList<string> EquivalentTitles
+		{
+			get;
+		}
+
+		/// <inheritdoc />
+		public MangaEquivalenceCatalogUpdateResult Update(MangaEquivalentsUpdateRequest request)
+		{
+			throw new InvalidOperationException("Update is not expected for expected-title expansion tests.");
+		}
+
+		/// <inheritdoc />
+		public bool TryResolveCanonicalTitle(string inputTitle, out string canonicalTitle)
+		{
+			ArgumentException.ThrowIfNullOrWhiteSpace(inputTitle);
+			canonicalTitle = ResolvedCanonicalTitle;
+			return true;
+		}
+
+		/// <inheritdoc />
+		public bool TryGetEquivalentTitles(string inputTitle, out IReadOnlyList<string> equivalentTitles)
+		{
+			ArgumentException.ThrowIfNullOrWhiteSpace(inputTitle);
+			equivalentTitles = EquivalentTitles;
+			return true;
+		}
+
+		/// <inheritdoc />
+		public string ResolveCanonicalOrInput(string inputTitle)
+		{
+			ArgumentException.ThrowIfNullOrWhiteSpace(inputTitle);
+			return ResolvedCanonicalTitle;
+		}
 	}
 }
