@@ -83,7 +83,7 @@ internal sealed partial class MergeMountWorkflow
 				.OrderBy(static path => path, PathSafetyPolicy.GetPathComparer())
 				.ToArray();
 		}
-		catch (Exception exception)
+		catch (Exception exception) when (!IsFatalException(exception))
 		{
 			_logger.Warning(
 				MergeCleanupEvent,
@@ -114,7 +114,7 @@ internal sealed partial class MergeMountWorkflow
 					Directory.Delete(mergedDirectoryPath, recursive: false);
 					removedEmptyDirectoryCount++;
 				}
-				catch (Exception)
+				catch (Exception exception) when (!IsFatalException(exception))
 				{
 					// Best-effort final empty delete; leave in place if it cannot be removed.
 				}
@@ -178,7 +178,7 @@ internal sealed partial class MergeMountWorkflow
 			{
 				childDirectories = Directory.GetDirectories(currentDirectory);
 			}
-			catch (Exception exception)
+			catch (Exception exception) when (!IsFatalException(exception))
 			{
 				_logger.Warning(
 					MergeCleanupEvent,
@@ -223,7 +223,7 @@ internal sealed partial class MergeMountWorkflow
 			hasEntries = Directory.EnumerateFileSystemEntries(directoryPath).Any();
 			return true;
 		}
-		catch (Exception exception)
+		catch (Exception exception) when (!IsFatalException(exception))
 		{
 			_logger.Warning(
 				MergeCleanupEvent,
@@ -315,7 +315,7 @@ internal sealed partial class MergeMountWorkflow
 				relocationMode = "copy_delete";
 				return true;
 			}
-			catch (Exception exception)
+			catch (Exception exception) when (!IsFatalException(exception))
 			{
 				_logger.Warning(
 					MergeCleanupEvent,
@@ -328,7 +328,7 @@ internal sealed partial class MergeMountWorkflow
 				return false;
 			}
 		}
-		catch (Exception exception)
+		catch (Exception exception) when (!IsFatalException(exception))
 		{
 			_logger.Warning(
 				MergeCleanupEvent,

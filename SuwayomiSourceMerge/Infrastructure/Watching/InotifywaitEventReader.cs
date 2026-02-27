@@ -290,12 +290,25 @@ internal sealed class InotifywaitEventReader : IInotifyEventReader
 					roots.Add(normalized);
 				}
 			}
-			catch (Exception exception)
+			catch (Exception exception) when (!IsFatalException(exception))
 			{
 				warnings.Add($"Ignoring invalid watch root '{root}': {exception.GetType().Name}.");
 			}
 		}
 
 		return roots.OrderBy(static path => path, StringComparer.Ordinal).ToArray();
+	}
+
+	/// <summary>
+	/// Determines whether an exception is fatal and must never be swallowed.
+	/// </summary>
+	/// <param name="exception">Exception instance to classify.</param>
+	/// <returns><see langword="true"/> when fatal; otherwise <see langword="false"/>.</returns>
+	private static bool IsFatalException(Exception exception)
+	{
+		ArgumentNullException.ThrowIfNull(exception);
+		return exception is OutOfMemoryException
+			|| exception is StackOverflowException
+			|| exception is AccessViolationException;
 	}
 }

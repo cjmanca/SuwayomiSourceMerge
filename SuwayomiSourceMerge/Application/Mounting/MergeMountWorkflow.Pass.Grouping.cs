@@ -238,7 +238,7 @@ internal sealed partial class MergeMountWorkflow
 					.OrderBy(static path => path, StringComparer.Ordinal)
 					.ToArray();
 			}
-			catch (Exception exception)
+			catch (Exception exception) when (!IsFatalException(exception))
 			{
 				hadEnumerationFailure = true;
 				_logger.Warning(
@@ -317,7 +317,7 @@ internal sealed partial class MergeMountWorkflow
 				isSuffixTagged);
 			return true;
 		}
-		catch (Exception exception)
+		catch (Exception exception) when (!IsFatalException(exception))
 		{
 			_logger.Warning(
 				MergePassWarningEvent,
@@ -350,7 +350,7 @@ internal sealed partial class MergeMountWorkflow
 				.OrderBy(static path => path, StringComparer.Ordinal)
 				.ToArray();
 		}
-		catch (Exception exception)
+		catch (Exception exception) when (!IsFatalException(exception))
 		{
 			hadEnumerationFailure = true;
 			_logger.Warning(

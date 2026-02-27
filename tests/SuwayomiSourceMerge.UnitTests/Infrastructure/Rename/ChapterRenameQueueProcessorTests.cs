@@ -672,6 +672,55 @@ public sealed class ChapterRenameQueueProcessorTests
 	}
 
 	/// <summary>
+	/// Verifies fatal directory-enumeration failures are rethrown during rescans.
+	/// </summary>
+	[Fact]
+	public void RescanAndEnqueue_Failure_ShouldRethrowFatal_WhenDirectoryEnumerationThrowsFatalException()
+	{
+		FakeChapterRenameFileSystem fileSystem = new()
+		{
+			EnumerateDirectoriesHandler = static _ => throw new OutOfMemoryException("fatal enumeration failure")
+		};
+		ChapterRenameQueueProcessor processor = CreateProcessor(
+			"/ssm/sources",
+			new InMemoryChapterRenameQueueStore(),
+			fileSystem,
+			new RecordingLogger());
+
+		Assert.Throws<OutOfMemoryException>(() => processor.RescanAndEnqueue());
+	}
+
+	/// <summary>
+	/// Verifies fatal filesystem-entry enumeration failures are rethrown during queue processing.
+	/// </summary>
+	[Fact]
+	public void ProcessOnce_Failure_ShouldRethrowFatal_WhenFileSystemEntryEnumerationThrowsFatalException()
+	{
+		string sourcesRootPath = Path.GetFullPath("/ssm/sources");
+		string chapterPath = Path.Combine(sourcesRootPath, "SourceA", "MangaA", "Asura1 Chapter 7");
+		InMemoryChapterRenameQueueStore store = new();
+		store.TryEnqueue(new ChapterRenameQueueEntry(DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 60, chapterPath));
+		FakeChapterRenameFileSystem fileSystem = new()
+		{
+			DirectoryExistsHandler = static _ => true,
+			PathExistsHandler = static _ => false,
+			EnumerateFileSystemEntriesHandler = static _ => throw new OutOfMemoryException("fatal entry enumeration failure"),
+			TryGetLastWriteTimeUtcHandler = static _ => (true, DateTimeOffset.UtcNow.AddMinutes(-20)),
+			TryMoveDirectoryHandler = static (_, _) => true
+		};
+		ChapterRenameQueueProcessor processor = CreateProcessor(
+			sourcesRootPath,
+			store,
+			fileSystem,
+			new RecordingLogger(),
+			renameDelaySeconds: 0,
+			renameQuietSeconds: 0,
+			renameRescanSeconds: 60);
+
+		Assert.Throws<OutOfMemoryException>(() => processor.ProcessOnce());
+	}
+
+	/// <summary>
 	/// Creates one chapter rename queue processor with configurable options.
 	/// </summary>
 	/// <param name="sourcesRootPath">Sources root path.</param>

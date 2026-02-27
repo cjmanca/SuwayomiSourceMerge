@@ -222,7 +222,7 @@ internal sealed class ExternalCommandExecutor : IExternalCommandExecutor
 			result = null;
 			return true;
 		}
-		catch (Exception exception)
+		catch (Exception exception) when (!IsFatalException(exception))
 		{
 			result = new ExternalCommandResult(
 				ExternalCommandOutcome.StartFailed,

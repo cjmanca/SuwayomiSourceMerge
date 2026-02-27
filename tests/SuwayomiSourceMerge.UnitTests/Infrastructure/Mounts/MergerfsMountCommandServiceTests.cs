@@ -153,6 +153,115 @@ public sealed partial class MergerfsMountCommandServiceTests
 	}
 
 	/// <summary>
+	/// Verifies busy conditions written to stdout are treated as busy when stderr is empty.
+	/// </summary>
+	[Fact]
+	public void ApplyAction_Edge_ShouldReturnBusy_WhenBusyConditionIsReportedOnStdoutAndStderrIsEmpty()
+	{
+		RecordingCommandExecutor executor = new(
+			new ExternalCommandResult(
+				ExternalCommandOutcome.NonZeroExit,
+				ExternalCommandFailureKind.None,
+				16,
+				"Device or resource busy",
+				string.Empty,
+				false,
+				false,
+				TimeSpan.FromMilliseconds(1)),
+			new ExternalCommandResult(
+				ExternalCommandOutcome.NonZeroExit,
+				ExternalCommandFailureKind.None,
+				16,
+				"Device or resource busy",
+				string.Empty,
+				false,
+				false,
+				TimeSpan.FromMilliseconds(1)),
+			new ExternalCommandResult(
+				ExternalCommandOutcome.NonZeroExit,
+				ExternalCommandFailureKind.None,
+				16,
+				"Device or resource busy",
+				string.Empty,
+				false,
+				false,
+				TimeSpan.FromMilliseconds(1)));
+		MergerfsMountCommandService service = new(executor);
+		MountReconciliationAction action = new(
+			MountReconciliationActionKind.Unmount,
+			"/ssm/merged/Title",
+			desiredIdentity: null,
+			mountPayload: null,
+			MountReconciliationReason.StaleMount);
+
+		MountActionApplyResult result = service.ApplyAction(
+			action,
+			"allow_other",
+			TimeSpan.FromSeconds(5),
+			TimeSpan.FromMilliseconds(10),
+			cleanupHighPriority: false,
+			cleanupPriorityIoniceClass: 3,
+			cleanupPriorityNiceValue: -20);
+
+		Assert.Equal(MountActionApplyOutcome.Busy, result.Outcome);
+	}
+
+	/// <summary>
+	/// Verifies non-busy stderr takes precedence over stdout busy text.
+	/// </summary>
+	[Fact]
+	public void ApplyAction_Failure_ShouldReturnFailure_WhenStderrIsNonBusyEvenIfStdoutContainsBusyToken()
+	{
+		RecordingCommandExecutor executor = new(
+			new ExternalCommandResult(
+				ExternalCommandOutcome.NonZeroExit,
+				ExternalCommandFailureKind.None,
+				1,
+				"Device or resource busy",
+				"permission denied",
+				false,
+				false,
+				TimeSpan.FromMilliseconds(1)),
+			new ExternalCommandResult(
+				ExternalCommandOutcome.StartFailed,
+				ExternalCommandFailureKind.ToolNotFound,
+				null,
+				string.Empty,
+				"not found",
+				false,
+				false,
+				TimeSpan.FromMilliseconds(1)),
+			new ExternalCommandResult(
+				ExternalCommandOutcome.StartFailed,
+				ExternalCommandFailureKind.ToolNotFound,
+				null,
+				string.Empty,
+				"not found",
+				false,
+				false,
+				TimeSpan.FromMilliseconds(1)));
+		MergerfsMountCommandService service = new(executor);
+		MountReconciliationAction action = new(
+			MountReconciliationActionKind.Unmount,
+			"/ssm/merged/Title",
+			desiredIdentity: null,
+			mountPayload: null,
+			MountReconciliationReason.StaleMount);
+
+		MountActionApplyResult result = service.ApplyAction(
+			action,
+			"allow_other",
+			TimeSpan.FromSeconds(5),
+			TimeSpan.FromMilliseconds(10),
+			cleanupHighPriority: false,
+			cleanupPriorityIoniceClass: 3,
+			cleanupPriorityNiceValue: -20);
+
+		Assert.Equal(MountActionApplyOutcome.Failure, result.Outcome);
+		Assert.Contains("permission denied", result.Diagnostic, StringComparison.Ordinal);
+	}
+
+	/// <summary>
 	/// Verifies mixed busy and non-busy unmount failures return non-busy failure outcomes.
 	/// </summary>
 	[Fact]

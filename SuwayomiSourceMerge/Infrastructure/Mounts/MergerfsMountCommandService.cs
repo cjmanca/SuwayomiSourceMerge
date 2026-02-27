@@ -56,10 +56,17 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 	private readonly IExternalCommandExecutor _commandExecutor;
 
 	/// <summary>
+	/// Directory creation delegate used for mountpoint ensure behavior.
+	/// </summary>
+	private readonly Func<string, DirectoryInfo> _mountPointDirectoryEnsurer;
+
+	/// <summary>
 	/// Initializes a new instance of the <see cref="MergerfsMountCommandService"/> class.
 	/// </summary>
 	public MergerfsMountCommandService()
-		: this(new ExternalCommandExecutor())
+		: this(
+			new ExternalCommandExecutor(),
+			static mountPoint => Directory.CreateDirectory(mountPoint))
 	{
 	}
 
@@ -68,8 +75,23 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 	/// </summary>
 	/// <param name="commandExecutor">Command executor dependency.</param>
 	internal MergerfsMountCommandService(IExternalCommandExecutor commandExecutor)
+		: this(
+			commandExecutor,
+			static mountPoint => Directory.CreateDirectory(mountPoint))
+	{
+	}
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="MergerfsMountCommandService"/> class.
+	/// </summary>
+	/// <param name="commandExecutor">Command executor dependency.</param>
+	/// <param name="mountPointDirectoryEnsurer">Mountpoint directory creation dependency.</param>
+	internal MergerfsMountCommandService(
+		IExternalCommandExecutor commandExecutor,
+		Func<string, DirectoryInfo> mountPointDirectoryEnsurer)
 	{
 		_commandExecutor = commandExecutor ?? throw new ArgumentNullException(nameof(commandExecutor));
+		_mountPointDirectoryEnsurer = mountPointDirectoryEnsurer ?? throw new ArgumentNullException(nameof(mountPointDirectoryEnsurer));
 	}
 
 	/// <inheritdoc />
@@ -329,15 +351,15 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 	/// <param name="mountPoint">Mountpoint directory path.</param>
 	/// <param name="diagnostic">Failure diagnostic text.</param>
 	/// <returns><see langword="true"/> when the directory exists or is created; otherwise <see langword="false"/>.</returns>
-	private static bool TryEnsureMountPointDirectory(string mountPoint, out string diagnostic)
+	private bool TryEnsureMountPointDirectory(string mountPoint, out string diagnostic)
 	{
 		try
 		{
-			_ = Directory.CreateDirectory(mountPoint);
+			_ = _mountPointDirectoryEnsurer(mountPoint);
 			diagnostic = string.Empty;
 			return true;
 		}
-		catch (Exception exception)
+		catch (Exception exception) when (!IsFatalException(exception))
 		{
 			diagnostic = $"Failed to ensure mountpoint directory '{mountPoint}': {exception.GetType().Name}: {exception.Message}";
 			return false;
@@ -524,9 +546,15 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 		if (commandResult.Outcome == ExternalCommandOutcome.NonZeroExit)
 		{
 			string stderr = commandResult.StandardError.Trim();
-			if (ContainsBusyToken(stderr))
+			string busyCheckText = stderr;
+			if (string.IsNullOrWhiteSpace(busyCheckText))
 			{
-				return (MountActionApplyOutcome.Busy, $"Command reported busy state: {stderr}");
+				busyCheckText = commandResult.StandardOutput.Trim();
+			}
+
+			if (ContainsBusyToken(busyCheckText))
+			{
+				return (MountActionApplyOutcome.Busy, $"Command reported busy state: {busyCheckText}");
 			}
 
 			return (
@@ -555,6 +583,18 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 		}
 
 		return false;
+	}
+
+	/// <summary>
+	/// Determines whether an exception should be treated as fatal.
+	/// </summary>
+	/// <param name="exception">Exception to inspect.</param>
+	/// <returns><see langword="true"/> when exception is fatal; otherwise <see langword="false"/>.</returns>
+	private static bool IsFatalException(Exception exception)
+	{
+		return exception is OutOfMemoryException
+			|| exception is StackOverflowException
+			|| exception is AccessViolationException;
 	}
 
 	/// <summary>

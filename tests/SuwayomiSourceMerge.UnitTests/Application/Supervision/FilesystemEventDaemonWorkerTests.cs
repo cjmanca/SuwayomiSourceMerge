@@ -141,12 +141,57 @@ public sealed class FilesystemEventDaemonWorkerTests
 	}
 
 	/// <summary>
+	/// Verifies fatal shutdown-lifecycle exceptions are rethrown.
+	/// </summary>
+	[Fact]
+	public async Task RunAsync_Failure_ShouldRethrow_WhenShutdownLifecycleThrowsFatalException()
+	{
+		RecordingLogger logger = new();
+		FilesystemEventDaemonWorker worker = CreateWorker(new ThrowingFatalShutdownLifecycle(), logger);
+		using CancellationTokenSource cancellationTokenSource = new();
+		cancellationTokenSource.CancelAfter(TimeSpan.FromMilliseconds(20));
+
+		await Assert.ThrowsAsync<OutOfMemoryException>(
+			() => worker.RunAsync(cancellationTokenSource.Token)).WaitAsync(TimeSpan.FromSeconds(5));
+	}
+
+	/// <summary>
+	/// Verifies fatal pipeline-dispose exceptions are rethrown.
+	/// </summary>
+	[Fact]
+	public async Task RunAsync_Failure_ShouldRethrow_WhenTriggerPipelineDisposeThrowsFatalException()
+	{
+		RecordingLogger logger = new();
+		FilesystemEventDaemonWorker worker = CreateWorkerWithInotifyReader(new ThrowingFatalDisposeInotifyReader(), new RecordingLifecycle(), logger);
+		using CancellationTokenSource cancellationTokenSource = new();
+		cancellationTokenSource.CancelAfter(TimeSpan.FromMilliseconds(20));
+
+		await Assert.ThrowsAsync<OutOfMemoryException>(
+			() => worker.RunAsync(cancellationTokenSource.Token)).WaitAsync(TimeSpan.FromSeconds(5));
+	}
+
+	/// <summary>
 	/// Creates a worker instance with deterministic pipeline fakes.
 	/// </summary>
 	/// <param name="lifecycle">Lifecycle hook dependency.</param>
 	/// <param name="logger">Logger dependency.</param>
 	/// <returns>Worker instance.</returns>
 	private static FilesystemEventDaemonWorker CreateWorker(IMergeRuntimeLifecycle lifecycle, RecordingLogger logger)
+	{
+		return CreateWorkerWithInotifyReader(new EmptyInotifyReader(), lifecycle, logger);
+	}
+
+	/// <summary>
+	/// Creates a worker instance with deterministic fakes and configurable inotify reader.
+	/// </summary>
+	/// <param name="inotifyEventReader">Inotify reader dependency.</param>
+	/// <param name="lifecycle">Lifecycle hook dependency.</param>
+	/// <param name="logger">Logger dependency.</param>
+	/// <returns>Worker instance.</returns>
+	private static FilesystemEventDaemonWorker CreateWorkerWithInotifyReader(
+		IInotifyEventReader inotifyEventReader,
+		IMergeRuntimeLifecycle lifecycle,
+		RecordingLogger logger)
 	{
 		ChapterRenameOptions renameOptions = new(
 			"/ssm/sources",
@@ -165,7 +210,7 @@ public sealed class FilesystemEventDaemonWorkerTests
 			startupRenameRescanEnabled: false);
 		FilesystemEventTriggerPipeline pipeline = new(
 			triggerOptions,
-			new EmptyInotifyReader(),
+			inotifyEventReader,
 			new NoOpRenameProcessor(),
 			new NoOpCoalescer(),
 			logger);
@@ -291,6 +336,23 @@ public sealed class FilesystemEventDaemonWorkerTests
 	}
 
 	/// <summary>
+	/// Lifecycle test double that throws a fatal exception during shutdown.
+	/// </summary>
+	private sealed class ThrowingFatalShutdownLifecycle : IMergeRuntimeLifecycle
+	{
+		/// <inheritdoc />
+		public void OnWorkerStarting(CancellationToken cancellationToken = default)
+		{
+		}
+
+		/// <inheritdoc />
+		public void OnWorkerStopping(CancellationToken cancellationToken = default)
+		{
+			throw new OutOfMemoryException("fatal-shutdown-lifecycle");
+		}
+	}
+
+	/// <summary>
 	/// Inotify reader fake that returns an empty success result.
 	/// </summary>
 	private sealed class EmptyInotifyReader : IInotifyEventReader
@@ -302,6 +364,27 @@ public sealed class FilesystemEventDaemonWorkerTests
 			CancellationToken cancellationToken = default)
 		{
 			return new InotifyPollResult(InotifyPollOutcome.Success, [], []);
+		}
+	}
+
+	/// <summary>
+	/// Inotify reader fake that throws a fatal exception during dispose.
+	/// </summary>
+	private sealed class ThrowingFatalDisposeInotifyReader : IInotifyEventReader, IDisposable
+	{
+		/// <inheritdoc />
+		public InotifyPollResult Poll(
+			IReadOnlyList<string> watchRoots,
+			TimeSpan timeout,
+			CancellationToken cancellationToken = default)
+		{
+			return new InotifyPollResult(InotifyPollOutcome.Success, [], []);
+		}
+
+		/// <inheritdoc />
+		public void Dispose()
+		{
+			throw new OutOfMemoryException("fatal-pipeline-dispose");
 		}
 	}
 

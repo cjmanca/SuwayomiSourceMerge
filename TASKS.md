@@ -1,6 +1,8 @@
 # TASKS.md
 
 
+- [x] 2026-02-27 - Triple-check broad-scope fatal-exception hardening across host/mount/worker/logging/cover-conversion paths, add mountpoint-ensure test seam + regression tests, and validate with full build/test + AGENT_INDEX update.
+- [x] 2026-02-27 - Harden fatal-exception propagation across merge/dispatch/watcher/validation/rename/process execution paths, add busy-classification stdout fallback when stderr is empty, and expand regression coverage.
 - [x] 2026-02-27 - Address AI review-note polish by renaming the canonical-fallback coordinator test for readability and documenting intentional ignored `TryAddExpectedTitle` return semantics in `BuildExpectedTitles`.
 - [x] 2026-02-27 - Harden Comick metadata parsing/coordinator behavior by rejecting null payload entries with deterministic malformed outcomes, applying canonical-equivalent expected-title fallback even when canonical dedupes against display normalization, and adding warning telemetry for cooldown state-store read/persist failures with focused regression coverage.
 - [x] 2026-02-27 - Resolve PR #42 unresolved AI review thread by strengthening `MangaEquivalenceCatalogTests` shared fixture/assertions to use distinct canonical-vs-alias values for deterministic equivalent-title content/order validation, then reply and resolve the thread after green full-suite validation.

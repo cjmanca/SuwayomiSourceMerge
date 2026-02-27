@@ -358,7 +358,7 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 		{
 			return [];
 		}
-		catch (Exception exception)
+		catch (Exception exception) when (!IsFatalException(exception))
 		{
 			_logger.Warning(
 				EnumerationWarningEvent,
@@ -386,7 +386,7 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 		{
 			return [];
 		}
-		catch (Exception exception)
+		catch (Exception exception) when (!IsFatalException(exception))
 		{
 			_logger.Warning(
 				EnumerationWarningEvent,
@@ -396,6 +396,19 @@ internal sealed partial class ChapterRenameQueueProcessor : IChapterRenameQueueP
 					("exception", exception.GetType().Name)));
 			return [];
 		}
+	}
+
+	/// <summary>
+	/// Determines whether an exception is fatal and must never be swallowed.
+	/// </summary>
+	/// <param name="exception">Exception instance to classify.</param>
+	/// <returns><see langword="true"/> when fatal; otherwise <see langword="false"/>.</returns>
+	private static bool IsFatalException(Exception exception)
+	{
+		ArgumentNullException.ThrowIfNull(exception);
+		return exception is OutOfMemoryException
+			|| exception is StackOverflowException
+			|| exception is AccessViolationException;
 	}
 
 	/// <summary>

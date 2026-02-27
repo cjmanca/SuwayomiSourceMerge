@@ -65,8 +65,10 @@ modules:
         symbols: [ApplicationHost.CreateDefault]
         paths: [SuwayomiSourceMerge/Application/Hosting/ApplicationHost.cs]
     do_not_reimplement:
+      - Canonical fatal-exception passthrough in host run-path normalization catches so fatal CLR exceptions are never mapped to exit-code failure outcomes; use ApplicationHost.Run and ApplicationHost.IsFatalException.
       - Canonical host lifecycle orchestration and stderr fallback handling; use ApplicationHost.Run.
       - Canonical host startup/bootstrap/shutdown status-event emission at normal severity; use ApplicationHost.Run.
+      - Canonical logger-reporting best-effort catch policy should rethrow fatal logger exceptions while keeping stderr fallback writes swallow-all; use ApplicationHost.TryLogUnhandledException and ApplicationHost.WriteToStandardError.
       - Canonical recommended scene-tag drift diagnostics for warn-only runtime visibility; use SceneTagConfigurationAdvisor.GetMissingRecommendedTags and DefaultRuntimeSupervisorRunner.Run.
       - Canonical runtime failure lifecycle event emission (`host.shutdown_failed`) when runtime exits non-zero; use ApplicationHost.Run.
       - Canonical runtime dependency composition for bootstrap, logging, and supervision; use ApplicationHost.CreateDefault.
@@ -138,6 +140,7 @@ modules:
     do_not_reimplement:
       - Canonical cancellation propagation during merge-pass branch planning and override-title discovery enumeration; use MergeMountWorkflow.RunMergePass and MergeMountWorkflow.Pass.Grouping helpers.
       - Canonical cleanup stale-prune safety gate that infers still-mounted branch directories from mergerfs source payloads and skips pruning only for degraded-visibility or unresolved mappings; use MergeMountWorkflow.RunCleanupPass.
+      - Canonical fatal-exception passthrough from merge-pass and cleanup exception shields so fatal CLR exceptions are never normalized into warning/failure outcomes; use MergeMountWorkflow.IsFatalException, MergeMountWorkflow.RunMergePass, and MergeMountWorkflow.RunCleanupPass.
       - Canonical FlareSolverr URL scheme guard parity for settings-to-workflow mapping (allow only absolute http/https when non-empty); use MergeMountWorkflowOptions.TryParseAbsoluteUriOrNull.
       - Canonical settings-to-workflow FlareSolverr parse diagnostics should throw with `ParamName=settings` and keep strict key-presence semantics where empty value disables routing; use MergeMountWorkflowOptions.FromSettings.
       - Canonical merged-root residual cleanup should delete empty merged directories and quarantine non-empty residual directories under config only when mount visibility is healthy and managed mounts are inactive; use MergeMountWorkflow.CleanupMergedRootDirectories.
@@ -222,11 +225,13 @@ modules:
       - Canonical cooperative-cancellation classification shared across worker/dispatch paths (caller-token canceled + matching token OR tokenless cancellation); use CancellationClassification.IsCooperative.
       - Canonical daemon lifecycle start/stop idempotency, timeout handling, and cleanup flow; use DaemonSupervisor.
       - Canonical early-stop race handling by capturing worker/stop tasks before signal and cancellation registration; use DaemonSupervisor.RunAsync.
+      - Canonical fatal-exception passthrough in supervisor startup/worker exception mapping so fatal CLR exceptions are never normalized to exit-code failure outcomes; use DaemonSupervisor.RunAsync.
       - Canonical startup exception exit-code mapping (cancellation=success, non-cancellation startup failure=error) and startup-failure diagnostics; use DaemonSupervisor.RunAsync.
       - Canonical stop-timeout hard-stop behavior with boundary completion recheck before process termination; use DaemonSupervisor.StopCoreAsync and DaemonSupervisor.ShouldTreatStopAsTimedOut.
       - Canonical supervisor and worker lifecycle status-event emission (`supervisor.started`, `supervisor.stop_requested`, `supervisor.stopped`, `supervisor.worker.started`, `supervisor.worker.stopped`) at normal severity; use DaemonSupervisor and FilesystemEventDaemonWorker.
       - Canonical container SIGTERM cooperative-stop interception that prevents immediate process termination while cleanup runs; use ConsoleSupervisorSignalRegistrar POSIX signal registration.
       - Canonical state-file path resolution for supervisor lock/pid files; use SupervisorStatePaths.
+      - Canonical worker cleanup catches in shutdown lifecycle and pipeline disposal should preserve warning-only behavior for non-fatal exceptions while rethrowing fatal CLR exceptions; use FilesystemEventDaemonWorker.RunAsync.
       - Canonical worker lifecycle hook ordering (startup before loop, shutdown in finally with cooperative-cancellation status logs at normal severity and non-cooperative warning logging); use FilesystemEventDaemonWorker.
       - Canonical worker-loop execution model should use a dedicated long-running task (not thread-pool `Task.Run`) to avoid startup stalls under thread-pool pressure; use FilesystemEventDaemonWorker.RunAsync.
       - Canonical worker/startup fault diagnostics with full exception payload (`exception.ToString()` stack trace); use DaemonSupervisor.RunAsync.
@@ -298,6 +303,7 @@ modules:
         paths: [SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerPipeline.cs]
     do_not_reimplement:
       - Canonical burst merge-request coalescing with latest-reason and latest-force replacement semantics; use MergeScanRequestCoalescer.
+      - Canonical fatal-exception passthrough in production dispatch normalization catches so fatal CLR exceptions bubble to host-level handlers; use ProductionMergeScanRequestHandler.DispatchMergeScan.
       - Canonical handler/coalescer token-aware mapping for cancellation exceptions (cooperative cancellation rethrow when caller token is canceled and exception token matches or is tokenless, non-cooperative cancellation mapped to failure with failed-event emission); use ProductionMergeScanRequestHandler.DispatchMergeScan, MergeScanRequestCoalescer.DispatchPending, and CancellationClassification.IsCooperative.
       - Canonical inotify request-timeout-buffer fallback (`300`) when deprecated scan timeout buffer setting is omitted; use FilesystemEventTriggerOptions.FromSettings.
       - Canonical merge-request interval/retry gate decisions including mixed retry behavior; use MergeScanRequestCoalescer.DispatchPending.
@@ -672,6 +678,7 @@ modules:
       - Canonical default scene-tag list creation used for missing scene_tags.yml bootstrap; use SceneTagsDocumentDefaults.Create.
       - Canonical default starter manga-equivalents mapping for missing manga_equivalents.yml bootstrap; use MangaEquivalentsDocumentDefaults.Create.
       - Canonical default starter source-priority list for missing source_priority.yml bootstrap; use SourcePriorityDocumentDefaults.Create.
+      - Canonical fatal-exception passthrough for settings path normalization catches so fatal CLR exceptions are not collapsed into invalid-path results; use SettingsDocumentValidator.TryNormalizeAbsolutePath.
       - Canonical YAML parser behavior and parser error codes; use YamlDocumentParser.
       - Document-level parse-and-validate orchestration; use ConfigurationSchemaService.
       - Manga equivalents conflict detection rules; use MangaEquivalentsDocumentValidator.
@@ -1018,7 +1025,8 @@ modules:
       - Canonical cover-key invalid absolute-scheme and malformed URI-composition handling should return deterministic DownloadFailed outcomes (not throw), preferred-directory setup failures plus write-stage path failures (`NotSupportedException`, `PathTooLongException`) should map to WriteFailed, and AlreadyExists should surface the actual on-disk cover path; use OverrideCoverService.EnsureCoverJpgAsync and OverrideCoverResult.
       - Canonical cover download path should use response-header prechecks plus bounded streaming capped at 32 MiB and map oversize payloads to DownloadFailed outcomes; use OverrideCoverService.DownloadCoverBytesAsync.
       - Canonical JPEG fast-path must decode-validate JPEG-signature payloads before reporting WrittenDownloadedJpeg; decode failures should map to UnsupportedImage outcomes; use OverrideCoverService.TryValidateJpegPayload and OverrideCoverService.EnsureCoverJpgAsync.
-      - Canonical cover conversion failure mapping intentionally uses broad conversion exception capture to preserve deterministic UnsupportedImage outcomes for payload decode/encode failures; use OverrideCoverService.TryConvertToJpeg.
+      - Canonical JPEG decode-validation catches should preserve deterministic UnsupportedImage outcomes for non-fatal faults while rethrowing fatal CLR exceptions; use OverrideCoverService.TryValidateJpegPayload.
+      - Canonical cover conversion failure mapping should preserve deterministic UnsupportedImage outcomes for non-fatal payload decode/encode failures while rethrowing fatal CLR exceptions; use OverrideCoverService.TryConvertToJpeg.
       - Canonical cover.jpg request validation and cover-key URI resolution semantics; use OverrideCoverRequest and OverrideCoverService.
       - Canonical expired-sticky clear should be guarded inside metadata-state transform and only clear when current persisted sticky is not in the future after non-cloudflare direct outcomes; use CloudflareAwareComickGateway.TryClearExpiredStickyAfterDirectNonCloudflare.
       - Canonical Cloudflare fallback transition logging (`sticky_route`, `activated`, `unavailable`, `sticky_cleared`) with structured context should remain gateway-owned; use CloudflareAwareComickGateway logging helpers.
@@ -1138,6 +1146,8 @@ modules:
       - Canonical findmnt escaped-byte decoding must preserve UTF-8 mountpoint text and replace malformed surrogate halves with U+FFFD instead of throwing; use FindmntSnapshotLineParser.DecodeEscapedValue.
       - Canonical legacy shell findmnt pairs-mode compatibility wrapper; use findmnt_pairs.
       - Canonical mount action precondition that ensures mountpoint directories exist before invoking mergerfs; use MergerfsMountCommandService.
+      - Canonical mountpoint directory ensure diagnostics should map non-fatal creation failures to deterministic failure text while rethrowing fatal CLR exceptions; use MergerfsMountCommandService.TryEnsureMountPointDirectory.
+      - Canonical non-zero mount busy classification should inspect stderr first and only fall back to stdout when stderr is blank; use MergerfsMountCommandService.ClassifyCommandResult.
       - Canonical mergerfs mount option composition must enforce a default thread cap (`threads=1`) when no explicit threads option is configured; use MergerfsOptionComposer.ComposeMountOptions.
       - Canonical timeout-bounded mounted-path readiness probe command execution and diagnostic mapping; use MergerfsMountCommandService.ProbeMountPointReadiness.
       - Canonical bad-mountpoint retry flow with explicit two-sentence labeled mountpoint-directory-creation failure diagnostics; use MergerfsMountCommandService.
@@ -1195,6 +1205,7 @@ modules:
     do_not_reimplement:
       - Canonical bounded stdout/stderr capture with truncation flags; use ExternalCommandExecutor.
       - Canonical command outcome + failure-kind contract for process execution; use ExternalCommandResult.
+      - Canonical fatal-exception passthrough for process-start failures in startup classification catches; use ExternalCommandExecutor.TryStartProcess.
       - Canonical poll-supervised timeout/cancellation process handling; use ExternalCommandExecutor.Execute.
       - Canonical timeout/cancellation boundary exit-precedence probes; use ExternalCommandExecutor.TryWaitForExit.
       - Canonical fail-open capture completion handling with trace diagnostics for unexpected non-fatal faults; use ExternalCommandExecutor.WaitForCaptureCompletion.
@@ -1267,6 +1278,7 @@ modules:
       - Canonical chapter path enqueue gating (depth-3 + excluded-source checks + allow-at delay); use ChapterRenameQueueProcessor.EnqueueChapterPath.
       - Canonical targeted recursive chapter enqueue for source/manga directory events; use IChapterRenameQueueProcessor.EnqueueChaptersUnderSourcePath and IChapterRenameQueueProcessor.EnqueueChaptersUnderMangaPath.
       - Canonical chapter rename rule heuristics (shell-baseline with docs-first embedded chapter-token handling, including embedded abbreviated chapter/episode tokens); use ShellParityChapterRenameSanitizer.
+      - Canonical fatal-exception passthrough for process/rescan filesystem enumeration catches so fatal CLR exceptions are never normalized to warning outcomes; use ChapterRenameQueueProcessor.ProcessOnce and ChapterRenameQueueProcessor.RescanAndEnqueue.
       - Canonical in-memory queue dedupe semantics keyed by normalized path with explicit deterministic ordered-path iteration; use InMemoryChapterRenameQueueStore.
       - Canonical atomic queue transform contract used by processor/store concurrency boundaries, including no-mutation-on-failure semantics; use IChapterRenameQueueStore.Transform.
       - Canonical filesystem adapter enumeration behavior (lazy enumeration with missing-path fast return and benign directory-not-found suppression); use ChapterRenameFileSystem.
@@ -1395,6 +1407,7 @@ modules:
         paths: [SuwayomiSourceMerge/Infrastructure/Watching/IInotifyEventReader.cs, SuwayomiSourceMerge/Infrastructure/Watching/InotifyPollResult.cs]
     do_not_reimplement:
       - Canonical %w%f|%e line parsing and unknown-token detection; use InotifyEventRecord.TryParse.
+      - Canonical fatal-exception passthrough in watch-root normalization and persistent-session startup/exit observers so fatal CLR exceptions bubble; use InotifywaitEventReader and PersistentInotifywaitEventReader.
       - Canonical inotify event token flag model; use InotifyEventMask.
       - Canonical one-shot inotify command invocation and timeout classification; use InotifywaitEventReader.Poll.
       - Canonical persistent inotify monitor orchestration with progressive deep-watch startup, desired-session pruning, and bounded restart backoff; use PersistentInotifywaitEventReader.
@@ -1547,6 +1560,7 @@ modules:
         paths: [SuwayomiSourceMerge/Infrastructure/Logging/RollingFileSink.cs]
     do_not_reimplement:
       - Canonical config-to-logger construction; use SsmLoggerFactory.
+      - Canonical fatal-exception passthrough for logger sink/fallback catches should rethrow fatal CLR exceptions while preserving fail-open behavior for non-fatal sink faults; use RollingFileLogger.Log and RollingFileLogger.TryWriteFallbackError.
       - Canonical log-file name/path safety checks; use LogFilePathPolicy.
       - Canonical level filtering and sink fault fallback behavior; use RollingFileLogger.
       - Canonical non-emitting handling for LogLevel.None sentinel values; use RollingFileLogger.

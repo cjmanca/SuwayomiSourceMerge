@@ -117,6 +117,21 @@ public sealed class ProductionMergeScanRequestHandlerTests
 	}
 
 	/// <summary>
+	/// Verifies fatal workflow exceptions are rethrown instead of being normalized to failure outcomes.
+	/// </summary>
+	[Fact]
+	public void DispatchMergeScan_Failure_ShouldRethrowFatalException_WhenWorkflowThrowsFatal()
+	{
+		RecordingLogger logger = new();
+		ProductionMergeScanRequestHandler handler = new(
+			new RecordingMergeWorkflow(new OutOfMemoryException("simulated fatal failure")),
+			logger);
+
+		Assert.Throws<OutOfMemoryException>(() => handler.DispatchMergeScan("override-force:Title", force: true));
+		Assert.DoesNotContain(logger.Events, static entry => entry.EventId == "merge.dispatch.failed");
+	}
+
+	/// <summary>
 	/// Verifies non-cooperative cancellation exceptions are mapped to failure and emit failed dispatch events.
 	/// </summary>
 	[Fact]

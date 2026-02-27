@@ -134,6 +134,47 @@ public sealed partial class MergerfsMountCommandServiceTests
 	}
 
 	/// <summary>
+	/// Verifies fatal mountpoint-ensure exceptions are rethrown without command execution.
+	/// </summary>
+	[Fact]
+	public void ApplyAction_Failure_ShouldRethrow_WhenMountPointDirectoryCreationThrowsFatalException()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string mountPoint = Path.Combine(temporaryDirectory.Path, "merged", "Fatal Ensure Title");
+		RecordingCommandExecutor executor = new(
+			new ExternalCommandResult(
+				ExternalCommandOutcome.Success,
+				ExternalCommandFailureKind.None,
+				0,
+				string.Empty,
+				string.Empty,
+				false,
+				false,
+				TimeSpan.FromMilliseconds(5)));
+		MergerfsMountCommandService service = new(
+			executor,
+			static _ => throw new OutOfMemoryException("fatal-mountpoint-ensure"));
+		MountReconciliationAction action = new(
+			MountReconciliationActionKind.Mount,
+			mountPoint,
+			"suwayomi_hash",
+			"/state/linkA=RW:/state/linkB=RO",
+			MountReconciliationReason.MissingMount);
+
+		Assert.Throws<OutOfMemoryException>(
+			() => service.ApplyAction(
+				action,
+				"allow_other",
+				TimeSpan.FromSeconds(5),
+				TimeSpan.FromMilliseconds(10),
+				cleanupHighPriority: false,
+				cleanupPriorityIoniceClass: 3,
+				cleanupPriorityNiceValue: -20));
+
+		Assert.Empty(executor.Requests);
+	}
+
+	/// <summary>
 	/// Verifies bad-mountpoint failures perform a one-time retry and can recover.
 	/// </summary>
 	[Fact]

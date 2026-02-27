@@ -204,7 +204,7 @@ internal sealed partial class MergeMountWorkflow
 			{
 				normalizedBranchLinkPath = Path.GetFullPath(branchLinkPath);
 			}
-			catch (Exception)
+			catch (Exception exception) when (!IsFatalException(exception))
 			{
 				continue;
 			}

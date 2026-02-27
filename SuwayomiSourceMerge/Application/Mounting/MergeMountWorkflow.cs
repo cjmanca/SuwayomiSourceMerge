@@ -247,4 +247,17 @@ internal sealed partial class MergeMountWorkflow : IMergeMountWorkflow, IMergeRu
 		byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(input));
 		return Convert.ToHexString(hash).ToLowerInvariant()[..16];
 	}
+
+	/// <summary>
+	/// Determines whether an exception is fatal and must never be swallowed.
+	/// </summary>
+	/// <param name="exception">Exception instance to classify.</param>
+	/// <returns><see langword="true"/> when fatal; otherwise <see langword="false"/>.</returns>
+	private static bool IsFatalException(Exception exception)
+	{
+		ArgumentNullException.ThrowIfNull(exception);
+		return exception is OutOfMemoryException
+			|| exception is StackOverflowException
+			|| exception is AccessViolationException;
+	}
 }
