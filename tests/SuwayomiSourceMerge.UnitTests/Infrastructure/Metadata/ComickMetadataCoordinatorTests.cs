@@ -144,6 +144,41 @@ public sealed partial class ComickMetadataCoordinatorTests
 	}
 
 	/// <summary>
+	/// Verifies expected-title fallback uses canonical lookup even when canonical title dedupes against display-title normalization.
+	/// </summary>
+	[Fact]
+	public void EnsureMetadata_Edge_ShouldLookupCanonicalEquivalents_WhenCanonicalMatchesDisplayTitle()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		CanonicalOnlyEquivalentTitleCatalog catalog = new(
+			displayTitle: "The Canonical Title",
+			canonicalTitle: "Canonical Title",
+			canonicalEquivalentTitles: ["Canonical Title", "Alias From Canonical"]);
+		TestFixture fixture = CreateFixture(
+			temporaryDirectory.Path,
+			static (_, _) => new ComickDirectApiResult<ComickSearchResponse>(
+				ComickDirectApiOutcome.Success,
+				new ComickSearchResponse(
+				[
+					new ComickSearchComic
+					{
+						Slug = "candidate-slug"
+					}
+				]),
+				HttpStatusCode.OK,
+				"Success."),
+			catalog);
+		ComickMetadataCoordinatorRequest request = fixture.CreateRequestWithExistingDetails("The Canonical Title");
+
+		_ = fixture.Coordinator.EnsureMetadata(request);
+
+		Assert.Equal(1, fixture.CandidateMatcher.MatchCallCount);
+		Assert.Equal(
+			["The Canonical Title", "Alias From Canonical"],
+			fixture.CandidateMatcher.LastExpectedTitles);
+	}
+
+	/// <summary>
 	/// Creates one coordinator test fixture rooted at a temporary test path.
 	/// </summary>
 	/// <param name="rootPath">Temporary root path.</param>
@@ -273,6 +308,94 @@ public sealed partial class ComickMetadataCoordinatorTests
 		{
 			ArgumentException.ThrowIfNullOrWhiteSpace(inputTitle);
 			return ResolvedCanonicalTitle;
+		}
+	}
+
+	/// <summary>
+	/// Catalog stub that resolves canonical titles for display input and serves equivalents only for canonical lookups.
+	/// </summary>
+	private sealed class CanonicalOnlyEquivalentTitleCatalog : IMangaEquivalenceCatalog
+	{
+		/// <summary>
+		/// Initializes a new instance of the <see cref="CanonicalOnlyEquivalentTitleCatalog"/> class.
+		/// </summary>
+		/// <param name="displayTitle">Display title that resolves to canonical.</param>
+		/// <param name="canonicalTitle">Canonical title returned by resolver.</param>
+		/// <param name="canonicalEquivalentTitles">Equivalent titles returned only for canonical lookups.</param>
+		public CanonicalOnlyEquivalentTitleCatalog(
+			string displayTitle,
+			string canonicalTitle,
+			IReadOnlyList<string> canonicalEquivalentTitles)
+		{
+			ArgumentException.ThrowIfNullOrWhiteSpace(displayTitle);
+			ArgumentException.ThrowIfNullOrWhiteSpace(canonicalTitle);
+			ArgumentNullException.ThrowIfNull(canonicalEquivalentTitles);
+
+			DisplayTitle = displayTitle;
+			CanonicalTitle = canonicalTitle;
+			CanonicalEquivalentTitles = canonicalEquivalentTitles.ToArray();
+		}
+
+		/// <summary>
+		/// Gets display title key.
+		/// </summary>
+		private string DisplayTitle
+		{
+			get;
+		}
+
+		/// <summary>
+		/// Gets canonical title key.
+		/// </summary>
+		private string CanonicalTitle
+		{
+			get;
+		}
+
+		/// <summary>
+		/// Gets canonical equivalent-title entries.
+		/// </summary>
+		private IReadOnlyList<string> CanonicalEquivalentTitles
+		{
+			get;
+		}
+
+		/// <inheritdoc />
+		public MangaEquivalenceCatalogUpdateResult Update(MangaEquivalentsUpdateRequest request)
+		{
+			throw new InvalidOperationException("Update is not expected for canonical-only equivalence tests.");
+		}
+
+		/// <inheritdoc />
+		public bool TryResolveCanonicalTitle(string inputTitle, out string canonicalTitle)
+		{
+			ArgumentException.ThrowIfNullOrWhiteSpace(inputTitle);
+			canonicalTitle = CanonicalTitle;
+			return string.Equals(inputTitle, DisplayTitle, StringComparison.Ordinal) ||
+				string.Equals(inputTitle, CanonicalTitle, StringComparison.Ordinal);
+		}
+
+		/// <inheritdoc />
+		public bool TryGetEquivalentTitles(string inputTitle, out IReadOnlyList<string> equivalentTitles)
+		{
+			ArgumentException.ThrowIfNullOrWhiteSpace(inputTitle);
+			if (string.Equals(inputTitle, CanonicalTitle, StringComparison.Ordinal))
+			{
+				equivalentTitles = CanonicalEquivalentTitles;
+				return true;
+			}
+
+			equivalentTitles = [];
+			return false;
+		}
+
+		/// <inheritdoc />
+		public string ResolveCanonicalOrInput(string inputTitle)
+		{
+			ArgumentException.ThrowIfNullOrWhiteSpace(inputTitle);
+			return TryResolveCanonicalTitle(inputTitle, out string canonicalTitle)
+				? canonicalTitle
+				: inputTitle;
 		}
 	}
 }

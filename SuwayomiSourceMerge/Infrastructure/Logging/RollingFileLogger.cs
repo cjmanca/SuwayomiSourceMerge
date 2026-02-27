@@ -90,7 +90,7 @@ internal sealed class RollingFileLogger : ISsmLogger
 		{
 			_sink.WriteLine(line);
 		}
-		catch (Exception ex)
+		catch (Exception ex) when (!IsFatalException(ex))
 		{
 			TryWriteFallbackError(ex, eventId);
 		}
@@ -163,10 +163,22 @@ internal sealed class RollingFileLogger : ISsmLogger
 			_fallbackErrorWriter(
 				$"[{DateTimeOffset.UtcNow:O}] logging_failure event=\"{EscapeFallbackValue(eventId)}\" error_type=\"{EscapeFallbackValue(exception.GetType().Name)}\" error_message=\"{EscapeFallbackValue(exception.Message)}\"");
 		}
-		catch
+		catch (Exception fallbackException) when (!IsFatalException(fallbackException))
 		{
 			// Fallback writes must never crash the process.
 		}
+	}
+
+	/// <summary>
+	/// Determines whether an exception should be treated as fatal.
+	/// </summary>
+	/// <param name="exception">Exception to inspect.</param>
+	/// <returns><see langword="true"/> when exception is fatal; otherwise <see langword="false"/>.</returns>
+	private static bool IsFatalException(Exception exception)
+	{
+		return exception is OutOfMemoryException
+			|| exception is StackOverflowException
+			|| exception is AccessViolationException;
 	}
 
 	/// <summary>

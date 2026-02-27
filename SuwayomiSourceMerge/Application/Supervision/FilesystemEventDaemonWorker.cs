@@ -84,7 +84,7 @@ internal sealed class FilesystemEventDaemonWorker : IDaemonWorker
 						WorkerStoppedEvent,
 						"Merge runtime shutdown lifecycle hook observed cooperative cancellation.");
 				}
-				catch (Exception exception)
+				catch (Exception exception) when (!IsFatalException(exception))
 				{
 					_logger.Warning(
 						WorkerLifecycleWarningEvent,
@@ -98,7 +98,7 @@ internal sealed class FilesystemEventDaemonWorker : IDaemonWorker
 				{
 					_triggerPipeline.Dispose();
 				}
-				catch (Exception exception)
+				catch (Exception exception) when (!IsFatalException(exception))
 				{
 					_logger.Warning(
 						WorkerLifecycleWarningEvent,
@@ -131,5 +131,17 @@ internal sealed class FilesystemEventDaemonWorker : IDaemonWorker
 		}
 
 		return context;
+	}
+
+	/// <summary>
+	/// Determines whether an exception should be treated as fatal.
+	/// </summary>
+	/// <param name="exception">Exception to inspect.</param>
+	/// <returns><see langword="true"/> when exception is fatal; otherwise <see langword="false"/>.</returns>
+	private static bool IsFatalException(Exception exception)
+	{
+		return exception is OutOfMemoryException
+			|| exception is StackOverflowException
+			|| exception is AccessViolationException;
 	}
 }

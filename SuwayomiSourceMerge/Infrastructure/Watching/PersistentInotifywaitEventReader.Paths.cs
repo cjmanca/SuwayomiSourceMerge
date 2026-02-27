@@ -23,7 +23,7 @@ internal sealed partial class PersistentInotifywaitEventReader
 			{
 				roots.Add(NormalizePath(root));
 			}
-			catch (Exception exception)
+			catch (Exception exception) when (!IsFatalException(exception))
 			{
 				warnings.Add($"Ignoring invalid watch root '{root}': {exception.GetType().Name}.");
 			}
@@ -85,5 +85,18 @@ internal sealed partial class PersistentInotifywaitEventReader
 		return relativePath.Split(
 			[Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
 			StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+	}
+
+	/// <summary>
+	/// Determines whether an exception is fatal and must never be swallowed.
+	/// </summary>
+	/// <param name="exception">Exception instance to classify.</param>
+	/// <returns><see langword="true"/> when fatal; otherwise <see langword="false"/>.</returns>
+	private static bool IsFatalException(Exception exception)
+	{
+		ArgumentNullException.ThrowIfNull(exception);
+		return exception is OutOfMemoryException
+			|| exception is StackOverflowException
+			|| exception is AccessViolationException;
 	}
 }

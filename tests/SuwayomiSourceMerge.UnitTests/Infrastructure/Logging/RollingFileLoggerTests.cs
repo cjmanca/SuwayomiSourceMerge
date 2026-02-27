@@ -182,6 +182,34 @@ public sealed class RollingFileLoggerTests
     }
 
     [Fact]
+    public void Log_Failure_ShouldRethrow_WhenSinkThrowsFatalException()
+    {
+        FatalThrowingSink sink = new();
+        List<string> fallbackMessages = [];
+        RollingFileLogger logger = new(
+            LogLevel.Trace,
+            sink,
+            new StructuredTextLogFormatter(),
+            fallbackMessages.Add);
+
+        Assert.Throws<OutOfMemoryException>(() => logger.Error("event.error", "message"));
+        Assert.Empty(fallbackMessages);
+    }
+
+    [Fact]
+    public void Log_Failure_ShouldRethrow_WhenFallbackWriterThrowsFatalException()
+    {
+        ThrowingSink sink = new();
+        RollingFileLogger logger = new(
+            LogLevel.Trace,
+            sink,
+            new StructuredTextLogFormatter(),
+            _ => throw new OutOfMemoryException("fatal-fallback-writer"));
+
+        Assert.Throws<OutOfMemoryException>(() => logger.Error("event.error", "message"));
+    }
+
+    [Fact]
     public void Constructor_ShouldThrow_WhenDependenciesAreNull()
     {
         Assert.Throws<ArgumentNullException>(
@@ -222,6 +250,14 @@ public sealed class RollingFileLoggerTests
         public void WriteLine(string line)
         {
             throw new IOException(_message);
+        }
+    }
+
+    private sealed class FatalThrowingSink : ILogSink
+    {
+        public void WriteLine(string line)
+        {
+            throw new OutOfMemoryException("fatal-sink-failure");
         }
     }
 }

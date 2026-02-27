@@ -224,7 +224,7 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 			{
 				return 0;
 			}
-			catch (Exception exception)
+			catch (Exception exception) when (!IsFatalException(exception))
 			{
 				_logger.Error(
 					SupervisorStartupFailureEvent,
@@ -283,7 +283,7 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 		{
 			exitCode = 0;
 		}
-		catch (Exception exception)
+		catch (Exception exception) when (!IsFatalException(exception))
 		{
 			_logger.Error(
 				SupervisorWorkerFaultEvent,
@@ -554,6 +554,19 @@ internal sealed class DaemonSupervisor : IDaemonSupervisor
 		}
 
 		return context;
+	}
+
+	/// <summary>
+	/// Determines whether an exception is fatal and must never be swallowed.
+	/// </summary>
+	/// <param name="exception">Exception instance to classify.</param>
+	/// <returns><see langword="true"/> when fatal; otherwise <see langword="false"/>.</returns>
+	private static bool IsFatalException(Exception exception)
+	{
+		ArgumentNullException.ThrowIfNull(exception);
+		return exception is OutOfMemoryException
+			|| exception is StackOverflowException
+			|| exception is AccessViolationException;
 	}
 
 	/// <summary>

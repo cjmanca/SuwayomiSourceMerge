@@ -149,7 +149,7 @@ internal sealed class ApplicationHost
 			WriteToStandardError(standardError, FormatBootstrapException(exception));
 			return 1;
 		}
-		catch (Exception exception)
+		catch (Exception exception) when (!IsFatalException(exception))
 		{
 			TryLogUnhandledException(logger, standardError, exception);
 			return 1;
@@ -216,7 +216,7 @@ internal sealed class ApplicationHost
 						("message", exception.Message),
 						("exception", exception.ToString())));
 			}
-			catch
+			catch (Exception loggingException) when (!IsFatalException(loggingException))
 			{
 				// Error reporting must never throw from exception handling paths.
 			}
@@ -243,5 +243,17 @@ internal sealed class ApplicationHost
 		{
 			// Best-effort stderr output.
 		}
+	}
+
+	/// <summary>
+	/// Determines whether an exception should be treated as fatal.
+	/// </summary>
+	/// <param name="exception">Exception to inspect.</param>
+	/// <returns><see langword="true"/> when exception is fatal; otherwise <see langword="false"/>.</returns>
+	private static bool IsFatalException(Exception exception)
+	{
+		return exception is OutOfMemoryException
+			|| exception is StackOverflowException
+			|| exception is AccessViolationException;
 	}
 }

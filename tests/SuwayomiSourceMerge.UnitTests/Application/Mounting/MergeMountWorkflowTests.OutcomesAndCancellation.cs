@@ -123,6 +123,20 @@ public sealed partial class MergeMountWorkflowTests
 	}
 
 	/// <summary>
+	/// Verifies fatal branch-planning exceptions are rethrown and not downgraded to build failures.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Failure_ShouldRethrowFatalException_WhenBranchPlanningThrowsFatal()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		fixture.BranchPlanningService.ThrowFatalOnCanonicalTitles.Add("Canonical Title");
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		Assert.Throws<OutOfMemoryException>(() => workflow.RunMergePass("interval elapsed", force: false));
+	}
+
+	/// <summary>
 	/// Verifies override-title discovery observes cancellation once discovery has already started.
 	/// </summary>
 	[Fact]

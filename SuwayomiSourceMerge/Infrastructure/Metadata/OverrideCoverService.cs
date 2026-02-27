@@ -441,7 +441,7 @@ internal sealed partial class OverrideCoverService : IOverrideCoverService, IDis
 			using Image image = Image.Load(payloadBytes);
 			return (true, "Success.");
 		}
-		catch (Exception exception)
+		catch (Exception exception) when (!IsFatalException(exception))
 		{
 			// Intentional broad catch: decode-validation faults must map to deterministic UnsupportedImage outcomes.
 			return (false, $"Cover JPEG validation failure: {exception.Message}");
@@ -470,7 +470,7 @@ internal sealed partial class OverrideCoverService : IOverrideCoverService, IDis
 
 			return (true, convertedBytes, "Success.");
 		}
-		catch (Exception exception)
+		catch (Exception exception) when (!IsFatalException(exception))
 		{
 			// Intentional broad catch: conversion faults are mapped to deterministic UnsupportedImage outcomes.
 			return (false, null, $"Cover conversion failure: {exception.Message}");
@@ -545,5 +545,17 @@ internal sealed partial class OverrideCoverService : IOverrideCoverService, IDis
 		{
 			_httpClient.Dispose();
 		}
+	}
+
+	/// <summary>
+	/// Determines whether an exception should be treated as fatal.
+	/// </summary>
+	/// <param name="exception">Exception to inspect.</param>
+	/// <returns><see langword="true"/> when exception is fatal; otherwise <see langword="false"/>.</returns>
+	private static bool IsFatalException(Exception exception)
+	{
+		return exception is OutOfMemoryException
+			|| exception is StackOverflowException
+			|| exception is AccessViolationException;
 	}
 }

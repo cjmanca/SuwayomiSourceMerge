@@ -1,5 +1,6 @@
 namespace SuwayomiSourceMerge.UnitTests.Infrastructure.Metadata;
 
+using System.IO;
 using System.Net;
 using SuwayomiSourceMerge.Configuration.Resolution;
 using SuwayomiSourceMerge.Infrastructure.Logging;
@@ -216,6 +217,58 @@ public sealed partial class ComickMetadataCoordinatorTests
 		Assert.Equal(LogLevel.Debug, logEvent.Level);
 		Assert.Equal(MangaEquivalenceCatalogUpdateOutcome.NoChanges.ToString(), logEvent.Context!["catalog_outcome"]);
 		Assert.Equal(MangaEquivalentsUpdateOutcome.NoChanges.ToString(), logEvent.Context["updater_outcome"]);
+	}
+
+	/// <summary>
+	/// Verifies cooldown-state read failures emit warning diagnostics and preserve best-effort behavior.
+	/// </summary>
+	[Fact]
+	public void EnsureMetadata_Edge_ShouldLogCooldownStateStoreFailureWarning_WhenCooldownReadFails()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		TestFixture fixture = CreateFixture(
+			temporaryDirectory.Path,
+			static (_, _) => CreateSearchResult(ComickDirectApiOutcome.NotFound));
+		fixture.MetadataStateStore.ReadException = new IOException("simulated read failure");
+		ComickMetadataCoordinatorRequest request = fixture.CreateRequestWithExistingDetails("Canonical Title");
+
+		ComickMetadataCoordinatorResult result = fixture.Coordinator.EnsureMetadata(request);
+
+		Assert.True(result.ApiCalled);
+		RecordingLogger.CapturedLogEvent logEvent = Assert.Single(
+			fixture.Logger.Events,
+			static entry => entry.EventId == "metadata.cooldown.state_store.failed" &&
+				entry.Context is not null &&
+				entry.Context.TryGetValue("operation", out string? operationValue) &&
+				string.Equals(operationValue, "cooldown_read", StringComparison.Ordinal));
+		Assert.Equal(LogLevel.Warning, logEvent.Level);
+		Assert.Equal("canonicaltitle", logEvent.Context!["normalized_title_key"]);
+	}
+
+	/// <summary>
+	/// Verifies cooldown persistence failures emit warning diagnostics and preserve best-effort behavior.
+	/// </summary>
+	[Fact]
+	public void EnsureMetadata_Edge_ShouldLogCooldownStateStoreFailureWarning_WhenCooldownPersistFails()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		TestFixture fixture = CreateFixture(
+			temporaryDirectory.Path,
+			static (_, _) => CreateSearchResult(ComickDirectApiOutcome.NotFound));
+		fixture.MetadataStateStore.TransformException = new IOException("simulated transform failure");
+		ComickMetadataCoordinatorRequest request = fixture.CreateRequestWithExistingDetails("Canonical Title");
+
+		ComickMetadataCoordinatorResult result = fixture.Coordinator.EnsureMetadata(request);
+
+		Assert.True(result.ApiCalled);
+		RecordingLogger.CapturedLogEvent logEvent = Assert.Single(
+			fixture.Logger.Events,
+			static entry => entry.EventId == "metadata.cooldown.state_store.failed" &&
+				entry.Context is not null &&
+				entry.Context.TryGetValue("operation", out string? operationValue) &&
+				string.Equals(operationValue, "cooldown_persist", StringComparison.Ordinal));
+		Assert.Equal(LogLevel.Warning, logEvent.Level);
+		Assert.Equal("canonicaltitle", logEvent.Context!["normalized_title_key"]);
 	}
 
 	/// <summary>

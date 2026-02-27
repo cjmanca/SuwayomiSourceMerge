@@ -107,7 +107,7 @@ internal sealed partial class MergeMountWorkflow
 			{
 				throw;
 			}
-			catch (Exception exception)
+			catch (Exception exception) when (!IsFatalException(exception))
 			{
 				buildFailure = true;
 				_logger.Error(

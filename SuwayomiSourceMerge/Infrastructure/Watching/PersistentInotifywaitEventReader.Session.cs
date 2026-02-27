@@ -113,7 +113,7 @@ internal sealed partial class PersistentInotifywaitEventReader
 				process.Dispose();
 				return false;
 			}
-			catch (Exception exception)
+			catch (Exception exception) when (!IsFatalException(exception))
 			{
 				failureKind = SessionStartFailureKind.CommandFailed;
 				warning = $"inotifywait monitor startup failed for '{watchPath}': {exception.GetType().Name}: {exception.Message}";
@@ -236,7 +236,7 @@ internal sealed partial class PersistentInotifywaitEventReader
 			{
 				// Cooperative shutdown.
 			}
-			catch (Exception exception)
+			catch (Exception exception) when (!IsFatalException(exception))
 			{
 				if (!_disposeTokenSource.IsCancellationRequested)
 				{

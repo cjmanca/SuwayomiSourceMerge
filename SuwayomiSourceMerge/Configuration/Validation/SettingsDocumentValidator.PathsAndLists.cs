@@ -99,7 +99,7 @@ public sealed partial class SettingsDocumentValidator
 			normalizedPathValue = Path.GetFullPath(pathValue);
 			return true;
 		}
-		catch (Exception)
+		catch (Exception exception) when (!IsFatalException(exception))
 		{
 			return false;
 		}
@@ -126,5 +126,18 @@ public sealed partial class SettingsDocumentValidator
 
 		string strictChildPrefix = normalizedRootPath + Path.DirectorySeparatorChar;
 		return normalizedCandidatePath.StartsWith(strictChildPrefix, comparison);
+	}
+
+	/// <summary>
+	/// Determines whether an exception is fatal and must never be swallowed.
+	/// </summary>
+	/// <param name="exception">Exception instance to classify.</param>
+	/// <returns><see langword="true"/> when fatal; otherwise <see langword="false"/>.</returns>
+	private static bool IsFatalException(Exception exception)
+	{
+		ArgumentNullException.ThrowIfNull(exception);
+		return exception is OutOfMemoryException
+			|| exception is StackOverflowException
+			|| exception is AccessViolationException;
 	}
 }

@@ -166,7 +166,13 @@ internal static class ComickPayloadParser
 
 		for (int index = 0; index < payload.Comics.Count; index++)
 		{
-			ComickSearchComic comic = payload.Comics[index];
+			ComickSearchComic? comic = payload.Comics[index];
+			if (comic is null)
+			{
+				diagnostic = $"Malformed payload: search item at index {index} is null.";
+				return false;
+			}
+
 			if (string.IsNullOrWhiteSpace(comic.Hid) ||
 				string.IsNullOrWhiteSpace(comic.Slug) ||
 				string.IsNullOrWhiteSpace(comic.Title))
@@ -185,7 +191,14 @@ internal static class ComickPayloadParser
 			IReadOnlyList<ComickCover> covers = comic.MdCovers;
 			for (int titleIndex = 0; titleIndex < titleAliases.Count; titleIndex++)
 			{
-				if (string.IsNullOrWhiteSpace(titleAliases[titleIndex].Title))
+				ComickTitleAlias? titleAlias = titleAliases[titleIndex];
+				if (titleAlias is null)
+				{
+					diagnostic = $"Malformed payload: search item at index {index} has null md_titles[{titleIndex}] entry.";
+					return false;
+				}
+
+				if (string.IsNullOrWhiteSpace(titleAlias.Title))
 				{
 					diagnostic = $"Malformed payload: search item at index {index} has empty md_titles[{titleIndex}].title.";
 					return false;
@@ -194,7 +207,14 @@ internal static class ComickPayloadParser
 
 			for (int coverIndex = 0; coverIndex < covers.Count; coverIndex++)
 			{
-				if (string.IsNullOrWhiteSpace(covers[coverIndex].B2Key))
+				ComickCover? cover = covers[coverIndex];
+				if (cover is null)
+				{
+					diagnostic = $"Malformed payload: search item at index {index} has null md_covers[{coverIndex}] entry.";
+					return false;
+				}
+
+				if (string.IsNullOrWhiteSpace(cover.B2Key))
 				{
 					diagnostic = $"Malformed payload: search item at index {index} has empty md_covers[{coverIndex}].b2key.";
 					return false;
@@ -246,7 +266,14 @@ internal static class ComickPayloadParser
 		IReadOnlyList<ComickCover> covers = payload.Comic.MdCovers;
 		for (int aliasIndex = 0; aliasIndex < titleAliases.Count; aliasIndex++)
 		{
-			if (string.IsNullOrWhiteSpace(titleAliases[aliasIndex].Title))
+			ComickTitleAlias? titleAlias = titleAliases[aliasIndex];
+			if (titleAlias is null)
+			{
+				diagnostic = $"Malformed payload: comic md_titles[{aliasIndex}] entry is null.";
+				return false;
+			}
+
+			if (string.IsNullOrWhiteSpace(titleAlias.Title))
 			{
 				diagnostic = $"Malformed payload: comic md_titles[{aliasIndex}].title is empty.";
 				return false;
@@ -255,7 +282,14 @@ internal static class ComickPayloadParser
 
 		for (int coverIndex = 0; coverIndex < covers.Count; coverIndex++)
 		{
-			if (string.IsNullOrWhiteSpace(covers[coverIndex].B2Key))
+			ComickCover? cover = covers[coverIndex];
+			if (cover is null)
+			{
+				diagnostic = $"Malformed payload: comic md_covers[{coverIndex}] entry is null.";
+				return false;
+			}
+
+			if (string.IsNullOrWhiteSpace(cover.B2Key))
 			{
 				diagnostic = $"Malformed payload: comic md_covers[{coverIndex}].b2key is empty.";
 				return false;

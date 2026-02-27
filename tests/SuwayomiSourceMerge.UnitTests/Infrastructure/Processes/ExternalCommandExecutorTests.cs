@@ -516,6 +516,29 @@ public sealed class ExternalCommandExecutorTests
 	}
 
 	/// <summary>
+	/// Verifies fatal startup exceptions are rethrown.
+	/// </summary>
+	[Fact]
+	public void Execute_Failure_ShouldRethrowFatal_WhenProcessStartThrowsFatalException()
+	{
+		FakeProcessFacade process = new()
+		{
+			StartException = new OutOfMemoryException("fatal start failure")
+		};
+		ExternalCommandExecutor executor = new(() => process);
+
+		Assert.Throws<OutOfMemoryException>(
+			() => executor.Execute(
+				new ExternalCommandRequest
+				{
+					FileName = "findmnt",
+					Timeout = TimeSpan.FromSeconds(1),
+					PollInterval = TimeSpan.FromMilliseconds(20),
+					MaxOutputCharacters = 64
+				}));
+	}
+
+	/// <summary>
 	/// Verifies start returning false is treated as startup failure.
 	/// </summary>
 	[Fact]

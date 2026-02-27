@@ -18,6 +18,11 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 	private const string CooldownSkippedEvent = "metadata.cooldown.skipped";
 
 	/// <summary>
+	/// Event id emitted when cooldown state-store operations fail and best-effort fallback behavior is applied.
+	/// </summary>
+	private const string CooldownStateStoreFailedEvent = "metadata.cooldown.state_store.failed";
+
+	/// <summary>
 	/// Event id emitted when cover generation is skipped.
 	/// </summary>
 	private const string CoverSkippedEvent = "metadata.artifact.cover.skipped";

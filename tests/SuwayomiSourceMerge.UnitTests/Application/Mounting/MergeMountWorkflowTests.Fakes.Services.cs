@@ -31,6 +31,14 @@ public sealed partial class MergeMountWorkflowTests
 		} = new(StringComparer.Ordinal);
 
 		/// <summary>
+		/// Gets canonical titles that should trigger simulated fatal planning failures.
+		/// </summary>
+		public HashSet<string> ThrowFatalOnCanonicalTitles
+		{
+			get;
+		} = new(StringComparer.Ordinal);
+
+		/// <summary>
 		/// Gets planned requests in call order.
 		/// </summary>
 		public List<MergerfsBranchPlanningRequest> PlannedRequests
@@ -51,6 +59,11 @@ public sealed partial class MergeMountWorkflowTests
 			if (ThrowOnCanonicalTitles.Contains(request.CanonicalTitle))
 			{
 				throw new InvalidOperationException($"Simulated planning failure for '{request.CanonicalTitle}'.");
+			}
+
+			if (ThrowFatalOnCanonicalTitles.Contains(request.CanonicalTitle))
+			{
+				throw new OutOfMemoryException($"Simulated fatal planning failure for '{request.CanonicalTitle}'.");
 			}
 
 			string branchDirectoryPath = Path.Combine(request.BranchLinksRootPath, request.GroupKey);

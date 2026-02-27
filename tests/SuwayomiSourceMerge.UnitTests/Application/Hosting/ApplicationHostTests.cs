@@ -273,6 +273,34 @@ public sealed class ApplicationHostTests
 		Assert.Contains("\\n", logContent);
 	}
 
+	[Fact]
+	public void Run_Failure_ShouldRethrow_WhenRuntimeSupervisorThrowsFatalException()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		ApplicationHost host = new(
+			new StubBootstrapService(_ => CreateBootstrapResult(temporaryDirectory.Path, "debug", [])),
+			new SsmLoggerFactory(),
+			new StubRuntimeSupervisorRunner((_, _) => throw new OutOfMemoryException("fatal-runtime")));
+
+		using StringWriter stderr = new();
+
+		Assert.Throws<OutOfMemoryException>(() => host.Run(temporaryDirectory.Path, stderr));
+	}
+
+	[Fact]
+	public void Run_Failure_ShouldRethrow_WhenUnhandledExceptionLoggingThrowsFatalException()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		ApplicationHost host = new(
+			new StubBootstrapService(_ => CreateBootstrapResult(temporaryDirectory.Path, "trace", [])),
+			new ThrowingFatalOnErrorLoggerFactory(),
+			new StubRuntimeSupervisorRunner((_, _) => throw new InvalidOperationException("runtime-failure")));
+
+		using StringWriter stderr = new();
+
+		Assert.Throws<OutOfMemoryException>(() => host.Run(temporaryDirectory.Path, stderr));
+	}
+
 	private static ConfigurationBootstrapResult CreateBootstrapResult(
 		string logRootPath,
 		string loggingLevel,
@@ -395,6 +423,55 @@ public sealed class ApplicationHostTests
 			if (level == LogLevel.Debug || level == LogLevel.Normal)
 			{
 				throw new InvalidOperationException("simulated logger failure");
+			}
+		}
+
+		public void Trace(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
+		{
+			Log(LogLevel.Trace, eventId, message, context);
+		}
+
+		public void Debug(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
+		{
+			Log(LogLevel.Debug, eventId, message, context);
+		}
+
+		public void Normal(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
+		{
+			Log(LogLevel.Normal, eventId, message, context);
+		}
+
+		public void Warning(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
+		{
+			Log(LogLevel.Warning, eventId, message, context);
+		}
+
+		public void Error(string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
+		{
+			Log(LogLevel.Error, eventId, message, context);
+		}
+	}
+
+	private sealed class ThrowingFatalOnErrorLoggerFactory : ISsmLoggerFactory
+	{
+		public ISsmLogger Create(SettingsDocument settings, Action<string> fallbackErrorWriter)
+		{
+			return new ThrowingFatalOnErrorLogger();
+		}
+	}
+
+	private sealed class ThrowingFatalOnErrorLogger : ISsmLogger
+	{
+		public bool IsEnabled(LogLevel level)
+		{
+			return true;
+		}
+
+		public void Log(LogLevel level, string eventId, string message, IReadOnlyDictionary<string, string>? context = null)
+		{
+			if (level == LogLevel.Error)
+			{
+				throw new OutOfMemoryException("fatal-log-write");
 			}
 		}
 
