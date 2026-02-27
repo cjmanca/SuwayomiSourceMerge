@@ -70,6 +70,7 @@ modules:
       - Canonical recommended scene-tag drift diagnostics for warn-only runtime visibility; use SceneTagConfigurationAdvisor.GetMissingRecommendedTags and DefaultRuntimeSupervisorRunner.Run.
       - Canonical runtime failure lifecycle event emission (`host.shutdown_failed`) when runtime exits non-zero; use ApplicationHost.Run.
       - Canonical runtime dependency composition for bootstrap, logging, and supervision; use ApplicationHost.CreateDefault.
+      - Canonical runtime metadata-logging dependency wiring should thread ISsmLogger into gateway, matcher, and coordinator; use DefaultRuntimeSupervisorRunner.Run.
       - Canonical runtime supervisor dependency composition for production startup; use DefaultRuntimeSupervisorRunner.
       - Canonical unhandled-host exception diagnostics with full exception payload (`exception.ToString()` stack trace); use ApplicationHost.TryLogUnhandledException.
     related: [application-mounting, application-supervision, logging-infrastructure, runtime-host, unit-test-suite]
@@ -841,7 +842,9 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadata.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.Logging.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatcher.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatcher.Logging.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatchOutcome.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatchResult.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickComicDetails.cs
@@ -895,17 +898,23 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Models.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Write.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.Helpers.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.Logging.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.StickyAnchor.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComicInfoMetadataParserTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickCandidateMatcherTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickCandidateMatcherTests.Logging.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.CancellationAndTransport.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.Helpers.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.PayloadValidation.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.SuccessAndHttp.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickMetadataCoordinatorTests.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.Helpers.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.StickyAnchor.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComicInfoMetadataParserTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickMetadataCoordinatorTests.Fakes.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickMetadataCoordinatorTests.Fakes.Metadata.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickMetadataCoordinatorTests.Fixture.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickMetadataCoordinatorTests.Logging.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/FileBackedMetadataStateStoreTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/FlaresolverrClientOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/FlaresolverrClientTests.CancellationAndTransport.cs
@@ -995,6 +1004,7 @@ modules:
     do_not_reimplement:
       - Canonical Cloudflare-aware direct-first routing with sticky FlareSolverr fallback and timed direct retry probing; use CloudflareAwareComickGateway.
       - Canonical Comick candidate resolution and detail-only exact-key matching semantics (search entries are ranking hints only), including interruption telemetry for non-cooperative detail failures and cancellation throws only when caller cancellation is requested; use ComickCandidateMatcher.MatchAsync and ComickCandidateMatchResult.HadServiceInterruption.
+      - Canonical Comick candidate-ambiguity warning semantics should detect only explicit top-similarity ranking-hint ties (>0 with epsilon tie comparison) and emit `metadata.candidate.ambiguity` even when a deterministic match is selected; use ComickCandidateMatcher.GetTopSimilarityTieInfo and ComickCandidateMatcher.LogCandidateAmbiguity.
       - Canonical Comick gateway base-URI normalization (absolute http/https + exactly one trailing slash) should be centralized and reused; use CloudflareAwareComickGateway.NormalizeBaseUri.
       - Canonical cover.jpg ensure flow (override-exists short-circuit, download, optional JPEG conversion, atomic non-overwrite write); use OverrideCoverService.EnsureCoverJpgAsync.
       - Canonical cover already-exists result construction should be centralized to preserve consistent CoverJpgPath/ExistingCoverPath semantics; use OverrideCoverService.CreateAlreadyExistsResult.
@@ -1004,6 +1014,7 @@ modules:
       - Canonical cover conversion failure mapping intentionally uses broad conversion exception capture to preserve deterministic UnsupportedImage outcomes for payload decode/encode failures; use OverrideCoverService.TryConvertToJpeg.
       - Canonical cover.jpg request validation and cover-key URI resolution semantics; use OverrideCoverRequest and OverrideCoverService.
       - Canonical expired-sticky clear should be guarded inside metadata-state transform and only clear when current persisted sticky is not in the future after non-cloudflare direct outcomes; use CloudflareAwareComickGateway.TryClearExpiredStickyAfterDirectNonCloudflare.
+      - Canonical Cloudflare fallback transition logging (`sticky_route`, `activated`, `unavailable`, `sticky_cleared`) with structured context should remain gateway-owned; use CloudflareAwareComickGateway logging helpers.
       - Canonical sticky retry anchor uses post-direct block-detection timestamp (not request-start time) when computing sticky expiry; use CloudflareAwareComickGateway.ExecuteWithRoutingAsync.
       - Canonical sticky-window clock reads should normalize provider timestamps to UTC at use sites for deterministic comparisons; use CloudflareAwareComickGateway.ExecuteWithRoutingAsync.
       - Canonical Cloudflare challenge detection for Comick responses; use ComickPayloadParser.
@@ -1022,6 +1033,7 @@ modules:
       - Canonical FlareSolverr wrapper result contract exposing extracted upstream status/body fields; use FlaresolverrApiResult.
       - Canonical metadata best-effort IO/race handling for source seeding, candidate traversal, and details writes; use OverrideDetailsService.EnsureDetailsJson.
       - Canonical metadata cooldown persistence ordering should skip cooldown writes for cooperative cancellation during Comick search or candidate matching while preserving non-cooperative interruption persistence; use ComickMetadataCoordinator.ResolveMatchedComic.
+      - Canonical metadata structured logging for cooldown skips, artifact writes/skips/failures, and equivalents update outcomes should remain coordinator-owned; use ComickMetadataCoordinator.
       - Canonical metadata orchestration FlareSolverr URI invariants (non-null must be absolute http/https); use MetadataOrchestrationOptions.
       - Canonical metadata orchestration settings carrier and guards for Comick/Flaresolverr runtime values; use MetadataOrchestrationOptions.
       - Canonical persisted metadata state load/transform semantics with atomic JSON persistence and corrupt file/directory recovery; use FileBackedMetadataStateStore.
@@ -1470,6 +1482,7 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Logging/LogFilePathPolicy.cs
       - SuwayomiSourceMerge/Infrastructure/Logging/LogLevel.cs
       - SuwayomiSourceMerge/Infrastructure/Logging/LogLevelParser.cs
+      - SuwayomiSourceMerge/Infrastructure/Logging/NoOpSsmLogger.cs
       - SuwayomiSourceMerge/Infrastructure/Logging/RollingFileLogger.cs
       - SuwayomiSourceMerge/Infrastructure/Logging/RollingFileSink.cs
       - SuwayomiSourceMerge/Infrastructure/Logging/SsmLoggerFactory.cs
@@ -1531,6 +1544,7 @@ modules:
       - Canonical normal-level semantics (ordered between debug and warning) and formatter token mapping (`level=normal`); use LogLevel and StructuredTextLogFormatter.
       - Canonical logging-level token parsing shared by validation and runtime; use LogLevelParser.
       - Canonical non-throw probing for logging-level tokens; use LogLevelParser.TryParse.
+      - Canonical optional logging fallback for non-emitting instrumentation dependencies; use NoOpSsmLogger.Instance.
       - Canonical structured text line format and escaping policy; use StructuredTextLogFormatter.
       - Canonical size-based rollover and retained archive handling; use RollingFileSink.
     related: [application-hosting, config-schema-validation, unit-test-suite]

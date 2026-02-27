@@ -5,6 +5,7 @@ using System.Net;
 using SuwayomiSourceMerge.Infrastructure.Metadata;
 using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 using SuwayomiSourceMerge.Infrastructure.Metadata.Flaresolverr;
+using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 
 /// <summary>
 /// Provides shared fixtures and test doubles for <see cref="CloudflareAwareComickGateway"/> tests.
@@ -41,7 +42,8 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		StubFlaresolverrClient? flaresolverrClient,
 		Uri? flaresolverrServerUri,
 		TimeSpan directRetryInterval,
-		DateTimeOffset nowUtc)
+		DateTimeOffset nowUtc,
+		RecordingLogger? logger = null)
 	{
 		return CreateGateway(
 			directClient,
@@ -49,7 +51,8 @@ public sealed partial class CloudflareAwareComickGatewayTests
 			flaresolverrClient,
 			flaresolverrServerUri,
 			directRetryInterval,
-			() => nowUtc);
+			() => nowUtc,
+			logger);
 	}
 
 	/// <summary>
@@ -68,7 +71,8 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		StubFlaresolverrClient? flaresolverrClient,
 		Uri? flaresolverrServerUri,
 		TimeSpan directRetryInterval,
-		Func<DateTimeOffset> utcNowProvider)
+		Func<DateTimeOffset> utcNowProvider,
+		RecordingLogger? logger = null)
 	{
 		MetadataOrchestrationOptions options = new(
 			TimeSpan.FromHours(24),
@@ -81,7 +85,8 @@ public sealed partial class CloudflareAwareComickGatewayTests
 			stateStore,
 			options,
 			new Uri("https://api.comick.dev/"),
-			utcNowProvider);
+			utcNowProvider,
+			logger);
 	}
 
 	/// <summary>

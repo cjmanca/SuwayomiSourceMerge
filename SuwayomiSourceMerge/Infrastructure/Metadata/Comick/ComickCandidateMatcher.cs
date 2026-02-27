@@ -1,11 +1,12 @@
 using SuwayomiSourceMerge.Domain.Normalization;
+using SuwayomiSourceMerge.Infrastructure.Logging;
 
 namespace SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 
 /// <summary>
 /// Resolves Comick search candidates to comic-detail payloads and performs strict exact-key matching.
 /// </summary>
-internal sealed class ComickCandidateMatcher : IComickCandidateMatcher
+internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 {
 	/// <summary>
 	/// Score used when candidate fields do not match expected title keys.
@@ -33,16 +34,26 @@ internal sealed class ComickCandidateMatcher : IComickCandidateMatcher
 	private readonly IComickApiGateway _comickApiGateway;
 
 	/// <summary>
+	/// Logger dependency.
+	/// </summary>
+	private readonly ISsmLogger _logger;
+
+	/// <summary>
 	/// Initializes a new instance of the <see cref="ComickCandidateMatcher"/> class.
 	/// </summary>
 	/// <param name="comickApiGateway">Comick API gateway used for <c>/comic/{slug}/</c> requests.</param>
 	/// <param name="sceneTagMatcher">
 	/// Optional scene-tag matcher used for title-key normalization.
 	/// </param>
-	public ComickCandidateMatcher(IComickApiGateway comickApiGateway, ISceneTagMatcher? sceneTagMatcher = null)
+	/// <param name="logger">Optional logger dependency.</param>
+	public ComickCandidateMatcher(
+		IComickApiGateway comickApiGateway,
+		ISceneTagMatcher? sceneTagMatcher = null,
+		ISsmLogger? logger = null)
 	{
 		_comickApiGateway = comickApiGateway ?? throw new ArgumentNullException(nameof(comickApiGateway));
 		_titleComparisonNormalizer = TitleComparisonNormalizerProvider.Get(sceneTagMatcher);
+		_logger = logger ?? NoOpSsmLogger.Instance;
 	}
 
 	/// <inheritdoc />
@@ -61,6 +72,7 @@ internal sealed class ComickCandidateMatcher : IComickCandidateMatcher
 			return CreateNoHighConfidenceResult();
 		}
 
+		(bool hasTopSimilarityTie, double topSimilarity, int tiedCandidateCount) = GetTopSimilarityTieInfo(candidates, expectedTitleKeys);
 		IReadOnlyList<int> evaluationOrder = BuildEvaluationOrder(candidates, expectedTitleKeys);
 		bool hadServiceInterruption = false;
 		for (int orderIndex = 0; orderIndex < evaluationOrder.Count; orderIndex++)
@@ -113,6 +125,11 @@ internal sealed class ComickCandidateMatcher : IComickCandidateMatcher
 				continue;
 			}
 
+			if (hasTopSimilarityTie)
+			{
+				LogCandidateAmbiguity(candidates.Count, expectedTitleKeys.Count, topSimilarity, tiedCandidateCount);
+			}
+
 			return new ComickCandidateMatchResult(
 				ComickCandidateMatchOutcome.Matched,
 				detailResult.Payload,
@@ -120,6 +137,11 @@ internal sealed class ComickCandidateMatcher : IComickCandidateMatcher
 				hadTopTie: false,
 				matchScore,
 				hadServiceInterruption);
+		}
+
+		if (hasTopSimilarityTie)
+		{
+			LogCandidateAmbiguity(candidates.Count, expectedTitleKeys.Count, topSimilarity, tiedCandidateCount);
 		}
 
 		return CreateNoHighConfidenceResult(hadServiceInterruption);

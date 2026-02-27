@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 
+using SuwayomiSourceMerge.Infrastructure.Logging;
 using SuwayomiSourceMerge.Infrastructure.Metadata.Flaresolverr;
 
 namespace SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
@@ -8,7 +9,7 @@ namespace SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 /// <summary>
 /// Executes Comick API requests with direct-first routing and sticky FlareSolverr fallback for Cloudflare challenge responses.
 /// </summary>
-internal sealed class CloudflareAwareComickGateway : IComickApiGateway
+internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 {
 	/// <summary>
 	/// Canonical default Comick API base URI.
@@ -48,24 +49,32 @@ internal sealed class CloudflareAwareComickGateway : IComickApiGateway
 	private readonly Func<DateTimeOffset> _utcNowProvider;
 
 	/// <summary>
+	/// Logger dependency.
+	/// </summary>
+	private readonly ISsmLogger _logger;
+
+	/// <summary>
 	/// Initializes a new instance of the <see cref="CloudflareAwareComickGateway"/> class.
 	/// </summary>
 	/// <param name="directClient">Direct Comick API client dependency.</param>
 	/// <param name="flaresolverrClient">Optional FlareSolverr client dependency.</param>
 	/// <param name="metadataStateStore">Persisted metadata state store.</param>
 	/// <param name="options">Metadata orchestration settings.</param>
+	/// <param name="logger">Optional logger dependency.</param>
 	public CloudflareAwareComickGateway(
 		IComickDirectApiClient directClient,
 		IFlaresolverrClient? flaresolverrClient,
 		IMetadataStateStore metadataStateStore,
-		MetadataOrchestrationOptions options)
+		MetadataOrchestrationOptions options,
+		ISsmLogger? logger = null)
 		: this(
 			directClient,
 			flaresolverrClient,
 			metadataStateStore,
 			options,
 			_defaultComickBaseUri,
-			static () => DateTimeOffset.UtcNow)
+			static () => DateTimeOffset.UtcNow,
+			logger)
 	{
 	}
 
@@ -81,13 +90,15 @@ internal sealed class CloudflareAwareComickGateway : IComickApiGateway
 	/// Clock provider used for sticky-window decisions.
 	/// Returned values are normalized to UTC by the gateway before use.
 	/// </param>
+	/// <param name="logger">Optional logger dependency.</param>
 	internal CloudflareAwareComickGateway(
 		IComickDirectApiClient directClient,
 		IFlaresolverrClient? flaresolverrClient,
 		IMetadataStateStore metadataStateStore,
 		MetadataOrchestrationOptions options,
 		Uri comickBaseUri,
-		Func<DateTimeOffset> utcNowProvider)
+		Func<DateTimeOffset> utcNowProvider,
+		ISsmLogger? logger = null)
 	{
 		_directClient = directClient ?? throw new ArgumentNullException(nameof(directClient));
 		_flaresolverrClient = flaresolverrClient;
@@ -95,6 +106,7 @@ internal sealed class CloudflareAwareComickGateway : IComickApiGateway
 		_options = options ?? throw new ArgumentNullException(nameof(options));
 		_utcNowProvider = utcNowProvider ?? throw new ArgumentNullException(nameof(utcNowProvider));
 		_comickBaseUri = NormalizeBaseUri(comickBaseUri);
+		_logger = logger ?? NoOpSsmLogger.Instance;
 	}
 
 	/// <inheritdoc />
@@ -151,6 +163,7 @@ internal sealed class CloudflareAwareComickGateway : IComickApiGateway
 		bool flaresolverrConfigured = IsFlaresolverrConfigured();
 		if (IsStickyActive(currentState, nowUtc) && flaresolverrConfigured)
 		{
+			LogStickyRoute(endpointUri, currentState.StickyFlaresolverrUntilUtc);
 			return await ExecuteViaFlaresolverrAsync(endpointUri, payloadParser, cancellationToken).ConfigureAwait(false);
 		}
 
@@ -159,11 +172,16 @@ internal sealed class CloudflareAwareComickGateway : IComickApiGateway
 		if (directResult.Outcome == ComickDirectApiOutcome.CloudflareBlocked && flaresolverrConfigured)
 		{
 			DateTimeOffset stickyUntilUtc = postDirectNowUtc + _options.FlaresolverrDirectRetryInterval;
+			LogFallbackActivated(endpointUri, stickyUntilUtc);
 			PersistStickyFlaresolverrUntil(stickyUntilUtc);
 			return await ExecuteViaFlaresolverrAsync(endpointUri, payloadParser, cancellationToken).ConfigureAwait(false);
 		}
+		else if (directResult.Outcome == ComickDirectApiOutcome.CloudflareBlocked)
+		{
+			LogFallbackUnavailable(endpointUri, directResult.Diagnostic);
+		}
 
-		TryClearExpiredStickyAfterDirectNonCloudflare(postDirectNowUtc, directResult);
+		TryClearExpiredStickyAfterDirectNonCloudflare(postDirectNowUtc, directResult, endpointUri);
 
 		return directResult;
 	}
@@ -368,9 +386,11 @@ internal sealed class CloudflareAwareComickGateway : IComickApiGateway
 	/// <param name="directResult">Direct request result.</param>
 	private void TryClearExpiredStickyAfterDirectNonCloudflare<TPayload>(
 		DateTimeOffset nowUtc,
-		ComickDirectApiResult<TPayload> directResult)
+		ComickDirectApiResult<TPayload> directResult,
+		Uri endpointUri)
 	{
 		ArgumentNullException.ThrowIfNull(directResult);
+		ArgumentNullException.ThrowIfNull(endpointUri);
 		if (directResult.Outcome == ComickDirectApiOutcome.CloudflareBlocked)
 		{
 			return;
@@ -385,6 +405,7 @@ internal sealed class CloudflareAwareComickGateway : IComickApiGateway
 
 		// Pre-read avoids transform/persist overhead in the common no-op case.
 		// Transform rechecks the same condition against current state to preserve concurrency safety.
+		bool stickyCleared = false;
 		_metadataStateStore.Transform(
 			current =>
 			{
@@ -398,10 +419,17 @@ internal sealed class CloudflareAwareComickGateway : IComickApiGateway
 					return current;
 				}
 
+				stickyCleared = true;
 				return new MetadataStateSnapshot(
 					current.TitleCooldownsUtc,
 					null);
 			});
+		// Logging intentionally occurs after transform completion so state-store mutation stays side-effect free
+		// and logging does not run under store-internal synchronization.
+		if (stickyCleared)
+		{
+			LogStickyCleared(endpointUri, directResult.Outcome, nowUtc);
+		}
 	}
 
 	/// <summary>

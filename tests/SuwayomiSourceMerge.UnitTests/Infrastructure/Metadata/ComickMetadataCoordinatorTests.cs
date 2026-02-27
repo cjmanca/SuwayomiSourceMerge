@@ -1,6 +1,7 @@
 namespace SuwayomiSourceMerge.UnitTests.Infrastructure.Metadata;
 
 using System.Net;
+using SuwayomiSourceMerge.Configuration.Resolution;
 using SuwayomiSourceMerge.Infrastructure.Metadata;
 using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
@@ -8,7 +9,7 @@ using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 /// <summary>
 /// Verifies cooldown persistence behavior for <see cref="ComickMetadataCoordinator"/> cancellation and failure paths.
 /// </summary>
-public sealed class ComickMetadataCoordinatorTests
+public sealed partial class ComickMetadataCoordinatorTests
 {
 	/// <summary>
 	/// Verifies non-cancelled search outcomes persist per-title cooldown state.
@@ -116,7 +117,8 @@ public sealed class ComickMetadataCoordinatorTests
 	/// <returns>Configured fixture.</returns>
 	private static TestFixture CreateFixture(
 		string rootPath,
-		Func<string, CancellationToken, ComickDirectApiResult<ComickSearchResponse>> searchHandler)
+		Func<string, CancellationToken, ComickDirectApiResult<ComickSearchResponse>> searchHandler,
+		IMangaEquivalenceCatalog? mangaEquivalenceCatalog = null)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
 		ArgumentNullException.ThrowIfNull(searchHandler);
@@ -126,6 +128,7 @@ public sealed class ComickMetadataCoordinatorTests
 		RecordingOverrideCoverService coverService = new();
 		RecordingOverrideDetailsService detailsService = new();
 		RecordingMetadataStateStore metadataStateStore = new();
+		RecordingLogger logger = new();
 		ComickMetadataCoordinator coordinator = new(
 			apiGateway,
 			candidateMatcher,
@@ -133,9 +136,10 @@ public sealed class ComickMetadataCoordinatorTests
 			detailsService,
 			metadataStateStore,
 			detailsDescriptionMode: "text",
-			mangaEquivalenceCatalog: null,
+			mangaEquivalenceCatalog,
 			mangaEquivalentsYamlPath: Path.Combine(rootPath, "manga_equivalents.yml"),
-			sceneTagMatcher: null);
+			sceneTagMatcher: null,
+			logger: logger);
 		return new TestFixture(
 			rootPath,
 			coordinator,
@@ -143,7 +147,8 @@ public sealed class ComickMetadataCoordinatorTests
 			candidateMatcher,
 			coverService,
 			detailsService,
-			metadataStateStore);
+			metadataStateStore,
+			logger);
 	}
 
 	/// <summary>
@@ -161,117 +166,6 @@ public sealed class ComickMetadataCoordinatorTests
 	}
 
 	/// <summary>
-	/// Aggregates coordinator dependencies and helper methods used by tests.
-	/// </summary>
-	private sealed class TestFixture
-	{
-		/// <summary>
-		/// Initializes a new instance of the <see cref="TestFixture"/> class.
-		/// </summary>
-		/// <param name="rootPath">Temporary root path.</param>
-		/// <param name="coordinator">Coordinator under test.</param>
-		/// <param name="apiGateway">API gateway fake.</param>
-		/// <param name="candidateMatcher">Candidate-matcher fake.</param>
-		/// <param name="coverService">Cover-service fake.</param>
-		/// <param name="detailsService">Details-service fake.</param>
-		/// <param name="metadataStateStore">Metadata-state-store fake.</param>
-		public TestFixture(
-			string rootPath,
-			ComickMetadataCoordinator coordinator,
-			RecordingComickApiGateway apiGateway,
-			RecordingComickCandidateMatcher candidateMatcher,
-			RecordingOverrideCoverService coverService,
-			RecordingOverrideDetailsService detailsService,
-			RecordingMetadataStateStore metadataStateStore)
-		{
-			ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
-			RootPath = rootPath;
-			Coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
-			ApiGateway = apiGateway ?? throw new ArgumentNullException(nameof(apiGateway));
-			CandidateMatcher = candidateMatcher ?? throw new ArgumentNullException(nameof(candidateMatcher));
-			CoverService = coverService ?? throw new ArgumentNullException(nameof(coverService));
-			DetailsService = detailsService ?? throw new ArgumentNullException(nameof(detailsService));
-			MetadataStateStore = metadataStateStore ?? throw new ArgumentNullException(nameof(metadataStateStore));
-		}
-
-		/// <summary>
-		/// Gets temporary root path.
-		/// </summary>
-		public string RootPath
-		{
-			get;
-		}
-
-		/// <summary>
-		/// Gets coordinator under test.
-		/// </summary>
-		public ComickMetadataCoordinator Coordinator
-		{
-			get;
-		}
-
-		/// <summary>
-		/// Gets API gateway fake.
-		/// </summary>
-		public RecordingComickApiGateway ApiGateway
-		{
-			get;
-		}
-
-		/// <summary>
-		/// Gets candidate matcher fake.
-		/// </summary>
-		public RecordingComickCandidateMatcher CandidateMatcher
-		{
-			get;
-		}
-
-		/// <summary>
-		/// Gets cover service fake.
-		/// </summary>
-		public RecordingOverrideCoverService CoverService
-		{
-			get;
-		}
-
-		/// <summary>
-		/// Gets details service fake.
-		/// </summary>
-		public RecordingOverrideDetailsService DetailsService
-		{
-			get;
-		}
-
-		/// <summary>
-		/// Gets metadata state-store fake.
-		/// </summary>
-		public RecordingMetadataStateStore MetadataStateStore
-		{
-			get;
-		}
-
-		/// <summary>
-		/// Creates one request for a title where details.json already exists in the preferred override path.
-		/// </summary>
-		/// <param name="displayTitle">Display title.</param>
-		/// <returns>Coordinator request.</returns>
-		public ComickMetadataCoordinatorRequest CreateRequestWithExistingDetails(string displayTitle)
-		{
-			ArgumentException.ThrowIfNullOrWhiteSpace(displayTitle);
-
-			string preferredOverridePath = Path.Combine(RootPath, "override", "priority", displayTitle);
-			Directory.CreateDirectory(preferredOverridePath);
-			File.WriteAllText(Path.Combine(preferredOverridePath, "details.json"), "{}");
-			return new ComickMetadataCoordinatorRequest(
-				preferredOverridePath,
-				[preferredOverridePath],
-				[],
-				displayTitle,
-				CreateMetadataOrchestrationOptions());
-		}
-	}
-
-	/// <summary>
 	/// Creates baseline metadata orchestration options for coordinator tests.
 	/// </summary>
 	/// <returns>Options instance.</returns>
@@ -282,199 +176,5 @@ public sealed class ComickMetadataCoordinatorTests
 			flaresolverrServerUri: null,
 			flaresolverrDirectRetryInterval: TimeSpan.FromMinutes(60),
 			preferredLanguage: "en");
-	}
-
-	/// <summary>
-	/// Recording API gateway fake for coordinator tests.
-	/// </summary>
-	private sealed class RecordingComickApiGateway : IComickApiGateway
-	{
-		/// <summary>
-		/// Search callback dependency.
-		/// </summary>
-		private readonly Func<string, CancellationToken, ComickDirectApiResult<ComickSearchResponse>> _searchHandler;
-
-		/// <summary>
-		/// Initializes a new instance of the <see cref="RecordingComickApiGateway"/> class.
-		/// </summary>
-		/// <param name="searchHandler">Search callback dependency.</param>
-		public RecordingComickApiGateway(Func<string, CancellationToken, ComickDirectApiResult<ComickSearchResponse>> searchHandler)
-		{
-			_searchHandler = searchHandler ?? throw new ArgumentNullException(nameof(searchHandler));
-		}
-
-		/// <summary>
-		/// Gets the number of search calls.
-		/// </summary>
-		public int SearchCallCount
-		{
-			get;
-			private set;
-		}
-
-		/// <inheritdoc />
-		public Task<ComickDirectApiResult<ComickSearchResponse>> SearchAsync(
-			string query,
-			CancellationToken cancellationToken = default)
-		{
-			ArgumentException.ThrowIfNullOrWhiteSpace(query);
-			SearchCallCount++;
-			return Task.FromResult(_searchHandler(query, cancellationToken));
-		}
-
-		/// <inheritdoc />
-		public Task<ComickDirectApiResult<ComickComicResponse>> GetComicAsync(
-			string slug,
-			CancellationToken cancellationToken = default)
-		{
-			throw new InvalidOperationException("Comic detail requests are not expected for these coordinator test scenarios.");
-		}
-	}
-
-	/// <summary>
-	/// Recording candidate matcher fake for coordinator tests.
-	/// </summary>
-	private sealed class RecordingComickCandidateMatcher : IComickCandidateMatcher
-	{
-		/// <summary>
-		/// Gets or sets a value indicating whether the matcher should throw <see cref="OperationCanceledException"/>.
-		/// </summary>
-		public bool ThrowOperationCanceledOnCall
-		{
-			get;
-			set;
-		}
-
-		/// <summary>
-		/// Gets or sets an optional callback executed immediately before throwing cancellation.
-		/// </summary>
-		public Action? BeforeThrowOperationCanceled
-		{
-			get;
-			set;
-		}
-
-		/// <summary>
-		/// Gets the number of match calls.
-		/// </summary>
-		public int MatchCallCount
-		{
-			get;
-			private set;
-		}
-
-		/// <inheritdoc />
-		public Task<ComickCandidateMatchResult> MatchAsync(
-			IReadOnlyList<ComickSearchComic> candidates,
-			IReadOnlyList<string> expectedTitles,
-			CancellationToken cancellationToken = default)
-		{
-			MatchCallCount++;
-			if (ThrowOperationCanceledOnCall)
-			{
-				BeforeThrowOperationCanceled?.Invoke();
-				throw new OperationCanceledException(cancellationToken);
-			}
-
-			return Task.FromResult(
-				new ComickCandidateMatchResult(
-					ComickCandidateMatchOutcome.NoHighConfidenceMatch,
-					matchedCandidate: null,
-					ComickCandidateMatchResult.NoMatchCandidateIndex,
-					hadTopTie: false,
-					matchScore: 0));
-		}
-	}
-
-	/// <summary>
-	/// Recording cover-service fake for coordinator tests.
-	/// </summary>
-	private sealed class RecordingOverrideCoverService : IOverrideCoverService
-	{
-		/// <summary>
-		/// Gets the number of cover ensure calls.
-		/// </summary>
-		public int CallCount
-		{
-			get;
-			private set;
-		}
-
-		/// <inheritdoc />
-		public Task<OverrideCoverResult> EnsureCoverJpgAsync(
-			OverrideCoverRequest request,
-			CancellationToken cancellationToken = default)
-		{
-			CallCount++;
-			return Task.FromResult(
-				new OverrideCoverResult(
-					OverrideCoverOutcome.WriteFailed,
-					Path.Combine(request.PreferredOverrideDirectoryPath, "cover.jpg"),
-					coverJpgExists: false,
-					existingCoverPath: null,
-					coverUri: null,
-					diagnostic: "not expected"));
-		}
-	}
-
-	/// <summary>
-	/// Recording details-service fake for coordinator tests.
-	/// </summary>
-	private sealed class RecordingOverrideDetailsService : IOverrideDetailsService
-	{
-		/// <summary>
-		/// Gets the number of details ensure calls.
-		/// </summary>
-		public int CallCount
-		{
-			get;
-			private set;
-		}
-
-		/// <inheritdoc />
-		public OverrideDetailsResult EnsureDetailsJson(OverrideDetailsRequest request)
-		{
-			CallCount++;
-			return new OverrideDetailsResult(
-				OverrideDetailsOutcome.AlreadyExists,
-				Path.Combine(request.PreferredOverrideDirectoryPath, "details.json"),
-				detailsJsonExists: true,
-				sourceDetailsJsonPath: null,
-				comicInfoXmlPath: null);
-		}
-	}
-
-	/// <summary>
-	/// Recording metadata-state-store fake for coordinator tests.
-	/// </summary>
-	private sealed class RecordingMetadataStateStore : IMetadataStateStore
-	{
-		/// <summary>
-		/// Backing snapshot value.
-		/// </summary>
-		private MetadataStateSnapshot _snapshot = MetadataStateSnapshot.Empty;
-
-		/// <summary>
-		/// Gets the number of transform calls.
-		/// </summary>
-		public int TransformCallCount
-		{
-			get;
-			private set;
-		}
-
-		/// <inheritdoc />
-		public MetadataStateSnapshot Read()
-		{
-			return _snapshot;
-		}
-
-		/// <inheritdoc />
-		public void Transform(Func<MetadataStateSnapshot, MetadataStateSnapshot> transformer)
-		{
-			ArgumentNullException.ThrowIfNull(transformer);
-			TransformCallCount++;
-			_snapshot = transformer(_snapshot);
-		}
 	}
 }
