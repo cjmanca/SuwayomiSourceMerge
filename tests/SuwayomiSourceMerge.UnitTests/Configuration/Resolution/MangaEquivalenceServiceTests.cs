@@ -66,6 +66,28 @@ public sealed class MangaEquivalenceServiceTests
 	}
 
 	[Fact]
+	public void TryGetEquivalentTitles_ShouldReturnCanonicalThenAliases_WhenInputIsMapped()
+	{
+		MangaEquivalenceService service = new(CreateDocument());
+
+		bool wasResolved = service.TryGetEquivalentTitles("Manga-Alpha", out IReadOnlyList<string> equivalentTitles);
+
+		Assert.True(wasResolved);
+		Assert.Equal(["Manga Alpha", "The Manga Alpha", "Manga-Alpha"], equivalentTitles);
+	}
+
+	[Fact]
+	public void TryGetEquivalentTitles_ShouldReturnFalseAndEmpty_WhenInputIsNotMapped()
+	{
+		MangaEquivalenceService service = new(CreateDocument());
+
+		bool wasResolved = service.TryGetEquivalentTitles("Unknown Title", out IReadOnlyList<string> equivalentTitles);
+
+		Assert.False(wasResolved);
+		Assert.Empty(equivalentTitles);
+	}
+
+	[Fact]
 	public void TryResolveCanonicalTitle_ShouldReuseCachedMatcherAwareNormalization_ForRepeatedInput()
 	{
 		CountingSceneTagMatcher matcher = new(["official"]);

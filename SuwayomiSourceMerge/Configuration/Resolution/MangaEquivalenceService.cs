@@ -20,6 +20,11 @@ internal sealed class MangaEquivalenceService : IMangaEquivalenceService
 	private readonly IReadOnlyDictionary<string, string> _canonicalByNormalizedTitle;
 
 	/// <summary>
+	/// Lookup of normalized title keys to deterministic equivalent-title group entries.
+	/// </summary>
+	private readonly IReadOnlyDictionary<string, IReadOnlyList<string>> _equivalentTitlesByNormalizedTitle;
+
+	/// <summary>
 	/// Shared cached normalizer used for title-key lookups.
 	/// </summary>
 	private readonly ITitleComparisonNormalizer _titleComparisonNormalizer;
@@ -40,7 +45,7 @@ internal sealed class MangaEquivalenceService : IMangaEquivalenceService
 		ArgumentNullException.ThrowIfNull(document);
 
 		_titleComparisonNormalizer = TitleComparisonNormalizerProvider.Get(sceneTagMatcher);
-		_canonicalByNormalizedTitle = BuildLookup(document, _titleComparisonNormalizer);
+		(_canonicalByNormalizedTitle, _equivalentTitlesByNormalizedTitle) = BuildLookups(document, _titleComparisonNormalizer);
 	}
 
 	/// <inheritdoc />
@@ -76,6 +81,36 @@ internal sealed class MangaEquivalenceService : IMangaEquivalenceService
 	}
 
 	/// <summary>
+	/// Attempts to resolve one full equivalent-title group for the provided input title.
+	/// </summary>
+	/// <param name="inputTitle">Input title used to resolve one equivalence group.</param>
+	/// <param name="equivalentTitles">
+	/// Equivalent-title entries in deterministic group order (canonical first, then aliases) when found;
+	/// otherwise an empty list.
+	/// </param>
+	/// <returns><see langword="true"/> when one matching equivalence group is found; otherwise <see langword="false"/>.</returns>
+	public bool TryGetEquivalentTitles(string inputTitle, out IReadOnlyList<string> equivalentTitles)
+	{
+		ArgumentNullException.ThrowIfNull(inputTitle);
+
+		string normalizedKey = _titleComparisonNormalizer.NormalizeTitleKey(inputTitle);
+		if (string.IsNullOrWhiteSpace(normalizedKey))
+		{
+			equivalentTitles = [];
+			return false;
+		}
+
+		if (_equivalentTitlesByNormalizedTitle.TryGetValue(normalizedKey, out IReadOnlyList<string>? foundEquivalentTitles))
+		{
+			equivalentTitles = foundEquivalentTitles;
+			return true;
+		}
+
+		equivalentTitles = [];
+		return false;
+	}
+
+	/// <summary>
 	/// Builds the normalized canonical mapping lookup from document groups.
 	/// </summary>
 	/// <param name="document">Document to index.</param>
@@ -84,7 +119,7 @@ internal sealed class MangaEquivalenceService : IMangaEquivalenceService
 	/// <exception cref="InvalidOperationException">
 	/// Thrown when document content is malformed, normalizes to empty keys, or maps one key to different canonicals.
 	/// </exception>
-	private static IReadOnlyDictionary<string, string> BuildLookup(
+	private static (IReadOnlyDictionary<string, string> CanonicalLookup, IReadOnlyDictionary<string, IReadOnlyList<string>> EquivalentLookup) BuildLookups(
 		MangaEquivalentsDocument document,
 		ITitleComparisonNormalizer titleComparisonNormalizer)
 	{
@@ -93,7 +128,8 @@ internal sealed class MangaEquivalenceService : IMangaEquivalenceService
 			throw new InvalidOperationException("Manga equivalents document requires a non-null groups list.");
 		}
 
-		Dictionary<string, string> lookup = new(StringComparer.Ordinal);
+		Dictionary<string, string> canonicalLookup = new(StringComparer.Ordinal);
+		Dictionary<string, IReadOnlyList<string>> equivalentLookup = new(StringComparer.Ordinal);
 
 		for (int groupIndex = 0; groupIndex < document.Groups.Count; groupIndex++)
 		{
@@ -112,11 +148,15 @@ internal sealed class MangaEquivalenceService : IMangaEquivalenceService
 			}
 
 			string canonical = group.Canonical.Trim();
+			List<string> equivalentTitles = [canonical];
+			HashSet<string> groupNormalizedKeys = new(StringComparer.Ordinal);
+			string normalizedCanonicalKey = titleComparisonNormalizer.NormalizeTitleKey(canonical);
 			RegisterMapping(
-				lookup,
-				titleComparisonNormalizer.NormalizeTitleKey(canonical),
+				canonicalLookup,
+				normalizedCanonicalKey,
 				canonical,
 				$"groups[{groupIndex}].canonical");
+			groupNormalizedKeys.Add(normalizedCanonicalKey);
 
 			for (int aliasIndex = 0; aliasIndex < group.Aliases.Count; aliasIndex++)
 			{
@@ -128,14 +168,28 @@ internal sealed class MangaEquivalenceService : IMangaEquivalenceService
 				}
 
 				RegisterMapping(
-					lookup,
+					canonicalLookup,
 					titleComparisonNormalizer.NormalizeTitleKey(alias),
 					canonical,
 					$"groups[{groupIndex}].aliases[{aliasIndex}]");
+
+				equivalentTitles.Add(alias.Trim());
+				groupNormalizedKeys.Add(titleComparisonNormalizer.NormalizeTitleKey(alias));
+			}
+
+			string[] materializedEquivalentTitles = equivalentTitles.ToArray();
+			foreach (string normalizedKey in groupNormalizedKeys)
+			{
+				RegisterEquivalentTitles(
+					equivalentLookup,
+					normalizedKey,
+					materializedEquivalentTitles);
 			}
 		}
 
-		return lookup.ToFrozenDictionary(StringComparer.Ordinal);
+		return (
+			canonicalLookup.ToFrozenDictionary(StringComparer.Ordinal),
+			equivalentLookup.ToFrozenDictionary(StringComparer.Ordinal));
 	}
 
 	/// <summary>
@@ -170,6 +224,34 @@ internal sealed class MangaEquivalenceService : IMangaEquivalenceService
 		{
 			throw new InvalidOperationException(
 				$"Normalized manga key '{normalizedKey}' maps to conflicting canonical titles '{existingCanonical}' and '{canonical}'.");
+		}
+	}
+
+	/// <summary>
+	/// Registers one equivalent-title group mapping for a normalized key and validates deterministic consistency.
+	/// </summary>
+	/// <param name="lookup">Equivalent-title lookup being populated.</param>
+	/// <param name="normalizedKey">Normalized key for one canonical/alias title entry.</param>
+	/// <param name="equivalentTitles">Equivalent-title group entries.</param>
+	/// <exception cref="InvalidOperationException">Thrown when one key maps to non-deterministic equivalent-title groups.</exception>
+	private static void RegisterEquivalentTitles(
+		IDictionary<string, IReadOnlyList<string>> lookup,
+		string normalizedKey,
+		IReadOnlyList<string> equivalentTitles)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(normalizedKey);
+		ArgumentNullException.ThrowIfNull(equivalentTitles);
+
+		if (!lookup.TryGetValue(normalizedKey, out IReadOnlyList<string>? existingEquivalentTitles))
+		{
+			lookup[normalizedKey] = equivalentTitles;
+			return;
+		}
+
+		if (!existingEquivalentTitles.SequenceEqual(equivalentTitles, StringComparer.Ordinal))
+		{
+			throw new InvalidOperationException(
+				$"Normalized manga key '{normalizedKey}' maps to conflicting equivalent-title group entries.");
 		}
 	}
 }

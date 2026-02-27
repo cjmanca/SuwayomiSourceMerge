@@ -42,6 +42,21 @@ public sealed partial class MangaEquivalenceCatalogTests
 	}
 
 	/// <summary>
+	/// Verifies catalog equivalent-title lookups are resolved from the active runtime snapshot.
+	/// </summary>
+	[Fact]
+	public void TryGetEquivalentTitles_Expected_ShouldReturnCanonicalAndAliases_WhenInputIsMapped()
+	{
+		ISceneTagMatcher sceneTagMatcher = new SceneTagMatcher(["official"]);
+		MangaEquivalenceCatalog catalog = new(CreateInitialDocument(), sceneTagMatcher);
+
+		bool wasResolved = catalog.TryGetEquivalentTitles("Manga Alpha", out IReadOnlyList<string> equivalentTitles);
+
+		Assert.True(wasResolved);
+		Assert.Equal(["Manga Alpha", "Manga Alpha Variant"], equivalentTitles);
+	}
+
+	/// <summary>
 	/// Verifies no-change updater outcomes do not replace the runtime resolver snapshot.
 	/// </summary>
 	[Fact]
@@ -340,7 +355,7 @@ public sealed partial class MangaEquivalenceCatalogTests
 				new MangaEquivalentGroup
 				{
 					Canonical = "Manga Alpha",
-					Aliases = ["Manga Alpha"]
+					Aliases = ["Manga Alpha Variant"]
 				}
 			]
 		};

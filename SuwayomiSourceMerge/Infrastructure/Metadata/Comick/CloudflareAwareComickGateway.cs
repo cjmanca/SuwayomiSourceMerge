@@ -159,7 +159,9 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		ArgumentNullException.ThrowIfNull(payloadParser);
 
 		DateTimeOffset nowUtc = _utcNowProvider().ToUniversalTime();
-		MetadataStateSnapshot currentState = _metadataStateStore.Read();
+		MetadataStateSnapshot currentState = TryReadMetadataStateSnapshot(
+			endpointUri,
+			operation: "sticky_precheck_read");
 		bool flaresolverrConfigured = IsFlaresolverrConfigured();
 		if (IsStickyActive(currentState, nowUtc) && flaresolverrConfigured)
 		{
@@ -396,7 +398,9 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 			return;
 		}
 
-		MetadataStateSnapshot snapshot = _metadataStateStore.Read();
+		MetadataStateSnapshot snapshot = TryReadMetadataStateSnapshot(
+			endpointUri,
+			operation: "sticky_clear_read");
 		if (snapshot.StickyFlaresolverrUntilUtc is not DateTimeOffset currentStickyUntilUtc ||
 			currentStickyUntilUtc > nowUtc)
 		{
@@ -406,7 +410,9 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		// Pre-read avoids transform/persist overhead in the common no-op case.
 		// Transform rechecks the same condition against current state to preserve concurrency safety.
 		bool stickyCleared = false;
-		_metadataStateStore.Transform(
+		if (!TryTransformMetadataStateSnapshot(
+			endpointUri,
+			operation: "sticky_clear_transform",
 			current =>
 			{
 				if (current.StickyFlaresolverrUntilUtc is not DateTimeOffset stickyUntilUtc)
@@ -423,7 +429,11 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 				return new MetadataStateSnapshot(
 					current.TitleCooldownsUtc,
 					null);
-			});
+			}))
+		{
+			return;
+		}
+
 		// Logging intentionally occurs after transform completion so state-store mutation stays side-effect free
 		// and logging does not run under store-internal synchronization.
 		if (stickyCleared)
@@ -448,7 +458,9 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 	private void PersistStickyFlaresolverrUntil(DateTimeOffset stickyUntilUtc)
 	{
 		DateTimeOffset normalizedStickyUntilUtc = stickyUntilUtc.ToUniversalTime();
-		_metadataStateStore.Transform(
+		_ = TryTransformMetadataStateSnapshot(
+			_comickBaseUri,
+			operation: "sticky_persist_transform",
 			current =>
 			{
 				DateTimeOffset? currentStickyUntilUtc = current.StickyFlaresolverrUntilUtc;
@@ -467,26 +479,4 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 			});
 	}
 
-	/// <summary>
-	/// Normalizes one Comick API base URI to an absolute http/https URI with exactly one trailing slash.
-	/// </summary>
-	/// <param name="baseUri">Base URI to normalize.</param>
-	/// <returns>Normalized base URI.</returns>
-	/// <exception cref="ArgumentException">Thrown when URI is not absolute or does not use http/https.</exception>
-	private static Uri NormalizeBaseUri(Uri baseUri)
-	{
-		ArgumentNullException.ThrowIfNull(baseUri);
-		if (!baseUri.IsAbsoluteUri)
-		{
-			throw new ArgumentException("Comick API base URI must be absolute.", nameof(baseUri));
-		}
-
-		if (!string.Equals(baseUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
-			!string.Equals(baseUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
-		{
-			throw new ArgumentException("Comick API base URI must use http or https.", nameof(baseUri));
-		}
-
-		return new Uri(baseUri.AbsoluteUri.TrimEnd('/') + "/", UriKind.Absolute);
-	}
 }

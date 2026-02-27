@@ -291,6 +291,13 @@ public sealed partial class ComickMetadataCoordinatorTests
 		}
 
 		/// <inheritdoc />
+		public bool TryGetEquivalentTitles(string inputTitle, out IReadOnlyList<string> equivalentTitles)
+		{
+			equivalentTitles = [];
+			return false;
+		}
+
+		/// <inheritdoc />
 		public string ResolveCanonicalOrInput(string inputTitle)
 		{
 			return inputTitle;

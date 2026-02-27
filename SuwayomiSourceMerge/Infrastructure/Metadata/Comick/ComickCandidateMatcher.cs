@@ -72,8 +72,9 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 			return CreateNoHighConfidenceResult();
 		}
 
-		(bool hasTopSimilarityTie, double topSimilarity, int tiedCandidateCount) = GetTopSimilarityTieInfo(candidates, expectedTitleKeys);
-		IReadOnlyList<int> evaluationOrder = BuildEvaluationOrder(candidates, expectedTitleKeys);
+		double[] candidateSimilarityScores = BuildCandidateSimilarityScores(candidates, expectedTitleKeys);
+		TopSimilarityTieInfo topSimilarityTieInfo = GetTopSimilarityTieInfo(candidateSimilarityScores);
+		IReadOnlyList<int> evaluationOrder = BuildEvaluationOrder(candidates, candidateSimilarityScores);
 		bool hadServiceInterruption = false;
 		for (int orderIndex = 0; orderIndex < evaluationOrder.Count; orderIndex++)
 		{
@@ -125,23 +126,33 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 				continue;
 			}
 
-			if (hasTopSimilarityTie)
+			bool hadTopTie = topSimilarityTieInfo.HasTopSimilarityTie &&
+				topSimilarityTieInfo.IsCandidateInTie(candidateIndex);
+			if (topSimilarityTieInfo.HasTopSimilarityTie)
 			{
-				LogCandidateAmbiguity(candidates.Count, expectedTitleKeys.Count, topSimilarity, tiedCandidateCount);
+				LogCandidateAmbiguity(
+					candidates.Count,
+					expectedTitleKeys.Count,
+					topSimilarityTieInfo.TopSimilarity,
+					topSimilarityTieInfo.TiedCandidateCount);
 			}
 
 			return new ComickCandidateMatchResult(
 				ComickCandidateMatchOutcome.Matched,
 				detailResult.Payload,
 				candidateIndex,
-				hadTopTie: false,
+				hadTopTie,
 				matchScore,
 				hadServiceInterruption);
 		}
 
-		if (hasTopSimilarityTie)
+		if (topSimilarityTieInfo.HasTopSimilarityTie)
 		{
-			LogCandidateAmbiguity(candidates.Count, expectedTitleKeys.Count, topSimilarity, tiedCandidateCount);
+			LogCandidateAmbiguity(
+				candidates.Count,
+				expectedTitleKeys.Count,
+				topSimilarityTieInfo.TopSimilarity,
+				topSimilarityTieInfo.TiedCandidateCount);
 		}
 
 		return CreateNoHighConfidenceResult(hadServiceInterruption);
@@ -218,48 +229,6 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 		}
 
 		return expectedTitleKeys;
-	}
-
-	/// <summary>
-	/// Builds ordered candidate indices used for detail-request evaluation.
-	/// </summary>
-	/// <remarks>
-	/// Search index zero is always evaluated first. Remaining candidates are ordered by descending normalized
-	/// Levenshtein similarity against expected title keys, then by original index.
-	/// </remarks>
-	/// <param name="candidates">Search candidates.</param>
-	/// <param name="expectedTitleKeys">Expected normalized title keys.</param>
-	/// <returns>Ordered candidate indices.</returns>
-	private IReadOnlyList<int> BuildEvaluationOrder(
-		IReadOnlyList<ComickSearchComic> candidates,
-		IReadOnlySet<string> expectedTitleKeys)
-	{
-		List<int> evaluationOrder = new(candidates.Count);
-		if (candidates.Count == 0)
-		{
-			return evaluationOrder;
-		}
-
-		evaluationOrder.Add(0);
-		if (candidates.Count == 1)
-		{
-			return evaluationOrder;
-		}
-
-		List<(int Index, double SimilarityScore)> rankedCandidates = new(candidates.Count - 1);
-		for (int candidateIndex = 1; candidateIndex < candidates.Count; candidateIndex++)
-		{
-			ComickSearchComic candidate = candidates[candidateIndex];
-			double similarity = ComputeSearchCandidateOrderingSimilarity(candidate, expectedTitleKeys);
-			rankedCandidates.Add((candidateIndex, similarity));
-		}
-
-		evaluationOrder.AddRange(
-			rankedCandidates
-				.OrderByDescending(static item => item.SimilarityScore)
-				.ThenBy(static item => item.Index)
-				.Select(static item => item.Index));
-		return evaluationOrder;
 	}
 
 	/// <summary>

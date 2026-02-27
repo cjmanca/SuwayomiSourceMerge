@@ -100,6 +100,23 @@ internal sealed class MangaEquivalenceCatalog : IMangaEquivalenceCatalog
 	}
 
 	/// <inheritdoc />
+	public bool TryGetEquivalentTitles(string inputTitle, out IReadOnlyList<string> equivalentTitles)
+	{
+		ArgumentNullException.ThrowIfNull(inputTitle);
+
+		IMangaEquivalenceService snapshot = Volatile.Read(ref _currentSnapshot);
+		if (snapshot is MangaEquivalenceService equivalenceService &&
+			equivalenceService.TryGetEquivalentTitles(inputTitle, out IReadOnlyList<string> foundEquivalentTitles))
+		{
+			equivalentTitles = foundEquivalentTitles;
+			return true;
+		}
+
+		equivalentTitles = [];
+		return false;
+	}
+
+	/// <inheritdoc />
 	public MangaEquivalenceCatalogUpdateResult Update(MangaEquivalentsUpdateRequest request)
 	{
 		ArgumentNullException.ThrowIfNull(request);
