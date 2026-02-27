@@ -8,7 +8,7 @@ using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 /// <summary>
 /// Verifies expected, edge, and failure behavior for <see cref="ComickCandidateMatcher"/>.
 /// </summary>
-public sealed class ComickCandidateMatcherTests
+public sealed partial class ComickCandidateMatcherTests
 {
 	/// <summary>
 	/// Verifies the first search result is selected when its comic-detail title matches expected keys.

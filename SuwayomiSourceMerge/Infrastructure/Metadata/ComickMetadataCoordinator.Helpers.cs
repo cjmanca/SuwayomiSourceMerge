@@ -1,4 +1,5 @@
 using SuwayomiSourceMerge.Configuration.Resolution;
+using SuwayomiSourceMerge.Infrastructure.Logging;
 using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 
 namespace SuwayomiSourceMerge.Infrastructure.Metadata;
@@ -13,7 +14,13 @@ internal sealed partial class ComickMetadataCoordinator
 	/// </summary>
 	/// <param name="matchedComic">Matched Comick payload.</param>
 	/// <param name="preferredLanguage">Preferred language for canonical selection.</param>
-	private void TryUpdateMangaEquivalents(ComickComicResponse matchedComic, string preferredLanguage)
+	/// <param name="displayTitle">Display title used for metadata orchestration.</param>
+	/// <param name="normalizedTitleKey">Normalized title key used for cooldown tracking.</param>
+	private void TryUpdateMangaEquivalents(
+		ComickComicResponse matchedComic,
+		string preferredLanguage,
+		string displayTitle,
+		string normalizedTitleKey)
 	{
 		ArgumentNullException.ThrowIfNull(matchedComic);
 		ArgumentException.ThrowIfNullOrWhiteSpace(preferredLanguage);
@@ -46,17 +53,55 @@ internal sealed partial class ComickMetadataCoordinator
 
 		try
 		{
-			_ = _mangaEquivalenceCatalog.Update(
+			MangaEquivalenceCatalogUpdateResult updateResult = _mangaEquivalenceCatalog.Update(
 				new MangaEquivalentsUpdateRequest(
 					_mangaEquivalentsYamlPath,
 					mainTitle,
 					alternateTitles,
 					preferredLanguage));
+			_logger.Log(
+				IsEquivalentsUpdateDebugLevelOutcome(updateResult.Outcome) ? LogLevel.Debug : LogLevel.Warning,
+				EquivalentsUpdateEvent,
+				"Manga-equivalents update completed for matched Comick metadata.",
+				BuildContext(
+					("title", displayTitle),
+					("normalized_title_key", normalizedTitleKey),
+					("main_title", mainTitle),
+					("preferred_language", preferredLanguage),
+					("alternate_title_count", alternateTitles.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+					("catalog_outcome", updateResult.Outcome.ToString()),
+					("updater_outcome", updateResult.UpdateResult.Outcome.ToString()),
+					("affected_group_index", updateResult.UpdateResult.AffectedGroupIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+					("added_alias_count", updateResult.UpdateResult.AddedAliasCount.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+					("diagnostic", updateResult.Diagnostic ?? updateResult.UpdateResult.Diagnostic)));
 		}
 		catch (Exception exception) when (!IsFatalException(exception))
 		{
 			// Best-effort update: merge-pass metadata coordination should continue even if alias sync fails.
+			_logger.Warning(
+				EquivalentsUpdateEvent,
+				"Manga-equivalents update failed with an exception.",
+				BuildContext(
+					("title", displayTitle),
+					("normalized_title_key", normalizedTitleKey),
+					("main_title", mainTitle),
+					("preferred_language", preferredLanguage),
+					("alternate_title_count", alternateTitles.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+					("catalog_outcome", MangaEquivalenceCatalogUpdateOutcome.UpdateFailed.ToString()),
+					("updater_outcome", MangaEquivalentsUpdateOutcome.UnhandledException.ToString()),
+					("diagnostic", ResolutionExceptionDiagnosticFormatter.Format(exception))));
 		}
+	}
+
+	/// <summary>
+	/// Determines whether one manga-equivalents catalog outcome should emit debug-level telemetry.
+	/// </summary>
+	/// <param name="outcome">Catalog update outcome.</param>
+	/// <returns><see langword="true"/> for success/no-change outcomes; otherwise <see langword="false"/>.</returns>
+	private static bool IsEquivalentsUpdateDebugLevelOutcome(MangaEquivalenceCatalogUpdateOutcome outcome)
+	{
+		return outcome == MangaEquivalenceCatalogUpdateOutcome.Applied ||
+			outcome == MangaEquivalenceCatalogUpdateOutcome.NoChanges;
 	}
 
 	/// <summary>
@@ -252,5 +297,162 @@ internal sealed partial class ComickMetadataCoordinator
 		return exception is OutOfMemoryException
 			|| exception is StackOverflowException
 			|| exception is AccessViolationException;
+	}
+
+	/// <summary>
+	/// Logs one cover skip event.
+	/// </summary>
+	/// <param name="displayTitle">Display title.</param>
+	/// <param name="normalizedTitleKey">Normalized title key.</param>
+	/// <param name="reason">Skip reason.</param>
+	private void LogCoverSkipped(string displayTitle, string normalizedTitleKey, string reason)
+	{
+		_logger.Debug(
+			CoverSkippedEvent,
+			"Skipped cover artifact write.",
+			BuildContext(
+				("title", displayTitle),
+				("normalized_title_key", normalizedTitleKey),
+				("reason", reason)));
+	}
+
+	/// <summary>
+	/// Logs one details skip event.
+	/// </summary>
+	/// <param name="displayTitle">Display title.</param>
+	/// <param name="normalizedTitleKey">Normalized title key.</param>
+	/// <param name="reason">Skip reason.</param>
+	private void LogDetailsSkipped(string displayTitle, string normalizedTitleKey, string reason)
+	{
+		_logger.Debug(
+			DetailsSkippedEvent,
+			"Skipped details artifact write.",
+			BuildContext(
+				("title", displayTitle),
+				("normalized_title_key", normalizedTitleKey),
+				("reason", reason)));
+	}
+
+	/// <summary>
+	/// Logs one cover outcome.
+	/// </summary>
+	/// <param name="displayTitle">Display title.</param>
+	/// <param name="normalizedTitleKey">Normalized title key.</param>
+	/// <param name="result">Cover ensure result.</param>
+	private void LogCoverOutcome(string displayTitle, string normalizedTitleKey, OverrideCoverResult result)
+	{
+		ArgumentNullException.ThrowIfNull(result);
+
+		switch (result.Outcome)
+		{
+			case OverrideCoverOutcome.AlreadyExists:
+				_logger.Debug(
+					CoverSkippedEvent,
+					"Cover artifact already exists.",
+					BuildContext(
+						("title", displayTitle),
+						("normalized_title_key", normalizedTitleKey),
+						("outcome", result.Outcome.ToString()),
+						("cover_path", result.CoverJpgPath),
+						("existing_cover_path", result.ExistingCoverPath)));
+				return;
+			case OverrideCoverOutcome.WrittenDownloadedJpeg:
+			case OverrideCoverOutcome.WrittenConvertedJpeg:
+				_logger.Debug(
+					CoverWrittenEvent,
+					"Cover artifact written.",
+					BuildContext(
+						("title", displayTitle),
+						("normalized_title_key", normalizedTitleKey),
+						("outcome", result.Outcome.ToString()),
+						("cover_path", result.CoverJpgPath),
+						("cover_uri", result.CoverUri?.AbsoluteUri)));
+				return;
+			default:
+				_logger.Warning(
+					CoverFailedEvent,
+					"Cover artifact write failed.",
+					BuildContext(
+						("title", displayTitle),
+						("normalized_title_key", normalizedTitleKey),
+						("outcome", result.Outcome.ToString()),
+						("cover_path", result.CoverJpgPath),
+						("cover_uri", result.CoverUri?.AbsoluteUri),
+						("diagnostic", result.Diagnostic)));
+				return;
+		}
+	}
+
+	/// <summary>
+	/// Logs one details outcome.
+	/// </summary>
+	/// <param name="displayTitle">Display title.</param>
+	/// <param name="normalizedTitleKey">Normalized title key.</param>
+	/// <param name="result">Details ensure result.</param>
+	private void LogDetailsOutcome(string displayTitle, string normalizedTitleKey, OverrideDetailsResult result)
+	{
+		ArgumentNullException.ThrowIfNull(result);
+
+		switch (result.Outcome)
+		{
+			case OverrideDetailsOutcome.AlreadyExists:
+				_logger.Debug(
+					DetailsSkippedEvent,
+					"Details artifact already exists.",
+					BuildContext(
+						("title", displayTitle),
+						("normalized_title_key", normalizedTitleKey),
+						("outcome", result.Outcome.ToString()),
+						("details_path", result.DetailsJsonPath)));
+				return;
+			case OverrideDetailsOutcome.SeededFromSource:
+			case OverrideDetailsOutcome.GeneratedFromComick:
+			case OverrideDetailsOutcome.GeneratedFromComicInfo:
+				_logger.Debug(
+					DetailsWrittenEvent,
+					"Details artifact written.",
+					BuildContext(
+						("title", displayTitle),
+						("normalized_title_key", normalizedTitleKey),
+						("outcome", result.Outcome.ToString()),
+						("details_path", result.DetailsJsonPath),
+						("source_details_path", result.SourceDetailsJsonPath),
+						("comic_info_xml_path", result.ComicInfoXmlPath)));
+				return;
+			default:
+				_logger.Warning(
+					DetailsFailedEvent,
+					"Details artifact write failed.",
+					BuildContext(
+						("title", displayTitle),
+						("normalized_title_key", normalizedTitleKey),
+						("outcome", result.Outcome.ToString()),
+						("details_path", result.DetailsJsonPath),
+						("source_details_path", result.SourceDetailsJsonPath),
+						("comic_info_xml_path", result.ComicInfoXmlPath)));
+				return;
+		}
+	}
+
+	/// <summary>
+	/// Builds one structured logging context dictionary from non-empty values.
+	/// </summary>
+	/// <param name="pairs">Key/value pairs.</param>
+	/// <returns>Structured context dictionary.</returns>
+	private static IReadOnlyDictionary<string, string> BuildContext(params (string Key, string? Value)[] pairs)
+	{
+		Dictionary<string, string> context = new(StringComparer.Ordinal);
+		for (int index = 0; index < pairs.Length; index++)
+		{
+			(string key, string? value) = pairs[index];
+			if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(value))
+			{
+				continue;
+			}
+
+			context[key] = value;
+		}
+
+		return context;
 	}
 }

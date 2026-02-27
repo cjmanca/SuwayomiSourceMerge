@@ -1,5 +1,8 @@
+using System.Globalization;
+
 using SuwayomiSourceMerge.Configuration.Resolution;
 using SuwayomiSourceMerge.Domain.Normalization;
+using SuwayomiSourceMerge.Infrastructure.Logging;
 using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 
 namespace SuwayomiSourceMerge.Infrastructure.Metadata;
@@ -9,6 +12,46 @@ namespace SuwayomiSourceMerge.Infrastructure.Metadata;
 /// </summary>
 internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordinator
 {
+	/// <summary>
+	/// Event id emitted when a title is skipped due to active Comick cooldown.
+	/// </summary>
+	private const string CooldownSkippedEvent = "metadata.cooldown.skipped";
+
+	/// <summary>
+	/// Event id emitted when cover generation is skipped.
+	/// </summary>
+	private const string CoverSkippedEvent = "metadata.artifact.cover.skipped";
+
+	/// <summary>
+	/// Event id emitted when cover generation writes an artifact.
+	/// </summary>
+	private const string CoverWrittenEvent = "metadata.artifact.cover.written";
+
+	/// <summary>
+	/// Event id emitted when cover generation fails.
+	/// </summary>
+	private const string CoverFailedEvent = "metadata.artifact.cover.failed";
+
+	/// <summary>
+	/// Event id emitted when details generation is skipped.
+	/// </summary>
+	private const string DetailsSkippedEvent = "metadata.artifact.details.skipped";
+
+	/// <summary>
+	/// Event id emitted when details generation writes an artifact.
+	/// </summary>
+	private const string DetailsWrittenEvent = "metadata.artifact.details.written";
+
+	/// <summary>
+	/// Event id emitted when details generation fails.
+	/// </summary>
+	private const string DetailsFailedEvent = "metadata.artifact.details.failed";
+
+	/// <summary>
+	/// Event id emitted when one manga-equivalents update attempt completes.
+	/// </summary>
+	private const string EquivalentsUpdateEvent = "metadata.equivalents.update";
+
 	/// <summary>
 	/// Canonical cover artifact file name.
 	/// </summary>
@@ -65,6 +108,11 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 	private readonly ITitleComparisonNormalizer _titleComparisonNormalizer;
 
 	/// <summary>
+	/// Logger dependency.
+	/// </summary>
+	private readonly ISsmLogger _logger;
+
+	/// <summary>
 	/// Initializes a new instance of the <see cref="ComickMetadataCoordinator"/> class.
 	/// </summary>
 	/// <param name="comickApiGateway">Comick API gateway dependency.</param>
@@ -76,6 +124,7 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 	/// <param name="mangaEquivalenceCatalog">Optional mutable runtime equivalence catalog dependency.</param>
 	/// <param name="mangaEquivalentsYamlPath">Path to <c>manga_equivalents.yml</c> used for update requests.</param>
 	/// <param name="sceneTagMatcher">Optional scene-tag matcher used for cooldown key normalization.</param>
+	/// <param name="logger">Optional logger dependency.</param>
 	public ComickMetadataCoordinator(
 		IComickApiGateway comickApiGateway,
 		IComickCandidateMatcher comickCandidateMatcher,
@@ -85,7 +134,8 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 		string detailsDescriptionMode,
 		IMangaEquivalenceCatalog? mangaEquivalenceCatalog,
 		string mangaEquivalentsYamlPath,
-		ISceneTagMatcher? sceneTagMatcher = null)
+		ISceneTagMatcher? sceneTagMatcher = null,
+		ISsmLogger? logger = null)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(detailsDescriptionMode);
 		ArgumentException.ThrowIfNullOrWhiteSpace(mangaEquivalentsYamlPath);
@@ -99,6 +149,7 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 		_mangaEquivalenceCatalog = mangaEquivalenceCatalog;
 		_mangaEquivalentsYamlPath = Path.GetFullPath(mangaEquivalentsYamlPath);
 		_titleComparisonNormalizer = TitleComparisonNormalizerProvider.Get(sceneTagMatcher);
+		_logger = logger ?? NoOpSsmLogger.Instance;
 	}
 
 	/// <inheritdoc />
@@ -109,8 +160,20 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 		ArgumentNullException.ThrowIfNull(request);
 		cancellationToken.ThrowIfCancellationRequested();
 
+		// Normalize early because artifact-exists skip telemetry includes normalized_title_key even on early-return paths.
+		string normalizedTitleKey = _titleComparisonNormalizer.NormalizeTitleKey(request.DisplayTitle);
 		bool coverExists = ArtifactExists(request, CoverJpgFileName);
 		bool detailsExists = ArtifactExists(request, DetailsJsonFileName);
+		if (coverExists)
+		{
+			LogCoverSkipped(request.DisplayTitle, normalizedTitleKey, "artifact_exists");
+		}
+
+		if (detailsExists)
+		{
+			LogDetailsSkipped(request.DisplayTitle, normalizedTitleKey, "artifact_exists");
+		}
+
 		if (coverExists && detailsExists)
 		{
 			return new ComickMetadataCoordinatorResult(
@@ -120,9 +183,19 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 				detailsExists: true);
 		}
 
-		string normalizedTitleKey = _titleComparisonNormalizer.NormalizeTitleKey(request.DisplayTitle);
 		DateTimeOffset nowUtc = DateTimeOffset.UtcNow;
 		bool cooldownActive = IsCooldownActive(normalizedTitleKey, nowUtc);
+		if (cooldownActive)
+		{
+			_logger.Debug(
+				CooldownSkippedEvent,
+				"Skipped Comick API lookup because the title cooldown window is active.",
+				BuildContext(
+					("title", request.DisplayTitle),
+					("normalized_title_key", normalizedTitleKey),
+					("cooldown_active", "true"),
+					("timestamp_utc", nowUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture))));
+		}
 
 		bool apiCalled = false;
 		bool hadServiceInterruption = false;
@@ -138,19 +211,37 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 
 		if (!coverExists && matchedComic is not null)
 		{
-			EnsureCover(request, matchedComic, cancellationToken);
-			coverExists = ArtifactExists(request, CoverJpgFileName);
+			OverrideCoverResult? coverResult = EnsureCover(request, matchedComic, cancellationToken);
+			if (coverResult is null)
+			{
+				LogCoverSkipped(request.DisplayTitle, normalizedTitleKey, "missing_cover_key");
+			}
+			else
+			{
+				LogCoverOutcome(request.DisplayTitle, normalizedTitleKey, coverResult);
+			}
+
+			coverExists = coverResult?.CoverJpgExists ?? ArtifactExists(request, CoverJpgFileName);
+		}
+		else if (!coverExists)
+		{
+			LogCoverSkipped(request.DisplayTitle, normalizedTitleKey, "no_matched_comic");
 		}
 
 		if (!detailsExists)
 		{
-			EnsureDetails(request, matchedComic);
-			detailsExists = ArtifactExists(request, DetailsJsonFileName);
+			OverrideDetailsResult detailsResult = EnsureDetails(request, matchedComic);
+			LogDetailsOutcome(request.DisplayTitle, normalizedTitleKey, detailsResult);
+			detailsExists = detailsResult.DetailsJsonExists;
 		}
 
 		if (matchedComic is not null)
 		{
-			TryUpdateMangaEquivalents(matchedComic, request.MetadataOrchestration.PreferredLanguage);
+			TryUpdateMangaEquivalents(
+				matchedComic,
+				request.MetadataOrchestration.PreferredLanguage,
+				request.DisplayTitle,
+				normalizedTitleKey);
 		}
 
 		return new ComickMetadataCoordinatorResult(
@@ -244,7 +335,7 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 	/// <param name="request">Coordinator request.</param>
 	/// <param name="matchedComic">Matched Comick payload.</param>
 	/// <param name="cancellationToken">Cancellation token.</param>
-	private void EnsureCover(
+	private OverrideCoverResult? EnsureCover(
 		ComickMetadataCoordinatorRequest request,
 		ComickComicResponse matchedComic,
 		CancellationToken cancellationToken)
@@ -255,10 +346,10 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 		string? coverKey = TryResolveCoverKey(matchedComic);
 		if (string.IsNullOrWhiteSpace(coverKey))
 		{
-			return;
+			return null;
 		}
 
-		_ = _overrideCoverService
+		return _overrideCoverService
 			.EnsureCoverJpgAsync(
 				new OverrideCoverRequest(
 					request.PreferredOverrideDirectoryPath,
@@ -274,13 +365,13 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 	/// </summary>
 	/// <param name="request">Coordinator request.</param>
 	/// <param name="matchedComic">Optional matched Comick payload.</param>
-	private void EnsureDetails(
+	private OverrideDetailsResult EnsureDetails(
 		ComickMetadataCoordinatorRequest request,
 		ComickComicResponse? matchedComic)
 	{
 		ArgumentNullException.ThrowIfNull(request);
 
-		_ = _overrideDetailsService.EnsureDetailsJson(
+		return _overrideDetailsService.EnsureDetailsJson(
 			new OverrideDetailsRequest(
 				request.PreferredOverrideDirectoryPath,
 				request.AllOverrideDirectoryPaths,

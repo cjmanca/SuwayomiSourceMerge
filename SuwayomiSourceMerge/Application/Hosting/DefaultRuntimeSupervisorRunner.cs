@@ -93,8 +93,12 @@ internal sealed class DefaultRuntimeSupervisorRunner : IRuntimeSupervisorRunner
 			comickDirectApiClient,
 			flaresolverrClient,
 			metadataStateStore,
-			mergeOptions.MetadataOrchestration);
-		IComickCandidateMatcher comickCandidateMatcher = new ComickCandidateMatcher(comickApiGateway, sceneTagMatcher);
+			mergeOptions.MetadataOrchestration,
+			logger);
+		IComickCandidateMatcher comickCandidateMatcher = new ComickCandidateMatcher(
+			comickApiGateway,
+			sceneTagMatcher,
+			logger);
 		IOverrideCoverService overrideCoverService = new OverrideCoverService();
 		IOverrideDetailsService overrideDetailsService = new OverrideDetailsService();
 		IComickMetadataCoordinator comickMetadataCoordinator = new ComickMetadataCoordinator(
@@ -106,7 +110,8 @@ internal sealed class DefaultRuntimeSupervisorRunner : IRuntimeSupervisorRunner
 			mergeOptions.DetailsDescriptionMode,
 			mangaEquivalenceCatalog,
 			configurationPaths.MangaEquivalentsYamlPath,
-			sceneTagMatcher);
+			sceneTagMatcher,
+			logger);
 		MergeMountWorkflow mergeMountWorkflow = new(
 			mergeOptions,
 			mangaEquivalenceService,
