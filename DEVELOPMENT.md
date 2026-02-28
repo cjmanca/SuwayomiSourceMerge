@@ -75,6 +75,121 @@ Planned Comick/Flaresolverr routing behavior:
 - If FlareSolverr is not configured, Cloudflare-blocked requests fall back to existing ComicInfo/source-only metadata paths.
 - If both `cover.jpg` and `details.json` already exist for a title, skip Comick API queries entirely for that title.
 
+## Planned metadata API pacing and response caching (docs-only, not yet implemented)
+
+Planned implementation scope for the next feature iteration:
+
+- Add configurable pacing between actual metadata HTTP requests so all requests are still attempted, but spaced out.
+- Keep current artifact/cooldown short-circuit behavior; when no outbound API call is needed, no pacing delay should be applied.
+- Add persisted Comick API response caching for both search and comic-detail endpoints so repeated lookups can be served from cache without outbound requests or pacing delay.
+- Keep scan behavior resilient: pacing delays and cache misses must not be treated as scan failures by themselves.
+
+Implementation options considered:
+
+- Option A: coordinator-only pacing/caching.
+  - Rejected because it does not cover candidate detail probes and cover download HTTP calls.
+- Option B: separate pacing/caching implementations per HTTP caller.
+  - Rejected due to policy drift risk and inability to enforce global request spacing.
+- Option C: shared metadata request throttle plus gateway-owned Comick response cache.
+  - Selected for consistent behavior and centralized policy/testability.
+
+Selected behavior for this planned feature:
+
+- Pacing scope:
+  - apply to all metadata HTTP requests:
+    - Comick direct API requests (`/v1.0/search/`, `/comic/{slug}/`)
+    - FlareSolverr-routed Comick requests
+    - cover-image download HTTP requests
+- Pacing policy:
+  - global request spacing across metadata HTTP calls
+  - delay is applied only before actual outbound requests
+  - cache hits and existing short-circuit paths do not pause
+- Cache scope:
+  - cache Comick search and comic-detail API returns only
+  - do not cache cover-image payload downloads in this iteration
+- Cache outcomes:
+  - cache stable outcomes: `Success`, `NotFound`, `HttpFailure`, `CloudflareBlocked`, `MalformedPayload`
+  - do not cache `TransportFailure` or cooperative `Cancelled`
+- Cache expiry:
+  - TTL-based expiry (configurable), default 24 hours
+
+Planned runtime settings additions:
+
+- `runtime.metadata_api_request_delay_ms` (default `1000`):
+  - non-negative integer milliseconds
+  - `0` disables pacing
+- `runtime.metadata_api_cache_ttl_hours` (default `24`):
+  - positive integer hour TTL for persisted Comick response cache entries
+
+Planned settings/schema behavior:
+
+- strict runtime parsing requires both new runtime keys
+- tooling/relaxed parsing may omit both keys, but validates numeric ranges when provided
+- settings self-heal should add both keys with defaults when missing
+- `docs/config-schema.md` should be updated with both keys, defaults, and range constraints
+
+Planned metadata state-store extension:
+
+- Extend persisted metadata state to include Comick API cache entries in addition to existing cooldown and sticky FlareSolverr fields.
+- Keep backward compatibility for existing state files by treating missing cache sections as empty cache.
+- Persist cache entries with explicit expiry timestamps.
+
+Planned cache entry model:
+
+- `endpoint_kind`: `search` or `comic`
+- `request_key`: exact trimmed query/slug key
+- `outcome`: serialized `ComickDirectApiOutcome`
+- `status_code`: optional integer HTTP status
+- `diagnostic`: optional diagnostic string
+- `payload_json`: serialized payload for `Success` outcomes only
+- `expires_at_unix_seconds`: UTC expiry timestamp
+
+Planned gateway/cache flow:
+
+- On `SearchAsync` and `GetComicAsync`:
+  - first attempt cache read for unexpired valid entries
+  - on cache hit, return cached result immediately (no throttle, no outbound request)
+  - on cache miss, execute existing routing behavior (direct-first + sticky FlareSolverr fallback)
+  - after live request, persist cache entry only for cacheable outcomes
+  - keep state-store operations best-effort with warning telemetry on non-fatal failures
+
+Planned pacing integration points:
+
+- Introduce one shared metadata request-throttle service instance for runtime composition.
+- Use that same throttle instance in:
+  - Cloudflare-aware Comick gateway for live Comick/FlareSolverr requests
+  - override cover service for live cover download requests
+
+Planned non-goals for this iteration:
+
+- no cover payload caching
+- no broad generic HTTP cache layer outside Comick metadata endpoints
+- no behavior change to existing details/cover artifact existence gates beyond pacing/cache integration
+
+Planned testing and acceptance criteria:
+
+- configuration/default/self-heal/validation tests for new runtime settings
+- metadata option mapping tests from settings to runtime options
+- request-throttle tests:
+  - first request no wait
+  - subsequent requests wait expected duration
+  - `0` delay disables wait
+  - cancellation while waiting propagates cooperatively
+  - failed requests still advance pacing window
+- gateway cache tests:
+  - cache hit bypasses outbound request and throttle
+  - cache miss executes live request then persists cache entry when eligible
+  - expired entries miss and refresh
+  - malformed cache payload entries are treated as cache miss
+  - non-cacheable outcomes are not persisted
+- cover-service pacing tests:
+  - existing-cover short-circuit avoids throttle and HTTP
+  - live download path uses throttle
+- metadata state-store tests:
+  - cache-field persistence round-trip
+  - backward-compatible load when cache field is missing
+  - deterministic handling of malformed cache-state content
+
 ## Container runtime assets
 
 Build image:

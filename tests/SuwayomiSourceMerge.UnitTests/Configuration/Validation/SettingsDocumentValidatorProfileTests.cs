@@ -97,6 +97,8 @@ public sealed class SettingsDocumentValidatorProfileTests
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 ComickMetadataCooldownHours = null,
+                MetadataApiRequestDelayMs = null,
+                MetadataApiCacheTtlHours = null,
                 FlaresolverrServerUrl = null,
                 FlaresolverrDirectRetryMinutes = null,
                 PreferredLanguage = null,
@@ -108,6 +110,8 @@ public sealed class SettingsDocumentValidatorProfileTests
         ValidationResult result = validator.Validate(document, "settings.yml");
 
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_metadata_cooldown_hours" && error.Code == "CFG-SET-002");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.metadata_api_request_delay_ms" && error.Code == "CFG-SET-002");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.metadata_api_cache_ttl_hours" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.flaresolverr_server_url" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.flaresolverr_direct_retry_minutes" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.preferred_language" && error.Code == "CFG-SET-002");
@@ -128,6 +132,8 @@ public sealed class SettingsDocumentValidatorProfileTests
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 ComickMetadataCooldownHours = 24,
+                MetadataApiRequestDelayMs = 0,
+                MetadataApiCacheTtlHours = 24,
                 FlaresolverrServerUrl = "https://flaresolverr.example.local/",
                 FlaresolverrDirectRetryMinutes = 60,
                 PreferredLanguage = "zh-CN",
@@ -156,6 +162,8 @@ public sealed class SettingsDocumentValidatorProfileTests
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 ComickMetadataCooldownHours = null,
+                MetadataApiRequestDelayMs = null,
+                MetadataApiCacheTtlHours = null,
                 FlaresolverrServerUrl = null,
                 FlaresolverrDirectRetryMinutes = null,
                 PreferredLanguage = null,
@@ -184,6 +192,8 @@ public sealed class SettingsDocumentValidatorProfileTests
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 ComickMetadataCooldownHours = 0,
+                MetadataApiRequestDelayMs = -1,
+                MetadataApiCacheTtlHours = 0,
                 FlaresolverrServerUrl = "ftp://flaresolverr.example.local",
                 FlaresolverrDirectRetryMinutes = 0,
                 PreferredLanguage = " ",
@@ -195,6 +205,8 @@ public sealed class SettingsDocumentValidatorProfileTests
         ValidationResult result = validator.Validate(document, "settings.yml");
 
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_metadata_cooldown_hours" && error.Code == "CFG-SET-004");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.metadata_api_request_delay_ms" && error.Code == "CFG-SET-004");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.metadata_api_cache_ttl_hours" && error.Code == "CFG-SET-004");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.flaresolverr_server_url" && error.Code == "CFG-SET-005");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.flaresolverr_direct_retry_minutes" && error.Code == "CFG-SET-004");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.preferred_language" && error.Code == "CFG-SET-002");

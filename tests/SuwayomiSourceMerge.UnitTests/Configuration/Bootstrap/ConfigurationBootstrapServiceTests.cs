@@ -162,6 +162,8 @@ public sealed class ConfigurationBootstrapServiceTests
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
               comick_metadata_cooldown_hours: 24
+              metadata_api_request_delay_ms: 1000
+              metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
               flaresolverr_direct_retry_minutes: 60
               preferred_language: en
@@ -326,6 +328,8 @@ public sealed class ConfigurationBootstrapServiceTests
         Assert.Equal(45, result.Documents.Settings.Rename!.RenameDelaySeconds);
         Assert.Equal(false, result.Documents.Settings.Runtime!.LowPriority);
         Assert.Equal(24, result.Documents.Settings.Runtime.ComickMetadataCooldownHours);
+        Assert.Equal(1000, result.Documents.Settings.Runtime.MetadataApiRequestDelayMs);
+        Assert.Equal(24, result.Documents.Settings.Runtime.MetadataApiCacheTtlHours);
         Assert.Equal(string.Empty, result.Documents.Settings.Runtime.FlaresolverrServerUrl);
         Assert.Equal(60, result.Documents.Settings.Runtime.FlaresolverrDirectRetryMinutes);
         Assert.Equal("en", result.Documents.Settings.Runtime.PreferredLanguage);
@@ -463,6 +467,8 @@ public sealed class ConfigurationBootstrapServiceTests
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
               comick_metadata_cooldown_hours: 24
+              metadata_api_request_delay_ms: 1000
+              metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
               flaresolverr_direct_retry_minutes: 60
               preferred_language: en
@@ -551,6 +557,8 @@ public sealed class ConfigurationBootstrapServiceTests
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
               comick_metadata_cooldown_hours: 24
+              metadata_api_request_delay_ms: 1000
+              metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: "  https://flaresolverr.example.local/  "
               flaresolverr_direct_retry_minutes: 60
               preferred_language: "  ja  "
@@ -667,6 +675,8 @@ public sealed class ConfigurationBootstrapServiceTests
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
               comick_metadata_cooldown_hours: 24
+              metadata_api_request_delay_ms: 1000
+              metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
               flaresolverr_direct_retry_minutes: 60
               preferred_language: en

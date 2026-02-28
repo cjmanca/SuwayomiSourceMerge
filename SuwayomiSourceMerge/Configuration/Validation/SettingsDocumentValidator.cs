@@ -195,6 +195,8 @@ public sealed partial class SettingsDocumentValidator : IConfigValidator<Setting
 			if (_profile == SettingsValidationProfile.StrictRuntime)
 			{
 				ValidatePositive(document.Runtime.ComickMetadataCooldownHours, file, "$.runtime.comick_metadata_cooldown_hours", result);
+				ValidateNonNegative(document.Runtime.MetadataApiRequestDelayMs, file, "$.runtime.metadata_api_request_delay_ms", result);
+				ValidatePositive(document.Runtime.MetadataApiCacheTtlHours, file, "$.runtime.metadata_api_cache_ttl_hours", result);
 				ValidateRequiredFlareSolverrServerUrl(document.Runtime.FlaresolverrServerUrl, file, "$.runtime.flaresolverr_server_url", result);
 				ValidatePositive(document.Runtime.FlaresolverrDirectRetryMinutes, file, "$.runtime.flaresolverr_direct_retry_minutes", result);
 				ValidateRequired(document.Runtime.PreferredLanguage, file, "$.runtime.preferred_language", result);
@@ -202,6 +204,8 @@ public sealed partial class SettingsDocumentValidator : IConfigValidator<Setting
 			else
 			{
 				ValidateOptionalPositive(document.Runtime.ComickMetadataCooldownHours, file, "$.runtime.comick_metadata_cooldown_hours", result);
+				ValidateOptionalNonNegative(document.Runtime.MetadataApiRequestDelayMs, file, "$.runtime.metadata_api_request_delay_ms", result);
+				ValidateOptionalPositive(document.Runtime.MetadataApiCacheTtlHours, file, "$.runtime.metadata_api_cache_ttl_hours", result);
 				ValidateOptionalFlareSolverrServerUrl(document.Runtime.FlaresolverrServerUrl, file, "$.runtime.flaresolverr_server_url", result);
 				ValidateOptionalPositive(document.Runtime.FlaresolverrDirectRetryMinutes, file, "$.runtime.flaresolverr_direct_retry_minutes", result);
 				ValidateOptionalNonWhitespaceString(document.Runtime.PreferredLanguage, file, "$.runtime.preferred_language", result);
@@ -353,6 +357,25 @@ public sealed partial class SettingsDocumentValidator : IConfigValidator<Setting
 		}
 	}
 
+	/// <summary>
+	/// Ensures an optional numeric field, when present, is zero or greater.
+	/// </summary>
+	/// <param name="value">Numeric value to validate.</param>
+	/// <param name="file">File name associated with the validation result.</param>
+	/// <param name="path">JSON path-like location for the field in validation output.</param>
+	/// <param name="result">Collector that receives validation errors.</param>
+	private static void ValidateOptionalNonNegative(int? value, string file, string path, ValidationResult result)
+	{
+		if (!value.HasValue)
+		{
+			return;
+		}
+
+		if (value.Value < 0)
+		{
+			result.Add(new ValidationError(file, path, InvalidRangeCode, "Value must be greater than or equal to 0."));
+		}
+	}
 	/// <summary>
 	/// Ensures a numeric field exists and is within the inclusive range.
 	/// </summary>

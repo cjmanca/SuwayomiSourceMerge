@@ -42,6 +42,8 @@ public sealed class SettingsSelfHealingServiceTests
         Assert.Equal("progressive", result.Document.Scan.WatchStartupMode);
         Assert.NotNull(result.Document.Runtime);
         Assert.Equal(24, result.Document.Runtime!.ComickMetadataCooldownHours);
+        Assert.Equal(1000, result.Document.Runtime.MetadataApiRequestDelayMs);
+        Assert.Equal(24, result.Document.Runtime.MetadataApiCacheTtlHours);
         Assert.Equal(string.Empty, result.Document.Runtime.FlaresolverrServerUrl);
         Assert.Equal(60, result.Document.Runtime.FlaresolverrDirectRetryMinutes);
         Assert.Equal("en", result.Document.Runtime.PreferredLanguage);
@@ -67,6 +69,8 @@ public sealed class SettingsSelfHealingServiceTests
         Assert.False(result.WasHealed);
         Assert.Equal("text", result.Document.Runtime!.DetailsDescriptionMode);
         Assert.Equal(48, result.Document.Runtime.ComickMetadataCooldownHours);
+        Assert.Equal(750, result.Document.Runtime.MetadataApiRequestDelayMs);
+        Assert.Equal(36, result.Document.Runtime.MetadataApiCacheTtlHours);
         Assert.Equal("https://flaresolverr.example.local/", result.Document.Runtime.FlaresolverrServerUrl);
         Assert.Equal(90, result.Document.Runtime.FlaresolverrDirectRetryMinutes);
         Assert.Equal("ja", result.Document.Runtime.PreferredLanguage);
@@ -283,6 +287,8 @@ public sealed class SettingsSelfHealingServiceTests
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
               comick_metadata_cooldown_hours: 48
+              metadata_api_request_delay_ms: 750
+              metadata_api_cache_ttl_hours: 36
               flaresolverr_server_url: https://flaresolverr.example.local/
               flaresolverr_direct_retry_minutes: 90
               preferred_language: ja

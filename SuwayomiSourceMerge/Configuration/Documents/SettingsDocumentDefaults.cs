@@ -86,6 +86,8 @@ public static class SettingsDocumentDefaults
 				EnableMountHealthcheck = false,
 				MaxConsecutiveMountFailures = 5,
 				ComickMetadataCooldownHours = 24,
+				MetadataApiRequestDelayMs = 1000,
+				MetadataApiCacheTtlHours = 24,
 				FlaresolverrServerUrl = string.Empty,
 				FlaresolverrDirectRetryMinutes = 60,
 				PreferredLanguage = "en",

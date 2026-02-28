@@ -640,7 +640,7 @@ modules:
       - symbol: ConfigurationSchemaService.ParseSettingsForTooling
         kind: method
         path: SuwayomiSourceMerge/Configuration/Loading/ConfigurationSchemaService.cs
-        purpose: Parses settings.yml with relaxed-tooling profile that tolerates omitted self-healed shutdown cleanup and Comick metadata fields.
+        purpose: Parses settings.yml with relaxed-tooling profile that tolerates omitted self-healed shutdown cleanup plus Comick/FlareSolverr/metadata API runtime fields.
       - symbol: SettingsDocument
         kind: class
         path: SuwayomiSourceMerge/Configuration/Documents/SettingsDocument.cs
@@ -683,7 +683,7 @@ modules:
       - Document-level parse-and-validate orchestration; use ConfigurationSchemaService.
       - Manga equivalents conflict detection rules; use MangaEquivalentsDocumentValidator.
       - Scene tag matcher-equivalent dedup rules; use SceneTagsDocumentValidator.
-      - Settings Comick metadata and FlareSolverr runtime field defaults/validation rules (strict required, relaxed optional, URL constraints); use SettingsDocumentDefaults.Create and SettingsDocumentValidator.
+      - Settings Comick, metadata API pacing/cache, and FlareSolverr runtime field defaults/validation rules (strict required, relaxed optional, numeric/URL constraints); use SettingsDocumentDefaults.Create and SettingsDocumentValidator.
       - Settings deprecated scan timeout buffer validation behavior (optional field; range-validated when provided); use SettingsDocumentValidator.
       - Settings logging level and logging section validation rules; use SettingsDocumentValidator.
       - Settings path-overlap safety validation between config and merged roots (including trailing-separator-safe child detection); use SettingsDocumentValidator.ValidateNonOverlappingConfigAndMergedPaths.
