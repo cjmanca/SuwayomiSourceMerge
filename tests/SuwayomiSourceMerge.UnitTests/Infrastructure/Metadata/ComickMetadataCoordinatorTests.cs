@@ -244,7 +244,9 @@ public sealed partial class ComickMetadataCoordinatorTests
 			comickMetadataCooldown: TimeSpan.FromHours(24),
 			flaresolverrServerUri: null,
 			flaresolverrDirectRetryInterval: TimeSpan.FromMinutes(60),
-			preferredLanguage: "en");
+			preferredLanguage: "en",
+			metadataApiRequestDelay: TimeSpan.FromMilliseconds(1000),
+			metadataApiCacheTtl: TimeSpan.FromHours(24));
 	}
 
 	/// <summary>

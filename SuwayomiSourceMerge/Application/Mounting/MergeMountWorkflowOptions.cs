@@ -310,6 +310,8 @@ internal sealed class MergeMountWorkflowOptions
 		if (runtime.EnableMountHealthcheck is null ||
 			runtime.MaxConsecutiveMountFailures is null ||
 			runtime.ComickMetadataCooldownHours is null ||
+			runtime.MetadataApiRequestDelayMs is null ||
+			runtime.MetadataApiCacheTtlHours is null ||
 			runtime.FlaresolverrServerUrl is null ||
 			runtime.FlaresolverrDirectRetryMinutes is null ||
 			runtime.PreferredLanguage is null ||
@@ -318,7 +320,7 @@ internal sealed class MergeMountWorkflowOptions
 			runtime.StartupCleanup is null)
 		{
 			throw new ArgumentException(
-				"Settings runtime.enable_mount_healthcheck, runtime.max_consecutive_mount_failures, runtime.comick_metadata_cooldown_hours, runtime.flaresolverr_server_url (required key; empty value disables FlareSolverr), runtime.flaresolverr_direct_retry_minutes, runtime.preferred_language, runtime.details_description_mode, runtime.mergerfs_options_base, and runtime.startup_cleanup are required.",
+				"Settings runtime.enable_mount_healthcheck, runtime.max_consecutive_mount_failures, runtime.comick_metadata_cooldown_hours, runtime.metadata_api_request_delay_ms, runtime.metadata_api_cache_ttl_hours, runtime.flaresolverr_server_url (required key; empty value disables FlareSolverr), runtime.flaresolverr_direct_retry_minutes, runtime.preferred_language, runtime.details_description_mode, runtime.mergerfs_options_base, and runtime.startup_cleanup are required.",
 				nameof(settings));
 		}
 
@@ -350,7 +352,9 @@ internal sealed class MergeMountWorkflowOptions
 				TimeSpan.FromHours(runtime.ComickMetadataCooldownHours.Value),
 				TryParseAbsoluteUriOrNull(runtime.FlaresolverrServerUrl, nameof(settings)),
 				TimeSpan.FromMinutes(runtime.FlaresolverrDirectRetryMinutes.Value),
-				runtime.PreferredLanguage),
+				runtime.PreferredLanguage,
+				TimeSpan.FromMilliseconds(runtime.MetadataApiRequestDelayMs.Value),
+				TimeSpan.FromHours(runtime.MetadataApiCacheTtlHours.Value)),
 			runtime.MergerfsOptionsBase,
 			runtime.ExcludedSources ?? [],
 			runtime.EnableMountHealthcheck.Value,

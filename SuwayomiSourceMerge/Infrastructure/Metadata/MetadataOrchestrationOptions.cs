@@ -12,11 +12,15 @@ internal sealed class MetadataOrchestrationOptions
 	/// <param name="flaresolverrServerUri">Optional FlareSolverr server URI. <see langword="null"/> disables FlareSolverr routing.</param>
 	/// <param name="flaresolverrDirectRetryInterval">Retry interval before probing direct Comick access after sticky FlareSolverr routing.</param>
 	/// <param name="preferredLanguage">Preferred language code used for metadata canonical-title selection.</param>
+	/// <param name="metadataApiRequestDelay">Delay applied between outbound metadata API requests.</param>
+	/// <param name="metadataApiCacheTtl">TTL for persisted metadata API cache entries.</param>
 	public MetadataOrchestrationOptions(
 		TimeSpan comickMetadataCooldown,
 		Uri? flaresolverrServerUri,
 		TimeSpan flaresolverrDirectRetryInterval,
-		string preferredLanguage)
+		string preferredLanguage,
+		TimeSpan metadataApiRequestDelay,
+		TimeSpan metadataApiCacheTtl)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(preferredLanguage);
 
@@ -34,6 +38,22 @@ internal sealed class MetadataOrchestrationOptions
 				nameof(flaresolverrDirectRetryInterval),
 				flaresolverrDirectRetryInterval,
 				"FlareSolverr direct retry interval must be > 0.");
+		}
+
+		if (metadataApiRequestDelay < TimeSpan.Zero)
+		{
+			throw new ArgumentOutOfRangeException(
+				nameof(metadataApiRequestDelay),
+				metadataApiRequestDelay,
+				"Metadata API request delay must be >= 0.");
+		}
+
+		if (metadataApiCacheTtl <= TimeSpan.Zero)
+		{
+			throw new ArgumentOutOfRangeException(
+				nameof(metadataApiCacheTtl),
+				metadataApiCacheTtl,
+				"Metadata API cache TTL must be > 0.");
 		}
 
 		if (flaresolverrServerUri is not null)
@@ -58,6 +78,8 @@ internal sealed class MetadataOrchestrationOptions
 		FlaresolverrServerUri = flaresolverrServerUri;
 		FlaresolverrDirectRetryInterval = flaresolverrDirectRetryInterval;
 		PreferredLanguage = preferredLanguage.Trim();
+		MetadataApiRequestDelay = metadataApiRequestDelay;
+		MetadataApiCacheTtl = metadataApiCacheTtl;
 	}
 
 	/// <summary>
@@ -88,6 +110,22 @@ internal sealed class MetadataOrchestrationOptions
 	/// Gets the preferred language code used for metadata canonical-title selection.
 	/// </summary>
 	public string PreferredLanguage
+	{
+		get;
+	}
+
+	/// <summary>
+	/// Gets the pacing delay applied between outbound metadata API requests.
+	/// </summary>
+	public TimeSpan MetadataApiRequestDelay
+	{
+		get;
+	}
+
+	/// <summary>
+	/// Gets the TTL for persisted metadata API cache entries.
+	/// </summary>
+	public TimeSpan MetadataApiCacheTtl
 	{
 		get;
 	}

@@ -78,7 +78,9 @@ public sealed partial class CloudflareAwareComickGatewayTests
 			TimeSpan.FromHours(24),
 			flaresolverrServerUri,
 			directRetryInterval,
-			"en");
+			"en",
+			TimeSpan.FromMilliseconds(1000),
+			TimeSpan.FromHours(24));
 		return new CloudflareAwareComickGateway(
 			directClient,
 			flaresolverrClient,

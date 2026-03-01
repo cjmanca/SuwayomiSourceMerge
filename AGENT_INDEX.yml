@@ -142,6 +142,7 @@ modules:
       - Canonical cleanup stale-prune safety gate that infers still-mounted branch directories from mergerfs source payloads and skips pruning only for degraded-visibility or unresolved mappings; use MergeMountWorkflow.RunCleanupPass.
       - Canonical fatal-exception passthrough from merge-pass and cleanup exception shields so fatal CLR exceptions are never normalized into warning/failure outcomes; use MergeMountWorkflow.IsFatalException, MergeMountWorkflow.RunMergePass, and MergeMountWorkflow.RunCleanupPass.
       - Canonical FlareSolverr URL scheme guard parity for settings-to-workflow mapping (allow only absolute http/https when non-empty); use MergeMountWorkflowOptions.TryParseAbsoluteUriOrNull.
+      - Canonical settings-to-workflow metadata API pacing/cache mapping should require runtime keys and map runtime.metadata_api_request_delay_ms/runtime.metadata_api_cache_ttl_hours to TimeSpan values; use MergeMountWorkflowOptions.FromSettings.
       - Canonical settings-to-workflow FlareSolverr parse diagnostics should throw with `ParamName=settings` and keep strict key-presence semantics where empty value disables routing; use MergeMountWorkflowOptions.FromSettings.
       - Canonical merged-root residual cleanup should delete empty merged directories and quarantine non-empty residual directories under config only when mount visibility is healthy and managed mounts are inactive; use MergeMountWorkflow.CleanupMergedRootDirectories.
       - Canonical merge-pass degraded-visibility safety gate that suppresses stale-unmount apply actions when source discovery/build/snapshot visibility is degraded while still allowing mount/remount actions; use MergeMountWorkflow.RunMergePass.
@@ -1052,7 +1053,7 @@ modules:
       - Canonical metadata structured logging for cooldown skips plus cooldown state-store best-effort read/persist failures, artifact writes/skips/failures, and equivalents update outcomes should remain coordinator-owned; use ComickMetadataCoordinator.
       - Canonical metadata expected-title expansion for candidate matching should include display title, resolved canonical title, and runtime equivalent-title groups with normalized-key dedupe in deterministic order, including canonical-title fallback equivalent lookup even when canonical dedupes against display normalization (fallback resolution is independent of canonical-title append dedupe success); use ComickMetadataCoordinator.BuildExpectedTitles.
       - Canonical metadata orchestration FlareSolverr URI invariants (non-null must be absolute http/https); use MetadataOrchestrationOptions.
-      - Canonical metadata orchestration settings carrier and guards for Comick/Flaresolverr runtime values; use MetadataOrchestrationOptions.
+      - Canonical metadata orchestration settings carrier and guards for Comick/Flaresolverr plus metadata_api_request_delay_ms (>=0) and metadata_api_cache_ttl_hours (>0) runtime values; use MetadataOrchestrationOptions.
       - Canonical persisted metadata state load/transform semantics with atomic JSON persistence and corrupt file/directory recovery; use FileBackedMetadataStateStore.
       - Canonical sticky FlareSolverr persistence must be monotonic and never reduce an existing later expiry; use CloudflareAwareComickGateway.PersistStickyFlaresolverrUntil.
       - Canonical runtime contract for cover.jpg ensure operations; use IOverrideCoverService.
@@ -1664,6 +1665,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.CleanupMergedRoot.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.DegradedVisibilityAndOverrideTitles.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.FailFastMountFailures.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.Services.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.MetadataCoordinator.cs
@@ -1728,6 +1730,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Logging/StructuredTextLogFormatterTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComicInfoMetadataParserTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickMetadataCoordinatorTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataOrchestrationOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.ApiFirstHardeningTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.ApiFirstTests.cs
@@ -1803,6 +1806,7 @@ modules:
       - Canonical YAML schema validation test scenarios; extend configuration schema test classes.
       - Host lifecycle and stderr fallback coverage; extend ApplicationHostTests.
       - Logging formatter/filter/rolling behavior coverage; extend Infrastructure/Logging test classes.
+      - Metadata API pacing/cache option mapping and guard coverage; extend MergeMountWorkflowOptionsTests and MetadataOrchestrationOptionsTests.
       - Mutation-test scope and threshold gates; use stryker-config.json.
       - Repository LF line-ending drift guard; extend LineEndingPolicyTests.
       - Repository-policy test root discovery in unit tests; use RepositoryRootLocator.FindRepositoryRoot.

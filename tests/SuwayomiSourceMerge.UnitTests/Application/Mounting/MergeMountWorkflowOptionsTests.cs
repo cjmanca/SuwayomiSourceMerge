@@ -22,6 +22,8 @@ public sealed class MergeMountWorkflowOptionsTests
 		Assert.Null(options.MetadataOrchestration.FlaresolverrServerUri);
 		Assert.Equal(TimeSpan.FromMinutes(60), options.MetadataOrchestration.FlaresolverrDirectRetryInterval);
 		Assert.Equal("en", options.MetadataOrchestration.PreferredLanguage);
+		Assert.Equal(TimeSpan.FromMilliseconds(1000), options.MetadataOrchestration.MetadataApiRequestDelay);
+		Assert.Equal(TimeSpan.FromHours(24), options.MetadataOrchestration.MetadataApiCacheTtl);
 	}
 
 	/// <summary>
@@ -48,6 +50,8 @@ public sealed class MergeMountWorkflowOptionsTests
 				EnableMountHealthcheck = defaultRuntime.EnableMountHealthcheck,
 				MaxConsecutiveMountFailures = defaultRuntime.MaxConsecutiveMountFailures,
 				ComickMetadataCooldownHours = defaultRuntime.ComickMetadataCooldownHours,
+				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
+				MetadataApiCacheTtlHours = defaultRuntime.MetadataApiCacheTtlHours,
 				FlaresolverrServerUrl = "https://flaresolverr.example.local/",
 				FlaresolverrDirectRetryMinutes = defaultRuntime.FlaresolverrDirectRetryMinutes,
 				PreferredLanguage = defaultRuntime.PreferredLanguage,
@@ -87,6 +91,10 @@ public sealed class MergeMountWorkflowOptionsTests
 				RescanNow = defaultRuntime.RescanNow,
 				EnableMountHealthcheck = defaultRuntime.EnableMountHealthcheck,
 				MaxConsecutiveMountFailures = defaultRuntime.MaxConsecutiveMountFailures,
+				ComickMetadataCooldownHours = defaultRuntime.ComickMetadataCooldownHours,
+				FlaresolverrServerUrl = string.Empty,
+				FlaresolverrDirectRetryMinutes = defaultRuntime.FlaresolverrDirectRetryMinutes,
+				PreferredLanguage = defaultRuntime.PreferredLanguage,
 				DetailsDescriptionMode = defaultRuntime.DetailsDescriptionMode,
 				MergerfsOptionsBase = defaultRuntime.MergerfsOptionsBase,
 				ExcludedSources = defaultRuntime.ExcludedSources
@@ -96,7 +104,8 @@ public sealed class MergeMountWorkflowOptionsTests
 
 		ArgumentException exception = Assert.Throws<ArgumentException>(() => MergeMountWorkflowOptions.FromSettings(settings));
 		Assert.Equal("settings", exception.ParamName);
-		Assert.Contains("required key; empty value disables FlareSolverr", exception.Message, StringComparison.Ordinal);
+		Assert.Contains("runtime.metadata_api_request_delay_ms", exception.Message, StringComparison.Ordinal);
+		Assert.Contains("runtime.metadata_api_cache_ttl_hours", exception.Message, StringComparison.Ordinal);
 	}
 
 	/// <summary>
@@ -124,6 +133,8 @@ public sealed class MergeMountWorkflowOptionsTests
 				EnableMountHealthcheck = defaultRuntime.EnableMountHealthcheck,
 				MaxConsecutiveMountFailures = defaultRuntime.MaxConsecutiveMountFailures,
 				ComickMetadataCooldownHours = defaultRuntime.ComickMetadataCooldownHours,
+				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
+				MetadataApiCacheTtlHours = defaultRuntime.MetadataApiCacheTtlHours,
 				FlaresolverrServerUrl = "not-a-uri",
 				FlaresolverrDirectRetryMinutes = defaultRuntime.FlaresolverrDirectRetryMinutes,
 				PreferredLanguage = defaultRuntime.PreferredLanguage,
@@ -150,6 +161,8 @@ public sealed class MergeMountWorkflowOptionsTests
 				EnableMountHealthcheck = defaultRuntime.EnableMountHealthcheck,
 				MaxConsecutiveMountFailures = defaultRuntime.MaxConsecutiveMountFailures,
 				ComickMetadataCooldownHours = 0,
+				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
+				MetadataApiCacheTtlHours = defaultRuntime.MetadataApiCacheTtlHours,
 				FlaresolverrServerUrl = string.Empty,
 				FlaresolverrDirectRetryMinutes = defaultRuntime.FlaresolverrDirectRetryMinutes,
 				PreferredLanguage = defaultRuntime.PreferredLanguage,
@@ -176,6 +189,8 @@ public sealed class MergeMountWorkflowOptionsTests
 				EnableMountHealthcheck = defaultRuntime.EnableMountHealthcheck,
 				MaxConsecutiveMountFailures = defaultRuntime.MaxConsecutiveMountFailures,
 				ComickMetadataCooldownHours = defaultRuntime.ComickMetadataCooldownHours,
+				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
+				MetadataApiCacheTtlHours = defaultRuntime.MetadataApiCacheTtlHours,
 				FlaresolverrServerUrl = "ftp://flaresolverr.example.local/",
 				FlaresolverrDirectRetryMinutes = defaultRuntime.FlaresolverrDirectRetryMinutes,
 				PreferredLanguage = defaultRuntime.PreferredLanguage,
@@ -202,9 +217,67 @@ public sealed class MergeMountWorkflowOptionsTests
 				EnableMountHealthcheck = defaultRuntime.EnableMountHealthcheck,
 				MaxConsecutiveMountFailures = defaultRuntime.MaxConsecutiveMountFailures,
 				ComickMetadataCooldownHours = defaultRuntime.ComickMetadataCooldownHours,
+				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
+				MetadataApiCacheTtlHours = defaultRuntime.MetadataApiCacheTtlHours,
 				FlaresolverrServerUrl = string.Empty,
 				FlaresolverrDirectRetryMinutes = defaultRuntime.FlaresolverrDirectRetryMinutes,
 				PreferredLanguage = "   ",
+				DetailsDescriptionMode = defaultRuntime.DetailsDescriptionMode,
+				MergerfsOptionsBase = defaultRuntime.MergerfsOptionsBase,
+				ExcludedSources = defaultRuntime.ExcludedSources
+			},
+			Logging = defaults.Logging
+		};
+
+		SettingsDocument invalidRequestDelaySettings = new()
+		{
+			Paths = defaults.Paths,
+			Scan = defaults.Scan,
+			Rename = defaults.Rename,
+			Diagnostics = defaults.Diagnostics,
+			Shutdown = defaults.Shutdown,
+			Permissions = defaults.Permissions,
+			Runtime = new SettingsRuntimeSection
+			{
+				LowPriority = defaultRuntime.LowPriority,
+				StartupCleanup = defaultRuntime.StartupCleanup,
+				RescanNow = defaultRuntime.RescanNow,
+				EnableMountHealthcheck = defaultRuntime.EnableMountHealthcheck,
+				MaxConsecutiveMountFailures = defaultRuntime.MaxConsecutiveMountFailures,
+				ComickMetadataCooldownHours = defaultRuntime.ComickMetadataCooldownHours,
+				MetadataApiRequestDelayMs = -1,
+				MetadataApiCacheTtlHours = defaultRuntime.MetadataApiCacheTtlHours,
+				FlaresolverrServerUrl = string.Empty,
+				FlaresolverrDirectRetryMinutes = defaultRuntime.FlaresolverrDirectRetryMinutes,
+				PreferredLanguage = defaultRuntime.PreferredLanguage,
+				DetailsDescriptionMode = defaultRuntime.DetailsDescriptionMode,
+				MergerfsOptionsBase = defaultRuntime.MergerfsOptionsBase,
+				ExcludedSources = defaultRuntime.ExcludedSources
+			},
+			Logging = defaults.Logging
+		};
+
+		SettingsDocument invalidCacheTtlSettings = new()
+		{
+			Paths = defaults.Paths,
+			Scan = defaults.Scan,
+			Rename = defaults.Rename,
+			Diagnostics = defaults.Diagnostics,
+			Shutdown = defaults.Shutdown,
+			Permissions = defaults.Permissions,
+			Runtime = new SettingsRuntimeSection
+			{
+				LowPriority = defaultRuntime.LowPriority,
+				StartupCleanup = defaultRuntime.StartupCleanup,
+				RescanNow = defaultRuntime.RescanNow,
+				EnableMountHealthcheck = defaultRuntime.EnableMountHealthcheck,
+				MaxConsecutiveMountFailures = defaultRuntime.MaxConsecutiveMountFailures,
+				ComickMetadataCooldownHours = defaultRuntime.ComickMetadataCooldownHours,
+				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
+				MetadataApiCacheTtlHours = 0,
+				FlaresolverrServerUrl = string.Empty,
+				FlaresolverrDirectRetryMinutes = defaultRuntime.FlaresolverrDirectRetryMinutes,
+				PreferredLanguage = defaultRuntime.PreferredLanguage,
 				DetailsDescriptionMode = defaultRuntime.DetailsDescriptionMode,
 				MergerfsOptionsBase = defaultRuntime.MergerfsOptionsBase,
 				ExcludedSources = defaultRuntime.ExcludedSources
@@ -216,6 +289,8 @@ public sealed class MergeMountWorkflowOptionsTests
 		Assert.Throws<ArgumentOutOfRangeException>(() => MergeMountWorkflowOptions.FromSettings(invalidCooldownSettings));
 		ArgumentException invalidSchemeException = Assert.Throws<ArgumentException>(() => MergeMountWorkflowOptions.FromSettings(invalidSchemeSettings));
 		Assert.Throws<ArgumentException>(() => MergeMountWorkflowOptions.FromSettings(invalidLanguageSettings));
+		Assert.Throws<ArgumentOutOfRangeException>(() => MergeMountWorkflowOptions.FromSettings(invalidRequestDelaySettings));
+		Assert.Throws<ArgumentOutOfRangeException>(() => MergeMountWorkflowOptions.FromSettings(invalidCacheTtlSettings));
 		Assert.Equal("settings", invalidUriException.ParamName);
 		Assert.Equal("settings", invalidSchemeException.ParamName);
 	}
