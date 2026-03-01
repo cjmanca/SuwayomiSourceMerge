@@ -2,6 +2,7 @@ namespace SuwayomiSourceMerge.UnitTests.Infrastructure.Metadata;
 
 using System.Text.Json;
 using SuwayomiSourceMerge.Infrastructure.Metadata;
+using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 
 /// <summary>
@@ -66,6 +67,125 @@ public sealed class FileBackedMetadataStateStoreTests
 	}
 
 	/// <summary>
+	/// Verifies Comick cache entries persist and reload through the file-backed store.
+	/// </summary>
+	[Fact]
+	public void Transform_Expected_ShouldPersistAndReloadComickCacheEntries()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		MetadataStatePaths paths = CreatePaths(temporaryDirectory.Path);
+		JsonElement payloadJson = JsonSerializer.SerializeToElement(new Dictionary<string, string>(StringComparer.Ordinal)
+		{
+			["slug"] = "cached-slug"
+		});
+		ComickApiCacheEntry cacheEntry = new(
+			ComickApiCacheEndpointKind.Search,
+			"query",
+			ComickDirectApiOutcome.Success,
+			statusCode: 200,
+			diagnostic: "cached",
+			payloadJson,
+			DateTimeOffset.Parse("2026-03-01T00:00:00+00:00"));
+
+		FileBackedMetadataStateStore store = new(paths);
+		store.Transform(
+			_ => new MetadataStateSnapshot(
+				new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal),
+				null,
+				[cacheEntry]));
+
+		FileBackedMetadataStateStore reloadedStore = new(paths);
+		ComickApiCacheEntry persistedEntry = Assert.Single(reloadedStore.Read().ComickCache);
+		Assert.Equal("query", persistedEntry.RequestKey);
+		Assert.Equal(ComickDirectApiOutcome.Success, persistedEntry.Outcome);
+		Assert.True(persistedEntry.PayloadJson.HasValue);
+
+		using JsonDocument writtenDocument = JsonDocument.Parse(File.ReadAllText(paths.MetadataStateFilePath));
+		Assert.Equal(
+			1,
+			writtenDocument.RootElement.GetProperty("comick_api_cache").GetArrayLength());
+	}
+
+	/// <summary>
+	/// Verifies persisted state without Comick cache field loads as an empty cache for backward compatibility.
+	/// </summary>
+	[Fact]
+	public void Constructor_Edge_ShouldTreatMissingComickCacheFieldAsEmpty()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		MetadataStatePaths paths = CreatePaths(temporaryDirectory.Path);
+		Directory.CreateDirectory(paths.StateRootPath);
+		File.WriteAllText(
+			paths.MetadataStateFilePath,
+			"""
+			{
+			  "schema_version": 1,
+			  "sticky_flaresolverr_until_unix_seconds": null,
+			  "title_cooldowns_unix_seconds": {
+			    "title-key": 1709251200
+			  }
+			}
+			""");
+
+		FileBackedMetadataStateStore store = new(paths);
+		MetadataStateSnapshot snapshot = store.Read();
+
+		Assert.Single(snapshot.TitleCooldownsUtc);
+		Assert.Empty(snapshot.ComickCache);
+		Assert.True(File.Exists(paths.MetadataStateFilePath));
+		Assert.False(File.Exists(paths.MetadataStateCorruptFilePath));
+	}
+
+	/// <summary>
+	/// Verifies malformed Comick cache items are skipped without invalidating the full snapshot.
+	/// </summary>
+	[Fact]
+	public void Constructor_Edge_ShouldSkipMalformedComickCacheEntries()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		MetadataStatePaths paths = CreatePaths(temporaryDirectory.Path);
+		Directory.CreateDirectory(paths.StateRootPath);
+		File.WriteAllText(
+			paths.MetadataStateFilePath,
+			"""
+			{
+			  "schema_version": 1,
+			  "sticky_flaresolverr_until_unix_seconds": null,
+			  "title_cooldowns_unix_seconds": {},
+			  "comick_api_cache": [
+			    "invalid",
+			    {
+			      "endpoint_kind": "search",
+			      "request_key": "query",
+			      "outcome": "Success",
+			      "status_code": 200,
+			      "diagnostic": "cached",
+			      "payload_json": {
+			        "slug": "cached-slug"
+			      },
+			      "expires_at_unix_seconds": 1709254800
+			    },
+			    {
+			      "endpoint_kind": "comic",
+			      "request_key": "",
+			      "outcome": "NotFound",
+			      "expires_at_unix_seconds": 1709254800
+			    }
+			  ]
+			}
+			""");
+
+		FileBackedMetadataStateStore store = new(paths);
+		MetadataStateSnapshot snapshot = store.Read();
+
+		ComickApiCacheEntry persistedEntry = Assert.Single(snapshot.ComickCache);
+		Assert.Equal(ComickApiCacheEndpointKind.Search, persistedEntry.EndpointKind);
+		Assert.Equal("query", persistedEntry.RequestKey);
+		Assert.True(File.Exists(paths.MetadataStateFilePath));
+		Assert.False(File.Exists(paths.MetadataStateCorruptFilePath));
+	}
+
+	/// <summary>
 	/// Verifies multiple transforms preserve existing entries while applying new entries.
 	/// </summary>
 	[Fact]
@@ -92,7 +212,10 @@ public sealed class FileBackedMetadataStateStoreTests
 				{
 					["two"] = second
 				};
-				return new MetadataStateSnapshot(nextCooldowns, current.StickyFlaresolverrUntilUtc);
+				return new MetadataStateSnapshot(
+					nextCooldowns,
+					current.StickyFlaresolverrUntilUtc,
+					current.ComickCache);
 			});
 
 		MetadataStateSnapshot snapshot = store.Read();
@@ -388,7 +511,10 @@ public sealed class FileBackedMetadataStateStoreTests
 					{
 						["second"] = secondCooldown
 					};
-					return new MetadataStateSnapshot(nextCooldowns, current.StickyFlaresolverrUntilUtc);
+					return new MetadataStateSnapshot(
+						nextCooldowns,
+						current.StickyFlaresolverrUntilUtc,
+						current.ComickCache);
 				}));
 		Assert.True(exception is IOException or UnauthorizedAccessException);
 

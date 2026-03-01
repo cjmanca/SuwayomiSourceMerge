@@ -22,7 +22,15 @@ internal sealed partial class CloudflareAwareComickGateway
 		}
 		catch (Exception exception) when (!IsFatalException(exception))
 		{
-			LogStateStoreOperationFailed(endpointUri, operation, exception);
+			if (operation.StartsWith("cache_", StringComparison.Ordinal))
+			{
+				LogCacheStateStoreOperationFailed(endpointUri, operation, exception);
+			}
+			else
+			{
+				LogStateStoreOperationFailed(endpointUri, operation, exception);
+			}
+
 			return MetadataStateSnapshot.Empty;
 		}
 	}
@@ -50,7 +58,15 @@ internal sealed partial class CloudflareAwareComickGateway
 		}
 		catch (Exception exception) when (!IsFatalException(exception))
 		{
-			LogStateStoreOperationFailed(endpointUri, operation, exception);
+			if (operation.StartsWith("cache_", StringComparison.Ordinal))
+			{
+				LogCacheStateStoreOperationFailed(endpointUri, operation, exception);
+			}
+			else
+			{
+				LogStateStoreOperationFailed(endpointUri, operation, exception);
+			}
+
 			return false;
 		}
 	}

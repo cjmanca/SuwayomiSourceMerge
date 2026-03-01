@@ -1,11 +1,13 @@
 using System.Text.Json;
 
+using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
+
 namespace SuwayomiSourceMerge.Infrastructure.Metadata;
 
 /// <summary>
 /// Persists metadata orchestration state as a single JSON snapshot file under the configured state root.
 /// </summary>
-internal sealed class FileBackedMetadataStateStore : IMetadataStateStore
+internal sealed partial class FileBackedMetadataStateStore : IMetadataStateStore
 {
 	/// <summary>
 	/// Supported JSON schema version for persisted metadata state files.
@@ -225,7 +227,8 @@ internal sealed class FileBackedMetadataStateStore : IMetadataStateStore
 			root,
 			StickyFlaresolverrUntilPropertyName);
 		Dictionary<string, DateTimeOffset> titleCooldownsUtc = ReadRequiredTitleCooldowns(root);
-		return new MetadataStateSnapshot(titleCooldownsUtc, stickyFlaresolverrUntilUtc);
+		IReadOnlyCollection<ComickApiCacheEntry> comickCache = ReadOptionalComickApiCache(root);
+		return new MetadataStateSnapshot(titleCooldownsUtc, stickyFlaresolverrUntilUtc, comickCache);
 	}
 
 	/// <summary>
@@ -389,6 +392,7 @@ internal sealed class FileBackedMetadataStateStore : IMetadataStateStore
 				}
 
 				writer.WriteEndObject();
+				WriteComickApiCache(writer, snapshot.ComickCache);
 				writer.WriteEndObject();
 				writer.Flush();
 			}
@@ -432,6 +436,7 @@ internal sealed class FileBackedMetadataStateStore : IMetadataStateStore
 		ArgumentNullException.ThrowIfNull(snapshot);
 		return new MetadataStateSnapshot(
 			snapshot.TitleCooldownsUtc,
-			snapshot.StickyFlaresolverrUntilUtc);
+			snapshot.StickyFlaresolverrUntilUtc,
+			snapshot.ComickCache);
 	}
 }

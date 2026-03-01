@@ -82,6 +82,8 @@ internal sealed class DefaultRuntimeSupervisorRunner : IRuntimeSupervisorRunner
 		ConfigurationPathSet configurationPaths = ConfigurationPathSet.FromRoot(mergeOptions.ConfigRootPath);
 		MetadataStatePaths metadataStatePaths = new(documents.Settings.Paths!.StateRootPath!);
 		IMetadataStateStore metadataStateStore = new FileBackedMetadataStateStore(metadataStatePaths);
+		IMetadataApiRequestThrottle metadataApiRequestThrottle = new MetadataApiRequestThrottle(
+			mergeOptions.MetadataOrchestration.MetadataApiRequestDelay);
 		IComickDirectApiClient comickDirectApiClient = new ComickDirectApiClient();
 		IFlaresolverrClient? flaresolverrClient = mergeOptions.MetadataOrchestration.FlaresolverrServerUri is null
 			? null
@@ -94,12 +96,13 @@ internal sealed class DefaultRuntimeSupervisorRunner : IRuntimeSupervisorRunner
 			flaresolverrClient,
 			metadataStateStore,
 			mergeOptions.MetadataOrchestration,
+			metadataApiRequestThrottle,
 			logger);
 		IComickCandidateMatcher comickCandidateMatcher = new ComickCandidateMatcher(
 			comickApiGateway,
 			sceneTagMatcher,
 			logger);
-		IOverrideCoverService overrideCoverService = new OverrideCoverService();
+		IOverrideCoverService overrideCoverService = new OverrideCoverService(metadataApiRequestThrottle);
 		IOverrideDetailsService overrideDetailsService = new OverrideDetailsService();
 		IComickMetadataCoordinator comickMetadataCoordinator = new ComickMetadataCoordinator(
 			comickApiGateway,

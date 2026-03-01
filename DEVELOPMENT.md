@@ -108,8 +108,8 @@ Selected behavior for this planned feature:
   - cache Comick search and comic-detail API returns only
   - do not cache cover-image payload downloads in this iteration
 - Cache outcomes:
-  - cache stable outcomes: `Success`, `NotFound`, `HttpFailure`, `CloudflareBlocked`, `MalformedPayload`
-  - do not cache `TransportFailure` or cooperative `Cancelled`
+  - cache stable outcomes: `Success`, `NotFound`
+  - do not cache transient/error outcomes (`HttpFailure`, `CloudflareBlocked`, `MalformedPayload`, `TransportFailure`, cooperative `Cancelled`)
 - Cache expiry:
   - TTL-based expiry (configurable), default 24 hours
 

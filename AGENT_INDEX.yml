@@ -852,9 +852,12 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadata.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.BaseUri.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.Cache.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.Logging.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.StateStore.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickApiCacheEndpointKind.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickApiCacheEntry.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatcher.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatcher.Logging.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatcher.Ranking.cs
@@ -880,6 +883,7 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComickMetadataCoordinator.Helpers.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComickMetadataCoordinatorRequest.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComickMetadataCoordinatorResult.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/FileBackedMetadataStateStore.ComickCache.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/FileBackedMetadataStateStore.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrApiOutcome.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrApiResult.cs
@@ -888,13 +892,16 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/IFlaresolverrClient.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IComicInfoMetadataParser.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IComickMetadataCoordinator.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/IMetadataApiRequestThrottle.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IMetadataStateStore.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideCoverFileOperations.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideCoverService.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IOverrideDetailsService.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/MetadataApiRequestThrottle.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/MetadataOrchestrationOptions.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/MetadataStatePaths.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/MetadataStateSnapshot.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/NoOpMetadataApiRequestThrottle.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverOutcome.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverPhysicalFileOperations.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverRequest.cs
@@ -912,6 +919,7 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Mapping.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Models.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Write.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.Cache.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.Helpers.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.Logging.cs
@@ -937,15 +945,19 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/FlaresolverrClientTests.Helpers.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/FlaresolverrClientTests.PayloadValidation.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/FlaresolverrClientTests.SuccessAndHttp.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataApiRequestThrottleTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataOrchestrationOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataStatePathsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataStateSnapshotTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/NoOpMetadataApiRequestThrottleTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.FailureDeterminism.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.Pacing.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.ApiFirstHardeningTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.ApiFirstTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.Generation.WriteTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/TrackingMetadataApiRequestThrottle.cs
     entrypoints:
       - symbol: CloudflareAwareComickGateway
         kind: class
@@ -984,9 +996,15 @@ modules:
       - how: Add alternate FlareSolverr transport behavior by implementing IFlaresolverrClient and wiring it into metadata gateway callers.
         symbols: [FlaresolverrClient, IFlaresolverrClient]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrClient.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/IFlaresolverrClient.cs]
+      - how: Add alternate metadata API pacing behavior by implementing IMetadataApiRequestThrottle and wiring it into metadata HTTP callers.
+        symbols: [IMetadataApiRequestThrottle, MetadataApiRequestThrottle, NoOpMetadataApiRequestThrottle]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/IMetadataApiRequestThrottle.cs, SuwayomiSourceMerge/Infrastructure/Metadata/MetadataApiRequestThrottle.cs, SuwayomiSourceMerge/Infrastructure/Metadata/NoOpMetadataApiRequestThrottle.cs]
       - how: Adjust Cloudflare challenge detection and deterministic outcome mapping for direct Comick requests in ComickDirectApiClient.
         symbols: [ComickDirectApiClient, ComickDirectApiOutcome]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiOutcome.cs]
+      - how: Adjust Comick API response-cache persistence and cache-entry shape across gateway/state-store/snapshot integration.
+        symbols: [ComickApiCacheEntry, CloudflareAwareComickGateway, FileBackedMetadataStateStore, MetadataStateSnapshot]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickApiCacheEntry.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.Cache.cs, SuwayomiSourceMerge/Infrastructure/Metadata/FileBackedMetadataStateStore.ComickCache.cs, SuwayomiSourceMerge/Infrastructure/Metadata/MetadataStateSnapshot.cs]
       - how: Adjust cover.jpg download/conversion and non-overwrite write behavior in the override cover service.
         symbols: [OverrideCoverService, OverrideCoverService.EnsureCoverJpgAsync]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverService.cs]
@@ -1023,10 +1041,13 @@ modules:
       - Canonical Cloudflare gateway metadata-state read/transform handling should be best-effort for non-fatal exceptions (warning telemetry + request-flow continuation) while fatal exceptions are rethrown; use CloudflareAwareComickGateway.TryReadMetadataStateSnapshot and CloudflareAwareComickGateway.TryTransformMetadataStateSnapshot.
       - Canonical Cloudflare-aware direct-first routing with sticky FlareSolverr fallback and timed direct retry probing; use CloudflareAwareComickGateway.
       - Canonical ComicInfo strict-then-fallback parsing behavior; use ComicInfoMetadataParser.TryParse.
+      - Canonical Comick cache read-through/write-through for both search and comic endpoints (cache keying, expiry checks, and Success/NotFound-only persistence policy) should remain gateway-owned; use CloudflareAwareComickGateway.ExecuteWithCacheAsync.
+      - Canonical completion-anchored metadata API pacing semantics (including cooperative cancellation propagation, concurrent-operation serialization, and failed-operation window advancement); use MetadataApiRequestThrottle.
       - Canonical Comick candidate resolution and detail-only exact-key matching semantics (search entries are ranking hints only), including interruption telemetry for non-cooperative detail failures, accurate `HadTopTie` result semantics for matched tied candidates only, and cancellation throws only when caller cancellation is requested; use ComickCandidateMatcher.MatchAsync.
       - Canonical Comick candidate-ambiguity warning semantics should detect only explicit top-similarity ranking-hint ties (>0 with epsilon tie comparison) and emit `metadata.candidate.ambiguity` even when a deterministic match is selected; use ComickCandidateMatcher.GetTopSimilarityTieInfo and ComickCandidateMatcher.LogCandidateAmbiguity.
       - Canonical Comick gateway base-URI normalization (absolute http/https + exactly one trailing slash) should be centralized and reused; use CloudflareAwareComickGateway.NormalizeBaseUri.
       - Canonical cover already-exists result construction should be centralized to preserve consistent CoverJpgPath/ExistingCoverPath semantics; use OverrideCoverService.CreateAlreadyExistsResult.
+      - Canonical cover concurrent-gate test handler call counting should be atomic to avoid racy gate signaling under concurrent SendAsync execution; use OverrideCoverServiceTests.ConcurrentGateHttpMessageHandler.SendAsync.
       - Canonical cover conversion failure mapping should preserve deterministic UnsupportedImage outcomes for non-fatal payload decode/encode failures while rethrowing fatal CLR exceptions; use OverrideCoverService.TryConvertToJpeg.
       - Canonical cover download path should use response-header prechecks plus bounded streaming capped at 32 MiB and map oversize payloads to DownloadFailed outcomes; use OverrideCoverService.DownloadCoverBytesAsync.
       - Canonical cover.jpg ensure flow (override-exists short-circuit, download, optional JPEG conversion, atomic non-overwrite write); use OverrideCoverService.EnsureCoverJpgAsync.
@@ -1053,6 +1074,9 @@ modules:
       - Canonical metadata orchestration FlareSolverr URI invariants (non-null must be absolute http/https); use MetadataOrchestrationOptions.
       - Canonical metadata orchestration settings carrier and guards for Comick/Flaresolverr plus metadata_api_request_delay_ms (>=0) and metadata_api_cache_ttl_hours (>0) runtime values; use MetadataOrchestrationOptions.
       - Canonical metadata structured logging for cooldown skips plus cooldown state-store best-effort read/persist failures, artifact writes/skips/failures, and equivalents update outcomes should remain coordinator-owned; use ComickMetadataCoordinator.
+      - Canonical metadata throttle concurrent-serialization test assertions should use deterministic synchronization rather than fixed wall-clock race delays; use MetadataApiRequestThrottleTests.ExecuteAsync_Expected_ShouldSerializeConcurrentOperations.
+      - Canonical no-op metadata API throttle behavior should honor caller cancellation before execution and otherwise pass through delegates immediately; use NoOpMetadataApiRequestThrottle.
+      - Canonical persisted metadata-state Comick cache JSON schema/back-compat parsing with malformed-entry skip behavior should be centralized; use FileBackedMetadataStateStore.ReadOptionalComickApiCache and FileBackedMetadataStateStore.WriteComickApiCache.
       - Canonical persisted metadata state load/transform semantics with atomic JSON persistence and corrupt file/directory recovery; use FileBackedMetadataStateStore.
       - Canonical runtime contract for cover.jpg ensure operations; use IOverrideCoverService.
       - Canonical runtime contract for merge-pass title metadata artifact coordination; use IComickMetadataCoordinator.

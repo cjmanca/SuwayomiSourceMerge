@@ -43,7 +43,8 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		Uri? flaresolverrServerUri,
 		TimeSpan directRetryInterval,
 		DateTimeOffset nowUtc,
-		RecordingLogger? logger = null)
+		RecordingLogger? logger = null,
+		IMetadataApiRequestThrottle? throttle = null)
 	{
 		return CreateGateway(
 			directClient,
@@ -52,7 +53,8 @@ public sealed partial class CloudflareAwareComickGatewayTests
 			flaresolverrServerUri,
 			directRetryInterval,
 			() => nowUtc,
-			logger);
+			logger,
+			throttle);
 	}
 
 	/// <summary>
@@ -72,7 +74,8 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		Uri? flaresolverrServerUri,
 		TimeSpan directRetryInterval,
 		Func<DateTimeOffset> utcNowProvider,
-		RecordingLogger? logger = null)
+		RecordingLogger? logger = null,
+		IMetadataApiRequestThrottle? throttle = null)
 	{
 		MetadataOrchestrationOptions options = new(
 			TimeSpan.FromHours(24),
@@ -88,6 +91,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 			options,
 			new Uri("https://api.comick.dev/"),
 			utcNowProvider,
+			throttle ?? new NoOpMetadataApiRequestThrottle(),
 			logger);
 	}
 
@@ -270,7 +274,10 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		/// <inheritdoc />
 		public MetadataStateSnapshot Read()
 		{
-			return new MetadataStateSnapshot(_snapshot.TitleCooldownsUtc, _snapshot.StickyFlaresolverrUntilUtc);
+			return new MetadataStateSnapshot(
+				_snapshot.TitleCooldownsUtc,
+				_snapshot.StickyFlaresolverrUntilUtc,
+				_snapshot.ComickCache);
 		}
 
 		/// <inheritdoc />
@@ -279,7 +286,10 @@ public sealed partial class CloudflareAwareComickGatewayTests
 			ArgumentNullException.ThrowIfNull(transformer);
 			TransformCallCount++;
 			MetadataStateSnapshot transformed = transformer(Read());
-			_snapshot = new MetadataStateSnapshot(transformed.TitleCooldownsUtc, transformed.StickyFlaresolverrUntilUtc);
+			_snapshot = new MetadataStateSnapshot(
+				transformed.TitleCooldownsUtc,
+				transformed.StickyFlaresolverrUntilUtc,
+				transformed.ComickCache);
 		}
 	}
 
@@ -348,7 +358,10 @@ public sealed partial class CloudflareAwareComickGatewayTests
 				throw ReadException;
 			}
 
-			return new MetadataStateSnapshot(_snapshot.TitleCooldownsUtc, _snapshot.StickyFlaresolverrUntilUtc);
+			return new MetadataStateSnapshot(
+				_snapshot.TitleCooldownsUtc,
+				_snapshot.StickyFlaresolverrUntilUtc,
+				_snapshot.ComickCache);
 		}
 
 		/// <inheritdoc />
@@ -362,7 +375,10 @@ public sealed partial class CloudflareAwareComickGatewayTests
 			}
 
 			MetadataStateSnapshot transformed = transformer(Read());
-			_snapshot = new MetadataStateSnapshot(transformed.TitleCooldownsUtc, transformed.StickyFlaresolverrUntilUtc);
+			_snapshot = new MetadataStateSnapshot(
+				transformed.TitleCooldownsUtc,
+				transformed.StickyFlaresolverrUntilUtc,
+				transformed.ComickCache);
 		}
 	}
 

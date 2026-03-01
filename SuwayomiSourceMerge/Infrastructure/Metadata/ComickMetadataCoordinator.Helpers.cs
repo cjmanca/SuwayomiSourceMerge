@@ -157,7 +157,8 @@ internal sealed partial class ComickMetadataCoordinator
 					};
 					return new MetadataStateSnapshot(
 						updatedCooldowns,
-						current.StickyFlaresolverrUntilUtc);
+						current.StickyFlaresolverrUntilUtc,
+						current.ComickCache);
 				});
 		}
 		catch (Exception exception) when (!IsFatalException(exception))

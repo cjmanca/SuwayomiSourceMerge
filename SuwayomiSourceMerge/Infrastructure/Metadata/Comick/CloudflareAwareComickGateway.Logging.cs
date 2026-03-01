@@ -33,6 +33,31 @@ internal sealed partial class CloudflareAwareComickGateway
 	private const string StateStoreFailedEvent = "metadata.cloudflare.state_store.failed";
 
 	/// <summary>
+	/// Event id emitted when Comick cache returns a hit.
+	/// </summary>
+	private const string CacheHitEvent = "metadata.comick.cache.hit";
+
+	/// <summary>
+	/// Event id emitted when Comick cache lookup misses.
+	/// </summary>
+	private const string CacheMissEvent = "metadata.comick.cache.miss";
+
+	/// <summary>
+	/// Event id emitted when one Comick cache entry is persisted.
+	/// </summary>
+	private const string CachePersistedEvent = "metadata.comick.cache.persisted";
+
+	/// <summary>
+	/// Event id emitted when cache persistence is skipped.
+	/// </summary>
+	private const string CacheSkippedEvent = "metadata.comick.cache.skipped";
+
+	/// <summary>
+	/// Event id emitted when cache-specific state-store operations fail.
+	/// </summary>
+	private const string CacheStateStoreFailedEvent = "metadata.comick.cache.state_store_failed";
+
+	/// <summary>
 	/// Logs sticky-route diagnostics.
 	/// </summary>
 	/// <param name="endpointUri">Endpoint URI.</param>
@@ -93,6 +118,129 @@ internal sealed partial class CloudflareAwareComickGateway
 				("endpoint", endpointUri.AbsoluteUri),
 				("direct_outcome", directOutcome.ToString()),
 				("timestamp_utc", nowUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture))));
+	}
+
+	/// <summary>
+	/// Logs Comick response-cache hit diagnostics.
+	/// </summary>
+	/// <param name="endpointUri">Endpoint URI.</param>
+	/// <param name="endpointKind">Endpoint kind.</param>
+	/// <param name="requestKey">Trimmed request key.</param>
+	/// <param name="outcome">Cached outcome.</param>
+	/// <param name="detail">Cache-hit detail token.</param>
+	private void LogCacheHit(
+		Uri endpointUri,
+		ComickApiCacheEndpointKind endpointKind,
+		string requestKey,
+		ComickDirectApiOutcome outcome,
+		string detail)
+	{
+		_logger.Debug(
+			CacheHitEvent,
+			"Comick response-cache hit.",
+			BuildContext(
+				("endpoint", endpointUri.AbsoluteUri),
+				("endpoint_kind", endpointKind.ToString().ToLowerInvariant()),
+				("request_key", requestKey),
+				("outcome", outcome.ToString()),
+				("detail", detail)));
+	}
+
+	/// <summary>
+	/// Logs Comick response-cache miss diagnostics.
+	/// </summary>
+	/// <param name="endpointUri">Endpoint URI.</param>
+	/// <param name="endpointKind">Endpoint kind.</param>
+	/// <param name="requestKey">Trimmed request key.</param>
+	/// <param name="detail">Cache-miss detail token.</param>
+	private void LogCacheMiss(
+		Uri endpointUri,
+		ComickApiCacheEndpointKind endpointKind,
+		string requestKey,
+		string detail)
+	{
+		_logger.Debug(
+			CacheMissEvent,
+			"Comick response-cache miss.",
+			BuildContext(
+				("endpoint", endpointUri.AbsoluteUri),
+				("endpoint_kind", endpointKind.ToString().ToLowerInvariant()),
+				("request_key", requestKey),
+				("detail", detail)));
+	}
+
+	/// <summary>
+	/// Logs Comick response-cache persistence diagnostics.
+	/// </summary>
+	/// <param name="endpointUri">Endpoint URI.</param>
+	/// <param name="endpointKind">Endpoint kind.</param>
+	/// <param name="requestKey">Trimmed request key.</param>
+	/// <param name="outcome">Persisted outcome.</param>
+	/// <param name="expiresAtUtc">Cache expiry timestamp.</param>
+	private void LogCachePersisted(
+		Uri endpointUri,
+		ComickApiCacheEndpointKind endpointKind,
+		string requestKey,
+		ComickDirectApiOutcome outcome,
+		DateTimeOffset expiresAtUtc)
+	{
+		_logger.Debug(
+			CachePersistedEvent,
+			"Comick response-cache entry persisted.",
+			BuildContext(
+				("endpoint", endpointUri.AbsoluteUri),
+				("endpoint_kind", endpointKind.ToString().ToLowerInvariant()),
+				("request_key", requestKey),
+				("outcome", outcome.ToString()),
+				("expires_at_utc", expiresAtUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture))));
+	}
+
+	/// <summary>
+	/// Logs Comick response-cache skip diagnostics.
+	/// </summary>
+	/// <param name="endpointUri">Endpoint URI.</param>
+	/// <param name="endpointKind">Endpoint kind.</param>
+	/// <param name="requestKey">Trimmed request key.</param>
+	/// <param name="outcome">Observed live outcome.</param>
+	/// <param name="reason">Skip reason token.</param>
+	private void LogCacheSkipped(
+		Uri endpointUri,
+		ComickApiCacheEndpointKind endpointKind,
+		string requestKey,
+		ComickDirectApiOutcome outcome,
+		string reason)
+	{
+		_logger.Debug(
+			CacheSkippedEvent,
+			"Comick response-cache persistence skipped.",
+			BuildContext(
+				("endpoint", endpointUri.AbsoluteUri),
+				("endpoint_kind", endpointKind.ToString().ToLowerInvariant()),
+				("request_key", requestKey),
+				("outcome", outcome.ToString()),
+				("reason", reason)));
+	}
+
+	/// <summary>
+	/// Logs cache-specific metadata state-store operation failures.
+	/// </summary>
+	/// <param name="endpointUri">Endpoint URI associated with the failed operation.</param>
+	/// <param name="operation">Operation identifier.</param>
+	/// <param name="exception">Observed non-fatal exception.</param>
+	private void LogCacheStateStoreOperationFailed(Uri endpointUri, string operation, Exception exception)
+	{
+		ArgumentNullException.ThrowIfNull(endpointUri);
+		ArgumentException.ThrowIfNullOrWhiteSpace(operation);
+		ArgumentNullException.ThrowIfNull(exception);
+
+		_logger.Warning(
+			CacheStateStoreFailedEvent,
+			"Comick cache state-store operation failed; continuing with best-effort fallback behavior.",
+			BuildContext(
+				("endpoint", endpointUri.AbsoluteUri),
+				("operation", operation),
+				("exception_type", exception.GetType().FullName ?? exception.GetType().Name),
+				("message", exception.Message)));
 	}
 
 	/// <summary>

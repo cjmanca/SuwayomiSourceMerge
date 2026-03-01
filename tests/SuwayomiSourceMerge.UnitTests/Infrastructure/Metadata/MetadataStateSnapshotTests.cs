@@ -1,6 +1,9 @@
 namespace SuwayomiSourceMerge.UnitTests.Infrastructure.Metadata;
 
+using System.Text.Json;
+
 using SuwayomiSourceMerge.Infrastructure.Metadata;
+using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 
 /// <summary>
 /// Verifies expected, edge, and failure behavior for <see cref="MetadataStateSnapshot"/>.
@@ -42,6 +45,40 @@ public sealed class MetadataStateSnapshotTests
 
 		Assert.Null(snapshot.StickyFlaresolverrUntilUtc);
 		Assert.Empty(snapshot.TitleCooldownsUtc);
+	}
+
+	/// <summary>
+	/// Verifies constructor clones Comick cache entries and payload JSON.
+	/// </summary>
+	[Fact]
+	public void Constructor_Edge_ShouldCloneComickCacheEntries()
+	{
+		JsonElement payloadJson = JsonSerializer.SerializeToElement(new Dictionary<string, string>(StringComparer.Ordinal)
+		{
+			["slug"] = "cached-slug"
+		});
+		List<ComickApiCacheEntry> cacheEntries =
+		[
+			new ComickApiCacheEntry(
+				ComickApiCacheEndpointKind.Search,
+				"query",
+				ComickDirectApiOutcome.Success,
+				statusCode: 200,
+				diagnostic: "cached",
+				payloadJson,
+				DateTimeOffset.Parse("2026-03-01T00:00:00+00:00"))
+		];
+
+		MetadataStateSnapshot snapshot = new(
+			new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal),
+			null,
+			cacheEntries);
+		cacheEntries.Clear();
+
+		ComickApiCacheEntry cachedEntry = Assert.Single(snapshot.ComickCache);
+		Assert.Equal("query", cachedEntry.RequestKey);
+		Assert.Equal(ComickDirectApiOutcome.Success, cachedEntry.Outcome);
+		Assert.True(cachedEntry.PayloadJson.HasValue);
 	}
 
 	/// <summary>
