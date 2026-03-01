@@ -54,7 +54,7 @@ public sealed class MetadataOrchestrationOptionsTests
 	[Fact]
 	public void Constructor_Failure_ShouldThrow_WhenArgumentsInvalid()
 	{
-		Assert.Throws<ArgumentOutOfRangeException>(
+		ArgumentOutOfRangeException cooldownException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new MetadataOrchestrationOptions(
 				TimeSpan.Zero,
 				null,
@@ -62,7 +62,7 @@ public sealed class MetadataOrchestrationOptionsTests
 				"en",
 				TimeSpan.FromMilliseconds(1000),
 				TimeSpan.FromHours(24)));
-		Assert.Throws<ArgumentOutOfRangeException>(
+		ArgumentOutOfRangeException directRetryIntervalException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new MetadataOrchestrationOptions(
 				TimeSpan.FromHours(24),
 				null,
@@ -70,7 +70,7 @@ public sealed class MetadataOrchestrationOptionsTests
 				"en",
 				TimeSpan.FromMilliseconds(1000),
 				TimeSpan.FromHours(24)));
-		Assert.ThrowsAny<ArgumentException>(
+		ArgumentException preferredLanguageException = Assert.ThrowsAny<ArgumentException>(
 			() => new MetadataOrchestrationOptions(
 				TimeSpan.FromHours(24),
 				null,
@@ -78,6 +78,10 @@ public sealed class MetadataOrchestrationOptionsTests
 				" ",
 				TimeSpan.FromMilliseconds(1000),
 				TimeSpan.FromHours(24)));
+
+		Assert.Equal("comickMetadataCooldown", cooldownException.ParamName);
+		Assert.Equal("flaresolverrDirectRetryInterval", directRetryIntervalException.ParamName);
+		Assert.Equal("preferredLanguage", preferredLanguageException.ParamName);
 	}
 
 	/// <summary>
@@ -86,7 +90,7 @@ public sealed class MetadataOrchestrationOptionsTests
 	[Fact]
 	public void Constructor_Failure_ShouldThrow_WhenMetadataApiTimingValuesInvalid()
 	{
-		Assert.Throws<ArgumentOutOfRangeException>(
+		ArgumentOutOfRangeException metadataApiRequestDelayException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new MetadataOrchestrationOptions(
 				TimeSpan.FromHours(24),
 				null,
@@ -94,7 +98,7 @@ public sealed class MetadataOrchestrationOptionsTests
 				"en",
 				TimeSpan.FromMilliseconds(-1),
 				TimeSpan.FromHours(24)));
-		Assert.Throws<ArgumentOutOfRangeException>(
+		ArgumentOutOfRangeException metadataApiCacheTtlZeroException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new MetadataOrchestrationOptions(
 				TimeSpan.FromHours(24),
 				null,
@@ -102,7 +106,7 @@ public sealed class MetadataOrchestrationOptionsTests
 				"en",
 				TimeSpan.FromMilliseconds(1000),
 				TimeSpan.Zero));
-		Assert.Throws<ArgumentOutOfRangeException>(
+		ArgumentOutOfRangeException metadataApiCacheTtlNegativeException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new MetadataOrchestrationOptions(
 				TimeSpan.FromHours(24),
 				null,
@@ -110,6 +114,10 @@ public sealed class MetadataOrchestrationOptionsTests
 				"en",
 				TimeSpan.FromMilliseconds(1000),
 				TimeSpan.FromHours(-1)));
+
+		Assert.Equal("metadataApiRequestDelay", metadataApiRequestDelayException.ParamName);
+		Assert.Equal("metadataApiCacheTtl", metadataApiCacheTtlZeroException.ParamName);
+		Assert.Equal("metadataApiCacheTtl", metadataApiCacheTtlNegativeException.ParamName);
 	}
 
 	/// <summary>

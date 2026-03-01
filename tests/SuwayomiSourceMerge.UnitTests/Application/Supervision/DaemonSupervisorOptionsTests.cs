@@ -32,8 +32,11 @@ public sealed class DaemonSupervisorOptionsTests
 	{
 		SupervisorStatePaths statePaths = new("/ssm/state");
 
-		Assert.Throws<ArgumentOutOfRangeException>(() => new DaemonSupervisorOptions(statePaths, TimeSpan.Zero));
-		Assert.Throws<ArgumentOutOfRangeException>(() => new DaemonSupervisorOptions(statePaths, TimeSpan.FromSeconds(-1)));
+		ArgumentOutOfRangeException zeroStopTimeoutException = Assert.Throws<ArgumentOutOfRangeException>(() => new DaemonSupervisorOptions(statePaths, TimeSpan.Zero));
+		ArgumentOutOfRangeException negativeStopTimeoutException = Assert.Throws<ArgumentOutOfRangeException>(() => new DaemonSupervisorOptions(statePaths, TimeSpan.FromSeconds(-1)));
+
+		Assert.Equal("stopTimeout", zeroStopTimeoutException.ParamName);
+		Assert.Equal("stopTimeout", negativeStopTimeoutException.ParamName);
 	}
 
 	/// <summary>
@@ -60,8 +63,12 @@ public sealed class DaemonSupervisorOptionsTests
 			Shutdown = new SettingsShutdownSection()
 		};
 
-		Assert.Throws<ArgumentException>(() => DaemonSupervisorOptions.FromSettings(missingStateRoot));
-		Assert.Throws<ArgumentException>(() => DaemonSupervisorOptions.FromSettings(missingStopTimeout));
-		Assert.Throws<ArgumentNullException>(() => DaemonSupervisorOptions.FromSettings(null!));
+		ArgumentException missingStateRootException = Assert.Throws<ArgumentException>(() => DaemonSupervisorOptions.FromSettings(missingStateRoot));
+		ArgumentException missingStopTimeoutException = Assert.Throws<ArgumentException>(() => DaemonSupervisorOptions.FromSettings(missingStopTimeout));
+		ArgumentNullException nullSettingsException = Assert.Throws<ArgumentNullException>(() => DaemonSupervisorOptions.FromSettings(null!));
+
+		Assert.Equal("settings", missingStateRootException.ParamName);
+		Assert.Equal("settings", missingStopTimeoutException.ParamName);
+		Assert.Equal("settings", nullSettingsException.ParamName);
 	}
 }

@@ -3,6 +3,7 @@
 
 - [x] 2026-02-28 - Add runtime settings/schema/defaults/self-healing/validation support for `runtime.metadata_api_request_delay_ms` (default `1000`, `>= 0`) and `runtime.metadata_api_cache_ttl_hours` (default `24`, `> 0`), including strict-runtime and relaxed-tooling profile behavior.
 - [x] 2026-02-28 - Extend `MergeMountWorkflowOptions` and `MetadataOrchestrationOptions` to carry metadata API pacing and cache TTL settings with constructor/mapping guards and focused option-mapping unit coverage.
+- [x] 2026-02-28 - Normalize `FilesystemEventTriggerOptions.FromSettings` invalid `scan.watch_startup_mode` guard contract to field-specific `ParamName` (`watchStartupMode`) and align unit assertions.
 - [ ] 2026-02-28 - Introduce shared metadata request throttling abstractions (`IMetadataApiRequestThrottle`, implementation, and no-op implementation) with deterministic pacing/cancellation semantics and expected/edge/failure unit tests.
 - [ ] 2026-02-28 - Wire a single shared metadata request throttle instance into runtime composition (`DefaultRuntimeSupervisorRunner`) and flow it through Comick gateway and override cover service dependencies.
 - [ ] 2026-02-28 - Apply pacing to all live metadata HTTP requests (Comick direct, FlareSolverr-routed Comick calls, and cover download calls) while ensuring cache hits and artifact-exists short-circuit paths do not pause.

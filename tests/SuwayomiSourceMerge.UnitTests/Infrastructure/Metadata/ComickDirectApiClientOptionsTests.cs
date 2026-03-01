@@ -38,24 +38,29 @@ public sealed class ComickDirectApiClientOptionsTests
 	[Fact]
 	public void Constructor_Failure_ShouldThrow_WhenArgumentsInvalid()
 	{
-		Assert.Throws<ArgumentNullException>(
+		ArgumentNullException nullBaseUriException = Assert.Throws<ArgumentNullException>(
 			() => new ComickDirectApiClientOptions(
 				null!,
 				TimeSpan.FromSeconds(10)));
 
-		Assert.Throws<ArgumentException>(
+		ArgumentException relativeBaseUriException = Assert.Throws<ArgumentException>(
 			() => new ComickDirectApiClientOptions(
 				new Uri("/relative", UriKind.Relative),
 				TimeSpan.FromSeconds(10)));
 
-		Assert.Throws<ArgumentException>(
+		ArgumentException unsupportedSchemeException = Assert.Throws<ArgumentException>(
 			() => new ComickDirectApiClientOptions(
 				new Uri("ftp://api.comick.dev/"),
 				TimeSpan.FromSeconds(10)));
 
-		Assert.Throws<ArgumentOutOfRangeException>(
+		ArgumentOutOfRangeException requestTimeoutException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new ComickDirectApiClientOptions(
 				new Uri("https://api.comick.dev/"),
 				TimeSpan.Zero));
+
+		Assert.Equal("baseUri", nullBaseUriException.ParamName);
+		Assert.Equal("baseUri", relativeBaseUriException.ParamName);
+		Assert.Equal("baseUri", unsupportedSchemeException.ParamName);
+		Assert.Equal("requestTimeout", requestTimeoutException.ParamName);
 	}
 }

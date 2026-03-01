@@ -70,8 +70,8 @@ modules:
       - Canonical host startup/bootstrap/shutdown status-event emission at normal severity; use ApplicationHost.Run.
       - Canonical logger-reporting best-effort catch policy should rethrow fatal logger exceptions while keeping stderr fallback writes swallow-all; use ApplicationHost.TryLogUnhandledException and ApplicationHost.WriteToStandardError.
       - Canonical recommended scene-tag drift diagnostics for warn-only runtime visibility; use SceneTagConfigurationAdvisor.GetMissingRecommendedTags and DefaultRuntimeSupervisorRunner.Run.
-      - Canonical runtime failure lifecycle event emission (`host.shutdown_failed`) when runtime exits non-zero; use ApplicationHost.Run.
       - Canonical runtime dependency composition for bootstrap, logging, and supervision; use ApplicationHost.CreateDefault.
+      - Canonical runtime failure lifecycle event emission (`host.shutdown_failed`) when runtime exits non-zero; use ApplicationHost.Run.
       - Canonical runtime metadata-logging dependency wiring should thread ISsmLogger into gateway, matcher, and coordinator; use DefaultRuntimeSupervisorRunner.Run.
       - Canonical runtime supervisor dependency composition for production startup; use DefaultRuntimeSupervisorRunner.
       - Canonical unhandled-host exception diagnostics with full exception payload (`exception.ToString()` stack trace); use ApplicationHost.TryLogUnhandledException.
@@ -84,24 +84,24 @@ modules:
       - SuwayomiSourceMerge/Application/Mounting/IMergeRuntimeLifecycle.cs
       - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.Cleanup.cs
       - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.Cleanup.MergedRoot.cs
+      - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.cs
       - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.Groups.cs
       - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.Pass.Apply.cs
       - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.Pass.cs
       - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.Pass.ForceRemount.cs
       - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.Pass.Grouping.cs
-      - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflow.cs
       - SuwayomiSourceMerge/Application/Mounting/MergeMountWorkflowOptions.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.CleanupMergedRoot.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.DegradedVisibilityAndOverrideTitles.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.FailFastMountFailures.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.MountCommands.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.Services.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.MetadataCoordinator.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.OutcomesAndCancellation.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.WarningDiagnostics.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.cs
     entrypoints:
       - symbol: IMergeMountWorkflow
         kind: interface
@@ -142,17 +142,17 @@ modules:
       - Canonical cleanup stale-prune safety gate that infers still-mounted branch directories from mergerfs source payloads and skips pruning only for degraded-visibility or unresolved mappings; use MergeMountWorkflow.RunCleanupPass.
       - Canonical fatal-exception passthrough from merge-pass and cleanup exception shields so fatal CLR exceptions are never normalized into warning/failure outcomes; use MergeMountWorkflow.IsFatalException, MergeMountWorkflow.RunMergePass, and MergeMountWorkflow.RunCleanupPass.
       - Canonical FlareSolverr URL scheme guard parity for settings-to-workflow mapping (allow only absolute http/https when non-empty); use MergeMountWorkflowOptions.TryParseAbsoluteUriOrNull.
-      - Canonical settings-to-workflow metadata API pacing/cache mapping should require runtime keys and map runtime.metadata_api_request_delay_ms/runtime.metadata_api_cache_ttl_hours to TimeSpan values; use MergeMountWorkflowOptions.FromSettings.
-      - Canonical settings-to-workflow FlareSolverr parse diagnostics should throw with `ParamName=settings` and keep strict key-presence semantics where empty value disables routing; use MergeMountWorkflowOptions.FromSettings.
       - Canonical merged-root residual cleanup should delete empty merged directories and quarantine non-empty residual directories under config only when mount visibility is healthy and managed mounts are inactive; use MergeMountWorkflow.CleanupMergedRootDirectories.
       - Canonical merge-pass degraded-visibility safety gate that suppresses stale-unmount apply actions when source discovery/build/snapshot visibility is degraded while still allowing mount/remount actions; use MergeMountWorkflow.RunMergePass.
       - Canonical merge-pass helper partitioning for action apply, force-remount resolution, and grouping helpers; use MergeMountWorkflow partial pass files.
-      - Canonical merge-pass title metadata artifact orchestration and interruption signaling; use MergeMountWorkflow.EnsureTitleMetadata and IComickMetadataCoordinator.
       - Canonical merge-pass outcome mapping from action results (mixed when busy+failure, then busy over failure over success); use MergeMountWorkflow.RunMergePass.
       - Canonical merge-pass override-title catalog discovery/filtering before resolver construction; use MergeMountWorkflow.DiscoverExistingOverrideTitleCatalog and MergeMountWorkflow.TryCreateOverrideTitleCatalogEntry.
+      - Canonical merge-pass title metadata artifact orchestration and interruption signaling; use MergeMountWorkflow.EnsureTitleMetadata and IComickMetadataCoordinator.
       - Canonical merge-workflow lifecycle status-event emission (`merge.workflow.started`, `merge.workflow.completed`, cleanup pass summary) at normal severity; use MergeMountWorkflow.RunMergePass and MergeMountWorkflow.RunCleanupPass.
       - Canonical mount-readiness flow should run per-action timeout-bounded probes then validate successful mounts against one post-apply snapshot capture; use MergeMountWorkflow.ValidateMountReadinessProbe, MergeMountWorkflow.ValidatePostApplyMountSnapshot, and IMergerfsMountCommandService.ProbeMountPointReadiness.
       - Canonical resolve-only force-remount reason resolution (`override-force:<title>`) targeting known desired mountpoints; use MergeMountWorkflow.RunMergePass.
+      - Canonical settings-to-workflow FlareSolverr parse diagnostics should throw with `ParamName=settings` and keep strict key-presence semantics where empty value disables routing; use MergeMountWorkflowOptions.FromSettings.
+      - Canonical settings-to-workflow metadata API pacing/cache mapping should require runtime keys and map runtime.metadata_api_request_delay_ms/runtime.metadata_api_cache_ttl_hours to TimeSpan values; use MergeMountWorkflowOptions.FromSettings.
       - Canonical source-derived fallback canonical-title display naming that strips trailing scene-tag suffixes while preserving override/equivalence precedence; use MergeMountWorkflow.ResolveCanonicalTitle.
       - Canonical startup/shutdown managed-root cleanup orchestration; use MergeMountWorkflow.OnWorkerStarting and MergeMountWorkflow.OnWorkerStopping.
       - Canonical tagged-only override preservation advisories with manual rename guidance; use MergeMountWorkflow.LogOverrideCanonicalAdvisories.
@@ -173,10 +173,10 @@ modules:
       - SuwayomiSourceMerge/Application/Supervision/ISupervisorSignalRegistrar.cs
       - SuwayomiSourceMerge/Application/Supervision/SupervisorFileLock.cs
       - SuwayomiSourceMerge/Application/Supervision/SupervisorStatePaths.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/ConsoleSupervisorSignalRegistrarTests.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorTests.StackTraceLogging.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorTests.StackTraceLogging.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/FilesystemEventDaemonWorkerTests.cs
     entrypoints:
       - symbol: CancellationClassification.IsCooperative
@@ -223,21 +223,21 @@ modules:
         paths: [SuwayomiSourceMerge/Application/Supervision/DaemonSupervisorOptions.cs, SuwayomiSourceMerge/Application/Supervision/SupervisorStatePaths.cs]
     do_not_reimplement:
       - Canonical bounded shutdown lifecycle token flow (fresh stop token canceled at stop-timeout boundary); use DaemonSupervisor.StopCoreAsync and IDaemonWorker.RunAsync.
+      - Canonical container SIGTERM cooperative-stop interception that prevents immediate process termination while cleanup runs; use ConsoleSupervisorSignalRegistrar POSIX signal registration.
       - Canonical cooperative-cancellation classification shared across worker/dispatch paths (caller-token canceled + matching token OR tokenless cancellation); use CancellationClassification.IsCooperative.
       - Canonical daemon lifecycle start/stop idempotency, timeout handling, and cleanup flow; use DaemonSupervisor.
       - Canonical early-stop race handling by capturing worker/stop tasks before signal and cancellation registration; use DaemonSupervisor.RunAsync.
+      - Canonical exclusive supervisor lock-file acquisition and release semantics; use SupervisorFileLock.
       - Canonical fatal-exception passthrough in supervisor startup/worker exception mapping so fatal CLR exceptions are never normalized to exit-code failure outcomes; use DaemonSupervisor.RunAsync.
       - Canonical startup exception exit-code mapping (cancellation=success, non-cancellation startup failure=error) and startup-failure diagnostics; use DaemonSupervisor.RunAsync.
+      - Canonical state-file path resolution for supervisor lock/pid files; use SupervisorStatePaths.
       - Canonical stop-timeout hard-stop behavior with boundary completion recheck before process termination; use DaemonSupervisor.StopCoreAsync and DaemonSupervisor.ShouldTreatStopAsTimedOut.
       - Canonical supervisor and worker lifecycle status-event emission (`supervisor.started`, `supervisor.stop_requested`, `supervisor.stopped`, `supervisor.worker.started`, `supervisor.worker.stopped`) at normal severity; use DaemonSupervisor and FilesystemEventDaemonWorker.
-      - Canonical container SIGTERM cooperative-stop interception that prevents immediate process termination while cleanup runs; use ConsoleSupervisorSignalRegistrar POSIX signal registration.
-      - Canonical state-file path resolution for supervisor lock/pid files; use SupervisorStatePaths.
       - Canonical worker cleanup catches in shutdown lifecycle and pipeline disposal should preserve warning-only behavior for non-fatal exceptions while rethrowing fatal CLR exceptions; use FilesystemEventDaemonWorker.RunAsync.
       - Canonical worker lifecycle hook ordering (startup before loop, shutdown in finally with cooperative-cancellation status logs at normal severity and non-cooperative warning logging); use FilesystemEventDaemonWorker.
-      - Canonical worker-loop execution model should use a dedicated long-running task (not thread-pool `Task.Run`) to avoid startup stalls under thread-pool pressure; use FilesystemEventDaemonWorker.RunAsync.
       - Canonical worker/startup fault diagnostics with full exception payload (`exception.ToString()` stack trace); use DaemonSupervisor.RunAsync.
       - Canonical worker-loop contract used by daemon supervision; use IDaemonWorker.
-      - Canonical exclusive supervisor lock-file acquisition and release semantics; use SupervisorFileLock.
+      - Canonical worker-loop execution model should use a dedicated long-running task (not thread-pool `Task.Run`) to avoid startup stalls under thread-pool pressure; use FilesystemEventDaemonWorker.RunAsync.
     related: [application-hosting, application-mounting, application-watching, unit-test-suite]
   - id: application-watching
     summary: Tick-based event trigger orchestration that routes inotify events and coalesces merge scan requests.
@@ -246,8 +246,8 @@ modules:
       - SuwayomiSourceMerge/Application/Cancellation/CancellationClassification.cs
       - SuwayomiSourceMerge/Application/Watching/FilesystemEventTickResult.cs
       - SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerOptions.cs
-      - SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerPipeline.Helpers.cs
       - SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerPipeline.cs
+      - SuwayomiSourceMerge/Application/Watching/FilesystemEventTriggerPipeline.Helpers.cs
       - SuwayomiSourceMerge/Application/Watching/IMergeScanRequestCoalescer.cs
       - SuwayomiSourceMerge/Application/Watching/IMergeScanRequestHandler.cs
       - SuwayomiSourceMerge/Application/Watching/MergeScanDispatchOutcome.cs
@@ -256,8 +256,8 @@ modules:
       - SuwayomiSourceMerge/Application/Watching/ProductionMergeScanRequestHandler.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineIntegrationTests.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineTests.Fakes.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineTests.Fakes.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/MergeScanRequestCoalescerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/NoOpMergeScanRequestHandlerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/ProductionMergeScanRequestHandlerTests.cs
@@ -313,6 +313,7 @@ modules:
       - Canonical production dispatch lifecycle status-event emission (`merge.dispatch.started`, `merge.dispatch.completed`) at normal severity; use ProductionMergeScanRequestHandler.DispatchMergeScan.
       - Canonical production merge dispatch event/log contract with severity-aligned busy/mixed/failure IDs and workflow delegation; use ProductionMergeScanRequestHandler.
       - Canonical startup-first merge dispatch and first-tick startup-evaluation semantics that skip duplicate startup requests when one is already pending; use FilesystemEventTriggerPipeline.Tick.
+      - Canonical watch-startup-mode parse diagnostics should throw with field-specific `ParamName=watchStartupMode` for invalid tokens; use FilesystemEventTriggerOptions.FromSettings and FilesystemEventTriggerOptions.ParseWatchStartupMode.
       - Canonical watcher settings mapping from validated settings documents; use FilesystemEventTriggerOptions.FromSettings.
     related: [application-mounting, application-supervision, infrastructure-rename, infrastructure-watching, runtime-host, unit-test-suite]
   - id: build-and-quality
@@ -356,12 +357,12 @@ modules:
       - how: Adjust C# formatting and naming conventions in the repository editorconfig.
         symbols: [.editorconfig]
         paths: [.editorconfig]
-      - how: Adjust internal test visibility through assembly attributes instead of exposing runtime internals publicly.
-        symbols: [SuwayomiSourceMerge/AssemblyInfo.cs]
-        paths: [SuwayomiSourceMerge/AssemblyInfo.cs]
       - how: Adjust formatting behavior by editing build targets and conditions in the app project file.
         symbols: [CleanupFormatLock, FormatCode]
         paths: [SuwayomiSourceMerge/SuwayomiSourceMerge.csproj]
+      - how: Adjust internal test visibility through assembly attributes instead of exposing runtime internals publicly.
+        symbols: [SuwayomiSourceMerge/AssemblyInfo.cs]
+        paths: [SuwayomiSourceMerge/AssemblyInfo.cs]
     do_not_reimplement:
       - Code formatting and naming conventions; use .editorconfig.
       - Global warnings-as-errors behavior; use Directory.Build.props.
@@ -370,65 +371,6 @@ modules:
       - Repository LF line-ending normalization policy; use .gitattributes.
       - Test assembly internal visibility policy; use SuwayomiSourceMerge/AssemblyInfo.cs.
     related: [runtime-host, unit-test-suite]
-  - id: container-runtime-assets
-    summary: Container image, entrypoint identity/fuse policy, package integrity verification, and docker-context filtering for runtime deployment.
-    tags: [container, docker, runtime]
-    paths:
-      - .dockerignore
-      - .github/workflows/docker-publish.yml
-      - Dockerfile
-      - docker/entrypoint.sh
-      - tests/SuwayomiSourceMerge.IntegrationTests/README.md
-    entrypoints:
-      - symbol: .dockerignore
-        kind: file
-        path: .dockerignore
-        purpose: Defines canonical Docker build-context exclusions for deterministic and fast container builds.
-      - symbol: .github/workflows/docker-publish.yml
-        kind: file
-        path: .github/workflows/docker-publish.yml
-        purpose: Defines canonical GitHub Actions workflow that builds/publishes to GHCR for all branches with clear branch-prefixed tags.
-      - symbol: Dockerfile
-        kind: file
-        path: Dockerfile
-        purpose: Defines canonical multi-stage .NET build/runtime image, pinned upstream mergerfs Bookworm package install with SHA256 integrity verification, required runtime packages, and baked `cap_sys_admin` file capabilities for mergerfs/fusermount3.
-      - symbol: docker/entrypoint.sh
-        kind: file
-        path: docker/entrypoint.sh
-        purpose: Applies PUID/PGID identity mapping, uses consistent bash `[[ ... ]]` tests, parses settings scalars with YAML-aware inline-comment handling (including embedded `#` plain scalars) and escaped-backslash-aware quote handling for log mirroring, enforces runtime-parity logging.file_name safety checks (rooted/segmented, invalid/control chars, trailing dots/spaces, reserved device names) with fallback warnings, uses top-level fuse write-failure diagnostics helper flow, performs non-root FUSE device access preflight under the runtime identity, avoids recursive merged-root chown, performs best-effort first-level merged-child ownership repair with stale-endpoint-safe warnings, and launches the daemon.
-      - symbol: tests/SuwayomiSourceMerge.IntegrationTests/README.md
-        kind: file
-        path: tests/SuwayomiSourceMerge.IntegrationTests/README.md
-        purpose: Documents container E2E test execution profile and Docker daemon prerequisites.
-    extension_points:
-      - how: Adapt runtime package set and image-stage composition by editing Dockerfile stages and apt package list.
-        symbols: [Dockerfile]
-        paths: [Dockerfile]
-      - how: Change startup identity defaults and ownership behavior by extending the container entrypoint script.
-        symbols: [docker/entrypoint.sh]
-        paths: [docker/entrypoint.sh]
-      - how: Publish container images to GHCR for branch testing by tuning workflow triggers, branch tag prefixes, metadata tags, and buildx settings.
-        symbols: [.github/workflows/docker-publish.yml]
-        paths: [.github/workflows/docker-publish.yml]
-      - how: Tune build-context transfer performance by adjusting ignored files in .dockerignore.
-        symbols: [.dockerignore]
-        paths: [.dockerignore]
-    do_not_reimplement:
-      - Canonical container build context exclusion policy; use .dockerignore.
-      - Canonical container entrypoint bash test/readability policy (`[[ ... ]]` conditionals and inline fuse write stderr capture); use docker/entrypoint.sh.
-      - Canonical container runtime package and multi-stage image definition; use Dockerfile.
-      - Canonical container runtime package and multi-stage image definition must remove build-only curl after mergerfs package install; use Dockerfile.
-      - Canonical pinned mergerfs package integrity verification (arch-specific SHA256 checks) during image builds; use Dockerfile.
-      - Canonical container runtime file-capability baking for non-root mergerfs/fusermount3 command execution; use Dockerfile.
-      - Canonical container startup fuse policy: skip fuse.conf edits when PUID=0 and fail non-root startup with remediation guidance when /etc/fuse.conf cannot be updated; use docker/entrypoint.sh.
-      - Canonical container startup non-root FUSE device access preflight under runtime identity (skip in mock-tool mode, warning when device is absent, fail-fast when present but inaccessible); use docker/entrypoint.sh.
-      - Canonical container startup fuse write-failure diagnostics with root-cause details and manual `sh -c` remediation guidance; use docker/entrypoint.sh.
-      - Canonical container startup log mirroring that parses settings scalars with YAML-aware inline-comment handling (embedded plain-scalar `#` values are preserved) plus escaped-backslash-aware quote handling, then writes entrypoint diagnostics into runtime log file path derived from settings/defaults; use docker/entrypoint.sh.
-      - Canonical container startup logging.file_name safety gate that rejects rooted/segmented values, trailing dots/spaces, invalid/control characters, and reserved Windows device names, then falls back to default daemon.log with warning diagnostics; use docker/entrypoint.sh.
-      - Canonical container startup ownership policy that avoids recursive chown under /ssm/merged and applies best-effort first-level child ownership repair (warning-only on stale endpoint failures); use docker/entrypoint.sh.
-      - Canonical container startup PUID/PGID identity mapping and daemon launch; use docker/entrypoint.sh.
-      - Canonical GHCR image build/publish GitHub Actions pipeline; use .github/workflows/docker-publish.yml.
-    related: [integration-test-suite, runtime-host, unit-test-suite]
   - id: config-bootstrap-migration
     summary: Bootstrap orchestration that creates missing YAML, migrates legacy text, and self-heals settings values.
     tags: [bootstrap, config, migration, yaml]
@@ -449,8 +391,8 @@ modules:
       - SuwayomiSourceMerge/Configuration/Bootstrap/YamlDocumentWriter.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapExceptionTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapGuardTests.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapServiceSceneTagValidationTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationPathSetTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/LegacyMangaEquivalentsMigratorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/LegacySourcePriorityMigratorTests.cs
@@ -502,8 +444,8 @@ modules:
       - Canonical legacy source-priority parsing behavior; use LegacySourcePriorityMigrator.
       - Canonical scene-tag-aware cross-document manga-equivalents validation in bootstrap; use ConfigurationBootstrapService.Bootstrap.
       - Canonical settings self-heal deprecated-scan-timeout compatibility behavior (preserve when present, do not regenerate when absent); use SettingsSelfHealingService.
-      - Canonical settings self-heal preferred-language and FlareSolverr URL canonicalization (trim surrounding whitespace and persist when changed; preferred language falls back to default when trim yields empty); use SettingsSelfHealingService.
       - Canonical settings self-heal merge behavior; use SettingsSelfHealingService.
+      - Canonical settings self-heal preferred-language and FlareSolverr URL canonicalization (trim surrounding whitespace and persist when changed; preferred language falls back to default when trim yields empty); use SettingsSelfHealingService.
       - Canonical YAML bootstrap write format; use YamlDocumentWriter.
       - Per-file bootstrap orchestration and validation failure policy; use ConfigurationBootstrapService.Bootstrap.
     related: [config-schema-validation, domain-normalization, runtime-host, unit-test-suite]
@@ -511,19 +453,18 @@ modules:
     summary: YAML-backed canonical title, source-priority, and override-title resolution services with shared cached normalized lookups.
     tags: [config, priority, resolution, titles]
     paths:
+      - SuwayomiSourceMerge/Configuration/Resolution/FileSystemMangaEquivalentsAtomicPersistence.cs
       - SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceCatalog.cs
       - SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceService.cs
       - SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalentsAtomicPersistence.cs
       - SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalentsUpdateService.cs
-      - SuwayomiSourceMerge/Configuration/Resolution/FileSystemMangaEquivalentsAtomicPersistence.cs
+      - SuwayomiSourceMerge/Configuration/Resolution/IOverrideCanonicalResolver.cs
+      - SuwayomiSourceMerge/Configuration/Resolution/ISourcePriorityService.cs
       - SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceCatalog.cs
       - SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceCatalogUpdateOutcome.cs
       - SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceCatalogUpdateResult.cs
-      - SuwayomiSourceMerge/Configuration/Resolution/ResolutionExceptionDiagnosticFormatter.cs
-      - SuwayomiSourceMerge/Configuration/Resolution/IOverrideCanonicalResolver.cs
-      - SuwayomiSourceMerge/Configuration/Resolution/ISourcePriorityService.cs
-      - SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalentAlternateTitle.cs
       - SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceService.cs
+      - SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalentAlternateTitle.cs
       - SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalentsUpdateOutcome.cs
       - SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalentsUpdateRequest.cs
       - SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalentsUpdateResult.cs
@@ -534,10 +475,11 @@ modules:
       - SuwayomiSourceMerge/Configuration/Resolution/OverrideCanonicalAdvisory.cs
       - SuwayomiSourceMerge/Configuration/Resolution/OverrideCanonicalResolver.cs
       - SuwayomiSourceMerge/Configuration/Resolution/OverrideTitleCatalogEntry.cs
+      - SuwayomiSourceMerge/Configuration/Resolution/ResolutionExceptionDiagnosticFormatter.cs
       - SuwayomiSourceMerge/Configuration/Resolution/SourcePriorityService.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalenceServiceTests.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalenceCatalogTests.ReloadRecoveryAndFatal.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalenceCatalogTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalenceCatalogTests.ReloadRecoveryAndFatal.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalenceServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalentsUpdateServiceTests.ExpectedAndEdge.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalentsUpdateServiceTests.Failure.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Resolution/MangaEquivalentsUpdateServiceTests.Helpers.cs
@@ -552,10 +494,6 @@ modules:
         kind: interface
         path: SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceService.cs
         purpose: Defines canonical title resolution operations over YAML equivalence mappings.
-      - symbol: MangaEquivalenceCatalog
-        kind: class
-        path: SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceCatalog.cs
-        purpose: Maintains runtime resolver snapshots and atomically swaps after persisted updater success plus reload/rebuild validation.
       - symbol: IOverrideCanonicalResolver
         kind: interface
         path: SuwayomiSourceMerge/Configuration/Resolution/IOverrideCanonicalResolver.cs
@@ -564,6 +502,10 @@ modules:
         kind: interface
         path: SuwayomiSourceMerge/Configuration/Resolution/ISourcePriorityService.cs
         purpose: Defines source-priority lookup behavior for normalized source names.
+      - symbol: MangaEquivalenceCatalog
+        kind: class
+        path: SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceCatalog.cs
+        purpose: Maintains runtime resolver snapshots and atomically swaps after persisted updater success plus reload/rebuild validation.
       - symbol: MangaEquivalenceService
         kind: class
         path: SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceService.cs
@@ -580,15 +522,15 @@ modules:
       - how: Add additional resolution behavior by extending service interfaces and implementations in the resolution module.
         symbols: [IMangaEquivalenceCatalog, IMangaEquivalenceService, IOverrideCanonicalResolver, ISourcePriorityService, MangaEquivalenceCatalog, MangaEquivalenceService, OverrideCanonicalResolver, SourcePriorityService]
         paths: [SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceCatalog.cs, SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceService.cs, SuwayomiSourceMerge/Configuration/Resolution/IOverrideCanonicalResolver.cs, SuwayomiSourceMerge/Configuration/Resolution/ISourcePriorityService.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceCatalog.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceService.cs, SuwayomiSourceMerge/Configuration/Resolution/OverrideCanonicalResolver.cs, SuwayomiSourceMerge/Configuration/Resolution/SourcePriorityService.cs]
+      - how: Pin runtime catalog update scene-tag behavior to startup matcher by wiring MangaEquivalentsUpdateService scene-tag override construction in runtime composition.
+        symbols: [MangaEquivalentsUpdateService, MangaEquivalentsUpdateService.Update, DefaultRuntimeSupervisorRunner]
+        paths: [SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalentsUpdateService.cs, SuwayomiSourceMerge/Application/Hosting/DefaultRuntimeSupervisorRunner.cs]
       - how: Swap scene-tag-aware normalization behavior by injecting alternate ISceneTagMatcher implementations into title-based resolvers.
         symbols: [MangaEquivalenceCatalog, MangaEquivalenceService, OverrideCanonicalResolver, ISceneTagMatcher]
         paths: [SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceCatalog.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceService.cs, SuwayomiSourceMerge/Configuration/Resolution/OverrideCanonicalResolver.cs, SuwayomiSourceMerge/Domain/Normalization/ISceneTagMatcher.cs]
       - how: Update Comick-driven manga-equivalents persistence behavior by extending IMangaEquivalentsUpdateService request mapping and mutation rules.
         symbols: [IMangaEquivalentsUpdateService, MangaEquivalentsUpdateRequest, MangaEquivalentsUpdateService]
         paths: [SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalentsAtomicPersistence.cs, SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalentsUpdateService.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalentsUpdateRequest.cs, SuwayomiSourceMerge/Configuration/Resolution/FileSystemMangaEquivalentsAtomicPersistence.cs, SuwayomiSourceMerge/Configuration/Resolution/ResolutionExceptionDiagnosticFormatter.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalentsUpdateService.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalentsUpdateService.CanonicalSelection.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalentsUpdateService.TitleProcessing.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalentsUpdateService.ValidationAndPersistence.cs]
-      - how: Pin runtime catalog update scene-tag behavior to startup matcher by wiring MangaEquivalentsUpdateService scene-tag override construction in runtime composition.
-        symbols: [MangaEquivalentsUpdateService, MangaEquivalentsUpdateService.Update, DefaultRuntimeSupervisorRunner]
-        paths: [SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalentsUpdateService.cs, SuwayomiSourceMerge/Application/Hosting/DefaultRuntimeSupervisorRunner.cs]
       - how: Wire mutable runtime resolver refresh behavior by extending IMangaEquivalenceCatalog update flow and persisted-reload swap logic.
         symbols: [IMangaEquivalenceCatalog, MangaEquivalenceCatalog, MangaEquivalenceCatalogUpdateResult]
         paths: [SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceCatalog.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceCatalog.cs, SuwayomiSourceMerge/Configuration/Resolution/MangaEquivalenceCatalogUpdateResult.cs]
@@ -596,10 +538,10 @@ modules:
         symbols: [IMangaEquivalenceService, IOverrideCanonicalResolver, ISourcePriorityService]
         paths: [SuwayomiSourceMerge/Configuration/Resolution/IMangaEquivalenceService.cs, SuwayomiSourceMerge/Configuration/Resolution/IOverrideCanonicalResolver.cs, SuwayomiSourceMerge/Configuration/Resolution/ISourcePriorityService.cs]
     do_not_reimplement:
-      - Canonical mutable runtime equivalence-catalog update flow (persist-first, reload-from-disk rebuild, atomic swap, pending-reload self-heal on later no-change updates, reload-failure rollback, updater-exception mapping to UpdateFailed/UnhandledException, and fatal exception rethrow); use MangaEquivalenceCatalog.
-      - Canonical manga equivalence canonical/alias lookup construction and conflict checks; use MangaEquivalenceService.
       - Canonical equivalent-title group lookup semantics (canonical-first group order with key-based lookup through active runtime snapshots); use IMangaEquivalenceCatalog.TryGetEquivalentTitles and MangaEquivalenceService.TryGetEquivalentTitles.
+      - Canonical manga equivalence canonical/alias lookup construction and conflict checks; use MangaEquivalenceService.
       - Canonical manga-equivalents update flow (preferred-language canonical selection from raw alternates with non-empty normalized keys before mutation dedupe, scene-tag-aware validation, write-stage mapping through IMangaEquivalentsAtomicPersistence with atomic replace persistence, and optional startup scene-tag matcher override for runtime-pinned behavior); use MangaEquivalentsUpdateService and FileSystemMangaEquivalentsAtomicPersistence.
+      - Canonical mutable runtime equivalence-catalog update flow (persist-first, reload-from-disk rebuild, atomic swap, pending-reload self-heal on later no-change updates, reload-failure rollback, updater-exception mapping to UpdateFailed/UnhandledException, and fatal exception rethrow); use MangaEquivalenceCatalog.
       - Canonical override-title normalized lookup with deterministic untagged-over-tagged canonical arbitration; use OverrideCanonicalResolver.
       - Canonical source-priority normalized token matching and fallback behavior; use SourcePriorityService.
     related: [config-schema-validation, domain-normalization, unit-test-suite]
@@ -607,6 +549,7 @@ modules:
     summary: Strongly typed YAML schema parsing, defaults, and deterministic validation rules.
     tags: [config, yaml, validation]
     paths:
+      - docs/config-schema.md
       - SuwayomiSourceMerge/Configuration/Documents/MangaEquivalentsDocument.cs
       - SuwayomiSourceMerge/Configuration/Documents/MangaEquivalentsDocumentDefaults.cs
       - SuwayomiSourceMerge/Configuration/Documents/SceneTagsDocument.cs
@@ -628,7 +571,6 @@ modules:
       - SuwayomiSourceMerge/Configuration/Validation/ValidationError.cs
       - SuwayomiSourceMerge/Configuration/Validation/ValidationKeyNormalizer.cs
       - SuwayomiSourceMerge/Configuration/Validation/ValidationResult.cs
-      - docs/config-schema.md
     entrypoints:
       - symbol: ConfigurationSchemaService
         kind: class
@@ -685,15 +627,74 @@ modules:
       - Manga equivalents conflict detection rules; use MangaEquivalentsDocumentValidator.
       - Scene tag matcher-equivalent dedup rules; use SceneTagsDocumentValidator.
       - Settings Comick, metadata API pacing/cache, and FlareSolverr runtime field defaults/validation rules (strict required, relaxed optional, numeric/URL constraints); use SettingsDocumentDefaults.Create and SettingsDocumentValidator.
+      - Settings default log-level baseline (`logging.level: normal`) and schema/docs parity; use SettingsDocumentDefaults.Create and docs/config-schema.md.
       - Settings deprecated scan timeout buffer validation behavior (optional field; range-validated when provided); use SettingsDocumentValidator.
       - Settings logging level and logging section validation rules; use SettingsDocumentValidator.
       - Settings path-overlap safety validation between config and merged roots (including trailing-separator-safe child detection); use SettingsDocumentValidator.ValidateNonOverlappingConfigAndMergedPaths.
-      - Settings default log-level baseline (`logging.level: normal`) and schema/docs parity; use SettingsDocumentDefaults.Create and docs/config-schema.md.
       - Settings strict-runtime versus tooling-relaxed shutdown cleanup profile validation behavior; use SettingsDocumentValidator and ConfigurationSchemaService.ParseSettingsForRuntime/ParseSettingsForTooling.
       - Settings validation code map and field constraints; use SettingsDocumentValidator.
       - Source priority dedup validation rules; use SourcePriorityDocumentValidator.
       - YAML parser unknown-key tolerance for schema evolution; use YamlDocumentParser.
     related: [config-resolution, domain-normalization, logging-infrastructure, runtime-host, unit-test-suite]
+  - id: container-runtime-assets
+    summary: Container image, entrypoint identity/fuse policy, package integrity verification, and docker-context filtering for runtime deployment.
+    tags: [container, docker, runtime]
+    paths:
+      - .dockerignore
+      - .github/workflows/docker-publish.yml
+      - docker/entrypoint.sh
+      - Dockerfile
+      - tests/SuwayomiSourceMerge.IntegrationTests/README.md
+    entrypoints:
+      - symbol: .dockerignore
+        kind: file
+        path: .dockerignore
+        purpose: Defines canonical Docker build-context exclusions for deterministic and fast container builds.
+      - symbol: .github/workflows/docker-publish.yml
+        kind: file
+        path: .github/workflows/docker-publish.yml
+        purpose: Defines canonical GitHub Actions workflow that builds/publishes to GHCR for all branches with clear branch-prefixed tags.
+      - symbol: docker/entrypoint.sh
+        kind: file
+        path: docker/entrypoint.sh
+        purpose: Applies PUID/PGID identity mapping, uses consistent bash `[[ ... ]]` tests, parses settings scalars with YAML-aware inline-comment handling (including embedded `#` plain scalars) and escaped-backslash-aware quote handling for log mirroring, enforces runtime-parity logging.file_name safety checks (rooted/segmented, invalid/control chars, trailing dots/spaces, reserved device names) with fallback warnings, uses top-level fuse write-failure diagnostics helper flow, performs non-root FUSE device access preflight under the runtime identity, avoids recursive merged-root chown, performs best-effort first-level merged-child ownership repair with stale-endpoint-safe warnings, and launches the daemon.
+      - symbol: Dockerfile
+        kind: file
+        path: Dockerfile
+        purpose: Defines canonical multi-stage .NET build/runtime image, pinned upstream mergerfs Bookworm package install with SHA256 integrity verification, required runtime packages, and baked `cap_sys_admin` file capabilities for mergerfs/fusermount3.
+      - symbol: tests/SuwayomiSourceMerge.IntegrationTests/README.md
+        kind: file
+        path: tests/SuwayomiSourceMerge.IntegrationTests/README.md
+        purpose: Documents container E2E test execution profile and Docker daemon prerequisites.
+    extension_points:
+      - how: Adapt runtime package set and image-stage composition by editing Dockerfile stages and apt package list.
+        symbols: [Dockerfile]
+        paths: [Dockerfile]
+      - how: Change startup identity defaults and ownership behavior by extending the container entrypoint script.
+        symbols: [docker/entrypoint.sh]
+        paths: [docker/entrypoint.sh]
+      - how: Publish container images to GHCR for branch testing by tuning workflow triggers, branch tag prefixes, metadata tags, and buildx settings.
+        symbols: [.github/workflows/docker-publish.yml]
+        paths: [.github/workflows/docker-publish.yml]
+      - how: Tune build-context transfer performance by adjusting ignored files in .dockerignore.
+        symbols: [.dockerignore]
+        paths: [.dockerignore]
+    do_not_reimplement:
+      - Canonical container build context exclusion policy; use .dockerignore.
+      - Canonical container entrypoint bash test/readability policy (`[[ ... ]]` conditionals and inline fuse write stderr capture); use docker/entrypoint.sh.
+      - Canonical container runtime file-capability baking for non-root mergerfs/fusermount3 command execution; use Dockerfile.
+      - Canonical container runtime package and multi-stage image definition must remove build-only curl after mergerfs package install; use Dockerfile.
+      - Canonical container runtime package and multi-stage image definition; use Dockerfile.
+      - Canonical container startup fuse policy: skip fuse.conf edits when PUID=0 and fail non-root startup with remediation guidance when /etc/fuse.conf cannot be updated; use docker/entrypoint.sh.
+      - Canonical container startup fuse write-failure diagnostics with root-cause details and manual `sh -c` remediation guidance; use docker/entrypoint.sh.
+      - Canonical container startup log mirroring that parses settings scalars with YAML-aware inline-comment handling (embedded plain-scalar `#` values are preserved) plus escaped-backslash-aware quote handling, then writes entrypoint diagnostics into runtime log file path derived from settings/defaults; use docker/entrypoint.sh.
+      - Canonical container startup logging.file_name safety gate that rejects rooted/segmented values, trailing dots/spaces, invalid/control characters, and reserved Windows device names, then falls back to default daemon.log with warning diagnostics; use docker/entrypoint.sh.
+      - Canonical container startup non-root FUSE device access preflight under runtime identity (skip in mock-tool mode, warning when device is absent, fail-fast when present but inaccessible); use docker/entrypoint.sh.
+      - Canonical container startup ownership policy that avoids recursive chown under /ssm/merged and applies best-effort first-level child ownership repair (warning-only on stale endpoint failures); use docker/entrypoint.sh.
+      - Canonical container startup PUID/PGID identity mapping and daemon launch; use docker/entrypoint.sh.
+      - Canonical GHCR image build/publish GitHub Actions pipeline; use .github/workflows/docker-publish.yml.
+      - Canonical pinned mergerfs package integrity verification (arch-specific SHA256 checks) during image builds; use Dockerfile.
+    related: [integration-test-suite, runtime-host, unit-test-suite]
   - id: domain-normalization
     summary: Data-driven scene-tag matching plus shared cached title/token/source normalization for runtime and validation flows.
     tags: [domain, normalization, titles]
@@ -702,10 +703,10 @@ modules:
       - SuwayomiSourceMerge/Domain/Normalization/ComparisonTextNormalizer.cs
       - SuwayomiSourceMerge/Domain/Normalization/ISceneTagMatcher.cs
       - SuwayomiSourceMerge/Domain/Normalization/ITitleComparisonNormalizer.cs
+      - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatcher.cs
       - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKey.cs
       - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyBuilder.cs
       - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyKind.cs
-      - SuwayomiSourceMerge/Domain/Normalization/SceneTagMatcher.cs
       - SuwayomiSourceMerge/Domain/Normalization/SourceNameKeyNormalizer.cs
       - SuwayomiSourceMerge/Domain/Normalization/TitleComparisonNormalizerProvider.cs
       - SuwayomiSourceMerge/Domain/Normalization/TitleKeyNormalizer.cs
@@ -723,14 +724,14 @@ modules:
         kind: interface
         path: SuwayomiSourceMerge/Domain/Normalization/ISceneTagMatcher.cs
         purpose: Defines canonical phrase matching for configured scene tags.
-      - symbol: SceneTagMatchKeyBuilder.TryCreate
-        kind: method
-        path: SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyBuilder.cs
-        purpose: Produces matcher-equivalent token or punctuation keys for tags and candidates.
       - symbol: SceneTagMatcher
         kind: class
         path: SuwayomiSourceMerge/Domain/Normalization/SceneTagMatcher.cs
         purpose: Normalizes configured scene tags into matcher-equivalent keys and performs deterministic candidate matching.
+      - symbol: SceneTagMatchKeyBuilder.TryCreate
+        kind: method
+        path: SuwayomiSourceMerge/Domain/Normalization/SceneTagMatchKeyBuilder.cs
+        purpose: Produces matcher-equivalent token or punctuation keys for tags and candidates.
       - symbol: SourceNameKeyNormalizer.NormalizeSourceKey
         kind: method
         path: SuwayomiSourceMerge/Domain/Normalization/SourceNameKeyNormalizer.cs
@@ -764,12 +765,12 @@ modules:
       - Canonical ASCII-fold + punctuation-insensitive token key normalization; use ComparisonTextNormalizer.NormalizeTokenKey.
       - Canonical cached matcher-aware and matcherless title/token key normalization provider; use TitleComparisonNormalizerProvider.Get.
       - Canonical configured scene-tag phrase matching implementation; use SceneTagMatcher.
+      - Canonical display-title trailing scene-tag suffix stripping used by merge canonical fallback naming; use TitleKeyNormalizer.StripTrailingSceneTagSuffixes.
       - Canonical matcher-equivalent scene-tag key derivation; use SceneTagMatchKeyBuilder.TryCreate.
       - Canonical scene-tag matcher contract for normalization consumers; use ISceneTagMatcher.
-      - Canonical trim+case-insensitive source-name key normalization for exclusion matching; use SourceNameKeyNormalizer.NormalizeSourceKey.
-      - Canonical trailing bracket/delimited scene-tag suffix boundary detection with punctuation-noise fallback; use TitleKeyNormalizer.TryGetTrailingBracketSuffixRange and TitleKeyNormalizer.TryMatchSceneTagCandidate.
-      - Canonical display-title trailing scene-tag suffix stripping used by merge canonical fallback naming; use TitleKeyNormalizer.StripTrailingSceneTagSuffixes.
       - Canonical title key normalization for runtime and validation call sites; use TitleKeyNormalizer.NormalizeTitleKey.
+      - Canonical trailing bracket/delimited scene-tag suffix boundary detection with punctuation-noise fallback; use TitleKeyNormalizer.TryGetTrailingBracketSuffixRange and TitleKeyNormalizer.TryMatchSceneTagCandidate.
+      - Canonical trim+case-insensitive source-name key normalization for exclusion matching; use SourceNameKeyNormalizer.NormalizeSourceKey.
     related: [config-bootstrap-migration, config-resolution, config-schema-validation, unit-test-suite]
   - id: infrastructure-branch-planning
     summary: Deterministic branch-link planning with strict path containment for ordering, naming, and mount identity.
@@ -839,10 +840,10 @@ modules:
       - Canonical deterministic branch identity token generation; use BranchIdentityService.
       - Canonical deterministic branch-link naming with component-length-safe hash-truncation for override/source branches; use BranchLinkNamingPolicy.
       - Canonical deterministic branch-link planning facade output (order, RW/RO, spec, identity); use MergerfsBranchPlanningService.Plan.
-      - Canonical override preferred-volume selection with deterministic case-variant representative dedupe + additional-existing-override inclusion; use OverrideBranchSelectionService.
       - Canonical deterministic link-name invalid-character/trailing-dot-space validation plus fully-qualified path normalization, dot-segment escaping, path equality, and strict child-only containment; use PathSafetyPolicy.
-      - Canonical source-priority ordering and duplicate-path coalescing for source branches; use SourceBranchOrderingService.Order.
+      - Canonical override preferred-volume selection with deterministic case-variant representative dedupe + additional-existing-override inclusion; use OverrideBranchSelectionService.
       - Canonical separator-safe title/link validation for planner request and link models; use MergerfsBranchPlanningRequest and MergerfsBranchLinkDefinition.
+      - Canonical source-priority ordering and duplicate-path coalescing for source branches; use SourceBranchOrderingService.Order.
     related: [config-resolution, infrastructure-mounts, infrastructure-volumes, unit-test-suite]
   - id: infrastructure-metadata
     summary: Cloudflare-aware Comick gateway with coordinator-driven cover/details orchestration and persisted state.
@@ -850,8 +851,8 @@ modules:
     paths:
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadata.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs
-      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.BaseUri.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.Logging.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.StateStore.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatcher.cs
@@ -879,12 +880,12 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComickMetadataCoordinator.Helpers.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComickMetadataCoordinatorRequest.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/ComickMetadataCoordinatorResult.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/FileBackedMetadataStateStore.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrApiOutcome.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrApiResult.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrClient.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrClientOptions.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/IFlaresolverrClient.cs
-      - SuwayomiSourceMerge/Infrastructure/Metadata/FileBackedMetadataStateStore.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IComicInfoMetadataParser.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IComickMetadataCoordinator.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/IMetadataStateStore.cs
@@ -904,13 +905,13 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsRequest.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsResult.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.CandidateDiscovery.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.cs
-      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Fallback.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Description.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Fallback.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Mapping.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Models.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.Generation.Write.cs
-      - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.Helpers.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/CloudflareAwareComickGatewayTests.Logging.cs
@@ -939,8 +940,8 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataOrchestrationOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataStatePathsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataStateSnapshotTests.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.FailureDeterminism.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.FailureDeterminism.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.ApiFirstHardeningTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.ApiFirstTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.Generation.WriteTests.cs
@@ -971,21 +972,18 @@ modules:
         path: SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs
         purpose: Ensures details.json by checking overrides, seeding from sources, then generating via Comick-first mapping with ComicInfo fallback.
     extension_points:
-      - how: Add alternate ComicInfo parsing strategies by implementing IComicInfoMetadataParser and injecting it into OverrideDetailsService.
-        symbols: [ComicInfoMetadataParser, IComicInfoMetadataParser, OverrideDetailsService]
-        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs, SuwayomiSourceMerge/Infrastructure/Metadata/IComicInfoMetadataParser.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
       - how: Add alternate Cloudflare-aware Comick gateway routing behavior by implementing IComickApiGateway and wiring it into metadata orchestration callers.
         symbols: [CloudflareAwareComickGateway, IComickApiGateway]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickApiGateway.cs]
+      - how: Add alternate ComicInfo parsing strategies by implementing IComicInfoMetadataParser and injecting it into OverrideDetailsService.
+        symbols: [ComicInfoMetadataParser, IComicInfoMetadataParser, OverrideDetailsService]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/ComicInfoMetadataParser.cs, SuwayomiSourceMerge/Infrastructure/Metadata/IComicInfoMetadataParser.cs, SuwayomiSourceMerge/Infrastructure/Metadata/OverrideDetailsService.cs]
       - how: Add alternate direct-Comick transport behavior by implementing IComickDirectApiClient and wiring it into metadata orchestration callers.
         symbols: [ComickDirectApiClient, IComickDirectApiClient]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickDirectApiClient.cs]
       - how: Add alternate FlareSolverr transport behavior by implementing IFlaresolverrClient and wiring it into metadata gateway callers.
         symbols: [FlaresolverrClient, IFlaresolverrClient]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/FlaresolverrClient.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Flaresolverr/IFlaresolverrClient.cs]
-      - how: Adjust search-candidate ranking, detail-fetch probing order, and exact-key match scoring policy in ComickCandidateMatcher.
-        symbols: [ComickCandidateMatcher, ComickCandidateMatchResult, IComickCandidateMatcher]
-        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatcher.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatchResult.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickCandidateMatcher.cs]
       - how: Adjust Cloudflare challenge detection and deterministic outcome mapping for direct Comick requests in ComickDirectApiClient.
         symbols: [ComickDirectApiClient, ComickDirectApiOutcome]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiOutcome.cs]
@@ -998,6 +996,9 @@ modules:
       - how: Adjust direct Comick DTO parsing and required-field validation behavior in ComickDirectApiClient.
         symbols: [ComickComicResponse, ComickDirectApiClient, ComickMuComics, ComickSearchResponse]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickComicResponse.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClient.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickSearchResponse.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickSharedModels.cs]
+      - how: Adjust search-candidate ranking, detail-fetch probing order, and exact-key match scoring policy in ComickCandidateMatcher.
+        symbols: [ComickCandidateMatcher, ComickCandidateMatchResult, IComickCandidateMatcher]
+        paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatcher.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickCandidateMatchResult.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickCandidateMatcher.cs]
       - how: Adjust shared Comick endpoint URI composition and payload parsing behavior used by direct and gateway request paths.
         symbols: [ComickEndpointUriBuilder, ComickPayloadParser]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickEndpointUriBuilder.cs, SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickPayloadParser.cs]
@@ -1017,54 +1018,55 @@ modules:
         symbols: [ComickMetadataCoordinator, IComickMetadataCoordinator]
         paths: [SuwayomiSourceMerge/Infrastructure/Metadata/ComickMetadataCoordinator.cs, SuwayomiSourceMerge/Infrastructure/Metadata/IComickMetadataCoordinator.cs]
     do_not_reimplement:
+      - Canonical Cloudflare challenge detection for Comick responses; use ComickPayloadParser.
+      - Canonical Cloudflare fallback transition logging (`sticky_route`, `activated`, `unavailable`, `sticky_cleared`) with structured context should remain gateway-owned; use CloudflareAwareComickGateway logging helpers.
+      - Canonical Cloudflare gateway metadata-state read/transform handling should be best-effort for non-fatal exceptions (warning telemetry + request-flow continuation) while fatal exceptions are rethrown; use CloudflareAwareComickGateway.TryReadMetadataStateSnapshot and CloudflareAwareComickGateway.TryTransformMetadataStateSnapshot.
       - Canonical Cloudflare-aware direct-first routing with sticky FlareSolverr fallback and timed direct retry probing; use CloudflareAwareComickGateway.
+      - Canonical ComicInfo strict-then-fallback parsing behavior; use ComicInfoMetadataParser.TryParse.
       - Canonical Comick candidate resolution and detail-only exact-key matching semantics (search entries are ranking hints only), including interruption telemetry for non-cooperative detail failures, accurate `HadTopTie` result semantics for matched tied candidates only, and cancellation throws only when caller cancellation is requested; use ComickCandidateMatcher.MatchAsync.
       - Canonical Comick candidate-ambiguity warning semantics should detect only explicit top-similarity ranking-hint ties (>0 with epsilon tie comparison) and emit `metadata.candidate.ambiguity` even when a deterministic match is selected; use ComickCandidateMatcher.GetTopSimilarityTieInfo and ComickCandidateMatcher.LogCandidateAmbiguity.
       - Canonical Comick gateway base-URI normalization (absolute http/https + exactly one trailing slash) should be centralized and reused; use CloudflareAwareComickGateway.NormalizeBaseUri.
-      - Canonical cover.jpg ensure flow (override-exists short-circuit, download, optional JPEG conversion, atomic non-overwrite write); use OverrideCoverService.EnsureCoverJpgAsync.
       - Canonical cover already-exists result construction should be centralized to preserve consistent CoverJpgPath/ExistingCoverPath semantics; use OverrideCoverService.CreateAlreadyExistsResult.
-      - Canonical cover-key invalid absolute-scheme and malformed URI-composition handling should return deterministic DownloadFailed outcomes (not throw), preferred-directory setup failures plus write-stage path failures (`NotSupportedException`, `PathTooLongException`) should map to WriteFailed, and AlreadyExists should surface the actual on-disk cover path; use OverrideCoverService.EnsureCoverJpgAsync and OverrideCoverResult.
-      - Canonical cover download path should use response-header prechecks plus bounded streaming capped at 32 MiB and map oversize payloads to DownloadFailed outcomes; use OverrideCoverService.DownloadCoverBytesAsync.
-      - Canonical JPEG fast-path must decode-validate JPEG-signature payloads before reporting WrittenDownloadedJpeg; decode failures should map to UnsupportedImage outcomes; use OverrideCoverService.TryValidateJpegPayload and OverrideCoverService.EnsureCoverJpgAsync.
-      - Canonical JPEG decode-validation catches should preserve deterministic UnsupportedImage outcomes for non-fatal faults while rethrowing fatal CLR exceptions; use OverrideCoverService.TryValidateJpegPayload.
       - Canonical cover conversion failure mapping should preserve deterministic UnsupportedImage outcomes for non-fatal payload decode/encode failures while rethrowing fatal CLR exceptions; use OverrideCoverService.TryConvertToJpeg.
+      - Canonical cover download path should use response-header prechecks plus bounded streaming capped at 32 MiB and map oversize payloads to DownloadFailed outcomes; use OverrideCoverService.DownloadCoverBytesAsync.
+      - Canonical cover.jpg ensure flow (override-exists short-circuit, download, optional JPEG conversion, atomic non-overwrite write); use OverrideCoverService.EnsureCoverJpgAsync.
       - Canonical cover.jpg request validation and cover-key URI resolution semantics; use OverrideCoverRequest and OverrideCoverService.
-      - Canonical expired-sticky clear should be guarded inside metadata-state transform and only clear when current persisted sticky is not in the future after non-cloudflare direct outcomes; use CloudflareAwareComickGateway.TryClearExpiredStickyAfterDirectNonCloudflare.
-      - Canonical Cloudflare fallback transition logging (`sticky_route`, `activated`, `unavailable`, `sticky_cleared`) with structured context should remain gateway-owned; use CloudflareAwareComickGateway logging helpers.
-      - Canonical Cloudflare gateway metadata-state read/transform handling should be best-effort for non-fatal exceptions (warning telemetry + request-flow continuation) while fatal exceptions are rethrown; use CloudflareAwareComickGateway.TryReadMetadataStateSnapshot and CloudflareAwareComickGateway.TryTransformMetadataStateSnapshot.
-      - Canonical sticky retry anchor uses post-direct block-detection timestamp (not request-start time) when computing sticky expiry; use CloudflareAwareComickGateway.ExecuteWithRoutingAsync.
-      - Canonical sticky-window clock reads should normalize provider timestamps to UTC at use sites for deterministic comparisons; use CloudflareAwareComickGateway.ExecuteWithRoutingAsync.
-      - Canonical Cloudflare challenge detection for Comick responses; use ComickPayloadParser.
-      - Canonical ComicInfo strict-then-fallback parsing behavior; use ComicInfoMetadataParser.TryParse.
+      - Canonical cover-key invalid absolute-scheme and malformed URI-composition handling should return deterministic DownloadFailed outcomes (not throw), preferred-directory setup failures plus write-stage path failures (`NotSupportedException`, `PathTooLongException`) should map to WriteFailed, and AlreadyExists should surface the actual on-disk cover path; use OverrideCoverService.EnsureCoverJpgAsync and OverrideCoverResult.
+      - Canonical details temp-file cleanup should be best-effort and swallow known filesystem exceptions only; use OverrideDetailsService.TryDeleteTemporaryFile.
       - Canonical details.json ComicInfo fallback provenance semantics should report ComicInfoXmlPath only when fallback values actually contributed to output fields; use OverrideDetailsService.EnsureDetailsJson and OverrideDetailsResult.ComicInfoXmlPath.
       - Canonical details.json ensure flow (override check, source seed, Comick-first field mapping with per-field ComicInfo fallback, race-safe atomic write); use OverrideDetailsService.EnsureDetailsJson.
       - Canonical details.json existence flag semantics returned to callers; use OverrideDetailsResult.DetailsJsonExists.
       - Canonical details.json non-overwrite write failure mapping for IOException/UnauthorizedAccessException/NotSupportedException should be centralized; use OverrideDetailsService.TryWriteDetailsJsonNonOverwriting.
-      - Canonical details temp-file cleanup should be best-effort and swallow known filesystem exceptions only; use OverrideDetailsService.TryDeleteTemporaryFile.
       - Canonical details.json request validation and description-mode normalization; use OverrideDetailsRequest.
       - Canonical details.json title-bullet append format (`Titles:` header + `- [lang] title`) and mode conversion (`text`/`br`/`html`); use OverrideDetailsService.EnsureDetailsJson.
-      - Canonical direct Comick API outcome classification and typed payload parsing; use ComickDirectApiClient.
       - Canonical direct Comick API full-lifecycle failure mapping (send, response-body read, parse) and cooperative-cancellation classification; use ComickDirectApiClient.ExecuteGetAsync.
+      - Canonical direct Comick API outcome classification and typed payload parsing; use ComickDirectApiClient.
+      - Canonical expired-sticky clear should be guarded inside metadata-state transform and only clear when current persisted sticky is not in the future after non-cloudflare direct outcomes; use CloudflareAwareComickGateway.TryClearExpiredStickyAfterDirectNonCloudflare.
       - Canonical FlareSolverr /v1 wrapper request/response handling and deterministic outcome classification; use FlaresolverrClient.PostV1Async.
       - Canonical FlareSolverr bridge request payload composition and wrapper-to-Comick outcome mapping; use CloudflareAwareComickGateway.
       - Canonical FlareSolverr wrapper result contract exposing extracted upstream status/body fields; use FlaresolverrApiResult.
+      - Canonical JPEG decode-validation catches should preserve deterministic UnsupportedImage outcomes for non-fatal faults while rethrowing fatal CLR exceptions; use OverrideCoverService.TryValidateJpegPayload.
+      - Canonical JPEG fast-path must decode-validate JPEG-signature payloads before reporting WrittenDownloadedJpeg; decode failures should map to UnsupportedImage outcomes; use OverrideCoverService.TryValidateJpegPayload and OverrideCoverService.EnsureCoverJpgAsync.
       - Canonical metadata best-effort IO/race handling for source seeding, candidate traversal, and details writes; use OverrideDetailsService.EnsureDetailsJson.
       - Canonical metadata cooldown persistence ordering should skip cooldown writes for cooperative cancellation during Comick search or candidate matching while preserving non-cooperative interruption persistence; use ComickMetadataCoordinator.ResolveMatchedComic.
-      - Canonical metadata structured logging for cooldown skips plus cooldown state-store best-effort read/persist failures, artifact writes/skips/failures, and equivalents update outcomes should remain coordinator-owned; use ComickMetadataCoordinator.
       - Canonical metadata expected-title expansion for candidate matching should include display title, resolved canonical title, and runtime equivalent-title groups with normalized-key dedupe in deterministic order, including canonical-title fallback equivalent lookup even when canonical dedupes against display normalization (fallback resolution is independent of canonical-title append dedupe success); use ComickMetadataCoordinator.BuildExpectedTitles.
       - Canonical metadata orchestration FlareSolverr URI invariants (non-null must be absolute http/https); use MetadataOrchestrationOptions.
       - Canonical metadata orchestration settings carrier and guards for Comick/Flaresolverr plus metadata_api_request_delay_ms (>=0) and metadata_api_cache_ttl_hours (>0) runtime values; use MetadataOrchestrationOptions.
+      - Canonical metadata structured logging for cooldown skips plus cooldown state-store best-effort read/persist failures, artifact writes/skips/failures, and equivalents update outcomes should remain coordinator-owned; use ComickMetadataCoordinator.
       - Canonical persisted metadata state load/transform semantics with atomic JSON persistence and corrupt file/directory recovery; use FileBackedMetadataStateStore.
-      - Canonical sticky FlareSolverr persistence must be monotonic and never reduce an existing later expiry; use CloudflareAwareComickGateway.PersistStickyFlaresolverrUntil.
       - Canonical runtime contract for cover.jpg ensure operations; use IOverrideCoverService.
       - Canonical runtime contract for merge-pass title metadata artifact coordination; use IComickMetadataCoordinator.
       - Canonical shared Comick endpoint request URI composition; use ComickEndpointUriBuilder.
       - Canonical shared Comick payload parsing and required-field validation (including deterministic malformed classification for null search/comic items and null alias/cover list entries, plus tolerant nullable MU category votes) should be centralized; use ComickPayloadParser and ComickSharedModels.
+      - Canonical sticky FlareSolverr persistence must be monotonic and never reduce an existing later expiry; use CloudflareAwareComickGateway.PersistStickyFlaresolverrUntil.
+      - Canonical sticky retry anchor uses post-direct block-detection timestamp (not request-start time) when computing sticky expiry; use CloudflareAwareComickGateway.ExecuteWithRoutingAsync.
+      - Canonical sticky-window clock reads should normalize provider timestamps to UTC at use sites for deterministic comparisons; use CloudflareAwareComickGateway.ExecuteWithRoutingAsync.
     related: [runtime-host, unit-test-suite]
   - id: infrastructure-mounts
     summary: Mount snapshots, reconciliation, command apply, and branch-link staging used by production merge runtime.
     tags: [infrastructure, mounts, reconciliation, runtime]
     paths:
+      - suwayomi_manga_daemon.sh
       - SuwayomiSourceMerge/Infrastructure/Mounts/BranchLinkStagingService.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/DesiredMountDefinition.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/FindmntMountSnapshotService.cs
@@ -1083,15 +1085,14 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Mounts/MountReconciliationService.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/MountSnapshot.cs
       - SuwayomiSourceMerge/Infrastructure/Mounts/MountSnapshotWarningPolicy.cs
-      - suwayomi_manga_daemon.sh
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/BranchLinkStagingServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/FindmntMountSnapshotServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/FindmntSnapshotLineParserTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.MountPointCreation.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.ReadinessProbe.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MountSnapshotWarningPolicyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MountReconciliationServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MountSnapshotWarningPolicyTests.cs
     entrypoints:
       - symbol: BranchLinkStagingService
         kind: class
@@ -1138,23 +1139,23 @@ modules:
         symbols: [IMergerfsMountCommandService, MergerfsMountCommandService]
         paths: [SuwayomiSourceMerge/Infrastructure/Mounts/IMergerfsMountCommandService.cs, SuwayomiSourceMerge/Infrastructure/Mounts/MergerfsMountCommandService.cs]
     do_not_reimplement:
-      - Canonical branch-link staging and stale-directory cleanup semantics; use BranchLinkStagingService.
-      - Canonical mount-snapshot warning-code severity mapping used by cleanup safety decisions; use MountSnapshotWarningPolicy.ResolveSeverity.
-      - Canonical dangling-entry replacement semantics for branch-link staging (delete-any-entry before relink); use BranchLinkStagingService.StageBranchLinks.
-      - Canonical unmount mixed-outcome precedence where non-busy failures are not masked by busy results; use MergerfsMountCommandService.
-      - Canonical desired-vs-actual reconciliation decision engine; use MountReconciliationService.Reconcile.
-      - Canonical findmnt snapshot capture and parse-warning behavior (including non-throwing parser guards and escape decoding); use FindmntMountSnapshotService.
-      - Canonical findmnt escaped-byte decoding must preserve UTF-8 mountpoint text and replace malformed surrogate halves with U+FFFD instead of throwing; use FindmntSnapshotLineParser.DecodeEscapedValue.
-      - Canonical legacy shell findmnt pairs-mode compatibility wrapper; use findmnt_pairs.
-      - Canonical mount action precondition that ensures mountpoint directories exist before invoking mergerfs; use MergerfsMountCommandService.
-      - Canonical mountpoint directory ensure diagnostics should map non-fatal creation failures to deterministic failure text while rethrowing fatal CLR exceptions; use MergerfsMountCommandService.TryEnsureMountPointDirectory.
-      - Canonical non-zero mount busy classification should inspect stderr first and only fall back to stdout when stderr is blank; use MergerfsMountCommandService.ClassifyCommandResult.
-      - Canonical mergerfs mount option composition must enforce a default thread cap (`threads=1`) when no explicit threads option is configured; use MergerfsOptionComposer.ComposeMountOptions.
-      - Canonical timeout-bounded mounted-path readiness probe command execution and diagnostic mapping; use MergerfsMountCommandService.ProbeMountPointReadiness.
       - Canonical bad-mountpoint retry flow with explicit two-sentence labeled mountpoint-directory-creation failure diagnostics; use MergerfsMountCommandService.
+      - Canonical branch-link staging and stale-directory cleanup semantics; use BranchLinkStagingService.
+      - Canonical dangling-entry replacement semantics for branch-link staging (delete-any-entry before relink); use BranchLinkStagingService.StageBranchLinks.
+      - Canonical desired-vs-actual reconciliation decision engine; use MountReconciliationService.Reconcile.
+      - Canonical findmnt escaped-byte decoding must preserve UTF-8 mountpoint text and replace malformed surrogate halves with U+FFFD instead of throwing; use FindmntSnapshotLineParser.DecodeEscapedValue.
+      - Canonical findmnt snapshot capture and parse-warning behavior (including non-throwing parser guards and escape decoding); use FindmntMountSnapshotService.
+      - Canonical legacy shell findmnt pairs-mode compatibility wrapper; use findmnt_pairs.
+      - Canonical mergerfs mount option composition must enforce a default thread cap (`threads=1`) when no explicit threads option is configured; use MergerfsOptionComposer.ComposeMountOptions.
+      - Canonical mount action precondition that ensures mountpoint directories exist before invoking mergerfs; use MergerfsMountCommandService.
       - Canonical mount/unmount/remount command fallback chains (`fusermount3`, `fusermount`, `umount`); use MergerfsMountCommandService.
+      - Canonical mountpoint directory ensure diagnostics should map non-fatal creation failures to deterministic failure text while rethrowing fatal CLR exceptions; use MergerfsMountCommandService.TryEnsureMountPointDirectory.
+      - Canonical mount-snapshot warning-code severity mapping used by cleanup safety decisions; use MountSnapshotWarningPolicy.ResolveSeverity.
+      - Canonical non-zero mount busy classification should inspect stderr first and only fall back to stdout when stderr is blank; use MergerfsMountCommandService.ClassifyCommandResult.
       - Canonical normalized mountpoint key matching across desired/actual/forced/stale checks; use MountReconciliationService.Reconcile.
       - Canonical timed legacy shell findmnt pairs-mode wrapper; use ro_timeout_findmnt_pairs.
+      - Canonical timeout-bounded mounted-path readiness probe command execution and diagnostic mapping; use MergerfsMountCommandService.ProbeMountPointReadiness.
+      - Canonical unmount mixed-outcome precedence where non-busy failures are not masked by busy results; use MergerfsMountCommandService.
     related: [application-mounting, infrastructure-branch-planning, infrastructure-processes, runtime-host, unit-test-suite]
   - id: infrastructure-processes
     summary: External process execution with poll-supervised timeout/cancellation, exit-precedence boundary probes, and bounded output capture.
@@ -1206,11 +1207,11 @@ modules:
     do_not_reimplement:
       - Canonical bounded stdout/stderr capture with truncation flags; use ExternalCommandExecutor.
       - Canonical command outcome + failure-kind contract for process execution; use ExternalCommandResult.
+      - Canonical fail-open capture completion handling with trace diagnostics for unexpected non-fatal faults; use ExternalCommandExecutor.WaitForCaptureCompletion.
       - Canonical fatal-exception passthrough for process-start failures in startup classification catches; use ExternalCommandExecutor.TryStartProcess.
       - Canonical poll-supervised timeout/cancellation process handling; use ExternalCommandExecutor.Execute.
-      - Canonical timeout/cancellation boundary exit-precedence probes; use ExternalCommandExecutor.TryWaitForExit.
-      - Canonical fail-open capture completion handling with trace diagnostics for unexpected non-fatal faults; use ExternalCommandExecutor.WaitForCaptureCompletion.
       - Canonical process-system adapter for real host execution; use SystemProcessFacade.
+      - Canonical timeout/cancellation boundary exit-precedence probes; use ExternalCommandExecutor.TryWaitForExit.
     related: [infrastructure-mounts, runtime-host, unit-test-suite]
   - id: infrastructure-rename
     summary: Shell-parity chapter rename sanitization and in-memory queue processing with explicit ordered storage, processor-boundary enumeration materialization, and quiet-window checks.
@@ -1220,8 +1221,8 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameOptions.cs
       - SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameProcessResult.cs
       - SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameQueueEntry.cs
-      - SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameQueueProcessor.ProcessPass.cs
       - SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameQueueProcessor.cs
+      - SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameQueueProcessor.ProcessPass.cs
       - SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameRescanResult.cs
       - SuwayomiSourceMerge/Infrastructure/Rename/IChapterRenameFileSystem.cs
       - SuwayomiSourceMerge/Infrastructure/Rename/IChapterRenameQueueProcessor.cs
@@ -1276,15 +1277,15 @@ modules:
         symbols: [ChapterRenameQueueProcessor, IChapterRenameQueueProcessor]
         paths: [SuwayomiSourceMerge/Infrastructure/Rename/ChapterRenameQueueProcessor.cs, SuwayomiSourceMerge/Infrastructure/Rename/IChapterRenameQueueProcessor.cs]
     do_not_reimplement:
+      - Canonical atomic queue transform contract used by processor/store concurrency boundaries, including no-mutation-on-failure semantics; use IChapterRenameQueueStore.Transform.
       - Canonical chapter path enqueue gating (depth-3 + excluded-source checks + allow-at delay); use ChapterRenameQueueProcessor.EnqueueChapterPath.
-      - Canonical targeted recursive chapter enqueue for source/manga directory events; use IChapterRenameQueueProcessor.EnqueueChaptersUnderSourcePath and IChapterRenameQueueProcessor.EnqueueChaptersUnderMangaPath.
       - Canonical chapter rename rule heuristics (shell-baseline with docs-first embedded chapter-token handling, including embedded abbreviated chapter/episode tokens); use ShellParityChapterRenameSanitizer.
       - Canonical fatal-exception passthrough for process/rescan filesystem enumeration catches so fatal CLR exceptions are never normalized to warning outcomes; use ChapterRenameQueueProcessor.ProcessOnce and ChapterRenameQueueProcessor.RescanAndEnqueue.
-      - Canonical in-memory queue dedupe semantics keyed by normalized path with explicit deterministic ordered-path iteration; use InMemoryChapterRenameQueueStore.
-      - Canonical atomic queue transform contract used by processor/store concurrency boundaries, including no-mutation-on-failure semantics; use IChapterRenameQueueStore.Transform.
       - Canonical filesystem adapter enumeration behavior (lazy enumeration with missing-path fast return and benign directory-not-found suppression); use ChapterRenameFileSystem.
+      - Canonical in-memory queue dedupe semantics keyed by normalized path with explicit deterministic ordered-path iteration; use InMemoryChapterRenameQueueStore.
       - Canonical queue processing semantics for missing-path grace, quiet windows (including early non-quiet short-circuit and processor-boundary enumeration materialization/exception classification), collision suffixes, best-effort moves under current shell-parity lock scope, and normal summary suppression for empty queue passes; use ChapterRenameQueueProcessor.ProcessOnce.
       - Canonical rename rescan candidate discovery and enqueue merge behavior, including queued-path snapshot duplicate skipping before timestamp lookups; use ChapterRenameQueueProcessor.RescanAndEnqueue.
+      - Canonical targeted recursive chapter enqueue for source/manga directory events; use IChapterRenameQueueProcessor.EnqueueChaptersUnderSourcePath and IChapterRenameQueueProcessor.EnqueueChaptersUnderMangaPath.
     related: [config-schema-validation, logging-infrastructure, runtime-host, unit-test-suite]
   - id: infrastructure-volumes
     summary: Container volume discovery for source and override roots with deterministic ordering and warnings.
@@ -1348,17 +1349,17 @@ modules:
     tags: [filesystem, infrastructure, inotify, runtime]
     paths:
       - SuwayomiSourceMerge/Infrastructure/Watching/IInotifyEventReader.cs
-      - SuwayomiSourceMerge/Infrastructure/Watching/IPersistentInotifyMonitorSession.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/InotifyEventMask.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/InotifyEventRecord.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/InotifyPollResult.cs
-      - SuwayomiSourceMerge/Infrastructure/Watching/InotifyWatchStartupMode.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs
+      - SuwayomiSourceMerge/Infrastructure/Watching/InotifyWatchStartupMode.cs
+      - SuwayomiSourceMerge/Infrastructure/Watching/IPersistentInotifyMonitorSession.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.BoundedBuffers.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.cs
-      - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Reconciliation.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Paths.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Progressive.cs
+      - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Reconciliation.cs
       - SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.Session.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/InotifyEventRecordTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/InotifywaitEventReaderTests.cs
@@ -1378,14 +1379,14 @@ modules:
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Watching/InotifyPollResult.cs
         purpose: Returns poll outcome, parsed events, and non-fatal polling/parsing warnings.
-      - symbol: InotifyWatchStartupMode
-        kind: enum
-        path: SuwayomiSourceMerge/Infrastructure/Watching/InotifyWatchStartupMode.cs
-        purpose: Defines full versus progressive watcher startup semantics consumed by runtime composition.
       - symbol: InotifywaitEventReader
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Watching/InotifywaitEventReader.cs
         purpose: Invokes inotifywait one-shot polls with configurable request-timeout buffer and maps command outcomes (including benign executor timeouts) to typed classifications.
+      - symbol: InotifyWatchStartupMode
+        kind: enum
+        path: SuwayomiSourceMerge/Infrastructure/Watching/InotifyWatchStartupMode.cs
+        purpose: Defines full versus progressive watcher startup semantics consumed by runtime composition.
       - symbol: PersistentInotifywaitEventReader
         kind: class
         path: SuwayomiSourceMerge/Infrastructure/Watching/PersistentInotifywaitEventReader.cs
@@ -1415,19 +1416,19 @@ modules:
       - Canonical persistent inotify monitor session IO/exit observation should avoid per-session Task.Run thread pinning; use PersistentInotifywaitEventReader.InotifyMonitorSession.
       - Canonical persistent inotify poll result bounding and drop-oldest overflow signaling must retain overflow summary warnings across early returns and include summary-eviction warning drops in dropped-warning diagnostics; use PersistentInotifywaitEventReader.
       - Canonical progressive deep-session startup budget semantics are per start phase (pre-wait/post-wait), not single-phase per entire poll; use PersistentInotifywaitEventReader.
-      - Canonical watcher startup mode contract (`full` and `progressive`); use InotifyWatchStartupMode.
       - Canonical typed poll outcome and warning contract; use InotifyPollResult.
+      - Canonical watcher startup mode contract (`full` and `progressive`); use InotifyWatchStartupMode.
     related: [application-watching, infrastructure-processes, runtime-host, unit-test-suite]
   - id: integration-test-suite
     summary: Docker-based end-to-end integration suite validating container runtime startup, capability, Debian-semantic pinned-upstream mergerfs package version checks, and failure semantics.
     tags: [docker, integration-tests, runtime, xunit]
     paths:
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.Capabilities.cs
+      - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointFuseDevice.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointLogPath.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.SignalHandling.cs
-      - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/DockerAssertionsBehaviorTests.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/DockerCommandRunnerBehaviorTests.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/README.md
@@ -1482,17 +1483,17 @@ modules:
         paths: [tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerAssertions.cs]
     do_not_reimplement:
       - Canonical container test workspace and mock-tool filesystem layout; use ContainerFixtureWorkspace.
-      - Canonical stale-merged ownership startup-regression harness (recursive-avoidance plus warning-only child-repair failures) using argv-aware mock argument matching; use ContainerRuntimeEndToEndTests.
-      - Canonical entrypoint symlink-safety ownership hardening harness (merged-child and daemon-log chown skips); use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs`.
-      - Canonical entrypoint non-root FUSE-device-access fail-fast harness; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
-      - Canonical entrypoint non-root FUSE preflight validation that rejects non-character-device `FUSE_DEVICE_PATH` values; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
-      - Canonical entrypoint trusted-root log ownership guard that skips privileged chown outside `/ssm/config`; use ContainerRuntimeEndToEndTests.EntrypointLogPath.
-      - Canonical SIGTERM shutdown integration harness that verifies graceful cleanup/unmount behavior during container stop; use ContainerRuntimeEndToEndTests.SignalHandling.
-      - Canonical image capability regression harness validating baked cap_sys_admin on mergerfs/fusermount3, Debian-version-aware pinned-upstream mergerfs package validation, build-only curl removal, and stripped-image negative controls; use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.Capabilities.cs`.
       - Canonical deterministic wait-loop assertions for integration checks; use DockerAssertions.
       - Canonical Docker CLI command execution and diagnostics wrapper; use DockerCommandRunner.
       - Canonical Docker integration image build, daemon preflight, and teardown image cleanup fixture setup; use DockerIntegrationFixture.
+      - Canonical entrypoint non-root FUSE preflight validation that rejects non-character-device `FUSE_DEVICE_PATH` values; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
+      - Canonical entrypoint non-root FUSE-device-access fail-fast harness; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
+      - Canonical entrypoint symlink-safety ownership hardening harness (merged-child and daemon-log chown skips); use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs`.
+      - Canonical entrypoint trusted-root log ownership guard that skips privileged chown outside `/ssm/config`; use ContainerRuntimeEndToEndTests.EntrypointLogPath.
+      - Canonical image capability regression harness validating baked cap_sys_admin on mergerfs/fusermount3, Debian-version-aware pinned-upstream mergerfs package validation, build-only curl removal, and stripped-image negative controls; use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.Capabilities.cs`.
       - Canonical shared-read log-line counting with transient retry semantics; use DockerAssertions.CountFileLinesMatching.
+      - Canonical SIGTERM shutdown integration harness that verifies graceful cleanup/unmount behavior during container stop; use ContainerRuntimeEndToEndTests.SignalHandling.
+      - Canonical stale-merged ownership startup-regression harness (recursive-avoidance plus warning-only child-repair failures) using argv-aware mock argument matching; use ContainerRuntimeEndToEndTests.
     related: [container-runtime-assets, infrastructure-watching, runtime-host, unit-test-suite]
   - id: logging-infrastructure
     summary: Structured log formatting, normal/debug threshold filtering, and file rolling/retention for diagnostics.
@@ -1562,15 +1563,15 @@ modules:
     do_not_reimplement:
       - Canonical config-to-logger construction; use SsmLoggerFactory.
       - Canonical fatal-exception passthrough for logger sink/fallback catches should rethrow fatal CLR exceptions while preserving fail-open behavior for non-fatal sink faults; use RollingFileLogger.Log and RollingFileLogger.TryWriteFallbackError.
-      - Canonical log-file name/path safety checks; use LogFilePathPolicy.
       - Canonical level filtering and sink fault fallback behavior; use RollingFileLogger.
-      - Canonical non-emitting handling for LogLevel.None sentinel values; use RollingFileLogger.
-      - Canonical normal-level semantics (ordered between debug and warning) and formatter token mapping (`level=normal`); use LogLevel and StructuredTextLogFormatter.
+      - Canonical log-file name/path safety checks; use LogFilePathPolicy.
       - Canonical logging-level token parsing shared by validation and runtime; use LogLevelParser.
+      - Canonical non-emitting handling for LogLevel.None sentinel values; use RollingFileLogger.
       - Canonical non-throw probing for logging-level tokens; use LogLevelParser.TryParse.
+      - Canonical normal-level semantics (ordered between debug and warning) and formatter token mapping (`level=normal`); use LogLevel and StructuredTextLogFormatter.
       - Canonical optional logging fallback for non-emitting instrumentation dependencies; use NoOpSsmLogger.Instance.
-      - Canonical structured text line format and escaping policy; use StructuredTextLogFormatter.
       - Canonical size-based rollover and retained archive handling; use RollingFileSink.
+      - Canonical structured text line format and escaping policy; use StructuredTextLogFormatter.
     related: [application-hosting, config-schema-validation, unit-test-suite]
   - id: runtime-host
     summary: Console host, runtime configuration, and top-level public/developer runtime usage documentation.
@@ -1662,20 +1663,20 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Application/Cancellation/CancellationClassificationTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Hosting/ApplicationHostTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Hosting/SceneTagConfigurationAdvisorTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.CleanupMergedRoot.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.DegradedVisibilityAndOverrideTitles.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.FailFastMountFailures.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowOptionsTests.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.Services.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.Fakes.Services.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.MetadataCoordinator.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.OutcomesAndCancellation.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.WarningDiagnostics.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Application/Mounting/MergeMountWorkflowTests.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/ConsoleSupervisorSignalRegistrarTests.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorTests.StackTraceLogging.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/DaemonSupervisorTests.StackTraceLogging.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Supervision/FilesystemEventDaemonWorkerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/FilesystemEventTriggerPipelineIntegrationTests.cs
@@ -1685,8 +1686,8 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Application/Watching/ProductionMergeScanRequestHandlerTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapExceptionTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapGuardTests.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapServiceSceneTagValidationTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationBootstrapServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/ConfigurationPathSetTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/LegacyMangaEquivalentsMigratorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Bootstrap/LegacySourcePriorityMigratorTests.cs
@@ -1707,9 +1708,9 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/SourcePrioritySchemaTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/MangaEquivalentsDocumentValidatorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/SceneTagsDocumentValidatorTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/SettingsDocumentValidatorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/SettingsDocumentValidatorTests.PathOverlap.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/SettingsDocumentValidatorTests.RuntimeMountFailureThreshold.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/SettingsDocumentValidatorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/SourcePriorityDocumentValidatorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/ValidationKeyNormalizerPropertyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Configuration/Validation/ValidationKeyNormalizerTests.cs
@@ -1737,9 +1738,9 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.Generation.WriteTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/BranchLinkStagingServiceTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.MountPointCreation.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.ReadinessProbe.cs
-      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MergerfsMountCommandServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Mounts/MountSnapshotWarningPolicyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeDiscoveryResultTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Volumes/ContainerVolumeDiscoveryServiceContractTests.cs
@@ -1749,9 +1750,9 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/InotifywaitEventReaderTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/PersistentInotifywaitEventReaderTests.BoundedPollBuffers.cs
       - tests/SuwayomiSourceMerge.UnitTests/ProgramEntryPointTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/README.md
       - tests/SuwayomiSourceMerge.UnitTests/Repository/LineEndingPolicyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Repository/NamingConventionPolicyTests.cs
-      - tests/SuwayomiSourceMerge.UnitTests/README.md
       - tests/SuwayomiSourceMerge.UnitTests/stryker-config.json
       - tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj
       - tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/PathTestUtilities.cs
@@ -1801,8 +1802,8 @@ modules:
         paths: [tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj]
     do_not_reimplement:
       - Baseline test-harness smoke coverage; extend ProjectLayoutTests.
-      - Canonical unit-test project wiring; use SuwayomiSourceMerge.UnitTests.csproj.
       - Canonical equivalence-catalog group-order assertions should use distinct canonical vs alias fixture values; extend MangaEquivalenceCatalogTests.
+      - Canonical unit-test project wiring; use SuwayomiSourceMerge.UnitTests.csproj.
       - Canonical YAML schema validation test scenarios; extend configuration schema test classes.
       - Host lifecycle and stderr fallback coverage; extend ApplicationHostTests.
       - Logging formatter/filter/rolling behavior coverage; extend Infrastructure/Logging test classes.

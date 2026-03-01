@@ -52,18 +52,25 @@ public sealed class ChapterRenameOptionsTests
 	[Fact]
 	public void Constructor_Failure_ShouldThrow_WhenArgumentsAreInvalid()
 	{
-		Assert.ThrowsAny<ArgumentException>(
+		ArgumentException sourcesRootPathException = Assert.ThrowsAny<ArgumentException>(
 			() => new ChapterRenameOptions("", 1, 1, 1, 1, []));
-		Assert.Throws<ArgumentNullException>(
+		ArgumentNullException excludedSourcesException = Assert.Throws<ArgumentNullException>(
 			() => new ChapterRenameOptions("/ssm/sources", 1, 1, 1, 1, null!));
-		Assert.Throws<ArgumentOutOfRangeException>(
+		ArgumentOutOfRangeException renameDelaySecondsException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new ChapterRenameOptions("/ssm/sources", -1, 1, 1, 1, []));
-		Assert.Throws<ArgumentOutOfRangeException>(
+		ArgumentOutOfRangeException renameQuietSecondsException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new ChapterRenameOptions("/ssm/sources", 0, -1, 1, 1, []));
-		Assert.Throws<ArgumentOutOfRangeException>(
+		ArgumentOutOfRangeException renamePollSecondsException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new ChapterRenameOptions("/ssm/sources", 0, 0, 0, 1, []));
-		Assert.Throws<ArgumentOutOfRangeException>(
+		ArgumentOutOfRangeException renameRescanSecondsException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new ChapterRenameOptions("/ssm/sources", 0, 0, 1, 0, []));
+
+		Assert.Equal("sourcesRootPath", sourcesRootPathException.ParamName);
+		Assert.Equal("excludedSources", excludedSourcesException.ParamName);
+		Assert.Equal("renameDelaySeconds", renameDelaySecondsException.ParamName);
+		Assert.Equal("renameQuietSeconds", renameQuietSecondsException.ParamName);
+		Assert.Equal("renamePollSeconds", renamePollSecondsException.ParamName);
+		Assert.Equal("renameRescanSeconds", renameRescanSecondsException.ParamName);
 	}
 
 	/// <summary>
@@ -92,9 +99,13 @@ public sealed class ChapterRenameOptionsTests
 			}
 		};
 
-		Assert.Throws<ArgumentException>(() => ChapterRenameOptions.FromSettings(settingsWithoutRename));
-		Assert.Throws<ArgumentException>(() => ChapterRenameOptions.FromSettings(settingsWithoutSourcesPath));
-		Assert.Throws<ArgumentNullException>(() => ChapterRenameOptions.FromSettings(null!));
+		ArgumentException settingsWithoutRenameException = Assert.Throws<ArgumentException>(() => ChapterRenameOptions.FromSettings(settingsWithoutRename));
+		ArgumentException settingsWithoutSourcesPathException = Assert.Throws<ArgumentException>(() => ChapterRenameOptions.FromSettings(settingsWithoutSourcesPath));
+		ArgumentNullException nullSettingsException = Assert.Throws<ArgumentNullException>(() => ChapterRenameOptions.FromSettings(null!));
+
+		Assert.Equal("settings", settingsWithoutRenameException.ParamName);
+		Assert.Equal("settings", settingsWithoutSourcesPathException.ParamName);
+		Assert.Equal("settings", nullSettingsException.ParamName);
 	}
 }
 

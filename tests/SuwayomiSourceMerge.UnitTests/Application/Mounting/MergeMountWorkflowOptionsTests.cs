@@ -286,13 +286,17 @@ public sealed class MergeMountWorkflowOptionsTests
 		};
 
 		ArgumentException invalidUriException = Assert.Throws<ArgumentException>(() => MergeMountWorkflowOptions.FromSettings(invalidUriSettings));
-		Assert.Throws<ArgumentOutOfRangeException>(() => MergeMountWorkflowOptions.FromSettings(invalidCooldownSettings));
+		ArgumentOutOfRangeException invalidCooldownException = Assert.Throws<ArgumentOutOfRangeException>(() => MergeMountWorkflowOptions.FromSettings(invalidCooldownSettings));
 		ArgumentException invalidSchemeException = Assert.Throws<ArgumentException>(() => MergeMountWorkflowOptions.FromSettings(invalidSchemeSettings));
-		Assert.Throws<ArgumentException>(() => MergeMountWorkflowOptions.FromSettings(invalidLanguageSettings));
-		Assert.Throws<ArgumentOutOfRangeException>(() => MergeMountWorkflowOptions.FromSettings(invalidRequestDelaySettings));
-		Assert.Throws<ArgumentOutOfRangeException>(() => MergeMountWorkflowOptions.FromSettings(invalidCacheTtlSettings));
+		ArgumentException invalidLanguageException = Assert.Throws<ArgumentException>(() => MergeMountWorkflowOptions.FromSettings(invalidLanguageSettings));
+		ArgumentOutOfRangeException invalidRequestDelayException = Assert.Throws<ArgumentOutOfRangeException>(() => MergeMountWorkflowOptions.FromSettings(invalidRequestDelaySettings));
+		ArgumentOutOfRangeException invalidCacheTtlException = Assert.Throws<ArgumentOutOfRangeException>(() => MergeMountWorkflowOptions.FromSettings(invalidCacheTtlSettings));
 		Assert.Equal("settings", invalidUriException.ParamName);
+		Assert.Equal("comickMetadataCooldown", invalidCooldownException.ParamName);
 		Assert.Equal("settings", invalidSchemeException.ParamName);
+		Assert.Equal("preferredLanguage", invalidLanguageException.ParamName);
+		Assert.Equal("metadataApiRequestDelay", invalidRequestDelayException.ParamName);
+		Assert.Equal("metadataApiCacheTtl", invalidCacheTtlException.ParamName);
 	}
 }
 
