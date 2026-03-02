@@ -441,10 +441,10 @@ public sealed partial class CloudflareAwareComickGatewayTests
 	}
 
 	/// <summary>
-	/// Creates one minimal deterministic search payload.
+	/// Creates one minimal deterministic comic payload.
 	/// </summary>
 	/// <param name="slug">Slug value.</param>
-	/// <returns>Search payload.</returns>
+	/// <returns>Comic payload.</returns>
 	private static ComickComicResponse BuildComicPayload(string slug)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(slug);

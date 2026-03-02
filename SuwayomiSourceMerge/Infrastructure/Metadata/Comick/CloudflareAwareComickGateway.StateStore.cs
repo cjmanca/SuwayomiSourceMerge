@@ -6,12 +6,32 @@ namespace SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 internal sealed partial class CloudflareAwareComickGateway
 {
 	/// <summary>
+	/// Classifies metadata state-store operations for diagnostics routing.
+	/// </summary>
+	private enum MetadataStateStoreOperationKind
+	{
+		/// <summary>
+		/// Standard non-cache operation.
+		/// </summary>
+		Standard = 0,
+
+		/// <summary>
+		/// Cache-specific operation.
+		/// </summary>
+		Cache = 1
+	}
+
+	/// <summary>
 	/// Reads metadata state snapshot with best-effort fallback semantics.
 	/// </summary>
 	/// <param name="endpointUri">Endpoint URI associated with the state operation.</param>
 	/// <param name="operation">Operation identifier used for diagnostics.</param>
+	/// <param name="operationKind">Operation kind used for diagnostics routing.</param>
 	/// <returns>Current state snapshot, or <see cref="MetadataStateSnapshot.Empty"/> on non-fatal read failure.</returns>
-	private MetadataStateSnapshot TryReadMetadataStateSnapshot(Uri endpointUri, string operation)
+	private MetadataStateSnapshot TryReadMetadataStateSnapshot(
+		Uri endpointUri,
+		string operation,
+		MetadataStateStoreOperationKind operationKind)
 	{
 		ArgumentNullException.ThrowIfNull(endpointUri);
 		ArgumentException.ThrowIfNullOrWhiteSpace(operation);
@@ -22,7 +42,7 @@ internal sealed partial class CloudflareAwareComickGateway
 		}
 		catch (Exception exception) when (!IsFatalException(exception))
 		{
-			if (operation.StartsWith("cache_", StringComparison.Ordinal))
+			if (operationKind == MetadataStateStoreOperationKind.Cache)
 			{
 				LogCacheStateStoreOperationFailed(endpointUri, operation, exception);
 			}
@@ -40,11 +60,13 @@ internal sealed partial class CloudflareAwareComickGateway
 	/// </summary>
 	/// <param name="endpointUri">Endpoint URI associated with the state operation.</param>
 	/// <param name="operation">Operation identifier used for diagnostics.</param>
+	/// <param name="operationKind">Operation kind used for diagnostics routing.</param>
 	/// <param name="transformer">State transform callback.</param>
 	/// <returns><see langword="true"/> when the transform succeeds; otherwise <see langword="false"/>.</returns>
 	private bool TryTransformMetadataStateSnapshot(
 		Uri endpointUri,
 		string operation,
+		MetadataStateStoreOperationKind operationKind,
 		Func<MetadataStateSnapshot, MetadataStateSnapshot> transformer)
 	{
 		ArgumentNullException.ThrowIfNull(endpointUri);
@@ -58,7 +80,7 @@ internal sealed partial class CloudflareAwareComickGateway
 		}
 		catch (Exception exception) when (!IsFatalException(exception))
 		{
-			if (operation.StartsWith("cache_", StringComparison.Ordinal))
+			if (operationKind == MetadataStateStoreOperationKind.Cache)
 			{
 				LogCacheStateStoreOperationFailed(endpointUri, operation, exception);
 			}

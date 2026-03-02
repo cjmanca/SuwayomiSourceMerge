@@ -1,6 +1,7 @@
 # TASKS.md
 
 
+- [x] 2026-03-01 - Address unresolved PR #44 AI review threads by updating metadata pacing/cache docs to implemented status, replacing state-store cache-prefix inference with explicit operation classification, splitting malformed-cache tests for intent clarity, and applying related style/comment cleanups with full-suite validation.
 - [x] 2026-02-28 - Add runtime settings/schema/defaults/self-healing/validation support for `runtime.metadata_api_request_delay_ms` (default `1000`, `>= 0`) and `runtime.metadata_api_cache_ttl_hours` (default `24`, `> 0`), including strict-runtime and relaxed-tooling profile behavior.
 - [x] 2026-02-28 - Extend `MergeMountWorkflowOptions` and `MetadataOrchestrationOptions` to carry metadata API pacing and cache TTL settings with constructor/mapping guards and focused option-mapping unit coverage.
 - [x] 2026-02-28 - Normalize `FilesystemEventTriggerOptions.FromSettings` invalid `scan.watch_startup_mode` guard contract to field-specific `ParamName` (`watchStartupMode`) and align unit assertions.

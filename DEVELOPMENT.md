@@ -75,16 +75,16 @@ Planned Comick/Flaresolverr routing behavior:
 - If FlareSolverr is not configured, Cloudflare-blocked requests fall back to existing ComicInfo/source-only metadata paths.
 - If both `cover.jpg` and `details.json` already exist for a title, skip Comick API queries entirely for that title.
 
-## Planned metadata API pacing and response caching (docs-only, not yet implemented)
+## Metadata API pacing and response caching (implemented)
 
-Planned implementation scope for the next feature iteration:
+Implemented behavior:
 
 - Add configurable pacing between actual metadata HTTP requests so all requests are still attempted, but spaced out.
 - Keep current artifact/cooldown short-circuit behavior; when no outbound API call is needed, no pacing delay should be applied.
 - Add persisted Comick API response caching for both search and comic-detail endpoints so repeated lookups can be served from cache without outbound requests or pacing delay.
 - Keep scan behavior resilient: pacing delays and cache misses must not be treated as scan failures by themselves.
 
-Implementation options considered:
+Design rationale and implementation options considered:
 
 - Option A: coordinator-only pacing/caching.
   - Rejected because it does not cover candidate detail probes and cover download HTTP calls.
@@ -93,7 +93,7 @@ Implementation options considered:
 - Option C: shared metadata request throttle plus gateway-owned Comick response cache.
   - Selected for consistent behavior and centralized policy/testability.
 
-Selected behavior for this planned feature:
+Selected behavior for this implemented feature:
 
 - Pacing scope:
   - apply to all metadata HTTP requests:
@@ -113,7 +113,7 @@ Selected behavior for this planned feature:
 - Cache expiry:
   - TTL-based expiry (configurable), default 24 hours
 
-Planned runtime settings additions:
+Implemented runtime settings:
 
 - `runtime.metadata_api_request_delay_ms` (default `1000`):
   - non-negative integer milliseconds
@@ -121,20 +121,20 @@ Planned runtime settings additions:
 - `runtime.metadata_api_cache_ttl_hours` (default `24`):
   - positive integer hour TTL for persisted Comick response cache entries
 
-Planned settings/schema behavior:
+Implemented settings/schema behavior:
 
 - strict runtime parsing requires both new runtime keys
 - tooling/relaxed parsing may omit both keys, but validates numeric ranges when provided
 - settings self-heal should add both keys with defaults when missing
-- `docs/config-schema.md` should be updated with both keys, defaults, and range constraints
+- `docs/config-schema.md` includes both keys, defaults, and range constraints
 
-Planned metadata state-store extension:
+Implemented metadata state-store behavior:
 
 - Extend persisted metadata state to include Comick API cache entries in addition to existing cooldown and sticky FlareSolverr fields.
 - Keep backward compatibility for existing state files by treating missing cache sections as empty cache.
 - Persist cache entries with explicit expiry timestamps.
 
-Planned cache entry model:
+Implemented cache entry model:
 
 - `endpoint_kind`: `search` or `comic`
 - `request_key`: exact trimmed query/slug key
@@ -144,7 +144,7 @@ Planned cache entry model:
 - `payload_json`: serialized payload for `Success` outcomes only
 - `expires_at_unix_seconds`: UTC expiry timestamp
 
-Planned gateway/cache flow:
+Implemented gateway/cache flow:
 
 - On `SearchAsync` and `GetComicAsync`:
   - first attempt cache read for unexpired valid entries
@@ -153,20 +153,20 @@ Planned gateway/cache flow:
   - after live request, persist cache entry only for cacheable outcomes
   - keep state-store operations best-effort with warning telemetry on non-fatal failures
 
-Planned pacing integration points:
+Implemented pacing integration points:
 
 - Introduce one shared metadata request-throttle service instance for runtime composition.
 - Use that same throttle instance in:
   - Cloudflare-aware Comick gateway for live Comick/FlareSolverr requests
   - override cover service for live cover download requests
 
-Planned non-goals for this iteration:
+Non-goals for this iteration:
 
 - no cover payload caching
 - no broad generic HTTP cache layer outside Comick metadata endpoints
 - no behavior change to existing details/cover artifact existence gates beyond pacing/cache integration
 
-Planned testing and acceptance criteria:
+Testing and acceptance criteria:
 
 - configuration/default/self-heal/validation tests for new runtime settings
 - metadata option mapping tests from settings to runtime options

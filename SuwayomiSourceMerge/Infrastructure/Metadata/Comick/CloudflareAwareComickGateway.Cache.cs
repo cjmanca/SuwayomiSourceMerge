@@ -80,7 +80,8 @@ internal sealed partial class CloudflareAwareComickGateway
 		cachedResult = null;
 		MetadataStateSnapshot snapshot = TryReadMetadataStateSnapshot(
 			endpointUri,
-			operation: "cache_read");
+			operation: "cache_read",
+			operationKind: MetadataStateStoreOperationKind.Cache);
 		ComickApiCacheEntry? cacheEntry = snapshot.ComickCache
 			.Where(
 				entry => entry.EndpointKind == endpointKind &&
@@ -93,6 +94,7 @@ internal sealed partial class CloudflareAwareComickGateway
 			return false;
 		}
 
+		// TTL boundary is inclusive: an entry is stale at its exact expiry timestamp.
 		if (cacheEntry.ExpiresAtUtc <= nowUtc)
 		{
 			cacheReadDetail = "expired";
@@ -101,6 +103,8 @@ internal sealed partial class CloudflareAwareComickGateway
 
 		if (cacheEntry.Outcome == ComickDirectApiOutcome.NotFound)
 		{
+			// A cached NotFound outcome remains semantically NotFound even if persisted status code data is malformed.
+			// Fall back to 404 to preserve stable behavior for cached NotFound entries.
 			cachedResult = new ComickDirectApiResult<TPayload>(
 				ComickDirectApiOutcome.NotFound,
 				payload: default,
@@ -214,11 +218,13 @@ internal sealed partial class CloudflareAwareComickGateway
 		bool persisted = TryTransformMetadataStateSnapshot(
 			endpointUri,
 			operation: "cache_persist_transform",
+			operationKind: MetadataStateStoreOperationKind.Cache,
 			current =>
 			{
 				List<ComickApiCacheEntry> retainedEntries = [];
 				foreach (ComickApiCacheEntry existingEntry in current.ComickCache)
 				{
+					// Use the same inclusive expiry boundary used by cache reads.
 					if (existingEntry.ExpiresAtUtc <= persistedAtUtc)
 					{
 						continue;

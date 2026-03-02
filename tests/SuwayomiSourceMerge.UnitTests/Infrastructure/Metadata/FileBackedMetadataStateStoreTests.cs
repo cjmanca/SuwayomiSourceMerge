@@ -137,10 +137,10 @@ public sealed class FileBackedMetadataStateStoreTests
 	}
 
 	/// <summary>
-	/// Verifies malformed Comick cache items are skipped without invalidating the full snapshot.
+	/// Verifies non-object Comick cache entries are skipped while valid entries are retained.
 	/// </summary>
 	[Fact]
-	public void Constructor_Edge_ShouldSkipMalformedComickCacheEntries()
+	public void Constructor_Edge_ShouldSkipNonObjectComickCacheEntries()
 	{
 		using TemporaryDirectory temporaryDirectory = new();
 		MetadataStatePaths paths = CreatePaths(temporaryDirectory.Path);
@@ -154,6 +154,48 @@ public sealed class FileBackedMetadataStateStoreTests
 			  "title_cooldowns_unix_seconds": {},
 			  "comick_api_cache": [
 			    "invalid",
+			    {
+			      "endpoint_kind": "search",
+			      "request_key": "query",
+			      "outcome": "Success",
+			      "status_code": 200,
+			      "diagnostic": "cached",
+			      "payload_json": {
+			        "slug": "cached-slug"
+			      },
+			      "expires_at_unix_seconds": 1709254800
+			    }
+			  ]
+			}
+			""");
+
+		FileBackedMetadataStateStore store = new(paths);
+		MetadataStateSnapshot snapshot = store.Read();
+
+		ComickApiCacheEntry persistedEntry = Assert.Single(snapshot.ComickCache);
+		Assert.Equal(ComickApiCacheEndpointKind.Search, persistedEntry.EndpointKind);
+		Assert.Equal("query", persistedEntry.RequestKey);
+		Assert.True(File.Exists(paths.MetadataStateFilePath));
+		Assert.False(File.Exists(paths.MetadataStateCorruptFilePath));
+	}
+
+	/// <summary>
+	/// Verifies Comick cache entries with an empty request key are skipped while valid entries are retained.
+	/// </summary>
+	[Fact]
+	public void Constructor_Edge_ShouldSkipComickCacheEntriesWithEmptyRequestKey()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		MetadataStatePaths paths = CreatePaths(temporaryDirectory.Path);
+		Directory.CreateDirectory(paths.StateRootPath);
+		File.WriteAllText(
+			paths.MetadataStateFilePath,
+			"""
+			{
+			  "schema_version": 1,
+			  "sticky_flaresolverr_until_unix_seconds": null,
+			  "title_cooldowns_unix_seconds": {},
+			  "comick_api_cache": [
 			    {
 			      "endpoint_kind": "search",
 			      "request_key": "query",

@@ -178,7 +178,8 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		DateTimeOffset nowUtc = _utcNowProvider().ToUniversalTime();
 		MetadataStateSnapshot currentState = TryReadMetadataStateSnapshot(
 			endpointUri,
-			operation: "sticky_precheck_read");
+			operation: "sticky_precheck_read",
+			operationKind: MetadataStateStoreOperationKind.Standard);
 		bool flaresolverrConfigured = IsFlaresolverrConfigured();
 		if (IsStickyActive(currentState, nowUtc) && flaresolverrConfigured)
 		{
@@ -419,7 +420,8 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 
 		MetadataStateSnapshot snapshot = TryReadMetadataStateSnapshot(
 			endpointUri,
-			operation: "sticky_clear_read");
+			operation: "sticky_clear_read",
+			operationKind: MetadataStateStoreOperationKind.Standard);
 		if (snapshot.StickyFlaresolverrUntilUtc is not DateTimeOffset currentStickyUntilUtc ||
 			currentStickyUntilUtc > nowUtc)
 		{
@@ -432,6 +434,7 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		if (!TryTransformMetadataStateSnapshot(
 			endpointUri,
 			operation: "sticky_clear_transform",
+			operationKind: MetadataStateStoreOperationKind.Standard,
 			current =>
 			{
 				if (current.StickyFlaresolverrUntilUtc is not DateTimeOffset stickyUntilUtc)
@@ -481,6 +484,7 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		_ = TryTransformMetadataStateSnapshot(
 			_comickBaseUri,
 			operation: "sticky_persist_transform",
+			operationKind: MetadataStateStoreOperationKind.Standard,
 			current =>
 			{
 				DateTimeOffset? currentStickyUntilUtc = current.StickyFlaresolverrUntilUtc;

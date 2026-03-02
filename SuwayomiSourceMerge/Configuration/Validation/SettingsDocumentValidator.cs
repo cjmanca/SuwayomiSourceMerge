@@ -376,6 +376,7 @@ public sealed partial class SettingsDocumentValidator : IConfigValidator<Setting
 			result.Add(new ValidationError(file, path, InvalidRangeCode, "Value must be greater than or equal to 0."));
 		}
 	}
+
 	/// <summary>
 	/// Ensures a numeric field exists and is within the inclusive range.
 	/// </summary>
@@ -420,6 +421,7 @@ public sealed partial class SettingsDocumentValidator : IConfigValidator<Setting
 			result.Add(new ValidationError(file, path, InvalidRangeCode, $"Value must be between {minimum} and {maximum}."));
 		}
 	}
+
 	/// <summary>
 	/// Validates <c>runtime.details_description_mode</c> against the supported rendering modes.
 	/// </summary>

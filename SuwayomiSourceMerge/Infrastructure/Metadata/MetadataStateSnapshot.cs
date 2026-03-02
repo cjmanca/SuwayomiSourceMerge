@@ -59,7 +59,7 @@ internal sealed class MetadataStateSnapshot
 		{
 			foreach (ComickApiCacheEntry entry in comickCache)
 			{
-				ArgumentNullException.ThrowIfNull(entry, nameof(comickCache));
+				ArgumentNullException.ThrowIfNull(entry);
 				normalizedComickCache.Add(
 					new ComickApiCacheEntry(
 						entry.EndpointKind,

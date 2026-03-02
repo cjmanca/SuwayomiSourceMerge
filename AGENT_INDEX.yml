@@ -1038,6 +1038,7 @@ modules:
     do_not_reimplement:
       - Canonical Cloudflare challenge detection for Comick responses; use ComickPayloadParser.
       - Canonical Cloudflare fallback transition logging (`sticky_route`, `activated`, `unavailable`, `sticky_cleared`) with structured context should remain gateway-owned; use CloudflareAwareComickGateway logging helpers.
+      - Canonical Cloudflare gateway metadata-state operation-kind diagnostics routing must use explicit cache-vs-standard classification (not operation-name prefix inference); use CloudflareAwareComickGateway.TryReadMetadataStateSnapshot and CloudflareAwareComickGateway.TryTransformMetadataStateSnapshot.
       - Canonical Cloudflare gateway metadata-state read/transform handling should be best-effort for non-fatal exceptions (warning telemetry + request-flow continuation) while fatal exceptions are rethrown; use CloudflareAwareComickGateway.TryReadMetadataStateSnapshot and CloudflareAwareComickGateway.TryTransformMetadataStateSnapshot.
       - Canonical Cloudflare-aware direct-first routing with sticky FlareSolverr fallback and timed direct retry probing; use CloudflareAwareComickGateway.
       - Canonical ComicInfo strict-then-fallback parsing behavior; use ComicInfoMetadataParser.TryParse.
