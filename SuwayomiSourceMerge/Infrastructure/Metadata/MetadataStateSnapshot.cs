@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 
+using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
+
 namespace SuwayomiSourceMerge.Infrastructure.Metadata;
 
 /// <summary>
@@ -12,16 +14,19 @@ internal sealed class MetadataStateSnapshot
 	/// </summary>
 	private static readonly MetadataStateSnapshot _empty = new(
 		new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal),
-		null);
+		null,
+		Array.Empty<ComickApiCacheEntry>());
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="MetadataStateSnapshot"/> class.
 	/// </summary>
 	/// <param name="titleCooldownsUtc">Per-title cooldown timestamps keyed by normalized title key.</param>
 	/// <param name="stickyFlaresolverrUntilUtc">Sticky FlareSolverr routing expiry timestamp, when present.</param>
+	/// <param name="comickCache">Optional persisted Comick response cache entries.</param>
 	public MetadataStateSnapshot(
 		IReadOnlyDictionary<string, DateTimeOffset> titleCooldownsUtc,
-		DateTimeOffset? stickyFlaresolverrUntilUtc)
+		DateTimeOffset? stickyFlaresolverrUntilUtc,
+		IReadOnlyCollection<ComickApiCacheEntry>? comickCache = null)
 	{
 		ArgumentNullException.ThrowIfNull(titleCooldownsUtc);
 
@@ -48,6 +53,26 @@ internal sealed class MetadataStateSnapshot
 
 		TitleCooldownsUtc = new ReadOnlyDictionary<string, DateTimeOffset>(normalizedCooldowns);
 		StickyFlaresolverrUntilUtc = stickyFlaresolverrUntilUtc?.ToUniversalTime();
+
+		List<ComickApiCacheEntry> normalizedComickCache = [];
+		if (comickCache is not null)
+		{
+			foreach (ComickApiCacheEntry entry in comickCache)
+			{
+				ArgumentNullException.ThrowIfNull(entry);
+				normalizedComickCache.Add(
+					new ComickApiCacheEntry(
+						entry.EndpointKind,
+						entry.RequestKey,
+						entry.Outcome,
+						entry.StatusCode,
+						entry.Diagnostic,
+						entry.PayloadJson,
+						entry.ExpiresAtUtc));
+			}
+		}
+
+		ComickCache = new ReadOnlyCollection<ComickApiCacheEntry>(normalizedComickCache);
 	}
 
 	/// <summary>
@@ -73,6 +98,14 @@ internal sealed class MetadataStateSnapshot
 	/// Gets sticky FlareSolverr routing expiry timestamp, when present.
 	/// </summary>
 	public DateTimeOffset? StickyFlaresolverrUntilUtc
+	{
+		get;
+	}
+
+	/// <summary>
+	/// Gets persisted Comick API cache entries.
+	/// </summary>
+	public IReadOnlyCollection<ComickApiCacheEntry> ComickCache
 	{
 		get;
 	}

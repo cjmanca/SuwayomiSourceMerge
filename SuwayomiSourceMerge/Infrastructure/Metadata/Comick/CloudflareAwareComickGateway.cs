@@ -43,6 +43,11 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 	private readonly Uri _comickBaseUri;
 
 	/// <summary>
+	/// Throttle applied to live Comick API and FlareSolverr requests.
+	/// </summary>
+	private readonly IMetadataApiRequestThrottle _throttle;
+
+	/// <summary>
 	/// Clock provider used for sticky-window decisions.
 	/// Gateway call sites normalize provider values using <see cref="DateTimeOffset.ToUniversalTime"/> before comparisons.
 	/// </summary>
@@ -60,12 +65,14 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 	/// <param name="flaresolverrClient">Optional FlareSolverr client dependency.</param>
 	/// <param name="metadataStateStore">Persisted metadata state store.</param>
 	/// <param name="options">Metadata orchestration settings.</param>
+	/// <param name="throttle">Throttle applied to live API requests.</param>
 	/// <param name="logger">Optional logger dependency.</param>
 	public CloudflareAwareComickGateway(
 		IComickDirectApiClient directClient,
 		IFlaresolverrClient? flaresolverrClient,
 		IMetadataStateStore metadataStateStore,
 		MetadataOrchestrationOptions options,
+		IMetadataApiRequestThrottle throttle,
 		ISsmLogger? logger = null)
 		: this(
 			directClient,
@@ -74,6 +81,7 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 			options,
 			_defaultComickBaseUri,
 			static () => DateTimeOffset.UtcNow,
+			throttle,
 			logger)
 	{
 	}
@@ -90,6 +98,7 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 	/// Clock provider used for sticky-window decisions.
 	/// Returned values are normalized to UTC by the gateway before use.
 	/// </param>
+	/// <param name="throttle">Throttle applied to live API requests.</param>
 	/// <param name="logger">Optional logger dependency.</param>
 	internal CloudflareAwareComickGateway(
 		IComickDirectApiClient directClient,
@@ -98,6 +107,7 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		MetadataOrchestrationOptions options,
 		Uri comickBaseUri,
 		Func<DateTimeOffset> utcNowProvider,
+		IMetadataApiRequestThrottle throttle,
 		ISsmLogger? logger = null)
 	{
 		_directClient = directClient ?? throw new ArgumentNullException(nameof(directClient));
@@ -106,6 +116,7 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		_options = options ?? throw new ArgumentNullException(nameof(options));
 		_utcNowProvider = utcNowProvider ?? throw new ArgumentNullException(nameof(utcNowProvider));
 		_comickBaseUri = NormalizeBaseUri(comickBaseUri);
+		_throttle = throttle ?? throw new ArgumentNullException(nameof(throttle));
 		_logger = logger ?? NoOpSsmLogger.Instance;
 	}
 
@@ -115,10 +126,13 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		CancellationToken cancellationToken = default)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(query);
+		string requestKey = query.Trim();
 
-		Uri endpointUri = ComickEndpointUriBuilder.BuildSearchUri(_comickBaseUri, query);
-		return ExecuteWithRoutingAsync(
-			() => _directClient.SearchAsync(query, cancellationToken),
+		Uri endpointUri = ComickEndpointUriBuilder.BuildSearchUri(_comickBaseUri, requestKey);
+		return ExecuteWithCacheAsync(
+			ComickApiCacheEndpointKind.Search,
+			requestKey,
+			ct => _directClient.SearchAsync(requestKey, ct),
 			endpointUri,
 			ComickPayloadParser.TryParseSearchPayload,
 			cancellationToken);
@@ -130,10 +144,13 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		CancellationToken cancellationToken = default)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(slug);
+		string requestKey = slug.Trim();
 
-		Uri endpointUri = ComickEndpointUriBuilder.BuildComicUri(_comickBaseUri, slug);
-		return ExecuteWithRoutingAsync(
-			() => _directClient.GetComicAsync(slug, cancellationToken),
+		Uri endpointUri = ComickEndpointUriBuilder.BuildComicUri(_comickBaseUri, requestKey);
+		return ExecuteWithCacheAsync(
+			ComickApiCacheEndpointKind.Comic,
+			requestKey,
+			ct => _directClient.GetComicAsync(requestKey, ct),
 			endpointUri,
 			ComickPayloadParser.TryParseComicPayload,
 			cancellationToken);
@@ -149,7 +166,7 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 	/// <param name="cancellationToken">Cancellation token.</param>
 	/// <returns>Typed Comick request result.</returns>
 	private async Task<ComickDirectApiResult<TPayload>> ExecuteWithRoutingAsync<TPayload>(
-		Func<Task<ComickDirectApiResult<TPayload>>> directRequest,
+		Func<CancellationToken, Task<ComickDirectApiResult<TPayload>>> directRequest,
 		Uri endpointUri,
 		Func<string, (bool Success, TPayload? Payload, string Diagnostic)> payloadParser,
 		CancellationToken cancellationToken)
@@ -161,7 +178,8 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		DateTimeOffset nowUtc = _utcNowProvider().ToUniversalTime();
 		MetadataStateSnapshot currentState = TryReadMetadataStateSnapshot(
 			endpointUri,
-			operation: "sticky_precheck_read");
+			operation: "sticky_precheck_read",
+			operationKind: MetadataStateStoreOperationKind.Standard);
 		bool flaresolverrConfigured = IsFlaresolverrConfigured();
 		if (IsStickyActive(currentState, nowUtc) && flaresolverrConfigured)
 		{
@@ -169,7 +187,9 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 			return await ExecuteViaFlaresolverrAsync(endpointUri, payloadParser, cancellationToken).ConfigureAwait(false);
 		}
 
-		ComickDirectApiResult<TPayload> directResult = await directRequest().ConfigureAwait(false);
+		ComickDirectApiResult<TPayload> directResult = await _throttle
+			.ExecuteAsync(ct => directRequest(ct), cancellationToken)
+			.ConfigureAwait(false);
 		DateTimeOffset postDirectNowUtc = _utcNowProvider().ToUniversalTime();
 		if (directResult.Outcome == ComickDirectApiOutcome.CloudflareBlocked && flaresolverrConfigured)
 		{
@@ -213,8 +233,8 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		}
 
 		string requestPayloadJson = BuildFlaresolverrRequestPayload(endpointUri);
-		FlaresolverrApiResult flaresolverrResult = await _flaresolverrClient
-			.PostV1Async(requestPayloadJson, cancellationToken)
+		FlaresolverrApiResult flaresolverrResult = await _throttle
+			.ExecuteAsync(ct => _flaresolverrClient.PostV1Async(requestPayloadJson, ct), cancellationToken)
 			.ConfigureAwait(false);
 		return MapFlaresolverrResult(flaresolverrResult, payloadParser);
 	}
@@ -400,7 +420,8 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 
 		MetadataStateSnapshot snapshot = TryReadMetadataStateSnapshot(
 			endpointUri,
-			operation: "sticky_clear_read");
+			operation: "sticky_clear_read",
+			operationKind: MetadataStateStoreOperationKind.Standard);
 		if (snapshot.StickyFlaresolverrUntilUtc is not DateTimeOffset currentStickyUntilUtc ||
 			currentStickyUntilUtc > nowUtc)
 		{
@@ -413,6 +434,7 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		if (!TryTransformMetadataStateSnapshot(
 			endpointUri,
 			operation: "sticky_clear_transform",
+			operationKind: MetadataStateStoreOperationKind.Standard,
 			current =>
 			{
 				if (current.StickyFlaresolverrUntilUtc is not DateTimeOffset stickyUntilUtc)
@@ -428,7 +450,8 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 				stickyCleared = true;
 				return new MetadataStateSnapshot(
 					current.TitleCooldownsUtc,
-					null);
+					null,
+					current.ComickCache);
 			}))
 		{
 			return;
@@ -461,6 +484,7 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		_ = TryTransformMetadataStateSnapshot(
 			_comickBaseUri,
 			operation: "sticky_persist_transform",
+			operationKind: MetadataStateStoreOperationKind.Standard,
 			current =>
 			{
 				DateTimeOffset? currentStickyUntilUtc = current.StickyFlaresolverrUntilUtc;
@@ -475,7 +499,8 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 
 				return new MetadataStateSnapshot(
 					current.TitleCooldownsUtc,
-					nextStickyUntilUtc);
+					nextStickyUntilUtc,
+					current.ComickCache);
 			});
 	}
 

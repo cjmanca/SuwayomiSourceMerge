@@ -310,7 +310,9 @@ public sealed class OverrideDetailsServiceApiFirstHardeningTests
 				TimeSpan.FromHours(24),
 				null,
 				TimeSpan.FromMinutes(60),
-				"en"),
+				"en",
+				TimeSpan.FromMilliseconds(1000),
+				TimeSpan.FromHours(24)),
 			matchedComickComic);
 	}
 

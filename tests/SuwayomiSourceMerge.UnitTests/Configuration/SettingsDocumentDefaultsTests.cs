@@ -23,6 +23,8 @@ public sealed class SettingsDocumentDefaultsTests
         Assert.Null(document.Scan!.MergeTriggerRequestTimeoutBufferSeconds);
         Assert.Equal("progressive", document.Scan.WatchStartupMode);
         Assert.Equal(24, document.Runtime!.ComickMetadataCooldownHours);
+        Assert.Equal(1000, document.Runtime.MetadataApiRequestDelayMs);
+        Assert.Equal(24, document.Runtime.MetadataApiCacheTtlHours);
         Assert.Equal(string.Empty, document.Runtime.FlaresolverrServerUrl);
         Assert.Equal(60, document.Runtime.FlaresolverrDirectRetryMinutes);
         Assert.Equal("en", document.Runtime.PreferredLanguage);

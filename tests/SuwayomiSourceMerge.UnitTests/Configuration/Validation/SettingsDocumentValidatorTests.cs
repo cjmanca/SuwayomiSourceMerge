@@ -68,7 +68,23 @@ public sealed partial class SettingsDocumentValidatorTests
                 CleanupPriorityNiceValue = 19
             },
             Permissions = baseline.Permissions,
-            Runtime = baseline.Runtime,
+            Runtime = new SettingsRuntimeSection
+            {
+                LowPriority = baseline.Runtime!.LowPriority,
+                StartupCleanup = baseline.Runtime.StartupCleanup,
+                RescanNow = baseline.Runtime.RescanNow,
+                EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
+                MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
+                ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                MetadataApiRequestDelayMs = 0,
+                MetadataApiCacheTtlHours = 1,
+                FlaresolverrServerUrl = baseline.Runtime.FlaresolverrServerUrl,
+                FlaresolverrDirectRetryMinutes = baseline.Runtime.FlaresolverrDirectRetryMinutes,
+                PreferredLanguage = baseline.Runtime.PreferredLanguage,
+                DetailsDescriptionMode = baseline.Runtime.DetailsDescriptionMode,
+                MergerfsOptionsBase = baseline.Runtime.MergerfsOptionsBase,
+                ExcludedSources = baseline.Runtime.ExcludedSources
+            },
             Logging = new SettingsLoggingSection
             {
                 FileName = "daemon.log",
@@ -105,6 +121,8 @@ public sealed partial class SettingsDocumentValidatorTests
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                MetadataApiRequestDelayMs = baseline.Runtime.MetadataApiRequestDelayMs,
+                MetadataApiCacheTtlHours = baseline.Runtime.MetadataApiCacheTtlHours,
                 FlaresolverrServerUrl = baseline.Runtime.FlaresolverrServerUrl,
                 FlaresolverrDirectRetryMinutes = baseline.Runtime.FlaresolverrDirectRetryMinutes,
                 PreferredLanguage = baseline.Runtime.PreferredLanguage,
@@ -210,6 +228,8 @@ public sealed partial class SettingsDocumentValidatorTests
                 EnableMountHealthcheck = true,
                 MaxConsecutiveMountFailures = 5,
                 ComickMetadataCooldownHours = 0,
+                MetadataApiRequestDelayMs = -1,
+                MetadataApiCacheTtlHours = 0,
                 FlaresolverrServerUrl = "ftp://flaresolverr.example.local",
                 FlaresolverrDirectRetryMinutes = 0,
                 PreferredLanguage = " ",
@@ -238,6 +258,8 @@ public sealed partial class SettingsDocumentValidatorTests
         Assert.Contains(result.Errors, error => error.Path == "$.shutdown.cleanup_priority_ionice_class" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.shutdown.cleanup_priority_nice_value" && error.Code == "CFG-SET-004");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_metadata_cooldown_hours" && error.Code == "CFG-SET-004");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.metadata_api_request_delay_ms" && error.Code == "CFG-SET-004");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.metadata_api_cache_ttl_hours" && error.Code == "CFG-SET-004");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.flaresolverr_server_url" && error.Code == "CFG-SET-005");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.flaresolverr_direct_retry_minutes" && error.Code == "CFG-SET-004");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.preferred_language" && error.Code == "CFG-SET-002");
@@ -266,6 +288,8 @@ public sealed partial class SettingsDocumentValidatorTests
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                MetadataApiRequestDelayMs = baseline.Runtime.MetadataApiRequestDelayMs,
+                MetadataApiCacheTtlHours = baseline.Runtime.MetadataApiCacheTtlHours,
                 FlaresolverrServerUrl = baseline.Runtime.FlaresolverrServerUrl,
                 FlaresolverrDirectRetryMinutes = baseline.Runtime.FlaresolverrDirectRetryMinutes,
                 PreferredLanguage = baseline.Runtime.PreferredLanguage,
@@ -366,6 +390,8 @@ public sealed partial class SettingsDocumentValidatorTests
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                MetadataApiRequestDelayMs = baseline.Runtime.MetadataApiRequestDelayMs,
+                MetadataApiCacheTtlHours = baseline.Runtime.MetadataApiCacheTtlHours,
                 FlaresolverrServerUrl = string.Empty,
                 FlaresolverrDirectRetryMinutes = baseline.Runtime.FlaresolverrDirectRetryMinutes,
                 PreferredLanguage = baseline.Runtime.PreferredLanguage,
@@ -402,6 +428,8 @@ public sealed partial class SettingsDocumentValidatorTests
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                MetadataApiRequestDelayMs = baseline.Runtime.MetadataApiRequestDelayMs,
+                MetadataApiCacheTtlHours = baseline.Runtime.MetadataApiCacheTtlHours,
                 FlaresolverrServerUrl = "https://flaresolverr.example.local/",
                 FlaresolverrDirectRetryMinutes = baseline.Runtime.FlaresolverrDirectRetryMinutes,
                 PreferredLanguage = "zh-CN",
@@ -438,6 +466,8 @@ public sealed partial class SettingsDocumentValidatorTests
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                MetadataApiRequestDelayMs = baseline.Runtime.MetadataApiRequestDelayMs,
+                MetadataApiCacheTtlHours = baseline.Runtime.MetadataApiCacheTtlHours,
                 FlaresolverrServerUrl = "/flaresolverr",
                 FlaresolverrDirectRetryMinutes = baseline.Runtime.FlaresolverrDirectRetryMinutes,
                 PreferredLanguage = baseline.Runtime.PreferredLanguage,

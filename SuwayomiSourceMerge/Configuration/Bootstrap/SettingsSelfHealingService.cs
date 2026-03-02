@@ -156,6 +156,8 @@ internal sealed class SettingsSelfHealingService
 				EnableMountHealthcheck = existingRuntime?.EnableMountHealthcheck ?? UseDefault(defaultRuntime.EnableMountHealthcheck, ref wasHealed),
 				MaxConsecutiveMountFailures = existingRuntime?.MaxConsecutiveMountFailures ?? UseDefault(defaultRuntime.MaxConsecutiveMountFailures, ref wasHealed),
 				ComickMetadataCooldownHours = existingRuntime?.ComickMetadataCooldownHours ?? UseDefault(defaultRuntime.ComickMetadataCooldownHours, ref wasHealed),
+				MetadataApiRequestDelayMs = existingRuntime?.MetadataApiRequestDelayMs ?? UseDefault(defaultRuntime.MetadataApiRequestDelayMs, ref wasHealed),
+				MetadataApiCacheTtlHours = existingRuntime?.MetadataApiCacheTtlHours ?? UseDefault(defaultRuntime.MetadataApiCacheTtlHours, ref wasHealed),
 				FlaresolverrServerUrl = CanonicalizeFlaresolverrServerUrl(existingRuntime?.FlaresolverrServerUrl, defaultRuntime.FlaresolverrServerUrl, ref wasHealed),
 				FlaresolverrDirectRetryMinutes = existingRuntime?.FlaresolverrDirectRetryMinutes ?? UseDefault(defaultRuntime.FlaresolverrDirectRetryMinutes, ref wasHealed),
 				PreferredLanguage = CanonicalizePreferredLanguage(existingRuntime?.PreferredLanguage, defaultRuntime.PreferredLanguage, ref wasHealed),

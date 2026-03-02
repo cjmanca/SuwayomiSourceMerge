@@ -487,6 +487,22 @@ public sealed class SettingsRuntimeSection
 	}
 
 	/// <summary>
+	/// Gets or sets the minimum delay in milliseconds between outbound metadata API requests.
+	/// </summary>
+	public int? MetadataApiRequestDelayMs
+	{
+		get; init;
+	}
+
+	/// <summary>
+	/// Gets or sets the persisted metadata API cache entry time-to-live in hours.
+	/// </summary>
+	public int? MetadataApiCacheTtlHours
+	{
+		get; init;
+	}
+
+	/// <summary>
 	/// Gets or sets the optional FlareSolverr server URL used for Cloudflare-blocked Comick requests.
 	/// </summary>
 	public string? FlaresolverrServerUrl

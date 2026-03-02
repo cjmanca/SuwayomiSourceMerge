@@ -58,6 +58,8 @@ public sealed class SettingsSchemaToolingProfileTests
             CreateSettingsYamlWithoutComickRuntimeFields());
 
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_metadata_cooldown_hours" && error.Code == "CFG-SET-002");
+        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.metadata_api_request_delay_ms" && error.Code == "CFG-SET-002");
+        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.metadata_api_cache_ttl_hours" && error.Code == "CFG-SET-002");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.flaresolverr_server_url" && error.Code == "CFG-SET-002");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.flaresolverr_direct_retry_minutes" && error.Code == "CFG-SET-002");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.preferred_language" && error.Code == "CFG-SET-002");
@@ -86,6 +88,8 @@ public sealed class SettingsSchemaToolingProfileTests
             CreateSettingsYamlWithInvalidOptionalComickRuntimeFields());
 
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_metadata_cooldown_hours" && error.Code == "CFG-SET-004");
+        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.metadata_api_request_delay_ms" && error.Code == "CFG-SET-004");
+        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.metadata_api_cache_ttl_hours" && error.Code == "CFG-SET-004");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.flaresolverr_server_url" && error.Code == "CFG-SET-005");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.flaresolverr_direct_retry_minutes" && error.Code == "CFG-SET-004");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.preferred_language" && error.Code == "CFG-SET-002");
@@ -143,6 +147,8 @@ public sealed class SettingsSchemaToolingProfileTests
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
               comick_metadata_cooldown_hours: 24
+              metadata_api_request_delay_ms: 1000
+              metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
               flaresolverr_direct_retry_minutes: 60
               preferred_language: en
@@ -212,6 +218,8 @@ public sealed class SettingsSchemaToolingProfileTests
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
               comick_metadata_cooldown_hours: 24
+              metadata_api_request_delay_ms: 1000
+              metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
               flaresolverr_direct_retry_minutes: 60
               preferred_language: en
@@ -342,6 +350,8 @@ public sealed class SettingsSchemaToolingProfileTests
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
               comick_metadata_cooldown_hours: 0
+              metadata_api_request_delay_ms: -1
+              metadata_api_cache_ttl_hours: 0
               flaresolverr_server_url: ftp://flaresolverr.example.local
               flaresolverr_direct_retry_minutes: 0
               preferred_language: " "

@@ -71,6 +71,8 @@ runtime:
   enable_mount_healthcheck: false
   max_consecutive_mount_failures: 5
   comick_metadata_cooldown_hours: 24
+  metadata_api_request_delay_ms: 1000
+  metadata_api_cache_ttl_hours: 24
   flaresolverr_server_url: ""
   flaresolverr_direct_retry_minutes: 60
   preferred_language: en
@@ -92,7 +94,7 @@ logging:
 - Required fields: all fields shown in schema (except `unraid_cache_pool_name`, which may be empty)
 - Path fields must be absolute paths
 - Numeric fields:
-  - Must be `>= 0`: `merge_min_seconds_between_scans`, `rename_delay_seconds`, `rename_quiet_seconds`, `debug_timing_min_item_ms`, `debug_scan_progress_every`, `debug_scan_progress_seconds`
+  - Must be `>= 0`: `merge_min_seconds_between_scans`, `rename_delay_seconds`, `rename_quiet_seconds`, `debug_timing_min_item_ms`, `debug_scan_progress_every`, `debug_scan_progress_seconds`, `runtime.metadata_api_request_delay_ms`
   - Must be `> 0`: all other numeric fields except those with explicit bounded ranges
   - Must be in range `1..3`: `shutdown.cleanup_priority_ionice_class`
   - Must be in range `-20..19`: `shutdown.cleanup_priority_nice_value`
@@ -103,9 +105,11 @@ logging:
 - `shutdown.cleanup_apply_high_priority` controls reconciliation apply-path wrapper execution.
 - `runtime.max_consecutive_mount_failures` controls merge-pass apply fail-fast behavior after repeated mount/remount failures.
 - Runtime bootstrap/settings parse (`ConfigurationSchemaService.ParseSettingsForRuntime`) uses strict validation for shutdown cleanup profile fields (`cleanup_apply_high_priority`, `cleanup_priority_ionice_class`, `cleanup_priority_nice_value`).
-- Runtime bootstrap/settings parse (`ConfigurationSchemaService.ParseSettingsForRuntime`) also requires `runtime.comick_metadata_cooldown_hours`, `runtime.flaresolverr_server_url`, `runtime.flaresolverr_direct_retry_minutes`, and `runtime.preferred_language`.
-- Tooling/schema-only settings parse (`ConfigurationSchemaService.ParseSettingsForTooling`) may omit those shutdown cleanup profile fields and the new Comick/FlareSolverr runtime fields; when provided, numeric ranges and URL/token constraints are still validated.
+- Runtime bootstrap/settings parse (`ConfigurationSchemaService.ParseSettingsForRuntime`) also requires `runtime.comick_metadata_cooldown_hours`, `runtime.metadata_api_request_delay_ms`, `runtime.metadata_api_cache_ttl_hours`, `runtime.flaresolverr_server_url`, `runtime.flaresolverr_direct_retry_minutes`, and `runtime.preferred_language`.
+- Tooling/schema-only settings parse (`ConfigurationSchemaService.ParseSettingsForTooling`) may omit those shutdown cleanup profile fields and the Comick/FlareSolverr/metadata API runtime fields; when provided, numeric ranges and URL/token constraints are still validated.
 - `runtime.comick_metadata_cooldown_hours` and `runtime.flaresolverr_direct_retry_minutes` must be `> 0` when required or provided.
+- `runtime.metadata_api_request_delay_ms` must be `>= 0` when required or provided.
+- `runtime.metadata_api_cache_ttl_hours` must be `> 0` when required or provided.
 - `runtime.flaresolverr_server_url` may be empty; when non-empty it must be an absolute `http` or `https` URI.
 - `runtime.preferred_language` must be non-empty when required or provided.
 - Settings self-heal canonicalizes `runtime.preferred_language` and `runtime.flaresolverr_server_url` by trimming surrounding whitespace when present; `runtime.preferred_language` falls back to default `en` when canonicalization yields an empty value.

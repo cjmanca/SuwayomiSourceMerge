@@ -105,13 +105,21 @@ public sealed class FilesystemEventTriggerOptionsTests
 			renameRescanSeconds: 1,
 			[]);
 
-		Assert.Throws<ArgumentNullException>(() => new FilesystemEventTriggerOptions(null!, "/ssm/override", 1, 1, 0, 1, true));
-		Assert.ThrowsAny<ArgumentException>(() => new FilesystemEventTriggerOptions(renameOptions, "", 1, 1, 0, 1, true));
-		Assert.Throws<ArgumentOutOfRangeException>(() => new FilesystemEventTriggerOptions(renameOptions, "/ssm/override", 0, 1, 0, 1, true));
-		Assert.Throws<ArgumentOutOfRangeException>(() => new FilesystemEventTriggerOptions(renameOptions, "/ssm/override", 1, 0, 0, 1, true));
-		Assert.Throws<ArgumentOutOfRangeException>(() => new FilesystemEventTriggerOptions(renameOptions, "/ssm/override", 1, 1, -1, 1, true));
-		Assert.Throws<ArgumentOutOfRangeException>(() => new FilesystemEventTriggerOptions(renameOptions, "/ssm/override", 1, 1, 0, 0, true));
-		Assert.Throws<ArgumentOutOfRangeException>(() => new FilesystemEventTriggerOptions(renameOptions, "/ssm/override", 1, 1, 0, 1, true, 0));
+		ArgumentNullException nullRenameOptionsException = Assert.Throws<ArgumentNullException>(() => new FilesystemEventTriggerOptions(null!, "/ssm/override", 1, 1, 0, 1, true));
+		ArgumentException overrideRootPathException = Assert.ThrowsAny<ArgumentException>(() => new FilesystemEventTriggerOptions(renameOptions, "", 1, 1, 0, 1, true));
+		ArgumentOutOfRangeException inotifyPollSecondsException = Assert.Throws<ArgumentOutOfRangeException>(() => new FilesystemEventTriggerOptions(renameOptions, "/ssm/override", 0, 1, 0, 1, true));
+		ArgumentOutOfRangeException mergeIntervalSecondsException = Assert.Throws<ArgumentOutOfRangeException>(() => new FilesystemEventTriggerOptions(renameOptions, "/ssm/override", 1, 0, 0, 1, true));
+		ArgumentOutOfRangeException mergeMinSecondsBetweenScansException = Assert.Throws<ArgumentOutOfRangeException>(() => new FilesystemEventTriggerOptions(renameOptions, "/ssm/override", 1, 1, -1, 1, true));
+		ArgumentOutOfRangeException mergeLockRetrySecondsException = Assert.Throws<ArgumentOutOfRangeException>(() => new FilesystemEventTriggerOptions(renameOptions, "/ssm/override", 1, 1, 0, 0, true));
+		ArgumentOutOfRangeException inotifyRequestTimeoutBufferSecondsException = Assert.Throws<ArgumentOutOfRangeException>(() => new FilesystemEventTriggerOptions(renameOptions, "/ssm/override", 1, 1, 0, 1, true, 0));
+
+		Assert.Equal("renameOptions", nullRenameOptionsException.ParamName);
+		Assert.Equal("overrideRootPath", overrideRootPathException.ParamName);
+		Assert.Equal("inotifyPollSeconds", inotifyPollSecondsException.ParamName);
+		Assert.Equal("mergeIntervalSeconds", mergeIntervalSecondsException.ParamName);
+		Assert.Equal("mergeMinSecondsBetweenScans", mergeMinSecondsBetweenScansException.ParamName);
+		Assert.Equal("mergeLockRetrySeconds", mergeLockRetrySecondsException.ParamName);
+		Assert.Equal("inotifyRequestTimeoutBufferSeconds", inotifyRequestTimeoutBufferSecondsException.ParamName);
 
 		SettingsDocument invalidSettings = new()
 		{
@@ -141,7 +149,7 @@ public sealed class FilesystemEventTriggerOptionsTests
 			Logging = defaults.Logging
 		};
 
-		Assert.Throws<ArgumentException>(() => FilesystemEventTriggerOptions.FromSettings(invalidSettings));
+		ArgumentException invalidSettingsException = Assert.Throws<ArgumentException>(() => FilesystemEventTriggerOptions.FromSettings(invalidSettings));
 		FilesystemEventTriggerOptions options = FilesystemEventTriggerOptions.FromSettings(settingsMissingTimeoutBuffer);
 		Assert.Equal(300, options.InotifyRequestTimeoutBufferSeconds);
 		SettingsDocument validDefaults = SettingsDocumentDefaults.Create();
@@ -164,7 +172,11 @@ public sealed class FilesystemEventTriggerOptionsTests
 			Runtime = validDefaults.Runtime,
 			Logging = validDefaults.Logging
 		};
-		Assert.Throws<ArgumentException>(() => FilesystemEventTriggerOptions.FromSettings(invalidSettingsWatchMode));
-		Assert.Throws<ArgumentNullException>(() => FilesystemEventTriggerOptions.FromSettings(null!));
+		ArgumentException invalidSettingsWatchModeException = Assert.Throws<ArgumentException>(() => FilesystemEventTriggerOptions.FromSettings(invalidSettingsWatchMode));
+		ArgumentNullException nullSettingsException = Assert.Throws<ArgumentNullException>(() => FilesystemEventTriggerOptions.FromSettings(null!));
+
+		Assert.Equal("settings", invalidSettingsException.ParamName);
+		Assert.Equal("watchStartupMode", invalidSettingsWatchModeException.ParamName);
+		Assert.Equal("settings", nullSettingsException.ParamName);
 	}
 }

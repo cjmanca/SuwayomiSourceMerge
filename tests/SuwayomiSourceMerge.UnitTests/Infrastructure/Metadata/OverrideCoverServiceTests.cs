@@ -391,9 +391,19 @@ public sealed partial class OverrideCoverServiceTests
 			private set;
 		}
 
+		/// <summary>
+		/// Gets invocation count.
+		/// </summary>
+		public int CallCount
+		{
+			get;
+			private set;
+		}
+
 		/// <inheritdoc />
 		protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
 		{
+			CallCount++;
 			LastRequest = request;
 			return Task.FromResult(_send(request));
 		}
@@ -426,6 +436,11 @@ public sealed partial class OverrideCoverServiceTests
 	/// </summary>
 	private sealed class ConcurrentGateHttpMessageHandler : HttpMessageHandler
 	{
+		/// <summary>
+		/// Backing field for atomic call counting.
+		/// </summary>
+		private int _callCount;
+
 		/// <summary>
 		/// Response payload bytes.
 		/// </summary>
@@ -462,8 +477,7 @@ public sealed partial class OverrideCoverServiceTests
 		/// </summary>
 		public int CallCount
 		{
-			get;
-			private set;
+			get => Volatile.Read(ref _callCount);
 		}
 
 		/// <summary>
@@ -486,8 +500,8 @@ public sealed partial class OverrideCoverServiceTests
 		/// <inheritdoc />
 		protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
 		{
-			CallCount++;
-			if (CallCount >= _expectedCallCount)
+			int callCount = Interlocked.Increment(ref _callCount);
+			if (callCount >= _expectedCallCount)
 			{
 				_arrivalGate.TrySetResult();
 			}

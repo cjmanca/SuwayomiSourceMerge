@@ -201,16 +201,19 @@ internal sealed class FilesystemEventTriggerOptions
 			scan.MergeLockRetrySeconds.Value,
 			settings.Runtime.RescanNow.Value,
 			scan.MergeTriggerRequestTimeoutBufferSeconds ?? DefaultInotifyRequestTimeoutBufferSeconds,
-			ParseWatchStartupMode(scan.WatchStartupMode));
+			ParseWatchStartupMode(scan.WatchStartupMode, "watchStartupMode"));
 	}
 
 	/// <summary>
 	/// Parses the watch-startup-mode token.
 	/// </summary>
 	/// <param name="value">Token value from settings.</param>
+	/// <param name="paramName">Parameter name for invalid-token guard exceptions.</param>
 	/// <returns>Parsed startup mode.</returns>
-	private static InotifyWatchStartupMode ParseWatchStartupMode(string? value)
+	private static InotifyWatchStartupMode ParseWatchStartupMode(string? value, string paramName)
 	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(paramName);
+
 		if (string.IsNullOrWhiteSpace(value))
 		{
 			return InotifyWatchStartupMode.Progressive;
@@ -221,7 +224,7 @@ internal sealed class FilesystemEventTriggerOptions
 		{
 			"full" => InotifyWatchStartupMode.Full,
 			"progressive" => InotifyWatchStartupMode.Progressive,
-			_ => throw new ArgumentException("Settings scan.watch_startup_mode must be 'full' or 'progressive'.", nameof(value))
+			_ => throw new ArgumentException("Settings scan.watch_startup_mode must be 'full' or 'progressive'.", paramName)
 		};
 	}
 }

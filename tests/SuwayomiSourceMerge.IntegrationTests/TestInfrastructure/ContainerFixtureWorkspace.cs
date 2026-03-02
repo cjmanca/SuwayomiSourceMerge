@@ -157,6 +157,8 @@ internal sealed class ContainerFixtureWorkspace : IDisposable
 		  rescan_now: true
 		  enable_mount_healthcheck: false
 		  max_consecutive_mount_failures: 5
+		  metadata_api_request_delay_ms: 1000
+		  metadata_api_cache_ttl_hours: 24
 		  details_description_mode: text
 		  mergerfs_options_base: allow_other,default_permissions,use_ino,threads=1,category.create=ff,cache.entry=0,cache.attr=0,cache.negative_entry=0
 		  excluded_sources:

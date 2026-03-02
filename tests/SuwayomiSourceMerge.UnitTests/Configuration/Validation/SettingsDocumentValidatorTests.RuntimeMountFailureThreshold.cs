@@ -74,6 +74,8 @@ public sealed partial class SettingsDocumentValidatorTests
 				EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
 				MaxConsecutiveMountFailures = threshold,
 				ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+				MetadataApiRequestDelayMs = baseline.Runtime.MetadataApiRequestDelayMs,
+				MetadataApiCacheTtlHours = baseline.Runtime.MetadataApiCacheTtlHours,
 				FlaresolverrServerUrl = baseline.Runtime.FlaresolverrServerUrl,
 				FlaresolverrDirectRetryMinutes = baseline.Runtime.FlaresolverrDirectRetryMinutes,
 				PreferredLanguage = baseline.Runtime.PreferredLanguage,

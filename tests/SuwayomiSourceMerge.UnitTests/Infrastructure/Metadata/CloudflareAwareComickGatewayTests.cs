@@ -48,7 +48,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		Assert.Equal(0, flaresolverrClient.CallCount);
 		Assert.Null(stateStore.Read().StickyFlaresolverrUntilUtc);
-		Assert.Equal(0, stateStore.TransformCallCount);
+		Assert.Equal(1, stateStore.TransformCallCount);
 	}
 
 	/// <summary>
@@ -115,7 +115,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		Assert.Equal(0, directClient.ComicCallCount);
 		Assert.Equal(1, flaresolverrClient.CallCount);
 		Assert.Equal(stickyUntilUtc, stateStore.Read().StickyFlaresolverrUntilUtc);
-		Assert.Equal(0, stateStore.TransformCallCount);
+		Assert.Equal(1, stateStore.TransformCallCount);
 	}
 
 	/// <summary>
@@ -154,7 +154,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		MetadataStateSnapshot updatedState = stateStore.Read();
 		Assert.Null(updatedState.StickyFlaresolverrUntilUtc);
 		Assert.Equal(cooldowns["preserved-title"], updatedState.TitleCooldownsUtc["preserved-title"]);
-		Assert.Equal(1, stateStore.TransformCallCount);
+		Assert.Equal(2, stateStore.TransformCallCount);
 	}
 
 	/// <summary>
@@ -420,7 +420,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		Assert.Equal(1, directClient.SearchCallCount);
 		Assert.Equal(1, flaresolverrClient.CallCount);
 		Assert.Equal(interleavedLaterStickyUtc, stateStore.Read().StickyFlaresolverrUntilUtc);
-		Assert.Equal(2, stateStore.TransformCallCount);
+		Assert.Equal(3, stateStore.TransformCallCount);
 	}
 
 	/// <summary>

@@ -18,12 +18,16 @@ public sealed class MetadataOrchestrationOptionsTests
 			TimeSpan.FromHours(24),
 			flaresolverrServerUri,
 			TimeSpan.FromMinutes(60),
-			"en");
+			"en",
+			TimeSpan.FromMilliseconds(1000),
+			TimeSpan.FromHours(24));
 
 		Assert.Equal(TimeSpan.FromHours(24), options.ComickMetadataCooldown);
 		Assert.Equal(flaresolverrServerUri, options.FlaresolverrServerUri);
 		Assert.Equal(TimeSpan.FromMinutes(60), options.FlaresolverrDirectRetryInterval);
 		Assert.Equal("en", options.PreferredLanguage);
+		Assert.Equal(TimeSpan.FromMilliseconds(1000), options.MetadataApiRequestDelay);
+		Assert.Equal(TimeSpan.FromHours(24), options.MetadataApiCacheTtl);
 	}
 
 	/// <summary>
@@ -36,9 +40,12 @@ public sealed class MetadataOrchestrationOptionsTests
 			TimeSpan.FromHours(12),
 			null,
 			TimeSpan.FromMinutes(30),
-			"ja");
+			"ja",
+			TimeSpan.Zero,
+			TimeSpan.FromHours(24));
 
 		Assert.Null(options.FlaresolverrServerUri);
+		Assert.Equal(TimeSpan.Zero, options.MetadataApiRequestDelay);
 	}
 
 	/// <summary>
@@ -47,24 +54,70 @@ public sealed class MetadataOrchestrationOptionsTests
 	[Fact]
 	public void Constructor_Failure_ShouldThrow_WhenArgumentsInvalid()
 	{
-		Assert.Throws<ArgumentOutOfRangeException>(
+		ArgumentOutOfRangeException cooldownException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new MetadataOrchestrationOptions(
 				TimeSpan.Zero,
 				null,
 				TimeSpan.FromMinutes(60),
-				"en"));
-		Assert.Throws<ArgumentOutOfRangeException>(
+				"en",
+				TimeSpan.FromMilliseconds(1000),
+				TimeSpan.FromHours(24)));
+		ArgumentOutOfRangeException directRetryIntervalException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new MetadataOrchestrationOptions(
 				TimeSpan.FromHours(24),
 				null,
 				TimeSpan.Zero,
-				"en"));
-		Assert.ThrowsAny<ArgumentException>(
+				"en",
+				TimeSpan.FromMilliseconds(1000),
+				TimeSpan.FromHours(24)));
+		ArgumentException preferredLanguageException = Assert.ThrowsAny<ArgumentException>(
 			() => new MetadataOrchestrationOptions(
 				TimeSpan.FromHours(24),
 				null,
 				TimeSpan.FromMinutes(60),
-				" "));
+				" ",
+				TimeSpan.FromMilliseconds(1000),
+				TimeSpan.FromHours(24)));
+
+		Assert.Equal("comickMetadataCooldown", cooldownException.ParamName);
+		Assert.Equal("flaresolverrDirectRetryInterval", directRetryIntervalException.ParamName);
+		Assert.Equal("preferredLanguage", preferredLanguageException.ParamName);
+	}
+
+	/// <summary>
+	/// Verifies constructor guards reject invalid metadata API pacing and cache TTL values.
+	/// </summary>
+	[Fact]
+	public void Constructor_Failure_ShouldThrow_WhenMetadataApiTimingValuesInvalid()
+	{
+		ArgumentOutOfRangeException metadataApiRequestDelayException = Assert.Throws<ArgumentOutOfRangeException>(
+			() => new MetadataOrchestrationOptions(
+				TimeSpan.FromHours(24),
+				null,
+				TimeSpan.FromMinutes(60),
+				"en",
+				TimeSpan.FromMilliseconds(-1),
+				TimeSpan.FromHours(24)));
+		ArgumentOutOfRangeException metadataApiCacheTtlZeroException = Assert.Throws<ArgumentOutOfRangeException>(
+			() => new MetadataOrchestrationOptions(
+				TimeSpan.FromHours(24),
+				null,
+				TimeSpan.FromMinutes(60),
+				"en",
+				TimeSpan.FromMilliseconds(1000),
+				TimeSpan.Zero));
+		ArgumentOutOfRangeException metadataApiCacheTtlNegativeException = Assert.Throws<ArgumentOutOfRangeException>(
+			() => new MetadataOrchestrationOptions(
+				TimeSpan.FromHours(24),
+				null,
+				TimeSpan.FromMinutes(60),
+				"en",
+				TimeSpan.FromMilliseconds(1000),
+				TimeSpan.FromHours(-1)));
+
+		Assert.Equal("metadataApiRequestDelay", metadataApiRequestDelayException.ParamName);
+		Assert.Equal("metadataApiCacheTtl", metadataApiCacheTtlZeroException.ParamName);
+		Assert.Equal("metadataApiCacheTtl", metadataApiCacheTtlNegativeException.ParamName);
 	}
 
 	/// <summary>
@@ -78,13 +131,17 @@ public sealed class MetadataOrchestrationOptionsTests
 				TimeSpan.FromHours(24),
 				new Uri("/v1", UriKind.Relative),
 				TimeSpan.FromMinutes(60),
-				"en"));
+				"en",
+				TimeSpan.FromMilliseconds(1000),
+				TimeSpan.FromHours(24)));
 		ArgumentException schemeException = Assert.Throws<ArgumentException>(
 			() => new MetadataOrchestrationOptions(
 				TimeSpan.FromHours(24),
 				new Uri("ftp://flaresolverr.example.local/"),
 				TimeSpan.FromMinutes(60),
-				"en"));
+				"en",
+				TimeSpan.FromMilliseconds(1000),
+				TimeSpan.FromHours(24)));
 
 		Assert.Equal("flaresolverrServerUri", relativeException.ParamName);
 		Assert.Equal("flaresolverrServerUri", schemeException.ParamName);

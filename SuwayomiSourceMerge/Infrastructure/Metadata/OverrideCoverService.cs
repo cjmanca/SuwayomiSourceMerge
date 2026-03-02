@@ -67,10 +67,16 @@ internal sealed partial class OverrideCoverService : IOverrideCoverService, IDis
 	private readonly IOverrideCoverFileOperations _fileOperations;
 
 	/// <summary>
+	/// Throttle applied to live cover downloads.
+	/// </summary>
+	private readonly IMetadataApiRequestThrottle _throttle;
+
+	/// <summary>
 	/// Initializes a new instance of the <see cref="OverrideCoverService"/> class using default runtime dependencies.
 	/// </summary>
-	public OverrideCoverService()
-		: this(httpClient: null, coverBaseUri: null)
+	/// <param name="throttle">Optional throttle applied to live API requests. When null, a no-op throttle is used.</param>
+	public OverrideCoverService(IMetadataApiRequestThrottle? throttle = null)
+		: this(httpClient: null, coverBaseUri: null, fileOperations: null, throttle: throttle)
 	{
 	}
 
@@ -82,8 +88,9 @@ internal sealed partial class OverrideCoverService : IOverrideCoverService, IDis
 	/// When <see langword="null"/>, one internal client is created and disposed by this instance.
 	/// </param>
 	/// <param name="coverBaseUri">Optional cover-base URI used to resolve relative cover keys.</param>
-	internal OverrideCoverService(HttpClient? httpClient, Uri? coverBaseUri)
-		: this(httpClient, coverBaseUri, fileOperations: null)
+	/// <param name="throttle">Optional throttle applied to live API requests. When null, a no-op throttle is used.</param>
+	internal OverrideCoverService(HttpClient? httpClient, Uri? coverBaseUri, IMetadataApiRequestThrottle? throttle = null)
+		: this(httpClient, coverBaseUri, fileOperations: null, throttle: throttle)
 	{
 	}
 
@@ -96,10 +103,12 @@ internal sealed partial class OverrideCoverService : IOverrideCoverService, IDis
 	/// </param>
 	/// <param name="coverBaseUri">Optional cover-base URI used to resolve relative cover keys.</param>
 	/// <param name="fileOperations">Optional file operation dependency used by setup/write paths.</param>
+	/// <param name="throttle">Optional throttle applied to live API requests. When null, a no-op throttle is used.</param>
 	internal OverrideCoverService(
 		HttpClient? httpClient,
 		Uri? coverBaseUri,
-		IOverrideCoverFileOperations? fileOperations)
+		IOverrideCoverFileOperations? fileOperations,
+		IMetadataApiRequestThrottle? throttle = null)
 	{
 		if (httpClient is null)
 		{
@@ -117,6 +126,7 @@ internal sealed partial class OverrideCoverService : IOverrideCoverService, IDis
 
 		_coverBaseUri = NormalizeCoverBaseUri(coverBaseUri ?? new Uri(DefaultComickCoverBaseUri, UriKind.Absolute));
 		_fileOperations = fileOperations ?? new OverrideCoverPhysicalFileOperations();
+		_throttle = throttle ?? new NoOpMetadataApiRequestThrottle();
 	}
 
 	/// <inheritdoc />
@@ -169,9 +179,8 @@ internal sealed partial class OverrideCoverService : IOverrideCoverService, IDis
 				diagnostic: resolveDiagnostic);
 		}
 
-		(bool downloadSuccess, byte[]? payloadBytes, string? downloadDiagnostic) = await DownloadCoverBytesAsync(
-				coverUri,
-				cancellationToken)
+		(bool downloadSuccess, byte[]? payloadBytes, string? downloadDiagnostic) = await _throttle
+			.ExecuteAsync(ct => DownloadCoverBytesAsync(coverUri, ct), cancellationToken)
 			.ConfigureAwait(false);
 		if (!downloadSuccess || payloadBytes is null)
 		{
