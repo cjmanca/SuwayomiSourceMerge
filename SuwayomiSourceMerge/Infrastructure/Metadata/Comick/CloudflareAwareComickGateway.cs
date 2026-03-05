@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text.Json;
 
+using HtmlAgilityPack;
+
 using SuwayomiSourceMerge.Infrastructure.Logging;
 using SuwayomiSourceMerge.Infrastructure.Metadata.Flaresolverr;
 
@@ -46,6 +48,11 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 	/// Logger dependency.
 	/// </summary>
 	private readonly ISsmLogger _logger;
+
+	/// <summary>
+	/// HTML selector used to find candidate preformatted nodes in FlareSolverr upstream payloads.
+	/// </summary>
+	private readonly Func<string, HtmlNodeCollection?> _preNodeSelector;
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="CloudflareAwareComickGateway"/> class.
@@ -94,7 +101,8 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		MetadataOrchestrationOptions options,
 		Func<DateTimeOffset> utcNowProvider,
 		IMetadataApiRequestThrottle throttle,
-		ISsmLogger? logger = null)
+		ISsmLogger? logger = null,
+		Func<string, HtmlNodeCollection?>? preNodeSelector = null)
 	{
 		_directClient = directClient ?? throw new ArgumentNullException(nameof(directClient));
 		_flaresolverrClient = flaresolverrClient;
@@ -103,6 +111,7 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		_utcNowProvider = utcNowProvider ?? throw new ArgumentNullException(nameof(utcNowProvider));
 		_throttle = throttle ?? throw new ArgumentNullException(nameof(throttle));
 		_logger = logger ?? NoOpSsmLogger.Instance;
+		_preNodeSelector = preNodeSelector ?? SelectPreNodesFromHtml;
 	}
 
 	/// <inheritdoc />
@@ -228,7 +237,7 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		FlaresolverrApiResult flaresolverrResult = await _throttle
 			.ExecuteAsync(ct => _flaresolverrClient.PostV1Async(requestPayloadJson, ct), cancellationToken)
 			.ConfigureAwait(false);
-		return MapFlaresolverrResult(flaresolverrResult, payloadParser);
+		return MapFlaresolverrResult(endpointUri, flaresolverrResult, payloadParser);
 	}
 
 	/// <summary>
@@ -238,17 +247,19 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 	/// <param name="flaresolverrResult">FlareSolverr wrapper result.</param>
 	/// <param name="payloadParser">Typed payload parser.</param>
 	/// <returns>Mapped Comick result.</returns>
-	private static ComickDirectApiResult<TPayload> MapFlaresolverrResult<TPayload>(
+	private ComickDirectApiResult<TPayload> MapFlaresolverrResult<TPayload>(
+		Uri endpointUri,
 		FlaresolverrApiResult flaresolverrResult,
 		Func<string, (bool Success, TPayload? Payload, string Diagnostic)> payloadParser)
 	{
+		ArgumentNullException.ThrowIfNull(endpointUri);
 		ArgumentNullException.ThrowIfNull(flaresolverrResult);
 		ArgumentNullException.ThrowIfNull(payloadParser);
 
 		switch (flaresolverrResult.Outcome)
 		{
 			case FlaresolverrApiOutcome.Success:
-				return MapFlaresolverrSuccess(flaresolverrResult, payloadParser);
+				return MapFlaresolverrSuccess(endpointUri, flaresolverrResult, payloadParser);
 			case FlaresolverrApiOutcome.HttpFailure:
 				return new ComickDirectApiResult<TPayload>(
 					ComickDirectApiOutcome.HttpFailure,
@@ -284,10 +295,12 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 	/// <param name="flaresolverrResult">FlareSolverr wrapper result.</param>
 	/// <param name="payloadParser">Typed payload parser.</param>
 	/// <returns>Mapped Comick result.</returns>
-	private static ComickDirectApiResult<TPayload> MapFlaresolverrSuccess<TPayload>(
+	private ComickDirectApiResult<TPayload> MapFlaresolverrSuccess<TPayload>(
+		Uri endpointUri,
 		FlaresolverrApiResult flaresolverrResult,
 		Func<string, (bool Success, TPayload? Payload, string Diagnostic)> payloadParser)
 	{
+		ArgumentNullException.ThrowIfNull(endpointUri);
 		if (flaresolverrResult.UpstreamStatusCode is null)
 		{
 			return new ComickDirectApiResult<TPayload>(
@@ -307,7 +320,6 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 				diagnostic: $"Upstream status code '{flaresolverrResult.UpstreamStatusCode.Value}' is out of HTTP range.");
 		}
 
-		string responseBody = flaresolverrResult.UpstreamResponseBody ?? string.Empty;
 		if (upstreamStatusCode == HttpStatusCode.NotFound)
 		{
 			return new ComickDirectApiResult<TPayload>(
@@ -317,8 +329,9 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 				diagnostic: "Resource not found.");
 		}
 
+		string rawResponseBody = flaresolverrResult.UpstreamResponseBody ?? string.Empty;
 		if (ComickPayloadParser.IsCloudflareCandidateStatus(upstreamStatusCode.Value) &&
-			ComickPayloadParser.IsCloudflareChallenge(responseBody))
+			ComickPayloadParser.IsCloudflareChallenge(rawResponseBody))
 		{
 			return new ComickDirectApiResult<TPayload>(
 				ComickDirectApiOutcome.CloudflareBlocked,
@@ -335,6 +348,20 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 				upstreamStatusCode,
 				diagnostic: $"HTTP failure status code: {(int)upstreamStatusCode.Value}.");
 		}
+
+		ResponseNormalizationResult normalizationResult = NormalizeFlaresolverrUpstreamResponse(
+			flaresolverrResult.UpstreamResponseBody);
+		LogResponseNormalization(endpointUri, flaresolverrResult.UpstreamStatusCode, normalizationResult);
+		if (!normalizationResult.Success || normalizationResult.NormalizedBody is null)
+		{
+			return new ComickDirectApiResult<TPayload>(
+				ComickDirectApiOutcome.MalformedPayload,
+				payload: default,
+				statusCode: upstreamStatusCode,
+				diagnostic: normalizationResult.Diagnostic);
+		}
+
+		string responseBody = normalizationResult.NormalizedBody;
 
 		(bool parseSuccess, TPayload? payload, string diagnostic) = payloadParser(responseBody);
 		return parseSuccess

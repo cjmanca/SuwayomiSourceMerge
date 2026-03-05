@@ -58,6 +58,11 @@ internal sealed partial class CloudflareAwareComickGateway
 	private const string CacheStateStoreFailedEvent = "metadata.comick.cache.state_store_failed";
 
 	/// <summary>
+	/// Event id emitted when FlareSolverr upstream response normalization is evaluated.
+	/// </summary>
+	private const string ResponseNormalizedEvent = "metadata.cloudflare.response.normalized";
+
+	/// <summary>
 	/// Logs sticky-route diagnostics.
 	/// </summary>
 	/// <param name="endpointUri">Endpoint URI.</param>
@@ -118,6 +123,62 @@ internal sealed partial class CloudflareAwareComickGateway
 				("endpoint", endpointUri.AbsoluteUri),
 				("direct_outcome", directOutcome.ToString()),
 				("timestamp_utc", nowUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture))));
+	}
+
+	/// <summary>
+	/// Logs FlareSolverr upstream response-normalization diagnostics.
+	/// </summary>
+	/// <param name="endpointUri">Endpoint URI.</param>
+	/// <param name="upstreamStatusCode">Upstream status code from FlareSolverr wrapper.</param>
+	/// <param name="normalizationResult">Normalization result.</param>
+	private void LogResponseNormalization(
+		Uri endpointUri,
+		int? upstreamStatusCode,
+		ResponseNormalizationResult normalizationResult)
+	{
+		ArgumentNullException.ThrowIfNull(endpointUri);
+		_logger.Debug(
+			ResponseNormalizedEvent,
+			"Normalized FlareSolverr upstream response for Comick parsing.",
+				BuildContext(
+					("endpoint", endpointUri.AbsoluteUri),
+					("upstream_status", upstreamStatusCode?.ToString(CultureInfo.InvariantCulture)),
+					("normalization_mode", NormalizeResponseMode(normalizationResult.Mode)),
+					("html_wrapper_detection", NormalizeHtmlWrapperDetection(normalizationResult.HtmlWrapperDetection)),
+					("is_html_wrapped", normalizationResult.HtmlWrapperDetection == HtmlWrapperDetectionState.Detected ? "true" : "false"),
+					("success", normalizationResult.Success ? "true" : "false"),
+					("diagnostic", normalizationResult.Diagnostic),
+					("response_prefix", normalizationResult.ResponsePrefix)));
+	}
+
+	/// <summary>
+	/// Converts one response-normalization mode into the canonical diagnostics token.
+	/// </summary>
+	/// <param name="mode">Normalization mode.</param>
+	/// <returns>Canonical diagnostics token.</returns>
+	private static string NormalizeResponseMode(ResponseNormalizationMode mode)
+	{
+		return mode switch
+		{
+			ResponseNormalizationMode.RawJson => "raw_json",
+			ResponseNormalizationMode.HtmlPreExtracted => "html_pre_extracted",
+			_ => "failed"
+		};
+	}
+
+	/// <summary>
+	/// Converts one HTML-wrapper detection state into the canonical diagnostics token.
+	/// </summary>
+	/// <param name="state">HTML-wrapper detection state.</param>
+	/// <returns>Canonical diagnostics token.</returns>
+	private static string NormalizeHtmlWrapperDetection(HtmlWrapperDetectionState state)
+	{
+		return state switch
+		{
+			HtmlWrapperDetectionState.Detected => "detected",
+			HtmlWrapperDetectionState.Unknown => "unknown",
+			_ => "not_detected"
+		};
 	}
 
 	/// <summary>

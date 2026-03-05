@@ -351,6 +351,192 @@ public sealed partial class CloudflareAwareComickGatewayTests
 	}
 
 	/// <summary>
+	/// Verifies non-success upstream status mapping remains HttpFailure even when body cannot be normalized.
+	/// </summary>
+	[Fact]
+	public async Task SearchAsync_Failure_ShouldReturnHttpFailure_WhenFlaresolverrUpstreamStatusIs500WithNonJsonBody()
+	{
+		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-02-24T06:02:00+00:00");
+		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchCloudflareBlocked(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.Success,
+				HttpStatusCode.OK,
+				500,
+				"<html><body>server error</body></html>",
+				"Success."));
+		InMemoryMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty);
+		CloudflareAwareComickGateway gateway = CreateGateway(
+			directClient,
+			stateStore,
+			flaresolverrClient,
+			new Uri("http://flaresolverr.local/"),
+			TimeSpan.FromMinutes(60),
+			nowUtc);
+
+		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
+
+		Assert.Equal(ComickDirectApiOutcome.HttpFailure, result.Outcome);
+		Assert.Equal(HttpStatusCode.InternalServerError, result.StatusCode);
+		Assert.Equal("HTTP failure status code: 500.", result.Diagnostic);
+		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(1, flaresolverrClient.CallCount);
+	}
+
+	/// <summary>
+	/// Verifies Cloudflare challenge status/body is classified as CloudflareBlocked before normalization.
+	/// </summary>
+	[Fact]
+	public async Task SearchAsync_Failure_ShouldReturnCloudflareBlocked_WhenFlaresolverrUpstreamStatusIs403WithChallengeBody()
+	{
+		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-02-24T06:03:00+00:00");
+		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchCloudflareBlocked(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.Success,
+				HttpStatusCode.OK,
+				403,
+				"<html><head><title>Just a moment</title></head><body>challenge</body></html>",
+				"Success."));
+		InMemoryMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty);
+		CloudflareAwareComickGateway gateway = CreateGateway(
+			directClient,
+			stateStore,
+			flaresolverrClient,
+			new Uri("http://flaresolverr.local/"),
+			TimeSpan.FromMinutes(60),
+			nowUtc);
+
+		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
+
+		Assert.Equal(ComickDirectApiOutcome.CloudflareBlocked, result.Outcome);
+		Assert.Equal(HttpStatusCode.Forbidden, result.StatusCode);
+		Assert.Equal("Cloudflare challenge detected.", result.Diagnostic);
+		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(1, flaresolverrClient.CallCount);
+	}
+
+	/// <summary>
+	/// Verifies non-challenge 403 responses map to HttpFailure before normalization.
+	/// </summary>
+	[Fact]
+	public async Task SearchAsync_Failure_ShouldReturnHttpFailure_WhenFlaresolverrUpstreamStatusIs403WithoutChallengeMarkers()
+	{
+		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-02-24T06:04:00+00:00");
+		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchCloudflareBlocked(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.Success,
+				HttpStatusCode.OK,
+				403,
+				"<html><body>access denied</body></html>",
+				"Success."));
+		InMemoryMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty);
+		CloudflareAwareComickGateway gateway = CreateGateway(
+			directClient,
+			stateStore,
+			flaresolverrClient,
+			new Uri("http://flaresolverr.local/"),
+			TimeSpan.FromMinutes(60),
+			nowUtc);
+
+		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
+
+		Assert.Equal(ComickDirectApiOutcome.HttpFailure, result.Outcome);
+		Assert.Equal(HttpStatusCode.Forbidden, result.StatusCode);
+		Assert.Equal("HTTP failure status code: 403.", result.Diagnostic);
+		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(1, flaresolverrClient.CallCount);
+	}
+
+	/// <summary>
+	/// Verifies HTML-wrapped search payloads extracted from <c>&lt;pre&gt;</c> succeed through FlareSolverr fallback.
+	/// </summary>
+	[Fact]
+	public async Task SearchAsync_Expected_ShouldSucceed_WhenFlaresolverrUpstreamPayloadIsHtmlWrappedPreJson()
+	{
+		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-02-24T06:05:00+00:00");
+		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchCloudflareBlocked(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.Success,
+				HttpStatusCode.OK,
+				200,
+				"""
+				<html>
+				  <body>
+				    <pre>[{"hid":"hid-1","slug":"slug-1","title":"Title One","statistics":[],"md_titles":[{"title":"Title One"}],"md_covers":[{"b2key":"cover.jpg"}]}]</pre>
+				  </body>
+				</html>
+				""",
+				"Success."));
+		InMemoryMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty);
+		CloudflareAwareComickGateway gateway = CreateGateway(
+			directClient,
+			stateStore,
+			flaresolverrClient,
+			new Uri("http://flaresolverr.local/"),
+			TimeSpan.FromMinutes(60),
+			nowUtc);
+
+		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
+
+		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
+		Assert.NotNull(result.Payload);
+		Assert.Single(result.Payload.Comics);
+		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(1, flaresolverrClient.CallCount);
+	}
+
+	/// <summary>
+	/// Verifies HTML-wrapped comic payloads with uppercase pre tags succeed after extraction and decode.
+	/// </summary>
+	[Fact]
+	public async Task GetComicAsync_Expected_ShouldSucceed_WhenFlaresolverrUpstreamPayloadUsesUppercasePreAndHtmlEntities()
+	{
+		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-02-24T06:07:00+00:00");
+		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchCloudflareBlocked(),
+			_ => CreateDirectComicCloudflareBlocked());
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.Success,
+				HttpStatusCode.OK,
+				200,
+				"""
+				<html><body><PRE class="json">
+				  {&quot;comic&quot;:{&quot;hid&quot;:&quot;comic-hid-1&quot;,&quot;slug&quot;:&quot;comic-slug-1&quot;,&quot;title&quot;:&quot;Comic One&quot;,&quot;links&quot;:{},&quot;statistics&quot;:[],&quot;recommendations&quot;:[],&quot;relate_from&quot;:[],&quot;md_titles&quot;:[{&quot;title&quot;:&quot;Comic One&quot;}],&quot;md_covers&quot;:[{&quot;b2key&quot;:&quot;cover.jpg&quot;}],&quot;md_comic_md_genres&quot;:[]}}
+				</PRE></body></html>
+				""",
+				"Success."));
+		InMemoryMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty);
+		CloudflareAwareComickGateway gateway = CreateGateway(
+			directClient,
+			stateStore,
+			flaresolverrClient,
+			new Uri("http://flaresolverr.local/"),
+			TimeSpan.FromMinutes(60),
+			nowUtc);
+
+		ComickDirectApiResult<ComickComicResponse> result = await gateway.GetComicAsync("slug");
+
+		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
+		Assert.NotNull(result.Payload);
+		Assert.NotNull(result.Payload.Comic);
+		Assert.Equal("comic-slug-1", result.Payload.Comic.Slug);
+		Assert.Equal(1, directClient.ComicCallCount);
+		Assert.Equal(1, flaresolverrClient.CallCount);
+	}
+
+	/// <summary>
 	/// Verifies FlareSolverr fallback payloads with null search entries map to malformed outcomes without throw leakage.
 	/// </summary>
 	[Fact]
@@ -380,6 +566,326 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		Assert.Equal(ComickDirectApiOutcome.MalformedPayload, result.Outcome);
 		Assert.Null(result.Payload);
+		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(1, flaresolverrClient.CallCount);
+	}
+
+	/// <summary>
+	/// Verifies non-JSON HTML payloads without a pre wrapper map to malformed outcomes.
+	/// </summary>
+	[Fact]
+	public async Task SearchAsync_Failure_ShouldReturnMalformedPayload_WhenFlaresolverrHtmlPayloadHasNoPreWrapper()
+	{
+		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-02-24T06:15:00+00:00");
+		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchCloudflareBlocked(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.Success,
+				HttpStatusCode.OK,
+				200,
+				"<html><body>not json</body></html>",
+				"Success."));
+		InMemoryMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty);
+		CloudflareAwareComickGateway gateway = CreateGateway(
+			directClient,
+			stateStore,
+			flaresolverrClient,
+			new Uri("http://flaresolverr.local/"),
+			TimeSpan.FromMinutes(60),
+			nowUtc);
+
+		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
+
+		Assert.Equal(ComickDirectApiOutcome.MalformedPayload, result.Outcome);
+		Assert.Equal(
+			"FlareSolverr upstream response was not JSON and did not contain an HTML <pre> wrapper.",
+			result.Diagnostic);
+		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(1, flaresolverrClient.CallCount);
+	}
+
+	/// <summary>
+	/// Verifies raw JSON payloads prefixed with UTF BOM are normalized before parsing.
+	/// </summary>
+	[Fact]
+	public async Task SearchAsync_Expected_ShouldSucceed_WhenFlaresolverrPayloadIsRawJsonWithBom()
+	{
+		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-02-24T06:18:00+00:00");
+		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchCloudflareBlocked(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.Success,
+				HttpStatusCode.OK,
+				200,
+				"\uFEFF[{\"hid\":\"hid-1\",\"slug\":\"slug-1\",\"title\":\"Title One\",\"statistics\":[],\"md_titles\":[{\"title\":\"Title One\"}],\"md_covers\":[{\"b2key\":\"cover.jpg\"}]}]",
+				"Success."));
+		InMemoryMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty);
+		CloudflareAwareComickGateway gateway = CreateGateway(
+			directClient,
+			stateStore,
+			flaresolverrClient,
+			new Uri("http://flaresolverr.local/"),
+			TimeSpan.FromMinutes(60),
+			nowUtc);
+
+		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
+
+		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
+		Assert.NotNull(result.Payload);
+		Assert.Single(result.Payload.Comics);
+		Assert.Equal(1, flaresolverrClient.CallCount);
+	}
+
+	/// <summary>
+	/// Verifies extraction scans multiple html pre wrappers and uses the first JSON-root-compatible payload.
+	/// </summary>
+	[Fact]
+	public async Task SearchAsync_Expected_ShouldSucceed_WhenFirstFlaresolverrPrePayloadIsNotJsonButLaterPrePayloadIsJson()
+	{
+		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-02-24T06:19:00+00:00");
+		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchCloudflareBlocked(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.Success,
+				HttpStatusCode.OK,
+				200,
+				"""
+				<html><body>
+				<pre>not json</pre>
+				<pre>[{"hid":"hid-1","slug":"slug-1","title":"Title One","statistics":[],"md_titles":[{"title":"Title One"}],"md_covers":[{"b2key":"cover.jpg"}]}]</pre>
+				</body></html>
+				""",
+				"Success."));
+		InMemoryMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty);
+		CloudflareAwareComickGateway gateway = CreateGateway(
+			directClient,
+			stateStore,
+			flaresolverrClient,
+			new Uri("http://flaresolverr.local/"),
+			TimeSpan.FromMinutes(60),
+			nowUtc);
+
+		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
+
+		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
+		Assert.NotNull(result.Payload);
+		Assert.Single(result.Payload.Comics);
+		Assert.Equal(1, flaresolverrClient.CallCount);
+	}
+
+	/// <summary>
+	/// Verifies non-<c>pre</c> tags with a <c>pre</c> prefix do not block extraction of later valid <c>&lt;pre&gt;</c> JSON.
+	/// </summary>
+	[Fact]
+	public async Task SearchAsync_Expected_ShouldSucceed_WhenHtmlContainsPreloadTagBeforeValidPrePayload()
+	{
+		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-02-24T06:19:30+00:00");
+		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchCloudflareBlocked(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.Success,
+				HttpStatusCode.OK,
+				200,
+				"""
+				<html><body>
+				<preload>cache</preload>
+				<pre>[{"hid":"hid-1","slug":"slug-1","title":"Title One","statistics":[],"md_titles":[{"title":"Title One"}],"md_covers":[{"b2key":"cover.jpg"}]}]</pre>
+				</body></html>
+				""",
+				"Success."));
+		InMemoryMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty);
+		CloudflareAwareComickGateway gateway = CreateGateway(
+			directClient,
+			stateStore,
+			flaresolverrClient,
+			new Uri("http://flaresolverr.local/"),
+			TimeSpan.FromMinutes(60),
+			nowUtc);
+
+		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
+
+		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
+		Assert.NotNull(result.Payload);
+		Assert.Single(result.Payload.Comics);
+		Assert.Equal(1, flaresolverrClient.CallCount);
+	}
+
+	/// <summary>
+	/// Verifies html pre wrappers that do not contain JSON map to malformed outcomes.
+	/// </summary>
+	[Fact]
+	public async Task SearchAsync_Failure_ShouldReturnMalformedPayload_WhenFlaresolverrPrePayloadIsNotJson()
+	{
+		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-02-24T06:20:00+00:00");
+		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchCloudflareBlocked(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.Success,
+				HttpStatusCode.OK,
+				200,
+				"<html><body><pre>this is not json</pre></body></html>",
+				"Success."));
+		InMemoryMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty);
+		CloudflareAwareComickGateway gateway = CreateGateway(
+			directClient,
+			stateStore,
+			flaresolverrClient,
+			new Uri("http://flaresolverr.local/"),
+			TimeSpan.FromMinutes(60),
+			nowUtc);
+
+		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
+
+		Assert.Equal(ComickDirectApiOutcome.MalformedPayload, result.Outcome);
+		Assert.Equal(
+			"FlareSolverr HTML-wrapped response contained <pre> blocks but none began with a JSON root token.",
+			result.Diagnostic);
+		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(1, flaresolverrClient.CallCount);
+	}
+
+	/// <summary>
+	/// Verifies malformed html wrappers with missing pre close markers return malformed outcomes without throw leakage.
+	/// </summary>
+	[Fact]
+	public async Task SearchAsync_Failure_ShouldReturnMalformedPayload_WhenFlaresolverrPrePayloadIsMissingClosingTag()
+	{
+		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-02-24T06:22:00+00:00");
+		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchCloudflareBlocked(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.Success,
+				HttpStatusCode.OK,
+				200,
+				"<html><body><pre>[{\"hid\":\"hid-1\"}</body></html>",
+				"Success."));
+		InMemoryMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty);
+		CloudflareAwareComickGateway gateway = CreateGateway(
+			directClient,
+			stateStore,
+			flaresolverrClient,
+			new Uri("http://flaresolverr.local/"),
+			TimeSpan.FromMinutes(60),
+			nowUtc);
+
+		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
+
+		Assert.Equal(ComickDirectApiOutcome.MalformedPayload, result.Outcome);
+		Assert.NotNull(result.Diagnostic);
+		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(1, flaresolverrClient.CallCount);
+	}
+
+	/// <summary>
+	/// Verifies non-fatal parser exceptions are mapped to malformed outcomes.
+	/// </summary>
+	[Fact]
+	public async Task SearchAsync_Failure_ShouldReturnMalformedPayload_WhenPreNodeSelectorThrowsNonFatalException()
+	{
+		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-02-24T06:23:00+00:00");
+		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchCloudflareBlocked(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.Success,
+				HttpStatusCode.OK,
+				200,
+				"<html><body><pre>[{\"hid\":\"hid-1\"}]</pre></body></html>",
+				"Success."));
+		InMemoryMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty);
+		CloudflareAwareComickGateway gateway = CreateGateway(
+			directClient,
+			stateStore,
+			flaresolverrClient,
+			new Uri("http://flaresolverr.local/"),
+			TimeSpan.FromMinutes(60),
+			nowUtc,
+			preNodeSelector: static _ => throw new InvalidOperationException("Parser failure."));
+
+		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
+
+		Assert.Equal(ComickDirectApiOutcome.MalformedPayload, result.Outcome);
+		Assert.Contains("could not be parsed: InvalidOperationException", result.Diagnostic, StringComparison.Ordinal);
+		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(1, flaresolverrClient.CallCount);
+	}
+
+	/// <summary>
+	/// Verifies fatal parser exceptions are rethrown and not normalized into malformed outcomes.
+	/// </summary>
+	[Fact]
+	public async Task SearchAsync_Failure_ShouldRethrow_WhenPreNodeSelectorThrowsFatalException()
+	{
+		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-02-24T06:24:00+00:00");
+		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchCloudflareBlocked(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.Success,
+				HttpStatusCode.OK,
+				200,
+				"<html><body><pre>[{\"hid\":\"hid-1\"}]</pre></body></html>",
+				"Success."));
+		InMemoryMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty);
+		CloudflareAwareComickGateway gateway = CreateGateway(
+			directClient,
+			stateStore,
+			flaresolverrClient,
+			new Uri("http://flaresolverr.local/"),
+			TimeSpan.FromMinutes(60),
+			nowUtc,
+			preNodeSelector: static _ => throw new OutOfMemoryException("Fatal parser failure."));
+
+		await Assert.ThrowsAsync<OutOfMemoryException>(
+			async () => await gateway.SearchAsync("title"));
+		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(1, flaresolverrClient.CallCount);
+	}
+
+	/// <summary>
+	/// Verifies empty FlareSolverr upstream payloads map to malformed outcomes.
+	/// </summary>
+	[Fact]
+	public async Task SearchAsync_Failure_ShouldReturnMalformedPayload_WhenFlaresolverrUpstreamPayloadIsEmpty()
+	{
+		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-02-24T06:25:00+00:00");
+		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchCloudflareBlocked(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.Success,
+				HttpStatusCode.OK,
+				200,
+				"",
+				"Success."));
+		InMemoryMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty);
+		CloudflareAwareComickGateway gateway = CreateGateway(
+			directClient,
+			stateStore,
+			flaresolverrClient,
+			new Uri("http://flaresolverr.local/"),
+			TimeSpan.FromMinutes(60),
+			nowUtc);
+
+		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
+
+		Assert.Equal(ComickDirectApiOutcome.MalformedPayload, result.Outcome);
+		Assert.Equal("FlareSolverr upstream response body was empty.", result.Diagnostic);
 		Assert.Equal(1, directClient.SearchCallCount);
 		Assert.Equal(1, flaresolverrClient.CallCount);
 	}

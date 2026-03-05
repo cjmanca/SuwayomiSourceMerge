@@ -1,6 +1,14 @@
 # TASKS.md
 
 
+- [x] 2026-03-05 - Resolve CloudflareAwareComickGateway response-normalization review follow-ups by confirming partial-class fatal-exception helper coverage, ordering TryExtractJsonPreContent out parameters with diagnostic last for consistency, and documenting response-prefix truncation rationale.
+
+- [x] 2026-03-05 - Refine CloudflareAwareComickGateway FlareSolverr normalization diagnostics with tri-state HTML wrapper detection (`detected`/`not_detected`/`unknown`), retain derived `is_html_wrapped` compatibility logging, and add regression coverage for failed `<pre>` detection and parser-failure unknown state.
+- [x] 2026-03-05 - Align CloudflareAwareComickGateway parser exception handling with fatal-exception policy by restricting FlareSolverr HTML pre-node parse catches to non-fatal exceptions and adding regression coverage for non-fatal malformed mapping plus fatal passthrough rethrow behavior.
+- [x] 2026-03-05 - Eliminate false `<pre` prefix matches in FlareSolverr response normalization by switching `CloudflareAwareComickGateway` HTML extraction to parser-backed `<pre>` node selection (HtmlAgilityPack), and add regression coverage for `<preload>` + valid `<pre>` success and malformed-wrapper no-throw behavior.
+- [x] 2026-03-05 - Harden FlareSolverr upstream response normalization in CloudflareAwareComickGateway by stripping optional UTF BOM prefixes for raw/pre-extracted JSON candidates, scanning multiple `<pre>` blocks for the first JSON-root-compatible payload, and adding regression coverage for BOM success, multi-`<pre>` selection, and missing `</pre>` malformed diagnostics.
+- [x] 2026-03-05 - Restore FlareSolverr wrapper status-precedence in CloudflareAwareComickGateway so 403/503 challenge and non-2xx HttpFailure classification occur before response normalization, and add regression coverage for 500/403 precedence paths.
+- [x] 2026-03-05 - Normalize FlareSolverr HTML-wrapped Comick upstream responses (`<pre>...</pre>`) before Comick payload parsing, add response-normalization diagnostics, and extend metadata gateway regression coverage.
 - [x] 2026-03-05 - Address unresolved PR #45 AI review threads by centralizing metadata endpoint-path normalization helpers, fixing workflow-options test indentation, isolating OverrideCoverService lock-lifecycle tests from parallel execution, clarifying comick_search_max_results task chronology, and posting thread resolutions.
 - [x] 2026-03-04 - Centralize metadata base-URI trailing-slash normalization via a shared helper and adopt it across MetadataOrchestrationOptions, ComickDirectApiClientOptions, FlaresolverrClientOptions, and OverrideCoverService URI resolution.
 - [x] 2026-03-05 - Fix `OverrideCoverService` keyed-lock dispose race by synchronizing per-entry acquire/release/removal with `SyncRoot`/`IsRemoved` state and add repeated contention regression coverage to prevent semaphore disposal while in use.

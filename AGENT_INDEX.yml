@@ -854,6 +854,7 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.Cache.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.Logging.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.ResponseNormalization.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/CloudflareAwareComickGateway.StateStore.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickApiCacheEndpointKind.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickApiCacheEntry.cs
@@ -1041,6 +1042,8 @@ modules:
     do_not_reimplement:
       - Canonical Cloudflare challenge detection for Comick responses; use ComickPayloadParser.
       - Canonical Cloudflare fallback transition logging (`sticky_route`, `activated`, `unavailable`, `sticky_cleared`) with structured context should remain gateway-owned; use CloudflareAwareComickGateway logging helpers.
+      - Canonical Cloudflare FlareSolverr pre-content extraction helper should keep Try-pattern out-parameter ordering (`preContent`, `htmlWrapperDetection`, `diagnostic`) for deterministic call-site readability; use CloudflareAwareComickGateway.TryExtractJsonPreContent.
+      - Canonical Cloudflare FlareSolverr upstream response normalization + diagnostics (`raw_json`, `html_pre_extracted`, `failed`) with tri-state wrapper detection (`html_wrapper_detection`: `detected`/`not_detected`/`unknown`) plus derived compatibility flag (`is_html_wrapped`), including optional UTF BOM stripping, parser-backed `<pre>` node extraction, and non-fatal-only parser exception mapping (fatal passthrough), should remain gateway-owned; use CloudflareAwareComickGateway.NormalizeFlaresolverrUpstreamResponse and CloudflareAwareComickGateway.LogResponseNormalization.
       - Canonical Cloudflare gateway metadata-state operation-kind diagnostics routing must use explicit cache-vs-standard classification (not operation-name prefix inference); use CloudflareAwareComickGateway.TryReadMetadataStateSnapshot and CloudflareAwareComickGateway.TryTransformMetadataStateSnapshot.
       - Canonical Cloudflare gateway metadata-state read/transform handling should be best-effort for non-fatal exceptions (warning telemetry + request-flow continuation) while fatal exceptions are rethrown; use CloudflareAwareComickGateway.TryReadMetadataStateSnapshot and CloudflareAwareComickGateway.TryTransformMetadataStateSnapshot.
       - Canonical Cloudflare-aware direct-first routing with sticky FlareSolverr fallback and timed direct retry probing; use CloudflareAwareComickGateway.
@@ -1069,7 +1072,7 @@ modules:
       - Canonical direct Comick API outcome classification and typed payload parsing; use ComickDirectApiClient.
       - Canonical expired-sticky clear should be guarded inside metadata-state transform and only clear when current persisted sticky is not in the future after non-cloudflare direct outcomes; use CloudflareAwareComickGateway.TryClearExpiredStickyAfterDirectNonCloudflare.
       - Canonical FlareSolverr /v1 wrapper request/response handling and deterministic outcome classification; use FlaresolverrClient.PostV1Async.
-      - Canonical FlareSolverr bridge request payload composition and wrapper-to-Comick outcome mapping; use CloudflareAwareComickGateway.
+      - Canonical FlareSolverr bridge request payload composition and wrapper-to-Comick outcome mapping (status/outcome precedence: 404 -> NotFound, 403/503 challenge -> CloudflareBlocked, remaining non-2xx -> HttpFailure, normalization only for 2xx parse paths); use CloudflareAwareComickGateway.
       - Canonical FlareSolverr wrapper result contract exposing extracted upstream status/body fields; use FlaresolverrApiResult.
       - Canonical JPEG decode-validation catches should preserve deterministic UnsupportedImage outcomes for non-fatal faults while rethrowing fatal CLR exceptions; use OverrideCoverService.TryValidateJpegPayload.
       - Canonical JPEG fast-path must decode-validate JPEG-signature payloads before reporting WrittenDownloadedJpeg; decode failures should map to UnsupportedImage outcomes; use OverrideCoverService.TryValidateJpegPayload and OverrideCoverService.EnsureCoverJpgAsync.
