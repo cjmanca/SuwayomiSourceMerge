@@ -875,6 +875,9 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickSearchComic.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickSearchResponse.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickSharedModels.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickTitleAliasListConverter.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickTolerantJsonConverters.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickTolerantModelConverters.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickApiGateway.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickCandidateMatcher.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/IComickDirectApiClient.cs
@@ -1055,6 +1058,7 @@ modules:
       - Canonical Comick candidate malformed-detail telemetry should emit `metadata.candidate.malformed_payload` at debug level with `slug`, `candidate_index`, and parser `diagnostic` when detail probes return `MalformedPayload`; use ComickCandidateMatcher.LogMalformedCandidatePayload.
       - Canonical Comick candidate-ambiguity warning semantics should detect only explicit top-similarity ranking-hint ties (>0 with epsilon tie comparison) and emit `metadata.candidate.ambiguity` even when a deterministic match is selected; use ComickCandidateMatcher.GetTopSimilarityTieInfo and ComickCandidateMatcher.LogCandidateAmbiguity.
       - Canonical Comick comic-link DTO parsing should treat `comic.links` as dynamic extension-data entries keyed by upstream identifiers so unknown/new link keys and mixed token types are preserved without schema-specific hard-coding; use ComickComicLinks.
+      - Canonical Comick search alias-hint payload normalization for `md_titles` should be tolerant (array/object/string/mixed -> filtered alias list) without escalating to malformed search outcomes; use ComickTitleAliasListConverter.
       - Canonical Comick gateway base-URI normalization (absolute http/https + exactly one trailing slash) should be centralized and reused; use CloudflareAwareComickGateway.NormalizeBaseUri.
       - Canonical cover already-exists result construction should be centralized to preserve consistent CoverJpgPath/ExistingCoverPath semantics; use OverrideCoverService.CreateAlreadyExistsResult.
       - Canonical cover concurrent-gate test handler call counting should be atomic to avoid racy gate signaling under concurrent SendAsync execution; use OverrideCoverServiceTests.ConcurrentGateHttpMessageHandler.SendAsync.
@@ -1094,7 +1098,7 @@ modules:
       - Canonical runtime contract for cover.jpg ensure operations; use IOverrideCoverService.
       - Canonical runtime contract for merge-pass title metadata artifact coordination; use IComickMetadataCoordinator.
       - Canonical shared Comick endpoint request URI composition, including mandatory `tachiyomi=true` and configured search `limit=` for Comick search requests; use ComickEndpointUriBuilder.
-      - Canonical shared Comick payload parsing and required-field validation (including deterministic malformed classification for null search/comic items and null alias/cover list entries, plus tolerant nullable MU category votes) should be centralized; use ComickPayloadParser and ComickSharedModels.
+      - Canonical shared Comick payload parsing and required-field validation should remain centralized, with strictness limited to match-critical title fields (search: `slug`/`title`; comic: comic-node presence plus usable `title`/`md_titles`) and non-critical schema drift handled through tolerant converters/extension data; use ComickPayloadParser, ComickSearchComic, and Comick tolerant converter modules.
       - Canonical sticky FlareSolverr persistence must be monotonic and never reduce an existing later expiry; use CloudflareAwareComickGateway.PersistStickyFlaresolverrUntil.
       - Canonical sticky retry anchor uses post-direct block-detection timestamp (not request-start time) when computing sticky expiry; use CloudflareAwareComickGateway.ExecuteWithRoutingAsync.
       - Canonical sticky-window clock reads should normalize provider timestamps to UTC at use sites for deterministic comparisons; use CloudflareAwareComickGateway.ExecuteWithRoutingAsync.

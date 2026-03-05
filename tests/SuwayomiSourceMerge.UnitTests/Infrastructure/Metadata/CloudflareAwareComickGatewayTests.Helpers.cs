@@ -116,9 +116,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 					Hid = "hid-search",
 					Slug = "slug-search",
 					Title = "Title Search",
-					MdTitles = [new ComickTitleAlias { Title = "Title Search" }],
-					MdCovers = [new ComickCover { B2Key = "cover-search.jpg" }],
-					Statistics = [new ComickStatistic()]
+					MdTitles = [new ComickTitleAlias { Title = "Title Search" }]
 				}
 			]);
 		return new ComickDirectApiResult<ComickSearchResponse>(

@@ -1,5 +1,8 @@
 # TASKS.md
 
+- [x] 2026-03-05 - Harden Comick `/comic/{slug}/` payload tolerance by enforcing match-critical validation only (`comic` node + usable title/alias), adding tolerant DTO converters for non-critical scalar/list/object drift, and expanding malformed-schema regression coverage so non-used field shape drift no longer fails full comic parsing.
+
+- [x] 2026-03-05 - Harden Comick search payload fault tolerance by adding tolerant `md_titles` converter normalization (array/object/string/mixed -> filtered alias list), removing typed `translation_completed` parsing from `ComickSearchComic`, and adding drift-focused payload regression coverage while keeping `slug`/`title` as the only strict search match fields.
 
 - [x] 2026-03-05 - Replace hard-coded `ComickComicLinks` DTO fields with dynamic extension-data link entry parsing so unknown/new Comick link keys and value token shapes are preserved without malformed-payload failures.
 
