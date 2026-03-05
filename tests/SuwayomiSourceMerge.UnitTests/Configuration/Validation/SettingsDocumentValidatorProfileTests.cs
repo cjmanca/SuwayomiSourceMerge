@@ -97,6 +97,10 @@ public sealed class SettingsDocumentValidatorProfileTests
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 ComickMetadataCooldownHours = null,
+                ComickApiBaseUrl = null,
+                ComickSearchEndpointPath = null,
+                ComickComicEndpointPath = null,
+                ComickImageBaseUrl = null,
                 MetadataApiRequestDelayMs = null,
                 MetadataApiCacheTtlHours = null,
                 FlaresolverrServerUrl = null,
@@ -110,6 +114,10 @@ public sealed class SettingsDocumentValidatorProfileTests
         ValidationResult result = validator.Validate(document, "settings.yml");
 
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_metadata_cooldown_hours" && error.Code == "CFG-SET-002");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_api_base_url" && error.Code == "CFG-SET-002");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_search_endpoint_path" && error.Code == "CFG-SET-002");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_comic_endpoint_path" && error.Code == "CFG-SET-002");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_image_base_url" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.metadata_api_request_delay_ms" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.metadata_api_cache_ttl_hours" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.flaresolverr_server_url" && error.Code == "CFG-SET-002");
@@ -132,6 +140,10 @@ public sealed class SettingsDocumentValidatorProfileTests
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 ComickMetadataCooldownHours = 24,
+                ComickApiBaseUrl = baseline.Runtime!.ComickApiBaseUrl,
+                ComickSearchEndpointPath = baseline.Runtime.ComickSearchEndpointPath,
+                ComickComicEndpointPath = baseline.Runtime.ComickComicEndpointPath,
+                ComickImageBaseUrl = baseline.Runtime.ComickImageBaseUrl,
                 MetadataApiRequestDelayMs = 0,
                 MetadataApiCacheTtlHours = 24,
                 FlaresolverrServerUrl = "https://flaresolverr.example.local/",
@@ -162,6 +174,10 @@ public sealed class SettingsDocumentValidatorProfileTests
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 ComickMetadataCooldownHours = null,
+                ComickApiBaseUrl = null,
+                ComickSearchEndpointPath = null,
+                ComickComicEndpointPath = null,
+                ComickImageBaseUrl = null,
                 MetadataApiRequestDelayMs = null,
                 MetadataApiCacheTtlHours = null,
                 FlaresolverrServerUrl = null,
@@ -192,6 +208,10 @@ public sealed class SettingsDocumentValidatorProfileTests
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 ComickMetadataCooldownHours = 0,
+                ComickApiBaseUrl = "ftp://api.comick.dev/",
+                ComickSearchEndpointPath = " ",
+                ComickComicEndpointPath = " ",
+                ComickImageBaseUrl = "ftp://meo.comick.pictures/",
                 MetadataApiRequestDelayMs = -1,
                 MetadataApiCacheTtlHours = 0,
                 FlaresolverrServerUrl = "ftp://flaresolverr.example.local",
@@ -205,11 +225,85 @@ public sealed class SettingsDocumentValidatorProfileTests
         ValidationResult result = validator.Validate(document, "settings.yml");
 
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_metadata_cooldown_hours" && error.Code == "CFG-SET-004");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_api_base_url" && error.Code == "CFG-SET-005");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_search_endpoint_path" && error.Code == "CFG-SET-002");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_comic_endpoint_path" && error.Code == "CFG-SET-002");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_image_base_url" && error.Code == "CFG-SET-005");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.metadata_api_request_delay_ms" && error.Code == "CFG-SET-004");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.metadata_api_cache_ttl_hours" && error.Code == "CFG-SET-004");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.flaresolverr_server_url" && error.Code == "CFG-SET-005");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.flaresolverr_direct_retry_minutes" && error.Code == "CFG-SET-004");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.preferred_language" && error.Code == "CFG-SET-002");
+    }
+
+    [Fact]
+    public void Validate_Failure_ShouldRejectInvalidComickEndpointPaths_WhenProfileIsStrictRuntime()
+    {
+        SettingsDocumentValidator validator = new(SettingsValidationProfile.StrictRuntime);
+        SettingsDocument baseline = ConfigurationTestData.CreateValidSettingsDocument();
+        SettingsDocument document = CreateDocumentWithRuntime(
+            baseline,
+            new SettingsRuntimeSection
+            {
+                LowPriority = baseline.Runtime!.LowPriority,
+                StartupCleanup = baseline.Runtime.StartupCleanup,
+                RescanNow = baseline.Runtime.RescanNow,
+                EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
+                MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
+                ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                ComickApiBaseUrl = baseline.Runtime.ComickApiBaseUrl,
+                ComickSearchEndpointPath = "https://override.example/search/",
+                ComickComicEndpointPath = "/",
+                ComickImageBaseUrl = baseline.Runtime.ComickImageBaseUrl,
+                MetadataApiRequestDelayMs = baseline.Runtime.MetadataApiRequestDelayMs,
+                MetadataApiCacheTtlHours = baseline.Runtime.MetadataApiCacheTtlHours,
+                FlaresolverrServerUrl = baseline.Runtime.FlaresolverrServerUrl,
+                FlaresolverrDirectRetryMinutes = baseline.Runtime.FlaresolverrDirectRetryMinutes,
+                PreferredLanguage = baseline.Runtime.PreferredLanguage,
+                DetailsDescriptionMode = baseline.Runtime.DetailsDescriptionMode,
+                MergerfsOptionsBase = baseline.Runtime.MergerfsOptionsBase,
+                ExcludedSources = baseline.Runtime.ExcludedSources
+            });
+
+        ValidationResult result = validator.Validate(document, "settings.yml");
+
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_search_endpoint_path" && error.Code == "CFG-SET-005");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_comic_endpoint_path" && error.Code == "CFG-SET-005");
+    }
+
+    [Fact]
+    public void Validate_Failure_ShouldRejectInvalidComickEndpointPaths_WhenProfileIsRelaxedTooling()
+    {
+        SettingsDocumentValidator validator = new(SettingsValidationProfile.RelaxedTooling);
+        SettingsDocument baseline = ConfigurationTestData.CreateValidSettingsDocument();
+        SettingsDocument document = CreateDocumentWithRuntime(
+            baseline,
+            new SettingsRuntimeSection
+            {
+                LowPriority = baseline.Runtime!.LowPriority,
+                StartupCleanup = baseline.Runtime.StartupCleanup,
+                RescanNow = baseline.Runtime.RescanNow,
+                EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
+                MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
+                ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                ComickApiBaseUrl = baseline.Runtime.ComickApiBaseUrl,
+                ComickSearchEndpointPath = "v1.0/search/?q=already",
+                ComickComicEndpointPath = "comic/#slug",
+                ComickImageBaseUrl = baseline.Runtime.ComickImageBaseUrl,
+                MetadataApiRequestDelayMs = baseline.Runtime.MetadataApiRequestDelayMs,
+                MetadataApiCacheTtlHours = baseline.Runtime.MetadataApiCacheTtlHours,
+                FlaresolverrServerUrl = baseline.Runtime.FlaresolverrServerUrl,
+                FlaresolverrDirectRetryMinutes = baseline.Runtime.FlaresolverrDirectRetryMinutes,
+                PreferredLanguage = baseline.Runtime.PreferredLanguage,
+                DetailsDescriptionMode = baseline.Runtime.DetailsDescriptionMode,
+                MergerfsOptionsBase = baseline.Runtime.MergerfsOptionsBase,
+                ExcludedSources = baseline.Runtime.ExcludedSources
+            });
+
+        ValidationResult result = validator.Validate(document, "settings.yml");
+
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_search_endpoint_path" && error.Code == "CFG-SET-005");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_comic_endpoint_path" && error.Code == "CFG-SET-005");
     }
 
     private static SettingsDocument CreateDocumentWithShutdown(SettingsShutdownSection shutdown)

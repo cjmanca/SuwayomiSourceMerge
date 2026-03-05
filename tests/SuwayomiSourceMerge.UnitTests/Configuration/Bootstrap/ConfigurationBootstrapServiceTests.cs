@@ -162,6 +162,10 @@ public sealed class ConfigurationBootstrapServiceTests
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
               comick_metadata_cooldown_hours: 24
+              comick_api_base_url: https://api.comick.dev/
+              comick_search_endpoint_path: v1.0/search/
+              comick_comic_endpoint_path: comic/
+              comick_image_base_url: https://meo.comick.pictures/
               metadata_api_request_delay_ms: 1000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
@@ -467,6 +471,10 @@ public sealed class ConfigurationBootstrapServiceTests
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
               comick_metadata_cooldown_hours: 24
+              comick_api_base_url: https://api.comick.dev/
+              comick_search_endpoint_path: v1.0/search/
+              comick_comic_endpoint_path: comic/
+              comick_image_base_url: https://meo.comick.pictures/
               metadata_api_request_delay_ms: 1000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
@@ -557,6 +565,10 @@ public sealed class ConfigurationBootstrapServiceTests
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
               comick_metadata_cooldown_hours: 24
+              comick_api_base_url: https://api.comick.dev/
+              comick_search_endpoint_path: v1.0/search/
+              comick_comic_endpoint_path: comic/
+              comick_image_base_url: https://meo.comick.pictures/
               metadata_api_request_delay_ms: 1000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: "  https://flaresolverr.example.local/  "
@@ -675,6 +687,10 @@ public sealed class ConfigurationBootstrapServiceTests
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
               comick_metadata_cooldown_hours: 24
+              comick_api_base_url: https://api.comick.dev/
+              comick_search_endpoint_path: v1.0/search/
+              comick_comic_endpoint_path: comic/
+              comick_image_base_url: https://meo.comick.pictures/
               metadata_api_request_delay_ms: 1000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''

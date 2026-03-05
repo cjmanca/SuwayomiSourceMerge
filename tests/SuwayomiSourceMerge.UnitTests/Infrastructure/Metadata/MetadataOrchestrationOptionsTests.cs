@@ -16,6 +16,10 @@ public sealed class MetadataOrchestrationOptionsTests
 		Uri flaresolverrServerUri = new("https://flaresolverr.example.local/");
 		MetadataOrchestrationOptions options = new(
 			TimeSpan.FromHours(24),
+			new Uri("https://api.comick.dev/"),
+			"v1.0/search/",
+			"comic/",
+			new Uri("https://meo.comick.pictures/"),
 			flaresolverrServerUri,
 			TimeSpan.FromMinutes(60),
 			"en",
@@ -23,6 +27,10 @@ public sealed class MetadataOrchestrationOptionsTests
 			TimeSpan.FromHours(24));
 
 		Assert.Equal(TimeSpan.FromHours(24), options.ComickMetadataCooldown);
+		Assert.Equal(new Uri("https://api.comick.dev/"), options.ComickApiBaseUri);
+		Assert.Equal("v1.0/search/", options.ComickSearchEndpointPath);
+		Assert.Equal("comic/", options.ComickComicEndpointPath);
+		Assert.Equal(new Uri("https://meo.comick.pictures/"), options.ComickImageBaseUri);
 		Assert.Equal(flaresolverrServerUri, options.FlaresolverrServerUri);
 		Assert.Equal(TimeSpan.FromMinutes(60), options.FlaresolverrDirectRetryInterval);
 		Assert.Equal("en", options.PreferredLanguage);
@@ -38,6 +46,10 @@ public sealed class MetadataOrchestrationOptionsTests
 	{
 		MetadataOrchestrationOptions options = new(
 			TimeSpan.FromHours(12),
+			new Uri("https://api.comick.dev/"),
+			"search/",
+			"v1.0/comic/",
+			new Uri("https://images.example.local"),
 			null,
 			TimeSpan.FromMinutes(30),
 			"ja",
@@ -46,6 +58,9 @@ public sealed class MetadataOrchestrationOptionsTests
 
 		Assert.Null(options.FlaresolverrServerUri);
 		Assert.Equal(TimeSpan.Zero, options.MetadataApiRequestDelay);
+		Assert.Equal(new Uri("https://images.example.local/"), options.ComickImageBaseUri);
+		Assert.Equal("search/", options.ComickSearchEndpointPath);
+		Assert.Equal("v1.0/comic/", options.ComickComicEndpointPath);
 	}
 
 	/// <summary>
@@ -57,6 +72,10 @@ public sealed class MetadataOrchestrationOptionsTests
 		ArgumentOutOfRangeException cooldownException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new MetadataOrchestrationOptions(
 				TimeSpan.Zero,
+				new Uri("https://api.comick.dev/"),
+				"v1.0/search/",
+				"comic/",
+				new Uri("https://meo.comick.pictures/"),
 				null,
 				TimeSpan.FromMinutes(60),
 				"en",
@@ -65,6 +84,10 @@ public sealed class MetadataOrchestrationOptionsTests
 		ArgumentOutOfRangeException directRetryIntervalException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new MetadataOrchestrationOptions(
 				TimeSpan.FromHours(24),
+				new Uri("https://api.comick.dev/"),
+				"v1.0/search/",
+				"comic/",
+				new Uri("https://meo.comick.pictures/"),
 				null,
 				TimeSpan.Zero,
 				"en",
@@ -73,6 +96,10 @@ public sealed class MetadataOrchestrationOptionsTests
 		ArgumentException preferredLanguageException = Assert.ThrowsAny<ArgumentException>(
 			() => new MetadataOrchestrationOptions(
 				TimeSpan.FromHours(24),
+				new Uri("https://api.comick.dev/"),
+				"v1.0/search/",
+				"comic/",
+				new Uri("https://meo.comick.pictures/"),
 				null,
 				TimeSpan.FromMinutes(60),
 				" ",
@@ -93,6 +120,10 @@ public sealed class MetadataOrchestrationOptionsTests
 		ArgumentOutOfRangeException metadataApiRequestDelayException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new MetadataOrchestrationOptions(
 				TimeSpan.FromHours(24),
+				new Uri("https://api.comick.dev/"),
+				"v1.0/search/",
+				"comic/",
+				new Uri("https://meo.comick.pictures/"),
 				null,
 				TimeSpan.FromMinutes(60),
 				"en",
@@ -101,6 +132,10 @@ public sealed class MetadataOrchestrationOptionsTests
 		ArgumentOutOfRangeException metadataApiCacheTtlZeroException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new MetadataOrchestrationOptions(
 				TimeSpan.FromHours(24),
+				new Uri("https://api.comick.dev/"),
+				"v1.0/search/",
+				"comic/",
+				new Uri("https://meo.comick.pictures/"),
 				null,
 				TimeSpan.FromMinutes(60),
 				"en",
@@ -109,6 +144,10 @@ public sealed class MetadataOrchestrationOptionsTests
 		ArgumentOutOfRangeException metadataApiCacheTtlNegativeException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new MetadataOrchestrationOptions(
 				TimeSpan.FromHours(24),
+				new Uri("https://api.comick.dev/"),
+				"v1.0/search/",
+				"comic/",
+				new Uri("https://meo.comick.pictures/"),
 				null,
 				TimeSpan.FromMinutes(60),
 				"en",
@@ -129,6 +168,10 @@ public sealed class MetadataOrchestrationOptionsTests
 		ArgumentException relativeException = Assert.Throws<ArgumentException>(
 			() => new MetadataOrchestrationOptions(
 				TimeSpan.FromHours(24),
+				new Uri("https://api.comick.dev/"),
+				"v1.0/search/",
+				"comic/",
+				new Uri("https://meo.comick.pictures/"),
 				new Uri("/v1", UriKind.Relative),
 				TimeSpan.FromMinutes(60),
 				"en",
@@ -137,6 +180,10 @@ public sealed class MetadataOrchestrationOptionsTests
 		ArgumentException schemeException = Assert.Throws<ArgumentException>(
 			() => new MetadataOrchestrationOptions(
 				TimeSpan.FromHours(24),
+				new Uri("https://api.comick.dev/"),
+				"v1.0/search/",
+				"comic/",
+				new Uri("https://meo.comick.pictures/"),
 				new Uri("ftp://flaresolverr.example.local/"),
 				TimeSpan.FromMinutes(60),
 				"en",
@@ -145,5 +192,92 @@ public sealed class MetadataOrchestrationOptionsTests
 
 		Assert.Equal("flaresolverrServerUri", relativeException.ParamName);
 		Assert.Equal("flaresolverrServerUri", schemeException.ParamName);
+	}
+
+	/// <summary>
+	/// Verifies constructor guards reject invalid Comick base/image URIs and endpoint paths.
+	/// </summary>
+	[Fact]
+	public void Constructor_Failure_ShouldThrow_WhenComickEndpointArgumentsInvalid()
+	{
+		ArgumentException invalidComickBaseUriException = Assert.Throws<ArgumentException>(
+			() => new MetadataOrchestrationOptions(
+				TimeSpan.FromHours(24),
+				new Uri("ftp://api.comick.dev/"),
+				"v1.0/search/",
+				"comic/",
+				new Uri("https://meo.comick.pictures/"),
+				null,
+				TimeSpan.FromMinutes(60),
+				"en",
+				TimeSpan.FromMilliseconds(1000),
+				TimeSpan.FromHours(24)));
+		ArgumentException invalidSearchPathException = Assert.Throws<ArgumentException>(
+			() => new MetadataOrchestrationOptions(
+				TimeSpan.FromHours(24),
+				new Uri("https://api.comick.dev/"),
+				" / ",
+				"comic/",
+				new Uri("https://meo.comick.pictures/"),
+				null,
+				TimeSpan.FromMinutes(60),
+				"en",
+				TimeSpan.FromMilliseconds(1000),
+				TimeSpan.FromHours(24)));
+		ArgumentException invalidComicPathException = Assert.Throws<ArgumentException>(
+			() => new MetadataOrchestrationOptions(
+				TimeSpan.FromHours(24),
+				new Uri("https://api.comick.dev/"),
+				"v1.0/search/",
+				" / ",
+				new Uri("https://meo.comick.pictures/"),
+				null,
+				TimeSpan.FromMinutes(60),
+				"en",
+				TimeSpan.FromMilliseconds(1000),
+				TimeSpan.FromHours(24)));
+		ArgumentException invalidComickImageUriException = Assert.Throws<ArgumentException>(
+			() => new MetadataOrchestrationOptions(
+				TimeSpan.FromHours(24),
+				new Uri("https://api.comick.dev/"),
+				"v1.0/search/",
+				"comic/",
+				new Uri("ftp://meo.comick.pictures/"),
+				null,
+				TimeSpan.FromMinutes(60),
+				"en",
+				TimeSpan.FromMilliseconds(1000),
+				TimeSpan.FromHours(24)));
+		ArgumentException absoluteSearchPathException = Assert.Throws<ArgumentException>(
+			() => new MetadataOrchestrationOptions(
+				TimeSpan.FromHours(24),
+				new Uri("https://api.comick.dev/"),
+				"https://override.example/search/",
+				"comic/",
+				new Uri("https://meo.comick.pictures/"),
+				null,
+				TimeSpan.FromMinutes(60),
+				"en",
+				TimeSpan.FromMilliseconds(1000),
+				TimeSpan.FromHours(24)));
+		ArgumentException queryComicPathException = Assert.Throws<ArgumentException>(
+			() => new MetadataOrchestrationOptions(
+				TimeSpan.FromHours(24),
+				new Uri("https://api.comick.dev/"),
+				"v1.0/search/",
+				"comic/?v=1",
+				new Uri("https://meo.comick.pictures/"),
+				null,
+				TimeSpan.FromMinutes(60),
+				"en",
+				TimeSpan.FromMilliseconds(1000),
+				TimeSpan.FromHours(24)));
+
+		Assert.Equal("comickApiBaseUri", invalidComickBaseUriException.ParamName);
+		Assert.Equal("comickSearchEndpointPath", invalidSearchPathException.ParamName);
+		Assert.Equal("comickComicEndpointPath", invalidComicPathException.ParamName);
+		Assert.Equal("comickImageBaseUri", invalidComickImageUriException.ParamName);
+		Assert.Equal("comickSearchEndpointPath", absoluteSearchPathException.ParamName);
+		Assert.Equal("comickComicEndpointPath", queryComicPathException.ParamName);
 	}
 }

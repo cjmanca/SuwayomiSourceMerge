@@ -156,6 +156,10 @@ internal sealed class SettingsSelfHealingService
 				EnableMountHealthcheck = existingRuntime?.EnableMountHealthcheck ?? UseDefault(defaultRuntime.EnableMountHealthcheck, ref wasHealed),
 				MaxConsecutiveMountFailures = existingRuntime?.MaxConsecutiveMountFailures ?? UseDefault(defaultRuntime.MaxConsecutiveMountFailures, ref wasHealed),
 				ComickMetadataCooldownHours = existingRuntime?.ComickMetadataCooldownHours ?? UseDefault(defaultRuntime.ComickMetadataCooldownHours, ref wasHealed),
+				ComickApiBaseUrl = CanonicalizeComickAbsoluteUrl(existingRuntime?.ComickApiBaseUrl, defaultRuntime.ComickApiBaseUrl, ref wasHealed),
+				ComickSearchEndpointPath = CanonicalizeComickEndpointPath(existingRuntime?.ComickSearchEndpointPath, defaultRuntime.ComickSearchEndpointPath, ref wasHealed),
+				ComickComicEndpointPath = CanonicalizeComickEndpointPath(existingRuntime?.ComickComicEndpointPath, defaultRuntime.ComickComicEndpointPath, ref wasHealed),
+				ComickImageBaseUrl = CanonicalizeComickAbsoluteUrl(existingRuntime?.ComickImageBaseUrl, defaultRuntime.ComickImageBaseUrl, ref wasHealed),
 				MetadataApiRequestDelayMs = existingRuntime?.MetadataApiRequestDelayMs ?? UseDefault(defaultRuntime.MetadataApiRequestDelayMs, ref wasHealed),
 				MetadataApiCacheTtlHours = existingRuntime?.MetadataApiCacheTtlHours ?? UseDefault(defaultRuntime.MetadataApiCacheTtlHours, ref wasHealed),
 				FlaresolverrServerUrl = CanonicalizeFlaresolverrServerUrl(existingRuntime?.FlaresolverrServerUrl, defaultRuntime.FlaresolverrServerUrl, ref wasHealed),
@@ -222,6 +226,62 @@ internal sealed class SettingsSelfHealingService
 		if (!string.Equals(trimmed, value, StringComparison.Ordinal))
 		{
 			wasHealed = true;
+		}
+
+		return trimmed;
+	}
+
+	/// <summary>
+	/// Applies defaulting and trim canonicalization for required Comick absolute URL fields.
+	/// </summary>
+	/// <param name="value">Configured Comick absolute URL value.</param>
+	/// <param name="defaultValue">Default Comick absolute URL value.</param>
+	/// <param name="wasHealed">Healing flag set when defaulting/canonicalization occurs.</param>
+	/// <returns>Canonicalized Comick absolute URL value.</returns>
+	private static string? CanonicalizeComickAbsoluteUrl(string? value, string? defaultValue, ref bool wasHealed)
+	{
+		if (value is null)
+		{
+			return UseDefault(defaultValue, ref wasHealed);
+		}
+
+		string trimmed = value.Trim();
+		if (!string.Equals(trimmed, value, StringComparison.Ordinal))
+		{
+			wasHealed = true;
+		}
+
+		if (trimmed.Length == 0)
+		{
+			return UseDefault(defaultValue, ref wasHealed);
+		}
+
+		return trimmed;
+	}
+
+	/// <summary>
+	/// Applies defaulting and trim canonicalization for required Comick endpoint path fields.
+	/// </summary>
+	/// <param name="value">Configured endpoint path value.</param>
+	/// <param name="defaultValue">Default endpoint path value.</param>
+	/// <param name="wasHealed">Healing flag set when defaulting/canonicalization occurs.</param>
+	/// <returns>Canonicalized endpoint path value.</returns>
+	private static string? CanonicalizeComickEndpointPath(string? value, string? defaultValue, ref bool wasHealed)
+	{
+		if (value is null)
+		{
+			return UseDefault(defaultValue, ref wasHealed);
+		}
+
+		string trimmed = value.Trim();
+		if (!string.Equals(trimmed, value, StringComparison.Ordinal))
+		{
+			wasHealed = true;
+		}
+
+		if (trimmed.Length == 0)
+		{
+			return UseDefault(defaultValue, ref wasHealed);
 		}
 
 		return trimmed;

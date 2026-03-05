@@ -20,7 +20,9 @@ public sealed partial class ComickDirectApiClientTests
 		return new ComickDirectApiClient(
 			new ComickDirectApiClientOptions(
 				new Uri("https://api.comick.dev/"),
-				TimeSpan.FromSeconds(10)),
+				TimeSpan.FromSeconds(10),
+				ComickDirectApiClientOptions.DefaultSearchEndpointPath,
+				ComickDirectApiClientOptions.DefaultComicEndpointPath),
 			httpClient);
 	}
 

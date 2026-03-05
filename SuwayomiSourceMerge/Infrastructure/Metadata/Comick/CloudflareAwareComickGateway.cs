@@ -12,12 +12,6 @@ namespace SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 {
 	/// <summary>
-	/// Canonical default Comick API base URI.
-	/// </summary>
-	private static readonly Uri _defaultComickBaseUri = NormalizeBaseUri(
-		new Uri(ComickDirectApiClientOptions.DefaultBaseUri, UriKind.Absolute));
-
-	/// <summary>
 	/// Direct Comick API client dependency.
 	/// </summary>
 	private readonly IComickDirectApiClient _directClient;
@@ -36,11 +30,6 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 	/// Metadata orchestration settings.
 	/// </summary>
 	private readonly MetadataOrchestrationOptions _options;
-
-	/// <summary>
-	/// Base URI used for Comick endpoint request composition.
-	/// </summary>
-	private readonly Uri _comickBaseUri;
 
 	/// <summary>
 	/// Throttle applied to live Comick API and FlareSolverr requests.
@@ -79,7 +68,6 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 			flaresolverrClient,
 			metadataStateStore,
 			options,
-			_defaultComickBaseUri,
 			static () => DateTimeOffset.UtcNow,
 			throttle,
 			logger)
@@ -93,7 +81,6 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 	/// <param name="flaresolverrClient">Optional FlareSolverr client dependency.</param>
 	/// <param name="metadataStateStore">Persisted metadata state store.</param>
 	/// <param name="options">Metadata orchestration settings.</param>
-	/// <param name="comickBaseUri">Comick API base URI used for gateway-routed FlareSolverr requests.</param>
 	/// <param name="utcNowProvider">
 	/// Clock provider used for sticky-window decisions.
 	/// Returned values are normalized to UTC by the gateway before use.
@@ -105,7 +92,6 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		IFlaresolverrClient? flaresolverrClient,
 		IMetadataStateStore metadataStateStore,
 		MetadataOrchestrationOptions options,
-		Uri comickBaseUri,
 		Func<DateTimeOffset> utcNowProvider,
 		IMetadataApiRequestThrottle throttle,
 		ISsmLogger? logger = null)
@@ -115,7 +101,6 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		_metadataStateStore = metadataStateStore ?? throw new ArgumentNullException(nameof(metadataStateStore));
 		_options = options ?? throw new ArgumentNullException(nameof(options));
 		_utcNowProvider = utcNowProvider ?? throw new ArgumentNullException(nameof(utcNowProvider));
-		_comickBaseUri = NormalizeBaseUri(comickBaseUri);
 		_throttle = throttle ?? throw new ArgumentNullException(nameof(throttle));
 		_logger = logger ?? NoOpSsmLogger.Instance;
 	}
@@ -128,7 +113,10 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		ArgumentException.ThrowIfNullOrWhiteSpace(query);
 		string requestKey = query.Trim();
 
-		Uri endpointUri = ComickEndpointUriBuilder.BuildSearchUri(_comickBaseUri, requestKey);
+		Uri endpointUri = ComickEndpointUriBuilder.BuildSearchUri(
+			_options.ComickApiBaseUri,
+			_options.ComickSearchEndpointPath,
+			requestKey);
 		return ExecuteWithCacheAsync(
 			ComickApiCacheEndpointKind.Search,
 			requestKey,
@@ -146,7 +134,10 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		ArgumentException.ThrowIfNullOrWhiteSpace(slug);
 		string requestKey = slug.Trim();
 
-		Uri endpointUri = ComickEndpointUriBuilder.BuildComicUri(_comickBaseUri, requestKey);
+		Uri endpointUri = ComickEndpointUriBuilder.BuildComicUri(
+			_options.ComickApiBaseUri,
+			_options.ComickComicEndpointPath,
+			requestKey);
 		return ExecuteWithCacheAsync(
 			ComickApiCacheEndpointKind.Comic,
 			requestKey,
@@ -482,7 +473,7 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 	{
 		DateTimeOffset normalizedStickyUntilUtc = stickyUntilUtc.ToUniversalTime();
 		_ = TryTransformMetadataStateSnapshot(
-			_comickBaseUri,
+			_options.ComickApiBaseUri,
 			operation: "sticky_persist_transform",
 			operationKind: MetadataStateStoreOperationKind.Standard,
 			current =>

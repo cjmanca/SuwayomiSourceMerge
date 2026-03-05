@@ -69,7 +69,10 @@ internal sealed class ComickDirectApiClient : IComickDirectApiClient, IDisposabl
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(query);
 
-		Uri requestUri = ComickEndpointUriBuilder.BuildSearchUri(_options.BaseUri, query);
+		Uri requestUri = ComickEndpointUriBuilder.BuildSearchUri(
+			_options.BaseUri,
+			_options.SearchEndpointPath,
+			query);
 		return ExecuteGetAsync(
 			requestUri,
 			ComickPayloadParser.TryParseSearchPayload,
@@ -83,7 +86,10 @@ internal sealed class ComickDirectApiClient : IComickDirectApiClient, IDisposabl
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(slug);
 
-		Uri requestUri = ComickEndpointUriBuilder.BuildComicUri(_options.BaseUri, slug);
+		Uri requestUri = ComickEndpointUriBuilder.BuildComicUri(
+			_options.BaseUri,
+			_options.ComicEndpointPath,
+			slug);
 		return ExecuteGetAsync(
 			requestUri,
 			ComickPayloadParser.TryParseComicPayload,

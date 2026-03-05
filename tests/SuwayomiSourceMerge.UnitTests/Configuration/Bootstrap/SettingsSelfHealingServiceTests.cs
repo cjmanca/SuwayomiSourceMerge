@@ -42,6 +42,10 @@ public sealed class SettingsSelfHealingServiceTests
         Assert.Equal("progressive", result.Document.Scan.WatchStartupMode);
         Assert.NotNull(result.Document.Runtime);
         Assert.Equal(24, result.Document.Runtime!.ComickMetadataCooldownHours);
+        Assert.Equal("https://api.comick.dev/", result.Document.Runtime.ComickApiBaseUrl);
+        Assert.Equal("v1.0/search/", result.Document.Runtime.ComickSearchEndpointPath);
+        Assert.Equal("comic/", result.Document.Runtime.ComickComicEndpointPath);
+        Assert.Equal("https://meo.comick.pictures/", result.Document.Runtime.ComickImageBaseUrl);
         Assert.Equal(1000, result.Document.Runtime.MetadataApiRequestDelayMs);
         Assert.Equal(24, result.Document.Runtime.MetadataApiCacheTtlHours);
         Assert.Equal(string.Empty, result.Document.Runtime.FlaresolverrServerUrl);
@@ -69,6 +73,10 @@ public sealed class SettingsSelfHealingServiceTests
         Assert.False(result.WasHealed);
         Assert.Equal("text", result.Document.Runtime!.DetailsDescriptionMode);
         Assert.Equal(48, result.Document.Runtime.ComickMetadataCooldownHours);
+        Assert.Equal("https://api.comick.dev/", result.Document.Runtime.ComickApiBaseUrl);
+        Assert.Equal("v1.0/search/", result.Document.Runtime.ComickSearchEndpointPath);
+        Assert.Equal("comic/", result.Document.Runtime.ComickComicEndpointPath);
+        Assert.Equal("https://meo.comick.pictures/", result.Document.Runtime.ComickImageBaseUrl);
         Assert.Equal(750, result.Document.Runtime.MetadataApiRequestDelayMs);
         Assert.Equal(36, result.Document.Runtime.MetadataApiCacheTtlHours);
         Assert.Equal("https://flaresolverr.example.local/", result.Document.Runtime.FlaresolverrServerUrl);
@@ -287,6 +295,10 @@ public sealed class SettingsSelfHealingServiceTests
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
               comick_metadata_cooldown_hours: 48
+              comick_api_base_url: https://api.comick.dev/
+              comick_search_endpoint_path: v1.0/search/
+              comick_comic_endpoint_path: comic/
+              comick_image_base_url: https://meo.comick.pictures/
               metadata_api_request_delay_ms: 750
               metadata_api_cache_ttl_hours: 36
               flaresolverr_server_url: https://flaresolverr.example.local/

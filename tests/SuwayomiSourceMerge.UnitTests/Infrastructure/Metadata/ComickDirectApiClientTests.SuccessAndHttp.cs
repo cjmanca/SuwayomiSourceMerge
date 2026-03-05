@@ -69,6 +69,41 @@ public sealed partial class ComickDirectApiClientTests
 	}
 
 	/// <summary>
+	/// Verifies configured endpoint path overrides are used for search and comic requests.
+	/// </summary>
+	[Fact]
+	public async Task SearchAndComicAsync_Edge_ShouldUseConfiguredEndpointPathsAsync()
+	{
+		RecordingHttpMessageHandler handler = new(
+			static request =>
+			{
+				string requestUri = request.RequestUri!.AbsoluteUri;
+				if (requestUri.Contains("search/", StringComparison.Ordinal))
+				{
+					return CreateResponse(HttpStatusCode.OK, CreateSearchJson());
+				}
+
+				return CreateResponse(HttpStatusCode.OK, CreateComicJson());
+			});
+		using HttpClient httpClient = new(handler);
+		ComickDirectApiClient client = new(
+			new ComickDirectApiClientOptions(
+				new Uri("https://api.example.local/"),
+				TimeSpan.FromSeconds(10),
+				searchEndpointPath: "search/",
+				comicEndpointPath: "v1.0/comic/"),
+			httpClient);
+
+		ComickDirectApiResult<ComickSearchResponse> searchResult = await client.SearchAsync("one piece");
+		Assert.Equal(ComickDirectApiOutcome.Success, searchResult.Outcome);
+		Assert.Equal("https://api.example.local/search/?q=one%20piece", handler.LastRequest!.RequestUri!.AbsoluteUri);
+
+		ComickDirectApiResult<ComickComicResponse> comicResult = await client.GetComicAsync("slug-1");
+		Assert.Equal(ComickDirectApiOutcome.Success, comicResult.Outcome);
+		Assert.Equal("https://api.example.local/v1.0/comic/slug-1/", handler.LastRequest!.RequestUri!.AbsoluteUri);
+	}
+
+	/// <summary>
 	/// Verifies null MU vote fields are tolerated and parsed without failing the full comic payload.
 	/// </summary>
 	[Fact]

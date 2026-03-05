@@ -308,6 +308,10 @@ public sealed class OverrideDetailsServiceApiFirstHardeningTests
 			detailsDescriptionMode: "text",
 			metadataOrchestration: new MetadataOrchestrationOptions(
 				TimeSpan.FromHours(24),
+				new Uri("https://api.comick.dev/"),
+				"v1.0/search/",
+				"comic/",
+				new Uri("https://meo.comick.pictures/"),
 				null,
 				TimeSpan.FromMinutes(60),
 				"en",

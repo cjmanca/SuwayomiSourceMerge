@@ -79,6 +79,10 @@ public sealed partial class CloudflareAwareComickGatewayTests
 	{
 		MetadataOrchestrationOptions options = new(
 			TimeSpan.FromHours(24),
+			new Uri("https://api.comick.dev/"),
+			"v1.0/search/",
+			"comic/",
+			new Uri("https://meo.comick.pictures/"),
 			flaresolverrServerUri,
 			directRetryInterval,
 			"en",
@@ -89,7 +93,6 @@ public sealed partial class CloudflareAwareComickGatewayTests
 			flaresolverrClient,
 			stateStore,
 			options,
-			new Uri("https://api.comick.dev/"),
 			utcNowProvider,
 			throttle ?? new NoOpMetadataApiRequestThrottle(),
 			logger);

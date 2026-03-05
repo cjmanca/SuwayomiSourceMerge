@@ -58,6 +58,10 @@ public sealed class SettingsSchemaToolingProfileTests
             CreateSettingsYamlWithoutComickRuntimeFields());
 
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_metadata_cooldown_hours" && error.Code == "CFG-SET-002");
+        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_api_base_url" && error.Code == "CFG-SET-002");
+        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_search_endpoint_path" && error.Code == "CFG-SET-002");
+        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_comic_endpoint_path" && error.Code == "CFG-SET-002");
+        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_image_base_url" && error.Code == "CFG-SET-002");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.metadata_api_request_delay_ms" && error.Code == "CFG-SET-002");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.metadata_api_cache_ttl_hours" && error.Code == "CFG-SET-002");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.flaresolverr_server_url" && error.Code == "CFG-SET-002");
@@ -88,11 +92,28 @@ public sealed class SettingsSchemaToolingProfileTests
             CreateSettingsYamlWithInvalidOptionalComickRuntimeFields());
 
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_metadata_cooldown_hours" && error.Code == "CFG-SET-004");
+        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_api_base_url" && error.Code == "CFG-SET-005");
+        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_search_endpoint_path" && error.Code == "CFG-SET-002");
+        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_comic_endpoint_path" && error.Code == "CFG-SET-002");
+        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_image_base_url" && error.Code == "CFG-SET-005");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.metadata_api_request_delay_ms" && error.Code == "CFG-SET-004");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.metadata_api_cache_ttl_hours" && error.Code == "CFG-SET-004");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.flaresolverr_server_url" && error.Code == "CFG-SET-005");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.flaresolverr_direct_retry_minutes" && error.Code == "CFG-SET-004");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.preferred_language" && error.Code == "CFG-SET-002");
+    }
+
+    [Fact]
+    public void ParseSettingsForRuntime_Failure_ShouldRejectInvalidComickEndpointPaths()
+    {
+        ConfigurationSchemaService service = ConfigurationSchemaServiceFactory.Create();
+
+        ParsedDocument<SuwayomiSourceMerge.Configuration.Documents.SettingsDocument> parsed = service.ParseSettingsForRuntime(
+            "settings.yml",
+            CreateSettingsYamlWithInvalidComickEndpointPaths());
+
+        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_search_endpoint_path" && error.Code == "CFG-SET-005");
+        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_comic_endpoint_path" && error.Code == "CFG-SET-005");
     }
 
     private static string CreateSettingsYamlWithoutProfileFields()
@@ -147,6 +168,10 @@ public sealed class SettingsSchemaToolingProfileTests
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
               comick_metadata_cooldown_hours: 24
+              comick_api_base_url: https://api.comick.dev/
+              comick_search_endpoint_path: v1.0/search/
+              comick_comic_endpoint_path: comic/
+              comick_image_base_url: https://meo.comick.pictures/
               metadata_api_request_delay_ms: 1000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
@@ -218,6 +243,10 @@ public sealed class SettingsSchemaToolingProfileTests
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
               comick_metadata_cooldown_hours: 24
+              comick_api_base_url: https://api.comick.dev/
+              comick_search_endpoint_path: v1.0/search/
+              comick_comic_endpoint_path: comic/
+              comick_image_base_url: https://meo.comick.pictures/
               metadata_api_request_delay_ms: 1000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
@@ -350,11 +379,91 @@ public sealed class SettingsSchemaToolingProfileTests
               enable_mount_healthcheck: false
               max_consecutive_mount_failures: 5
               comick_metadata_cooldown_hours: 0
+              comick_api_base_url: ftp://api.comick.dev/
+              comick_search_endpoint_path: " "
+              comick_comic_endpoint_path: " "
+              comick_image_base_url: ftp://meo.comick.pictures/
               metadata_api_request_delay_ms: -1
               metadata_api_cache_ttl_hours: 0
               flaresolverr_server_url: ftp://flaresolverr.example.local
               flaresolverr_direct_retry_minutes: 0
               preferred_language: " "
+              details_description_mode: text
+              mergerfs_options_base: allow_other
+              excluded_sources:
+                - Local source
+            logging:
+              file_name: daemon.log
+              max_file_size_mb: 10
+              retained_file_count: 10
+              level: warning
+            """;
+    }
+
+    private static string CreateSettingsYamlWithInvalidComickEndpointPaths()
+    {
+        return """
+            paths:
+              config_root_path: /ssm/config
+              sources_root_path: /ssm/sources
+              override_root_path: /ssm/override
+              merged_root_path: /ssm/merged
+              state_root_path: /ssm/state
+              log_root_path: /ssm/config
+              branch_links_root_path: /ssm/state/.mergerfs-branches
+              unraid_cache_pool_name: ""
+            scan:
+              merge_interval_seconds: 3600
+              merge_trigger_poll_seconds: 5
+              merge_min_seconds_between_scans: 15
+              merge_lock_retry_seconds: 30
+              merge_trigger_request_timeout_buffer_seconds: 300
+            rename:
+              rename_delay_seconds: 300
+              rename_quiet_seconds: 120
+              rename_poll_seconds: 20
+              rename_rescan_seconds: 172800
+            diagnostics:
+              debug_timing: true
+              debug_timing_top_n: 15
+              debug_timing_min_item_ms: 250
+              debug_timing_slow_ms: 5000
+              debug_timing_live: true
+              debug_scan_progress_every: 250
+              debug_scan_progress_seconds: 60
+              debug_comic_info: false
+              timeout_poll_ms: 100
+              timeout_poll_ms_fast: 10
+            shutdown:
+              unmount_on_exit: true
+              stop_timeout_seconds: 120
+              child_exit_grace_seconds: 5
+              unmount_command_timeout_seconds: 8
+              unmount_detach_wait_seconds: 5
+              cleanup_high_priority: true
+              cleanup_apply_high_priority: false
+              cleanup_priority_ionice_class: 1
+              cleanup_priority_nice_value: -20
+            permissions:
+              inherit_from_parent: true
+              enforce_existing: false
+              reference_path: /ssm/sources
+            runtime:
+              low_priority: true
+              startup_cleanup: true
+              rescan_now: true
+              enable_mount_healthcheck: false
+              max_consecutive_mount_failures: 5
+              comick_metadata_cooldown_hours: 24
+              comick_api_base_url: https://api.comick.dev/
+              comick_search_endpoint_path: https://override.example/search/
+              comick_comic_endpoint_path: /
+              comick_image_base_url: https://meo.comick.pictures/
+              metadata_api_request_delay_ms: 1000
+              metadata_api_cache_ttl_hours: 24
+              flaresolverr_server_url: ''
+              flaresolverr_direct_retry_minutes: 60
+              preferred_language: en
               details_description_mode: text
               mergerfs_options_base: allow_other
               excluded_sources:
