@@ -2,6 +2,7 @@ namespace SuwayomiSourceMerge.UnitTests.Infrastructure.Mounts;
 
 using SuwayomiSourceMerge.Infrastructure.Mounts;
 using SuwayomiSourceMerge.Infrastructure.Processes;
+using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 
 /// <summary>
 /// Verifies expected, edge, and failure behavior for <see cref="MergerfsMountCommandService"/>.
@@ -14,6 +15,8 @@ public sealed partial class MergerfsMountCommandServiceTests
 	[Fact]
 	public void ApplyAction_Expected_ShouldIncludeFsnameInMergerfsOptions_WhenMounting()
 	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string mountPoint = Path.Combine(temporaryDirectory.Path, "merged", "Title");
 		RecordingCommandExecutor executor = new(
 			new ExternalCommandResult(
 				ExternalCommandOutcome.Success,
@@ -27,7 +30,7 @@ public sealed partial class MergerfsMountCommandServiceTests
 		MergerfsMountCommandService service = new(executor);
 		MountReconciliationAction action = new(
 			MountReconciliationActionKind.Mount,
-			"/ssm/merged/Title",
+			mountPoint,
 			"suwayomi_hash",
 			"/state/linkA=RW:/state/linkB=RO",
 			MountReconciliationReason.MissingMount);

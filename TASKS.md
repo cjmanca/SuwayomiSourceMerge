@@ -1,6 +1,7 @@
 # TASKS.md
 
 
+- [x] 2026-03-04 - Fix unit-test determinism by using temp mount paths for fsname assertion coverage and enforce per-destination serialized `cover.jpg` writes in `OverrideCoverService` with concurrent-race regression updates.
 - [x] 2026-03-04 - Harden Comick endpoint path handling by enforcing relative non-root paths without query/fragment components across options + settings validation, and add regression tests for absolute/query/fragment/root path rejection.
 - [x] 2026-03-04 - Add runtime-configurable Comick API and image hosts plus configurable search/comic endpoint paths, and wire those settings through defaults/self-heal/validation/options/runtime composition with metadata test updates.
 - [x] 2026-03-01 - Address unresolved PR #44 AI review threads by updating metadata pacing/cache docs to implemented status, replacing state-store cache-prefix inference with explicit operation classification, splitting malformed-cache tests for intent clarity, and applying related style/comment cleanups with full-suite validation.
