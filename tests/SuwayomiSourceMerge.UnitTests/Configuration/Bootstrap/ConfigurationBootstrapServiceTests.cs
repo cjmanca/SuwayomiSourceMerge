@@ -164,7 +164,7 @@ public sealed class ConfigurationBootstrapServiceTests
               comick_metadata_cooldown_hours: 24
               comick_api_base_url: https://api.comick.dev/
               comick_search_endpoint_path: v1.0/search/
-              comick_search_max_results: 100
+              comick_search_max_results: 4
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
               metadata_api_request_delay_ms: 1000
@@ -474,7 +474,7 @@ public sealed class ConfigurationBootstrapServiceTests
               comick_metadata_cooldown_hours: 24
               comick_api_base_url: https://api.comick.dev/
               comick_search_endpoint_path: v1.0/search/
-              comick_search_max_results: 100
+              comick_search_max_results: 4
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
               metadata_api_request_delay_ms: 1000
@@ -569,7 +569,7 @@ public sealed class ConfigurationBootstrapServiceTests
               comick_metadata_cooldown_hours: 24
               comick_api_base_url: https://api.comick.dev/
               comick_search_endpoint_path: v1.0/search/
-              comick_search_max_results: 100
+              comick_search_max_results: 4
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
               metadata_api_request_delay_ms: 1000
@@ -692,7 +692,7 @@ public sealed class ConfigurationBootstrapServiceTests
               comick_metadata_cooldown_hours: 24
               comick_api_base_url: https://api.comick.dev/
               comick_search_endpoint_path: v1.0/search/
-              comick_search_max_results: 100
+              comick_search_max_results: 4
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
               metadata_api_request_delay_ms: 1000

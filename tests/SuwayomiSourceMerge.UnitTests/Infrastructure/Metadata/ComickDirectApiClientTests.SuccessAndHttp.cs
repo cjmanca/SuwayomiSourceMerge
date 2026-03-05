@@ -30,7 +30,7 @@ public sealed partial class ComickDirectApiClientTests
 		Assert.Equal("hid-1", result.Payload.Comics[0].Hid);
 		Assert.NotNull(handler.LastRequest);
 		Assert.Equal(
-			"https://api.comick.dev/v1.0/search/?q=one%20piece%2Fa%2Bb%3F&limit=100&tachiyomi=true",
+			"https://api.comick.dev/v1.0/search/?q=one%20piece%2Fa%2Bb%3F&limit=4&tachiyomi=true",
 			handler.LastRequest!.RequestUri!.AbsoluteUri);
 		Assert.Contains(
 			handler.LastRequest.Headers.Accept,

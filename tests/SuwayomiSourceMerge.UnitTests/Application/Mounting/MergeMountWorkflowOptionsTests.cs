@@ -21,7 +21,7 @@ public sealed class MergeMountWorkflowOptionsTests
 		Assert.Equal(TimeSpan.FromHours(24), options.MetadataOrchestration.ComickMetadataCooldown);
 		Assert.Equal(new Uri("https://api.comick.dev/"), options.MetadataOrchestration.ComickApiBaseUri);
 		Assert.Equal("v1.0/search/", options.MetadataOrchestration.ComickSearchEndpointPath);
-		Assert.Equal(100, options.MetadataOrchestration.ComickSearchMaxResults);
+		Assert.Equal(4, options.MetadataOrchestration.ComickSearchMaxResults);
 		Assert.Equal("comic/", options.MetadataOrchestration.ComickComicEndpointPath);
 		Assert.Equal(new Uri("https://meo.comick.pictures/"), options.MetadataOrchestration.ComickImageBaseUri);
 		Assert.Null(options.MetadataOrchestration.FlaresolverrServerUri);

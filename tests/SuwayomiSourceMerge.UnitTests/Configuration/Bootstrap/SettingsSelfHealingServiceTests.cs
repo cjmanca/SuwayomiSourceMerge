@@ -44,7 +44,7 @@ public sealed class SettingsSelfHealingServiceTests
         Assert.Equal(24, result.Document.Runtime!.ComickMetadataCooldownHours);
         Assert.Equal("https://api.comick.dev/", result.Document.Runtime.ComickApiBaseUrl);
         Assert.Equal("v1.0/search/", result.Document.Runtime.ComickSearchEndpointPath);
-        Assert.Equal(100, result.Document.Runtime.ComickSearchMaxResults);
+        Assert.Equal(4, result.Document.Runtime.ComickSearchMaxResults);
         Assert.Equal("comic/", result.Document.Runtime.ComickComicEndpointPath);
         Assert.Equal("https://meo.comick.pictures/", result.Document.Runtime.ComickImageBaseUrl);
         Assert.Equal(1000, result.Document.Runtime.MetadataApiRequestDelayMs);

@@ -81,7 +81,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		Assert.Equal(nowUtc + directRetryInterval, stateStore.Read().StickyFlaresolverrUntilUtc);
 		Assert.Contains("request.get", flaresolverrClient.LastPayload, StringComparison.Ordinal);
 		Assert.Contains("api.comick.dev", flaresolverrClient.LastPayload, StringComparison.Ordinal);
-		Assert.Contains("limit=100", flaresolverrClient.LastPayload, StringComparison.Ordinal);
+		Assert.Contains("limit=4", flaresolverrClient.LastPayload, StringComparison.Ordinal);
 		Assert.Contains("tachiyomi=true", flaresolverrClient.LastPayload, StringComparison.Ordinal);
 	}
 
@@ -472,7 +472,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		Assert.StartsWith("https://api.comick.dev/", url, StringComparison.Ordinal);
 		if (endpoint == "search")
 		{
-			Assert.Contains("limit=100", url, StringComparison.Ordinal);
+			Assert.Contains("limit=4", url, StringComparison.Ordinal);
 		}
 		Assert.Contains("tachiyomi=true", url, StringComparison.Ordinal);
 	}

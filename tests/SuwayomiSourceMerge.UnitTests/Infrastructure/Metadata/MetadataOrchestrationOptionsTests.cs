@@ -1,6 +1,7 @@
 namespace SuwayomiSourceMerge.UnitTests.Infrastructure.Metadata;
 
 using SuwayomiSourceMerge.Infrastructure.Metadata;
+using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 
 /// <summary>
 /// Verifies expected, edge, and failure behavior for <see cref="MetadataOrchestrationOptions"/>.
@@ -18,7 +19,7 @@ public sealed class MetadataOrchestrationOptionsTests
 			TimeSpan.FromHours(24),
 			new Uri("https://api.comick.dev/"),
 			"v1.0/search/",
-				100,
+				ComickDirectApiClientOptions.DefaultSearchMaxResults,
 			"comic/",
 			new Uri("https://meo.comick.pictures/"),
 			flaresolverrServerUri,
@@ -30,7 +31,7 @@ public sealed class MetadataOrchestrationOptionsTests
 		Assert.Equal(TimeSpan.FromHours(24), options.ComickMetadataCooldown);
 		Assert.Equal(new Uri("https://api.comick.dev/"), options.ComickApiBaseUri);
 		Assert.Equal("v1.0/search/", options.ComickSearchEndpointPath);
-		Assert.Equal(100, options.ComickSearchMaxResults);
+		Assert.Equal(4, options.ComickSearchMaxResults);
 		Assert.Equal("comic/", options.ComickComicEndpointPath);
 		Assert.Equal(new Uri("https://meo.comick.pictures/"), options.ComickImageBaseUri);
 		Assert.Equal(flaresolverrServerUri, options.FlaresolverrServerUri);
@@ -50,7 +51,7 @@ public sealed class MetadataOrchestrationOptionsTests
 			TimeSpan.FromHours(12),
 			new Uri("https://api.comick.dev/"),
 			"search/",
-				100,
+				ComickDirectApiClientOptions.DefaultSearchMaxResults,
 			"v1.0/comic/",
 			new Uri("https://images.example.local"),
 			null,
@@ -63,7 +64,7 @@ public sealed class MetadataOrchestrationOptionsTests
 		Assert.Equal(TimeSpan.Zero, options.MetadataApiRequestDelay);
 		Assert.Equal(new Uri("https://images.example.local/"), options.ComickImageBaseUri);
 		Assert.Equal("search/", options.ComickSearchEndpointPath);
-		Assert.Equal(100, options.ComickSearchMaxResults);
+		Assert.Equal(4, options.ComickSearchMaxResults);
 		Assert.Equal("v1.0/comic/", options.ComickComicEndpointPath);
 	}
 
@@ -78,7 +79,7 @@ public sealed class MetadataOrchestrationOptionsTests
 				TimeSpan.Zero,
 				new Uri("https://api.comick.dev/"),
 				"v1.0/search/",
-				100,
+				ComickDirectApiClientOptions.DefaultSearchMaxResults,
 				"comic/",
 				new Uri("https://meo.comick.pictures/"),
 				null,
@@ -91,7 +92,7 @@ public sealed class MetadataOrchestrationOptionsTests
 				TimeSpan.FromHours(24),
 				new Uri("https://api.comick.dev/"),
 				"v1.0/search/",
-				100,
+				ComickDirectApiClientOptions.DefaultSearchMaxResults,
 				"comic/",
 				new Uri("https://meo.comick.pictures/"),
 				null,
@@ -104,7 +105,7 @@ public sealed class MetadataOrchestrationOptionsTests
 				TimeSpan.FromHours(24),
 				new Uri("https://api.comick.dev/"),
 				"v1.0/search/",
-				100,
+				ComickDirectApiClientOptions.DefaultSearchMaxResults,
 				"comic/",
 				new Uri("https://meo.comick.pictures/"),
 				null,
@@ -143,7 +144,7 @@ public sealed class MetadataOrchestrationOptionsTests
 				TimeSpan.FromHours(24),
 				new Uri("https://api.comick.dev/"),
 				"v1.0/search/",
-				100,
+				ComickDirectApiClientOptions.DefaultSearchMaxResults,
 				"comic/",
 				new Uri("https://meo.comick.pictures/"),
 				null,
@@ -156,7 +157,7 @@ public sealed class MetadataOrchestrationOptionsTests
 				TimeSpan.FromHours(24),
 				new Uri("https://api.comick.dev/"),
 				"v1.0/search/",
-				100,
+				ComickDirectApiClientOptions.DefaultSearchMaxResults,
 				"comic/",
 				new Uri("https://meo.comick.pictures/"),
 				null,
@@ -169,7 +170,7 @@ public sealed class MetadataOrchestrationOptionsTests
 				TimeSpan.FromHours(24),
 				new Uri("https://api.comick.dev/"),
 				"v1.0/search/",
-				100,
+				ComickDirectApiClientOptions.DefaultSearchMaxResults,
 				"comic/",
 				new Uri("https://meo.comick.pictures/"),
 				null,
@@ -194,7 +195,7 @@ public sealed class MetadataOrchestrationOptionsTests
 				TimeSpan.FromHours(24),
 				new Uri("https://api.comick.dev/"),
 				"v1.0/search/",
-				100,
+				ComickDirectApiClientOptions.DefaultSearchMaxResults,
 				"comic/",
 				new Uri("https://meo.comick.pictures/"),
 				new Uri("/v1", UriKind.Relative),
@@ -207,7 +208,7 @@ public sealed class MetadataOrchestrationOptionsTests
 				TimeSpan.FromHours(24),
 				new Uri("https://api.comick.dev/"),
 				"v1.0/search/",
-				100,
+				ComickDirectApiClientOptions.DefaultSearchMaxResults,
 				"comic/",
 				new Uri("https://meo.comick.pictures/"),
 				new Uri("ftp://flaresolverr.example.local/"),
@@ -231,7 +232,7 @@ public sealed class MetadataOrchestrationOptionsTests
 				TimeSpan.FromHours(24),
 				new Uri("ftp://api.comick.dev/"),
 				"v1.0/search/",
-				100,
+				ComickDirectApiClientOptions.DefaultSearchMaxResults,
 				"comic/",
 				new Uri("https://meo.comick.pictures/"),
 				null,
@@ -268,7 +269,7 @@ public sealed class MetadataOrchestrationOptionsTests
 				TimeSpan.FromHours(24),
 				new Uri("https://api.comick.dev/"),
 				"v1.0/search/",
-				100,
+				ComickDirectApiClientOptions.DefaultSearchMaxResults,
 				"comic/",
 				new Uri("ftp://meo.comick.pictures/"),
 				null,
@@ -281,7 +282,7 @@ public sealed class MetadataOrchestrationOptionsTests
 				TimeSpan.FromHours(24),
 				new Uri("https://api.comick.dev/"),
 				"https://override.example/search/",
-				100,
+				ComickDirectApiClientOptions.DefaultSearchMaxResults,
 				"comic/",
 				new Uri("https://meo.comick.pictures/"),
 				null,
@@ -294,7 +295,7 @@ public sealed class MetadataOrchestrationOptionsTests
 				TimeSpan.FromHours(24),
 				new Uri("https://api.comick.dev/"),
 				"v1.0/search/",
-				100,
+				ComickDirectApiClientOptions.DefaultSearchMaxResults,
 				"comic/?v=1",
 				new Uri("https://meo.comick.pictures/"),
 				null,

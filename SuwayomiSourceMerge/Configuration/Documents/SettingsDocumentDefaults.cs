@@ -88,7 +88,7 @@ public static class SettingsDocumentDefaults
 				ComickMetadataCooldownHours = 24,
 				ComickApiBaseUrl = "https://api.comick.dev/",
 				ComickSearchEndpointPath = "v1.0/search/",
-				ComickSearchMaxResults = 100,
+				ComickSearchMaxResults = 4,
 				ComickComicEndpointPath = "comic/",
 				ComickImageBaseUrl = "https://meo.comick.pictures/",
 				MetadataApiRequestDelayMs = 1000,

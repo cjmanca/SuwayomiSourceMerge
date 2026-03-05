@@ -28,7 +28,7 @@ internal sealed class ComickDirectApiClientOptions
 	/// <summary>
 	/// Default maximum number of Comick search results requested per query.
 	/// </summary>
-	public const int DefaultSearchMaxResults = 100;
+	public const int DefaultSearchMaxResults = 4;
 
 	/// <summary>
 	/// Initializes a new instance of the <see cref="ComickDirectApiClientOptions"/> class with default settings.
