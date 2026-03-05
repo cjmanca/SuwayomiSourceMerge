@@ -1,6 +1,7 @@
 # TASKS.md
 
 
+- [x] 2026-03-05 - Add runtime setting `runtime.comick_search_max_results` (default `100`, `> 0`) and thread it through settings/defaults/self-heal/validation/runtime mapping into Comick search request URI `limit=` query composition with updated tests/docs.
 - [x] 2026-03-05 - Stabilize integration test determinism by fixing entrypoint symlink-ownership fixtures to use container-visible symlink targets and widening transient polling-recovery timeout in Docker assertions behavior coverage.
 - [x] 2026-03-04 - Add mandatory `tachiyomi=true` query parameter to all Comick API search/comic request URIs (direct + FlareSolverr-routed) and update metadata URL assertion coverage.
 - [x] 2026-03-04 - Fix unit-test determinism by using temp mount paths for fsname assertion coverage and enforce per-destination serialized `cover.jpg` writes in `OverrideCoverService` with concurrent-race regression updates.

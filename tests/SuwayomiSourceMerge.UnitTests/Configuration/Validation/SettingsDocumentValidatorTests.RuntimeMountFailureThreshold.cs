@@ -76,6 +76,7 @@ public sealed partial class SettingsDocumentValidatorTests
 				ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
 				ComickApiBaseUrl = baseline.Runtime!.ComickApiBaseUrl,
 				ComickSearchEndpointPath = baseline.Runtime.ComickSearchEndpointPath,
+                ComickSearchMaxResults = baseline.Runtime.ComickSearchMaxResults,
 				ComickComicEndpointPath = baseline.Runtime.ComickComicEndpointPath,
 				ComickImageBaseUrl = baseline.Runtime.ComickImageBaseUrl,
 				MetadataApiRequestDelayMs = baseline.Runtime.MetadataApiRequestDelayMs,

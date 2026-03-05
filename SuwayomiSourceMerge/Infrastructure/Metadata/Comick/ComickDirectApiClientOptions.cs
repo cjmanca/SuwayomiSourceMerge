@@ -26,6 +26,11 @@ internal sealed class ComickDirectApiClientOptions
 	public const string DefaultComicEndpointPath = "comic/";
 
 	/// <summary>
+	/// Default maximum number of Comick search results requested per query.
+	/// </summary>
+	public const int DefaultSearchMaxResults = 100;
+
+	/// <summary>
 	/// Initializes a new instance of the <see cref="ComickDirectApiClientOptions"/> class with default settings.
 	/// </summary>
 	public ComickDirectApiClientOptions()
@@ -33,6 +38,7 @@ internal sealed class ComickDirectApiClientOptions
 			new Uri(DefaultBaseUri, UriKind.Absolute),
 			TimeSpan.FromSeconds(DefaultTimeoutSeconds),
 			DefaultSearchEndpointPath,
+			DefaultSearchMaxResults,
 			DefaultComicEndpointPath)
 	{
 	}
@@ -48,6 +54,29 @@ internal sealed class ComickDirectApiClientOptions
 		Uri baseUri,
 		TimeSpan requestTimeout,
 		string searchEndpointPath,
+		string comicEndpointPath)
+		: this(
+			baseUri,
+			requestTimeout,
+			searchEndpointPath,
+			DefaultSearchMaxResults,
+			comicEndpointPath)
+	{
+	}
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="ComickDirectApiClientOptions"/> class.
+	/// </summary>
+	/// <param name="baseUri">Comick API base URI.</param>
+	/// <param name="requestTimeout">HTTP request timeout.</param>
+	/// <param name="searchEndpointPath">Relative search endpoint path appended under <paramref name="baseUri"/>.</param>
+	/// <param name="searchMaxResults">Maximum number of search results requested per query.</param>
+	/// <param name="comicEndpointPath">Relative comic endpoint path prefix appended under <paramref name="baseUri"/>.</param>
+	public ComickDirectApiClientOptions(
+		Uri baseUri,
+		TimeSpan requestTimeout,
+		string searchEndpointPath,
+		int searchMaxResults,
 		string comicEndpointPath)
 	{
 		ArgumentNullException.ThrowIfNull(baseUri);
@@ -77,11 +106,20 @@ internal sealed class ComickDirectApiClientOptions
 				"Request timeout must be > 0.");
 		}
 
+		if (searchMaxResults <= 0)
+		{
+			throw new ArgumentOutOfRangeException(
+				nameof(searchMaxResults),
+				searchMaxResults,
+				"Search max results must be > 0.");
+		}
+
 		BaseUri = new Uri(baseUri.AbsoluteUri.TrimEnd('/') + "/", UriKind.Absolute);
 		SearchEndpointPath = NormalizeEndpointPath(
 			searchEndpointPath,
 			nameof(searchEndpointPath),
 			"Comick search endpoint path");
+		SearchMaxResults = searchMaxResults;
 		ComicEndpointPath = NormalizeEndpointPath(
 			comicEndpointPath,
 			nameof(comicEndpointPath),
@@ -109,6 +147,14 @@ internal sealed class ComickDirectApiClientOptions
 	/// Gets the relative search endpoint path appended under <see cref="BaseUri"/>.
 	/// </summary>
 	public string SearchEndpointPath
+	{
+		get;
+	}
+
+	/// <summary>
+	/// Gets the maximum number of search results requested per query.
+	/// </summary>
+	public int SearchMaxResults
 	{
 		get;
 	}

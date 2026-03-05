@@ -17,6 +17,7 @@ public sealed class ComickDirectApiClientOptionsTests
 
 		Assert.Equal(new Uri("https://api.comick.dev/"), options.BaseUri);
 		Assert.Equal(ComickDirectApiClientOptions.DefaultSearchEndpointPath, options.SearchEndpointPath);
+		Assert.Equal(ComickDirectApiClientOptions.DefaultSearchMaxResults, options.SearchMaxResults);
 		Assert.Equal(ComickDirectApiClientOptions.DefaultComicEndpointPath, options.ComicEndpointPath);
 		Assert.Equal(TimeSpan.FromSeconds(ComickDirectApiClientOptions.DefaultTimeoutSeconds), options.RequestTimeout);
 	}
@@ -31,10 +32,12 @@ public sealed class ComickDirectApiClientOptionsTests
 			new Uri("https://api.comick.dev"),
 			TimeSpan.FromSeconds(10),
 			searchEndpointPath: "/search",
+			searchMaxResults: 25,
 			comicEndpointPath: "v1.0/comic");
 
 		Assert.Equal(new Uri("https://api.comick.dev/"), options.BaseUri);
 		Assert.Equal("search/", options.SearchEndpointPath);
+		Assert.Equal(25, options.SearchMaxResults);
 		Assert.Equal("v1.0/comic/", options.ComicEndpointPath);
 	}
 
@@ -83,12 +86,19 @@ public sealed class ComickDirectApiClientOptionsTests
 				TimeSpan.FromSeconds(10),
 				"v1.0/search/?q=already",
 				ComickDirectApiClientOptions.DefaultComicEndpointPath));
-		ArgumentException fragmentComicPathException = Assert.Throws<ArgumentException>(
-			() => new ComickDirectApiClientOptions(
-				new Uri("https://api.comick.dev/"),
-				TimeSpan.FromSeconds(10),
-				ComickDirectApiClientOptions.DefaultSearchEndpointPath,
-				"comic/#anchor"));
+			ArgumentException fragmentComicPathException = Assert.Throws<ArgumentException>(
+				() => new ComickDirectApiClientOptions(
+					new Uri("https://api.comick.dev/"),
+					TimeSpan.FromSeconds(10),
+					ComickDirectApiClientOptions.DefaultSearchEndpointPath,
+					"comic/#anchor"));
+			ArgumentOutOfRangeException searchMaxResultsException = Assert.Throws<ArgumentOutOfRangeException>(
+				() => new ComickDirectApiClientOptions(
+					new Uri("https://api.comick.dev/"),
+					TimeSpan.FromSeconds(10),
+					ComickDirectApiClientOptions.DefaultSearchEndpointPath,
+					0,
+					ComickDirectApiClientOptions.DefaultComicEndpointPath));
 
 		Assert.Equal("baseUri", nullBaseUriException.ParamName);
 		Assert.Equal("baseUri", relativeBaseUriException.ParamName);
@@ -97,5 +107,6 @@ public sealed class ComickDirectApiClientOptionsTests
 		Assert.Equal("searchEndpointPath", absoluteSearchPathException.ParamName);
 		Assert.Equal("searchEndpointPath", querySearchPathException.ParamName);
 		Assert.Equal("comicEndpointPath", fragmentComicPathException.ParamName);
+		Assert.Equal("searchMaxResults", searchMaxResultsException.ParamName);
 	}
 }

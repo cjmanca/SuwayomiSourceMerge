@@ -21,6 +21,7 @@ public sealed class MergeMountWorkflowOptionsTests
 		Assert.Equal(TimeSpan.FromHours(24), options.MetadataOrchestration.ComickMetadataCooldown);
 		Assert.Equal(new Uri("https://api.comick.dev/"), options.MetadataOrchestration.ComickApiBaseUri);
 		Assert.Equal("v1.0/search/", options.MetadataOrchestration.ComickSearchEndpointPath);
+		Assert.Equal(100, options.MetadataOrchestration.ComickSearchMaxResults);
 		Assert.Equal("comic/", options.MetadataOrchestration.ComickComicEndpointPath);
 		Assert.Equal(new Uri("https://meo.comick.pictures/"), options.MetadataOrchestration.ComickImageBaseUri);
 		Assert.Null(options.MetadataOrchestration.FlaresolverrServerUri);
@@ -56,6 +57,7 @@ public sealed class MergeMountWorkflowOptionsTests
 				ComickMetadataCooldownHours = defaultRuntime.ComickMetadataCooldownHours,
 				ComickApiBaseUrl = "https://api.example.local",
 				ComickSearchEndpointPath = "/search",
+					ComickSearchMaxResults = defaultRuntime.ComickSearchMaxResults,
 				ComickComicEndpointPath = "v1.0/comic",
 				ComickImageBaseUrl = "https://images.example.local",
 				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
@@ -76,6 +78,7 @@ public sealed class MergeMountWorkflowOptionsTests
 		Assert.Equal("https://flaresolverr.example.local/", options.MetadataOrchestration.FlaresolverrServerUri!.AbsoluteUri);
 		Assert.Equal("https://api.example.local/", options.MetadataOrchestration.ComickApiBaseUri.AbsoluteUri);
 		Assert.Equal("search/", options.MetadataOrchestration.ComickSearchEndpointPath);
+		Assert.Equal(defaultRuntime.ComickSearchMaxResults!.Value, options.MetadataOrchestration.ComickSearchMaxResults);
 		Assert.Equal("v1.0/comic/", options.MetadataOrchestration.ComickComicEndpointPath);
 		Assert.Equal("https://images.example.local/", options.MetadataOrchestration.ComickImageBaseUri.AbsoluteUri);
 	}
@@ -106,6 +109,7 @@ public sealed class MergeMountWorkflowOptionsTests
 				ComickMetadataCooldownHours = defaultRuntime.ComickMetadataCooldownHours,
 				ComickApiBaseUrl = defaultRuntime.ComickApiBaseUrl,
 				ComickSearchEndpointPath = defaultRuntime.ComickSearchEndpointPath,
+					ComickSearchMaxResults = defaultRuntime.ComickSearchMaxResults,
 				ComickComicEndpointPath = defaultRuntime.ComickComicEndpointPath,
 				ComickImageBaseUrl = defaultRuntime.ComickImageBaseUrl,
 				FlaresolverrServerUrl = string.Empty,
@@ -122,6 +126,7 @@ public sealed class MergeMountWorkflowOptionsTests
 		Assert.Equal("settings", exception.ParamName);
 		Assert.Contains("runtime.metadata_api_request_delay_ms", exception.Message, StringComparison.Ordinal);
 		Assert.Contains("runtime.metadata_api_cache_ttl_hours", exception.Message, StringComparison.Ordinal);
+		Assert.Contains("runtime.comick_search_max_results", exception.Message, StringComparison.Ordinal);
 	}
 
 	/// <summary>
@@ -151,6 +156,7 @@ public sealed class MergeMountWorkflowOptionsTests
 				ComickMetadataCooldownHours = defaultRuntime.ComickMetadataCooldownHours,
 				ComickApiBaseUrl = defaultRuntime.ComickApiBaseUrl,
 				ComickSearchEndpointPath = defaultRuntime.ComickSearchEndpointPath,
+					ComickSearchMaxResults = defaultRuntime.ComickSearchMaxResults,
 				ComickComicEndpointPath = defaultRuntime.ComickComicEndpointPath,
 				ComickImageBaseUrl = defaultRuntime.ComickImageBaseUrl,
 				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
@@ -183,6 +189,7 @@ public sealed class MergeMountWorkflowOptionsTests
 				ComickMetadataCooldownHours = 0,
 				ComickApiBaseUrl = defaultRuntime.ComickApiBaseUrl,
 				ComickSearchEndpointPath = defaultRuntime.ComickSearchEndpointPath,
+					ComickSearchMaxResults = defaultRuntime.ComickSearchMaxResults,
 				ComickComicEndpointPath = defaultRuntime.ComickComicEndpointPath,
 				ComickImageBaseUrl = defaultRuntime.ComickImageBaseUrl,
 				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
@@ -215,6 +222,7 @@ public sealed class MergeMountWorkflowOptionsTests
 				ComickMetadataCooldownHours = defaultRuntime.ComickMetadataCooldownHours,
 				ComickApiBaseUrl = defaultRuntime.ComickApiBaseUrl,
 				ComickSearchEndpointPath = defaultRuntime.ComickSearchEndpointPath,
+					ComickSearchMaxResults = defaultRuntime.ComickSearchMaxResults,
 				ComickComicEndpointPath = defaultRuntime.ComickComicEndpointPath,
 				ComickImageBaseUrl = defaultRuntime.ComickImageBaseUrl,
 				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
@@ -247,6 +255,7 @@ public sealed class MergeMountWorkflowOptionsTests
 				ComickMetadataCooldownHours = defaultRuntime.ComickMetadataCooldownHours,
 				ComickApiBaseUrl = defaultRuntime.ComickApiBaseUrl,
 				ComickSearchEndpointPath = defaultRuntime.ComickSearchEndpointPath,
+					ComickSearchMaxResults = defaultRuntime.ComickSearchMaxResults,
 				ComickComicEndpointPath = defaultRuntime.ComickComicEndpointPath,
 				ComickImageBaseUrl = defaultRuntime.ComickImageBaseUrl,
 				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
@@ -279,6 +288,7 @@ public sealed class MergeMountWorkflowOptionsTests
 				ComickMetadataCooldownHours = defaultRuntime.ComickMetadataCooldownHours,
 				ComickApiBaseUrl = defaultRuntime.ComickApiBaseUrl,
 				ComickSearchEndpointPath = defaultRuntime.ComickSearchEndpointPath,
+					ComickSearchMaxResults = defaultRuntime.ComickSearchMaxResults,
 				ComickComicEndpointPath = defaultRuntime.ComickComicEndpointPath,
 				ComickImageBaseUrl = defaultRuntime.ComickImageBaseUrl,
 				MetadataApiRequestDelayMs = -1,
@@ -311,6 +321,7 @@ public sealed class MergeMountWorkflowOptionsTests
 				ComickMetadataCooldownHours = defaultRuntime.ComickMetadataCooldownHours,
 				ComickApiBaseUrl = defaultRuntime.ComickApiBaseUrl,
 				ComickSearchEndpointPath = defaultRuntime.ComickSearchEndpointPath,
+					ComickSearchMaxResults = defaultRuntime.ComickSearchMaxResults,
 				ComickComicEndpointPath = defaultRuntime.ComickComicEndpointPath,
 				ComickImageBaseUrl = defaultRuntime.ComickImageBaseUrl,
 				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
@@ -343,6 +354,7 @@ public sealed class MergeMountWorkflowOptionsTests
 				ComickMetadataCooldownHours = defaultRuntime.ComickMetadataCooldownHours,
 				ComickApiBaseUrl = defaultRuntime.ComickApiBaseUrl,
 				ComickSearchEndpointPath = "https://override.example/search/",
+					ComickSearchMaxResults = defaultRuntime.ComickSearchMaxResults,
 				ComickComicEndpointPath = defaultRuntime.ComickComicEndpointPath,
 				ComickImageBaseUrl = defaultRuntime.ComickImageBaseUrl,
 				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
@@ -375,6 +387,7 @@ public sealed class MergeMountWorkflowOptionsTests
 				ComickMetadataCooldownHours = defaultRuntime.ComickMetadataCooldownHours,
 				ComickApiBaseUrl = defaultRuntime.ComickApiBaseUrl,
 				ComickSearchEndpointPath = defaultRuntime.ComickSearchEndpointPath,
+					ComickSearchMaxResults = defaultRuntime.ComickSearchMaxResults,
 				ComickComicEndpointPath = "/",
 				ComickImageBaseUrl = defaultRuntime.ComickImageBaseUrl,
 				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,

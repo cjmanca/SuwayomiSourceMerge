@@ -60,6 +60,7 @@ public sealed class SettingsSchemaToolingProfileTests
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_metadata_cooldown_hours" && error.Code == "CFG-SET-002");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_api_base_url" && error.Code == "CFG-SET-002");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_search_endpoint_path" && error.Code == "CFG-SET-002");
+        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_search_max_results" && error.Code == "CFG-SET-002");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_comic_endpoint_path" && error.Code == "CFG-SET-002");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_image_base_url" && error.Code == "CFG-SET-002");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.metadata_api_request_delay_ms" && error.Code == "CFG-SET-002");
@@ -94,6 +95,7 @@ public sealed class SettingsSchemaToolingProfileTests
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_metadata_cooldown_hours" && error.Code == "CFG-SET-004");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_api_base_url" && error.Code == "CFG-SET-005");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_search_endpoint_path" && error.Code == "CFG-SET-002");
+        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_search_max_results" && error.Code == "CFG-SET-004");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_comic_endpoint_path" && error.Code == "CFG-SET-002");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_image_base_url" && error.Code == "CFG-SET-005");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.metadata_api_request_delay_ms" && error.Code == "CFG-SET-004");
@@ -170,6 +172,7 @@ public sealed class SettingsSchemaToolingProfileTests
               comick_metadata_cooldown_hours: 24
               comick_api_base_url: https://api.comick.dev/
               comick_search_endpoint_path: v1.0/search/
+              comick_search_max_results: 100
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
               metadata_api_request_delay_ms: 1000
@@ -245,6 +248,7 @@ public sealed class SettingsSchemaToolingProfileTests
               comick_metadata_cooldown_hours: 24
               comick_api_base_url: https://api.comick.dev/
               comick_search_endpoint_path: v1.0/search/
+              comick_search_max_results: 0
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
               metadata_api_request_delay_ms: 1000
@@ -381,6 +385,7 @@ public sealed class SettingsSchemaToolingProfileTests
               comick_metadata_cooldown_hours: 0
               comick_api_base_url: ftp://api.comick.dev/
               comick_search_endpoint_path: " "
+              comick_search_max_results: 0
               comick_comic_endpoint_path: " "
               comick_image_base_url: ftp://meo.comick.pictures/
               metadata_api_request_delay_ms: -1
@@ -457,6 +462,7 @@ public sealed class SettingsSchemaToolingProfileTests
               comick_metadata_cooldown_hours: 24
               comick_api_base_url: https://api.comick.dev/
               comick_search_endpoint_path: https://override.example/search/
+              comick_search_max_results: 100
               comick_comic_endpoint_path: /
               comick_image_base_url: https://meo.comick.pictures/
               metadata_api_request_delay_ms: 1000

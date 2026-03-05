@@ -504,6 +504,14 @@ public sealed class SettingsRuntimeSection
 	}
 
 	/// <summary>
+	/// Gets or sets the maximum number of Comick search results requested per query.
+	/// </summary>
+	public int? ComickSearchMaxResults
+	{
+		get; init;
+	}
+
+	/// <summary>
 	/// Gets or sets the relative Comick comic-detail endpoint path appended under <c>runtime.comick_api_base_url</c>.
 	/// Must not be absolute and must not include query/fragment components.
 	/// </summary>

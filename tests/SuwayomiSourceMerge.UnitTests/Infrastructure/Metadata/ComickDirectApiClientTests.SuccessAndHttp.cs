@@ -30,7 +30,7 @@ public sealed partial class ComickDirectApiClientTests
 		Assert.Equal("hid-1", result.Payload.Comics[0].Hid);
 		Assert.NotNull(handler.LastRequest);
 		Assert.Equal(
-			"https://api.comick.dev/v1.0/search/?q=one%20piece%2Fa%2Bb%3F&tachiyomi=true",
+			"https://api.comick.dev/v1.0/search/?q=one%20piece%2Fa%2Bb%3F&limit=100&tachiyomi=true",
 			handler.LastRequest!.RequestUri!.AbsoluteUri);
 		Assert.Contains(
 			handler.LastRequest.Headers.Accept,
@@ -91,12 +91,13 @@ public sealed partial class ComickDirectApiClientTests
 				new Uri("https://api.example.local/"),
 				TimeSpan.FromSeconds(10),
 				searchEndpointPath: "search/",
+				searchMaxResults: 25,
 				comicEndpointPath: "v1.0/comic/"),
 			httpClient);
 
 		ComickDirectApiResult<ComickSearchResponse> searchResult = await client.SearchAsync("one piece");
 		Assert.Equal(ComickDirectApiOutcome.Success, searchResult.Outcome);
-		Assert.Equal("https://api.example.local/search/?q=one%20piece&tachiyomi=true", handler.LastRequest!.RequestUri!.AbsoluteUri);
+		Assert.Equal("https://api.example.local/search/?q=one%20piece&limit=25&tachiyomi=true", handler.LastRequest!.RequestUri!.AbsoluteUri);
 
 		ComickDirectApiResult<ComickComicResponse> comicResult = await client.GetComicAsync("slug-1");
 		Assert.Equal(ComickDirectApiOutcome.Success, comicResult.Outcome);

@@ -11,17 +11,19 @@ internal static class ComickEndpointUriBuilder
 	/// <param name="baseUri">Comick API base URI.</param>
 	/// <param name="searchPath">Relative search endpoint path appended under <paramref name="baseUri"/>.</param>
 	/// <param name="query">Search query text.</param>
+	/// <param name="limit">Maximum search results requested per query.</param>
 	/// <returns>Resolved absolute request URI.</returns>
-	public static Uri BuildSearchUri(Uri baseUri, string searchPath, string query)
+	public static Uri BuildSearchUri(Uri baseUri, string searchPath, string query, int limit)
 	{
 		ArgumentNullException.ThrowIfNull(baseUri);
 		ArgumentException.ThrowIfNullOrWhiteSpace(searchPath);
 		ArgumentException.ThrowIfNullOrWhiteSpace(query);
+		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
 
 		string encodedQuery = Uri.EscapeDataString(query.Trim());
 		return new Uri(
 			baseUri,
-			$"{searchPath.Trim()}?q={encodedQuery}&tachiyomi=true");
+			$"{searchPath.Trim()}?q={encodedQuery}&limit={limit}&tachiyomi=true");
 	}
 
 	/// <summary>

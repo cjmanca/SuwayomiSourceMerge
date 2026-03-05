@@ -72,7 +72,8 @@ internal sealed class ComickDirectApiClient : IComickDirectApiClient, IDisposabl
 		Uri requestUri = ComickEndpointUriBuilder.BuildSearchUri(
 			_options.BaseUri,
 			_options.SearchEndpointPath,
-			query);
+			query,
+			_options.SearchMaxResults);
 		return ExecuteGetAsync(
 			requestUri,
 			ComickPayloadParser.TryParseSearchPayload,

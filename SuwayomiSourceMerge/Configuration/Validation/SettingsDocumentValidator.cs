@@ -197,6 +197,7 @@ public sealed partial class SettingsDocumentValidator : IConfigValidator<Setting
 				ValidatePositive(document.Runtime.ComickMetadataCooldownHours, file, "$.runtime.comick_metadata_cooldown_hours", result);
 				ValidateRequiredComickAbsoluteUrl(document.Runtime.ComickApiBaseUrl, file, "$.runtime.comick_api_base_url", result);
 				ValidateRequiredComickEndpointPath(document.Runtime.ComickSearchEndpointPath, file, "$.runtime.comick_search_endpoint_path", result);
+				ValidatePositive(document.Runtime.ComickSearchMaxResults, file, "$.runtime.comick_search_max_results", result);
 				ValidateRequiredComickEndpointPath(document.Runtime.ComickComicEndpointPath, file, "$.runtime.comick_comic_endpoint_path", result);
 				ValidateRequiredComickAbsoluteUrl(document.Runtime.ComickImageBaseUrl, file, "$.runtime.comick_image_base_url", result);
 				ValidateNonNegative(document.Runtime.MetadataApiRequestDelayMs, file, "$.runtime.metadata_api_request_delay_ms", result);
@@ -210,6 +211,7 @@ public sealed partial class SettingsDocumentValidator : IConfigValidator<Setting
 				ValidateOptionalPositive(document.Runtime.ComickMetadataCooldownHours, file, "$.runtime.comick_metadata_cooldown_hours", result);
 				ValidateOptionalComickAbsoluteUrl(document.Runtime.ComickApiBaseUrl, file, "$.runtime.comick_api_base_url", result);
 				ValidateOptionalComickEndpointPath(document.Runtime.ComickSearchEndpointPath, file, "$.runtime.comick_search_endpoint_path", result);
+				ValidateOptionalPositive(document.Runtime.ComickSearchMaxResults, file, "$.runtime.comick_search_max_results", result);
 				ValidateOptionalComickEndpointPath(document.Runtime.ComickComicEndpointPath, file, "$.runtime.comick_comic_endpoint_path", result);
 				ValidateOptionalComickAbsoluteUrl(document.Runtime.ComickImageBaseUrl, file, "$.runtime.comick_image_base_url", result);
 				ValidateOptionalNonNegative(document.Runtime.MetadataApiRequestDelayMs, file, "$.runtime.metadata_api_request_delay_ms", result);

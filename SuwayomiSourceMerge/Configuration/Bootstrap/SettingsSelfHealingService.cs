@@ -158,6 +158,7 @@ internal sealed class SettingsSelfHealingService
 				ComickMetadataCooldownHours = existingRuntime?.ComickMetadataCooldownHours ?? UseDefault(defaultRuntime.ComickMetadataCooldownHours, ref wasHealed),
 				ComickApiBaseUrl = CanonicalizeComickAbsoluteUrl(existingRuntime?.ComickApiBaseUrl, defaultRuntime.ComickApiBaseUrl, ref wasHealed),
 				ComickSearchEndpointPath = CanonicalizeComickEndpointPath(existingRuntime?.ComickSearchEndpointPath, defaultRuntime.ComickSearchEndpointPath, ref wasHealed),
+				ComickSearchMaxResults = existingRuntime?.ComickSearchMaxResults ?? UseDefault(defaultRuntime.ComickSearchMaxResults, ref wasHealed),
 				ComickComicEndpointPath = CanonicalizeComickEndpointPath(existingRuntime?.ComickComicEndpointPath, defaultRuntime.ComickComicEndpointPath, ref wasHealed),
 				ComickImageBaseUrl = CanonicalizeComickAbsoluteUrl(existingRuntime?.ComickImageBaseUrl, defaultRuntime.ComickImageBaseUrl, ref wasHealed),
 				MetadataApiRequestDelayMs = existingRuntime?.MetadataApiRequestDelayMs ?? UseDefault(defaultRuntime.MetadataApiRequestDelayMs, ref wasHealed),

@@ -312,6 +312,7 @@ internal sealed class MergeMountWorkflowOptions
 			runtime.ComickMetadataCooldownHours is null ||
 			runtime.ComickApiBaseUrl is null ||
 			runtime.ComickSearchEndpointPath is null ||
+			runtime.ComickSearchMaxResults is null ||
 			runtime.ComickComicEndpointPath is null ||
 			runtime.ComickImageBaseUrl is null ||
 			runtime.MetadataApiRequestDelayMs is null ||
@@ -324,7 +325,7 @@ internal sealed class MergeMountWorkflowOptions
 			runtime.StartupCleanup is null)
 		{
 			throw new ArgumentException(
-				"Settings runtime.enable_mount_healthcheck, runtime.max_consecutive_mount_failures, runtime.comick_metadata_cooldown_hours, runtime.comick_api_base_url, runtime.comick_search_endpoint_path, runtime.comick_comic_endpoint_path, runtime.comick_image_base_url, runtime.metadata_api_request_delay_ms, runtime.metadata_api_cache_ttl_hours, runtime.flaresolverr_server_url (required key; empty value disables FlareSolverr), runtime.flaresolverr_direct_retry_minutes, runtime.preferred_language, runtime.details_description_mode, runtime.mergerfs_options_base, and runtime.startup_cleanup are required.",
+				"Settings runtime.enable_mount_healthcheck, runtime.max_consecutive_mount_failures, runtime.comick_metadata_cooldown_hours, runtime.comick_api_base_url, runtime.comick_search_endpoint_path, runtime.comick_search_max_results, runtime.comick_comic_endpoint_path, runtime.comick_image_base_url, runtime.metadata_api_request_delay_ms, runtime.metadata_api_cache_ttl_hours, runtime.flaresolverr_server_url (required key; empty value disables FlareSolverr), runtime.flaresolverr_direct_retry_minutes, runtime.preferred_language, runtime.details_description_mode, runtime.mergerfs_options_base, and runtime.startup_cleanup are required.",
 				nameof(settings));
 		}
 
@@ -356,6 +357,7 @@ internal sealed class MergeMountWorkflowOptions
 				TimeSpan.FromHours(runtime.ComickMetadataCooldownHours.Value),
 				ParseRequiredAbsoluteUri(runtime.ComickApiBaseUrl, nameof(settings), "runtime.comick_api_base_url"),
 				runtime.ComickSearchEndpointPath,
+				runtime.ComickSearchMaxResults.Value,
 				runtime.ComickComicEndpointPath,
 				ParseRequiredAbsoluteUri(runtime.ComickImageBaseUrl, nameof(settings), "runtime.comick_image_base_url"),
 				TryParseAbsoluteUriOrNull(runtime.FlaresolverrServerUrl, nameof(settings)),

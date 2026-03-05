@@ -67,7 +67,7 @@ Planned runtime settings for this feature:
 
 Planned Comick/Flaresolverr routing behavior:
 
-- API routing is direct-first for Comick using configurable settings (`runtime.comick_api_base_url`, `runtime.comick_search_endpoint_path`, `runtime.comick_comic_endpoint_path`) with defaults equivalent to `/v1.0/search/` and `/comic/{slug}/`.
+- API routing is direct-first for Comick using configurable settings (`runtime.comick_api_base_url`, `runtime.comick_search_endpoint_path`, `runtime.comick_search_max_results`, `runtime.comick_comic_endpoint_path`) with defaults equivalent to `/v1.0/search/` and `/comic/{slug}/`.
 - Check each search result via `/comic/{slug}/`, using the `md_titles` (normalized) it returns to check against entries in `manga_equivalents.yml` (or normalized title if no matching entry in `manga_equivalents.yml`).
 - The first search result is often the correct one, so try that first. If that doesn't match, sort the remaining search results by most likely to least likely to reduce API hits on retrieving the full comic info. Short circuit out once a valid matching entry is found.
 - If direct access is Cloudflare-blocked and FlareSolverr is configured, switch to sticky FlareSolverr mode.

@@ -116,7 +116,8 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		Uri endpointUri = ComickEndpointUriBuilder.BuildSearchUri(
 			_options.ComickApiBaseUri,
 			_options.ComickSearchEndpointPath,
-			requestKey);
+			requestKey,
+			_options.ComickSearchMaxResults);
 		return ExecuteWithCacheAsync(
 			ComickApiCacheEndpointKind.Search,
 			requestKey,

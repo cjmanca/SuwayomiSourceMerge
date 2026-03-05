@@ -1,3 +1,5 @@
+using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
+
 namespace SuwayomiSourceMerge.Infrastructure.Metadata;
 
 /// <summary>
@@ -29,6 +31,47 @@ internal sealed class MetadataOrchestrationOptions
 		string preferredLanguage,
 		TimeSpan metadataApiRequestDelay,
 		TimeSpan metadataApiCacheTtl)
+		: this(
+			comickMetadataCooldown,
+			comickApiBaseUri,
+			comickSearchEndpointPath,
+			ComickDirectApiClientOptions.DefaultSearchMaxResults,
+			comickComicEndpointPath,
+			comickImageBaseUri,
+			flaresolverrServerUri,
+			flaresolverrDirectRetryInterval,
+			preferredLanguage,
+			metadataApiRequestDelay,
+			metadataApiCacheTtl)
+	{
+	}
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="MetadataOrchestrationOptions"/> class.
+	/// </summary>
+	/// <param name="comickMetadataCooldown">Per-title cooldown window for Comick metadata requests.</param>
+	/// <param name="comickApiBaseUri">Comick API base URI used for metadata requests.</param>
+	/// <param name="comickSearchEndpointPath">Relative Comick search endpoint path appended under <paramref name="comickApiBaseUri"/>.</param>
+	/// <param name="comickSearchMaxResults">Maximum number of Comick search results requested per query.</param>
+	/// <param name="comickComicEndpointPath">Relative Comick comic-detail endpoint path appended under <paramref name="comickApiBaseUri"/>.</param>
+	/// <param name="comickImageBaseUri">Comick image base URI used to resolve relative cover keys.</param>
+	/// <param name="flaresolverrServerUri">Optional FlareSolverr server URI. <see langword="null"/> disables FlareSolverr routing.</param>
+	/// <param name="flaresolverrDirectRetryInterval">Retry interval before probing direct Comick access after sticky FlareSolverr routing.</param>
+	/// <param name="preferredLanguage">Preferred language code used for metadata canonical-title selection.</param>
+	/// <param name="metadataApiRequestDelay">Delay applied between outbound metadata API requests.</param>
+	/// <param name="metadataApiCacheTtl">TTL for persisted metadata API cache entries.</param>
+	public MetadataOrchestrationOptions(
+		TimeSpan comickMetadataCooldown,
+		Uri comickApiBaseUri,
+		string comickSearchEndpointPath,
+		int comickSearchMaxResults,
+		string comickComicEndpointPath,
+		Uri comickImageBaseUri,
+		Uri? flaresolverrServerUri,
+		TimeSpan flaresolverrDirectRetryInterval,
+		string preferredLanguage,
+		TimeSpan metadataApiRequestDelay,
+		TimeSpan metadataApiCacheTtl)
 	{
 		ArgumentNullException.ThrowIfNull(comickApiBaseUri);
 		ArgumentException.ThrowIfNullOrWhiteSpace(comickSearchEndpointPath);
@@ -50,6 +93,14 @@ internal sealed class MetadataOrchestrationOptions
 				nameof(flaresolverrDirectRetryInterval),
 				flaresolverrDirectRetryInterval,
 				"FlareSolverr direct retry interval must be > 0.");
+		}
+
+		if (comickSearchMaxResults <= 0)
+		{
+			throw new ArgumentOutOfRangeException(
+				nameof(comickSearchMaxResults),
+				comickSearchMaxResults,
+				"Comick search max results must be > 0.");
 		}
 
 		if (metadataApiRequestDelay < TimeSpan.Zero)
@@ -92,6 +143,7 @@ internal sealed class MetadataOrchestrationOptions
 		ComickMetadataCooldown = comickMetadataCooldown;
 		ComickApiBaseUri = new Uri(comickApiBaseUri.AbsoluteUri.TrimEnd('/') + "/", UriKind.Absolute);
 		ComickSearchEndpointPath = NormalizeEndpointPath(comickSearchEndpointPath, nameof(comickSearchEndpointPath), "Comick search endpoint path");
+		ComickSearchMaxResults = comickSearchMaxResults;
 		ComickComicEndpointPath = NormalizeEndpointPath(comickComicEndpointPath, nameof(comickComicEndpointPath), "Comick comic endpoint path");
 		ComickImageBaseUri = new Uri(comickImageBaseUri.AbsoluteUri.TrimEnd('/') + "/", UriKind.Absolute);
 		FlaresolverrServerUri = flaresolverrServerUri;
@@ -121,6 +173,14 @@ internal sealed class MetadataOrchestrationOptions
 	/// Gets the relative Comick search endpoint path appended under <see cref="ComickApiBaseUri"/>.
 	/// </summary>
 	public string ComickSearchEndpointPath
+	{
+		get;
+	}
+
+	/// <summary>
+	/// Gets the maximum number of Comick search results requested per query.
+	/// </summary>
+	public int ComickSearchMaxResults
 	{
 		get;
 	}

@@ -44,6 +44,7 @@ public sealed class SettingsSelfHealingServiceTests
         Assert.Equal(24, result.Document.Runtime!.ComickMetadataCooldownHours);
         Assert.Equal("https://api.comick.dev/", result.Document.Runtime.ComickApiBaseUrl);
         Assert.Equal("v1.0/search/", result.Document.Runtime.ComickSearchEndpointPath);
+        Assert.Equal(100, result.Document.Runtime.ComickSearchMaxResults);
         Assert.Equal("comic/", result.Document.Runtime.ComickComicEndpointPath);
         Assert.Equal("https://meo.comick.pictures/", result.Document.Runtime.ComickImageBaseUrl);
         Assert.Equal(1000, result.Document.Runtime.MetadataApiRequestDelayMs);
@@ -75,6 +76,7 @@ public sealed class SettingsSelfHealingServiceTests
         Assert.Equal(48, result.Document.Runtime.ComickMetadataCooldownHours);
         Assert.Equal("https://api.comick.dev/", result.Document.Runtime.ComickApiBaseUrl);
         Assert.Equal("v1.0/search/", result.Document.Runtime.ComickSearchEndpointPath);
+        Assert.Equal(20, result.Document.Runtime.ComickSearchMaxResults);
         Assert.Equal("comic/", result.Document.Runtime.ComickComicEndpointPath);
         Assert.Equal("https://meo.comick.pictures/", result.Document.Runtime.ComickImageBaseUrl);
         Assert.Equal(750, result.Document.Runtime.MetadataApiRequestDelayMs);
@@ -297,6 +299,7 @@ public sealed class SettingsSelfHealingServiceTests
               comick_metadata_cooldown_hours: 48
               comick_api_base_url: https://api.comick.dev/
               comick_search_endpoint_path: v1.0/search/
+              comick_search_max_results: 20
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
               metadata_api_request_delay_ms: 750

@@ -89,6 +89,7 @@ internal sealed class DefaultRuntimeSupervisorRunner : IRuntimeSupervisorRunner
 				mergeOptions.MetadataOrchestration.ComickApiBaseUri,
 				TimeSpan.FromSeconds(ComickDirectApiClientOptions.DefaultTimeoutSeconds),
 				mergeOptions.MetadataOrchestration.ComickSearchEndpointPath,
+				mergeOptions.MetadataOrchestration.ComickSearchMaxResults,
 				mergeOptions.MetadataOrchestration.ComickComicEndpointPath),
 			httpClient: null);
 		IFlaresolverrClient? flaresolverrClient = mergeOptions.MetadataOrchestration.FlaresolverrServerUri is null
