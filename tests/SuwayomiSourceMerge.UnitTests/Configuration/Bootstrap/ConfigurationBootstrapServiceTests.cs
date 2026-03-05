@@ -167,7 +167,8 @@ public sealed class ConfigurationBootstrapServiceTests
               comick_search_max_results: 4
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
-              metadata_api_request_delay_ms: 1000
+              metadata_api_min_request_delay_ms: 1000
+              metadata_api_max_request_delay_ms: 5000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
               flaresolverr_direct_retry_minutes: 60
@@ -333,7 +334,8 @@ public sealed class ConfigurationBootstrapServiceTests
         Assert.Equal(45, result.Documents.Settings.Rename!.RenameDelaySeconds);
         Assert.Equal(false, result.Documents.Settings.Runtime!.LowPriority);
         Assert.Equal(24, result.Documents.Settings.Runtime.ComickMetadataCooldownHours);
-        Assert.Equal(1000, result.Documents.Settings.Runtime.MetadataApiRequestDelayMs);
+        Assert.Equal(1000, result.Documents.Settings.Runtime.MetadataApiMinRequestDelayMs);
+        Assert.Equal(5000, result.Documents.Settings.Runtime.MetadataApiMaxRequestDelayMs);
         Assert.Equal(24, result.Documents.Settings.Runtime.MetadataApiCacheTtlHours);
         Assert.Equal(string.Empty, result.Documents.Settings.Runtime.FlaresolverrServerUrl);
         Assert.Equal(60, result.Documents.Settings.Runtime.FlaresolverrDirectRetryMinutes);
@@ -477,7 +479,8 @@ public sealed class ConfigurationBootstrapServiceTests
               comick_search_max_results: 4
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
-              metadata_api_request_delay_ms: 1000
+              metadata_api_min_request_delay_ms: 1000
+              metadata_api_max_request_delay_ms: 5000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
               flaresolverr_direct_retry_minutes: 60
@@ -572,7 +575,8 @@ public sealed class ConfigurationBootstrapServiceTests
               comick_search_max_results: 4
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
-              metadata_api_request_delay_ms: 1000
+              metadata_api_min_request_delay_ms: 1000
+              metadata_api_max_request_delay_ms: 5000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: "  https://flaresolverr.example.local/  "
               flaresolverr_direct_retry_minutes: 60
@@ -695,7 +699,8 @@ public sealed class ConfigurationBootstrapServiceTests
               comick_search_max_results: 4
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
-              metadata_api_request_delay_ms: 1000
+              metadata_api_min_request_delay_ms: 1000
+              metadata_api_max_request_delay_ms: 5000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
               flaresolverr_direct_retry_minutes: 60

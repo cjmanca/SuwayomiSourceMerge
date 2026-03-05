@@ -83,7 +83,8 @@ internal sealed class DefaultRuntimeSupervisorRunner : IRuntimeSupervisorRunner
 		MetadataStatePaths metadataStatePaths = new(documents.Settings.Paths!.StateRootPath!);
 		IMetadataStateStore metadataStateStore = new FileBackedMetadataStateStore(metadataStatePaths);
 		IMetadataApiRequestThrottle metadataApiRequestThrottle = new MetadataApiRequestThrottle(
-			mergeOptions.MetadataOrchestration.MetadataApiRequestDelay);
+			mergeOptions.MetadataOrchestration.MetadataApiMinRequestDelay,
+			mergeOptions.MetadataOrchestration.MetadataApiMaxRequestDelay);
 		IComickDirectApiClient comickDirectApiClient = new DisabledComickDirectApiClient();
 		IFlaresolverrClient? flaresolverrClient = mergeOptions.MetadataOrchestration.FlaresolverrServerUri is null
 			? null

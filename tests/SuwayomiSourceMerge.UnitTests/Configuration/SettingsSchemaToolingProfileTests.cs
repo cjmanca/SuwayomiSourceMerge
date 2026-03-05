@@ -63,7 +63,7 @@ public sealed class SettingsSchemaToolingProfileTests
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_search_max_results" && error.Code == "CFG-SET-002");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_comic_endpoint_path" && error.Code == "CFG-SET-002");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_image_base_url" && error.Code == "CFG-SET-002");
-        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.metadata_api_request_delay_ms" && error.Code == "CFG-SET-002");
+        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.metadata_api_min_request_delay_ms" && error.Code == "CFG-SET-002");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.metadata_api_cache_ttl_hours" && error.Code == "CFG-SET-002");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.flaresolverr_server_url" && error.Code == "CFG-SET-002");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.flaresolverr_direct_retry_minutes" && error.Code == "CFG-SET-002");
@@ -98,7 +98,7 @@ public sealed class SettingsSchemaToolingProfileTests
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_search_max_results" && error.Code == "CFG-SET-004");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_comic_endpoint_path" && error.Code == "CFG-SET-002");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.comick_image_base_url" && error.Code == "CFG-SET-005");
-        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.metadata_api_request_delay_ms" && error.Code == "CFG-SET-004");
+        Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.metadata_api_min_request_delay_ms" && error.Code == "CFG-SET-004");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.metadata_api_cache_ttl_hours" && error.Code == "CFG-SET-004");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.flaresolverr_server_url" && error.Code == "CFG-SET-005");
         Assert.Contains(parsed.Validation.Errors, error => error.Path == "$.runtime.flaresolverr_direct_retry_minutes" && error.Code == "CFG-SET-004");
@@ -175,7 +175,8 @@ public sealed class SettingsSchemaToolingProfileTests
               comick_search_max_results: 4
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
-              metadata_api_request_delay_ms: 1000
+              metadata_api_min_request_delay_ms: 1000
+              metadata_api_max_request_delay_ms: 5000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
               flaresolverr_direct_retry_minutes: 60
@@ -251,7 +252,8 @@ public sealed class SettingsSchemaToolingProfileTests
               comick_search_max_results: 0
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
-              metadata_api_request_delay_ms: 1000
+              metadata_api_min_request_delay_ms: 1000
+              metadata_api_max_request_delay_ms: 5000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
               flaresolverr_direct_retry_minutes: 60
@@ -388,7 +390,8 @@ public sealed class SettingsSchemaToolingProfileTests
               comick_search_max_results: 0
               comick_comic_endpoint_path: " "
               comick_image_base_url: ftp://meo.comick.pictures/
-              metadata_api_request_delay_ms: -1
+              metadata_api_min_request_delay_ms: -1
+              metadata_api_max_request_delay_ms: -1
               metadata_api_cache_ttl_hours: 0
               flaresolverr_server_url: ftp://flaresolverr.example.local
               flaresolverr_direct_retry_minutes: 0
@@ -465,7 +468,8 @@ public sealed class SettingsSchemaToolingProfileTests
               comick_search_max_results: 4
               comick_comic_endpoint_path: /
               comick_image_base_url: https://meo.comick.pictures/
-              metadata_api_request_delay_ms: 1000
+              metadata_api_min_request_delay_ms: 1000
+              metadata_api_max_request_delay_ms: 5000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
               flaresolverr_direct_retry_minutes: 60

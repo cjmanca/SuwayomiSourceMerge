@@ -42,6 +42,7 @@ internal sealed class MetadataOrchestrationOptions
 			flaresolverrDirectRetryInterval,
 			preferredLanguage,
 			metadataApiRequestDelay,
+			metadataApiRequestDelay,
 			metadataApiCacheTtl)
 	{
 	}
@@ -71,6 +72,92 @@ internal sealed class MetadataOrchestrationOptions
 		TimeSpan flaresolverrDirectRetryInterval,
 		string preferredLanguage,
 		TimeSpan metadataApiRequestDelay,
+		TimeSpan metadataApiCacheTtl)
+		: this(
+			comickMetadataCooldown,
+			comickApiBaseUri,
+			comickSearchEndpointPath,
+			comickSearchMaxResults,
+			comickComicEndpointPath,
+			comickImageBaseUri,
+			flaresolverrServerUri,
+			flaresolverrDirectRetryInterval,
+			preferredLanguage,
+			metadataApiRequestDelay,
+			metadataApiRequestDelay,
+			metadataApiCacheTtl)
+	{
+	}
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="MetadataOrchestrationOptions"/> class.
+	/// </summary>
+	/// <param name="comickMetadataCooldown">Per-title cooldown window for Comick metadata requests.</param>
+	/// <param name="comickApiBaseUri">Comick API base URI used for metadata requests.</param>
+	/// <param name="comickSearchEndpointPath">Relative Comick search endpoint path appended under <paramref name="comickApiBaseUri"/>.</param>
+	/// <param name="comickComicEndpointPath">Relative Comick comic-detail endpoint path appended under <paramref name="comickApiBaseUri"/>.</param>
+	/// <param name="comickImageBaseUri">Comick image base URI used to resolve relative cover keys.</param>
+	/// <param name="flaresolverrServerUri">Optional FlareSolverr server URI. <see langword="null"/> disables FlareSolverr routing.</param>
+	/// <param name="flaresolverrDirectRetryInterval">Retry interval before probing direct Comick access after sticky FlareSolverr routing.</param>
+	/// <param name="preferredLanguage">Preferred language code used for metadata canonical-title selection.</param>
+	/// <param name="metadataApiMinRequestDelay">Minimum delay applied between outbound metadata API requests.</param>
+	/// <param name="metadataApiMaxRequestDelay">Maximum delay applied between outbound metadata API requests.</param>
+	/// <param name="metadataApiCacheTtl">TTL for persisted metadata API cache entries.</param>
+	public MetadataOrchestrationOptions(
+		TimeSpan comickMetadataCooldown,
+		Uri comickApiBaseUri,
+		string comickSearchEndpointPath,
+		string comickComicEndpointPath,
+		Uri comickImageBaseUri,
+		Uri? flaresolverrServerUri,
+		TimeSpan flaresolverrDirectRetryInterval,
+		string preferredLanguage,
+		TimeSpan metadataApiMinRequestDelay,
+		TimeSpan metadataApiMaxRequestDelay,
+		TimeSpan metadataApiCacheTtl)
+		: this(
+			comickMetadataCooldown,
+			comickApiBaseUri,
+			comickSearchEndpointPath,
+			ComickDirectApiClientOptions.DefaultSearchMaxResults,
+			comickComicEndpointPath,
+			comickImageBaseUri,
+			flaresolverrServerUri,
+			flaresolverrDirectRetryInterval,
+			preferredLanguage,
+			metadataApiMinRequestDelay,
+			metadataApiMaxRequestDelay,
+			metadataApiCacheTtl)
+	{
+	}
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="MetadataOrchestrationOptions"/> class.
+	/// </summary>
+	/// <param name="comickMetadataCooldown">Per-title cooldown window for Comick metadata requests.</param>
+	/// <param name="comickApiBaseUri">Comick API base URI used for metadata requests.</param>
+	/// <param name="comickSearchEndpointPath">Relative Comick search endpoint path appended under <paramref name="comickApiBaseUri"/>.</param>
+	/// <param name="comickSearchMaxResults">Maximum number of Comick search results requested per query.</param>
+	/// <param name="comickComicEndpointPath">Relative Comick comic-detail endpoint path appended under <paramref name="comickApiBaseUri"/>.</param>
+	/// <param name="comickImageBaseUri">Comick image base URI used to resolve relative cover keys.</param>
+	/// <param name="flaresolverrServerUri">Optional FlareSolverr server URI. <see langword="null"/> disables FlareSolverr routing.</param>
+	/// <param name="flaresolverrDirectRetryInterval">Retry interval before probing direct Comick access after sticky FlareSolverr routing.</param>
+	/// <param name="preferredLanguage">Preferred language code used for metadata canonical-title selection.</param>
+	/// <param name="metadataApiMinRequestDelay">Minimum delay applied between outbound metadata API requests.</param>
+	/// <param name="metadataApiMaxRequestDelay">Maximum delay applied between outbound metadata API requests.</param>
+	/// <param name="metadataApiCacheTtl">TTL for persisted metadata API cache entries.</param>
+	public MetadataOrchestrationOptions(
+		TimeSpan comickMetadataCooldown,
+		Uri comickApiBaseUri,
+		string comickSearchEndpointPath,
+		int comickSearchMaxResults,
+		string comickComicEndpointPath,
+		Uri comickImageBaseUri,
+		Uri? flaresolverrServerUri,
+		TimeSpan flaresolverrDirectRetryInterval,
+		string preferredLanguage,
+		TimeSpan metadataApiMinRequestDelay,
+		TimeSpan metadataApiMaxRequestDelay,
 		TimeSpan metadataApiCacheTtl)
 	{
 		ArgumentNullException.ThrowIfNull(comickApiBaseUri);
@@ -103,12 +190,28 @@ internal sealed class MetadataOrchestrationOptions
 				"Comick search max results must be > 0.");
 		}
 
-		if (metadataApiRequestDelay < TimeSpan.Zero)
+		if (metadataApiMinRequestDelay < TimeSpan.Zero)
 		{
 			throw new ArgumentOutOfRangeException(
-				nameof(metadataApiRequestDelay),
-				metadataApiRequestDelay,
-				"Metadata API request delay must be >= 0.");
+				nameof(metadataApiMinRequestDelay),
+				metadataApiMinRequestDelay,
+				"Metadata API minimum request delay must be >= 0.");
+		}
+
+		if (metadataApiMaxRequestDelay < TimeSpan.Zero)
+		{
+			throw new ArgumentOutOfRangeException(
+				nameof(metadataApiMaxRequestDelay),
+				metadataApiMaxRequestDelay,
+				"Metadata API maximum request delay must be >= 0.");
+		}
+
+		if (metadataApiMaxRequestDelay < metadataApiMinRequestDelay)
+		{
+			throw new ArgumentOutOfRangeException(
+				nameof(metadataApiMaxRequestDelay),
+				metadataApiMaxRequestDelay,
+				"Metadata API maximum request delay must be >= metadataApiMinRequestDelay.");
 		}
 
 		if (metadataApiCacheTtl <= TimeSpan.Zero)
@@ -149,7 +252,8 @@ internal sealed class MetadataOrchestrationOptions
 		FlaresolverrServerUri = flaresolverrServerUri;
 		FlaresolverrDirectRetryInterval = flaresolverrDirectRetryInterval;
 		PreferredLanguage = preferredLanguage.Trim();
-		MetadataApiRequestDelay = metadataApiRequestDelay;
+		MetadataApiMinRequestDelay = metadataApiMinRequestDelay;
+		MetadataApiMaxRequestDelay = metadataApiMaxRequestDelay;
 		MetadataApiCacheTtl = metadataApiCacheTtl;
 	}
 
@@ -226,9 +330,17 @@ internal sealed class MetadataOrchestrationOptions
 	}
 
 	/// <summary>
-	/// Gets the pacing delay applied between outbound metadata API requests.
+	/// Gets the minimum pacing delay applied between outbound metadata API requests.
 	/// </summary>
-	public TimeSpan MetadataApiRequestDelay
+	public TimeSpan MetadataApiMinRequestDelay
+	{
+		get;
+	}
+
+	/// <summary>
+	/// Gets the maximum pacing delay applied between outbound metadata API requests.
+	/// </summary>
+	public TimeSpan MetadataApiMaxRequestDelay
 	{
 		get;
 	}

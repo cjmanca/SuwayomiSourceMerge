@@ -102,7 +102,8 @@ public sealed class SettingsDocumentValidatorProfileTests
                 ComickSearchMaxResults = null,
                 ComickComicEndpointPath = null,
                 ComickImageBaseUrl = null,
-                MetadataApiRequestDelayMs = null,
+                MetadataApiMinRequestDelayMs = null,
+                MetadataApiMaxRequestDelayMs = null,
                 MetadataApiCacheTtlHours = null,
                 FlaresolverrServerUrl = null,
                 FlaresolverrDirectRetryMinutes = null,
@@ -120,7 +121,7 @@ public sealed class SettingsDocumentValidatorProfileTests
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_search_max_results" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_comic_endpoint_path" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_image_base_url" && error.Code == "CFG-SET-002");
-        Assert.Contains(result.Errors, error => error.Path == "$.runtime.metadata_api_request_delay_ms" && error.Code == "CFG-SET-002");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.metadata_api_min_request_delay_ms" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.metadata_api_cache_ttl_hours" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.flaresolverr_server_url" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.flaresolverr_direct_retry_minutes" && error.Code == "CFG-SET-002");
@@ -147,7 +148,8 @@ public sealed class SettingsDocumentValidatorProfileTests
                 ComickSearchMaxResults = baseline.Runtime.ComickSearchMaxResults,
                 ComickComicEndpointPath = baseline.Runtime.ComickComicEndpointPath,
                 ComickImageBaseUrl = baseline.Runtime.ComickImageBaseUrl,
-                MetadataApiRequestDelayMs = 0,
+                MetadataApiMinRequestDelayMs = 0,
+                MetadataApiMaxRequestDelayMs = 0,
                 MetadataApiCacheTtlHours = 24,
                 FlaresolverrServerUrl = "https://flaresolverr.example.local/",
                 FlaresolverrDirectRetryMinutes = 60,
@@ -182,7 +184,8 @@ public sealed class SettingsDocumentValidatorProfileTests
                 ComickSearchMaxResults = null,
                 ComickComicEndpointPath = null,
                 ComickImageBaseUrl = null,
-                MetadataApiRequestDelayMs = null,
+                MetadataApiMinRequestDelayMs = null,
+                MetadataApiMaxRequestDelayMs = null,
                 MetadataApiCacheTtlHours = null,
                 FlaresolverrServerUrl = null,
                 FlaresolverrDirectRetryMinutes = null,
@@ -217,7 +220,8 @@ public sealed class SettingsDocumentValidatorProfileTests
                 ComickSearchMaxResults = 0,
                 ComickComicEndpointPath = " ",
                 ComickImageBaseUrl = "ftp://meo.comick.pictures/",
-                MetadataApiRequestDelayMs = -1,
+                MetadataApiMinRequestDelayMs = -1,
+                MetadataApiMaxRequestDelayMs = -1,
                 MetadataApiCacheTtlHours = 0,
                 FlaresolverrServerUrl = "ftp://flaresolverr.example.local",
                 FlaresolverrDirectRetryMinutes = 0,
@@ -235,7 +239,7 @@ public sealed class SettingsDocumentValidatorProfileTests
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_search_max_results" && error.Code == "CFG-SET-004");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_comic_endpoint_path" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_image_base_url" && error.Code == "CFG-SET-005");
-        Assert.Contains(result.Errors, error => error.Path == "$.runtime.metadata_api_request_delay_ms" && error.Code == "CFG-SET-004");
+        Assert.Contains(result.Errors, error => error.Path == "$.runtime.metadata_api_min_request_delay_ms" && error.Code == "CFG-SET-004");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.metadata_api_cache_ttl_hours" && error.Code == "CFG-SET-004");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.flaresolverr_server_url" && error.Code == "CFG-SET-005");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.flaresolverr_direct_retry_minutes" && error.Code == "CFG-SET-004");
@@ -262,7 +266,8 @@ public sealed class SettingsDocumentValidatorProfileTests
                 ComickSearchMaxResults = baseline.Runtime.ComickSearchMaxResults,
                 ComickComicEndpointPath = "/",
                 ComickImageBaseUrl = baseline.Runtime.ComickImageBaseUrl,
-                MetadataApiRequestDelayMs = baseline.Runtime.MetadataApiRequestDelayMs,
+                MetadataApiMinRequestDelayMs = baseline.Runtime.MetadataApiMinRequestDelayMs,
+                MetadataApiMaxRequestDelayMs = baseline.Runtime.MetadataApiMaxRequestDelayMs,
                 MetadataApiCacheTtlHours = baseline.Runtime.MetadataApiCacheTtlHours,
                 FlaresolverrServerUrl = baseline.Runtime.FlaresolverrServerUrl,
                 FlaresolverrDirectRetryMinutes = baseline.Runtime.FlaresolverrDirectRetryMinutes,
@@ -298,7 +303,8 @@ public sealed class SettingsDocumentValidatorProfileTests
                 ComickSearchMaxResults = baseline.Runtime.ComickSearchMaxResults,
                 ComickComicEndpointPath = "comic/#slug",
                 ComickImageBaseUrl = baseline.Runtime.ComickImageBaseUrl,
-                MetadataApiRequestDelayMs = baseline.Runtime.MetadataApiRequestDelayMs,
+                MetadataApiMinRequestDelayMs = baseline.Runtime.MetadataApiMinRequestDelayMs,
+                MetadataApiMaxRequestDelayMs = baseline.Runtime.MetadataApiMaxRequestDelayMs,
                 MetadataApiCacheTtlHours = baseline.Runtime.MetadataApiCacheTtlHours,
                 FlaresolverrServerUrl = baseline.Runtime.FlaresolverrServerUrl,
                 FlaresolverrDirectRetryMinutes = baseline.Runtime.FlaresolverrDirectRetryMinutes,

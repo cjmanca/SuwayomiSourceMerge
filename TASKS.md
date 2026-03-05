@@ -1,5 +1,11 @@
 # TASKS.md
 
+- [x] 2026-03-05 - Lock metadata delay-rename policy by adding regression tests that preserve intentional behavior: legacy `runtime.metadata_api_request_delay_ms` is ignored during self-heal, and self-heal does not auto-correct `runtime.metadata_api_max_request_delay_ms < runtime.metadata_api_min_request_delay_ms`.
+
+- [x] 2026-03-05 - Validate AI review-note accuracy for metadata timing tests/throttle math, keep the valid `max < min` options test unchanged, and harden throttle full-range delay selection to preserve inclusive bounds with deterministic unit coverage.
+
+- [x] 2026-03-05 - Rename metadata pacing setting `runtime.metadata_api_request_delay_ms` to `runtime.metadata_api_min_request_delay_ms`, add `runtime.metadata_api_max_request_delay_ms` (default `5000`), apply `max >= min` validation, and randomize per-request pacing delay selection between configured bounds.
+
 - [x] 2026-03-05 - Enforce outage cache miss invalidation for Comick title attempts by short-circuiting candidate probes on first `FlaresolverrUnavailable`, prioritizing coordinator invalidation over matched payload acceptance, and aligning docs/tests for cache-hit-allowed cooldown behavior.
 
 - [x] 2026-03-05 - Enforce FlareSolverr-only Comick routing with explicit `FlaresolverrUnavailable` outcome, outage-cooldown short-circuit behavior, coordinator metadata-write suppression for unavailable branches, runtime composition hardening against raw Comick calls, and aligned unit/integration coverage/docs updates.

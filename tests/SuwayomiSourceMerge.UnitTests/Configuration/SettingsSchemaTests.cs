@@ -71,7 +71,8 @@ public sealed class SettingsSchemaTests
               comick_search_max_results: 4
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
-              metadata_api_request_delay_ms: 1000
+              metadata_api_min_request_delay_ms: 1000
+              metadata_api_max_request_delay_ms: 5000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
               flaresolverr_direct_retry_minutes: 60
@@ -156,7 +157,8 @@ public sealed class SettingsSchemaTests
               comick_search_max_results: 4
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
-              metadata_api_request_delay_ms: 0
+              metadata_api_min_request_delay_ms: 0
+              metadata_api_max_request_delay_ms: 0
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
               flaresolverr_direct_retry_minutes: 60
@@ -240,7 +242,8 @@ public sealed class SettingsSchemaTests
               comick_search_max_results: 4
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
-              metadata_api_request_delay_ms: 1000
+              metadata_api_min_request_delay_ms: 1000
+              metadata_api_max_request_delay_ms: 5000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
               flaresolverr_direct_retry_minutes: 60
@@ -326,7 +329,8 @@ public sealed class SettingsSchemaTests
               comick_search_max_results: 4
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
-              metadata_api_request_delay_ms: 1000
+              metadata_api_min_request_delay_ms: 1000
+              metadata_api_max_request_delay_ms: 5000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
               flaresolverr_direct_retry_minutes: 60
@@ -412,7 +416,8 @@ public sealed class SettingsSchemaTests
               comick_search_max_results: 4
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
-              metadata_api_request_delay_ms: 1000
+              metadata_api_min_request_delay_ms: 1000
+              metadata_api_max_request_delay_ms: 5000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
               flaresolverr_direct_retry_minutes: 60
@@ -498,7 +503,8 @@ public sealed class SettingsSchemaTests
               comick_search_max_results: 4
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
-              metadata_api_request_delay_ms: 1000
+              metadata_api_min_request_delay_ms: 1000
+              metadata_api_max_request_delay_ms: 5000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
               flaresolverr_direct_retry_minutes: 60
@@ -579,7 +585,8 @@ public sealed class SettingsSchemaTests
               comick_search_max_results: 4
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
-              metadata_api_request_delay_ms: 1000
+              metadata_api_min_request_delay_ms: 1000
+              metadata_api_max_request_delay_ms: 5000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
               flaresolverr_direct_retry_minutes: 60
@@ -665,7 +672,8 @@ public sealed class SettingsSchemaTests
               comick_search_max_results: 4
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
-              metadata_api_request_delay_ms: 1000
+              metadata_api_min_request_delay_ms: 1000
+              metadata_api_max_request_delay_ms: 5000
               metadata_api_cache_ttl_hours: 24
               flaresolverr_server_url: ''
               flaresolverr_direct_retry_minutes: 60

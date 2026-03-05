@@ -201,7 +201,15 @@ public sealed partial class SettingsDocumentValidator : IConfigValidator<Setting
 				ValidatePositive(document.Runtime.ComickSearchMaxResults, file, "$.runtime.comick_search_max_results", result);
 				ValidateRequiredComickEndpointPath(document.Runtime.ComickComicEndpointPath, file, "$.runtime.comick_comic_endpoint_path", result);
 				ValidateRequiredComickAbsoluteUrl(document.Runtime.ComickImageBaseUrl, file, "$.runtime.comick_image_base_url", result);
-				ValidateNonNegative(document.Runtime.MetadataApiRequestDelayMs, file, "$.runtime.metadata_api_request_delay_ms", result);
+				ValidateNonNegative(document.Runtime.MetadataApiMinRequestDelayMs, file, "$.runtime.metadata_api_min_request_delay_ms", result);
+				ValidateNonNegative(document.Runtime.MetadataApiMaxRequestDelayMs, file, "$.runtime.metadata_api_max_request_delay_ms", result);
+				ValidateOptionalMinimumBound(
+					document.Runtime.MetadataApiMaxRequestDelayMs,
+					document.Runtime.MetadataApiMinRequestDelayMs,
+					file,
+					"$.runtime.metadata_api_max_request_delay_ms",
+					"Value must be greater than or equal to runtime.metadata_api_min_request_delay_ms.",
+					result);
 				ValidatePositive(document.Runtime.MetadataApiCacheTtlHours, file, "$.runtime.metadata_api_cache_ttl_hours", result);
 				ValidateRequiredFlareSolverrServerUrl(document.Runtime.FlaresolverrServerUrl, file, "$.runtime.flaresolverr_server_url", result);
 				ValidatePositive(document.Runtime.FlaresolverrDirectRetryMinutes, file, "$.runtime.flaresolverr_direct_retry_minutes", result);
@@ -215,7 +223,15 @@ public sealed partial class SettingsDocumentValidator : IConfigValidator<Setting
 				ValidateOptionalPositive(document.Runtime.ComickSearchMaxResults, file, "$.runtime.comick_search_max_results", result);
 				ValidateOptionalComickEndpointPath(document.Runtime.ComickComicEndpointPath, file, "$.runtime.comick_comic_endpoint_path", result);
 				ValidateOptionalComickAbsoluteUrl(document.Runtime.ComickImageBaseUrl, file, "$.runtime.comick_image_base_url", result);
-				ValidateOptionalNonNegative(document.Runtime.MetadataApiRequestDelayMs, file, "$.runtime.metadata_api_request_delay_ms", result);
+				ValidateOptionalNonNegative(document.Runtime.MetadataApiMinRequestDelayMs, file, "$.runtime.metadata_api_min_request_delay_ms", result);
+				ValidateOptionalNonNegative(document.Runtime.MetadataApiMaxRequestDelayMs, file, "$.runtime.metadata_api_max_request_delay_ms", result);
+				ValidateOptionalMinimumBound(
+					document.Runtime.MetadataApiMaxRequestDelayMs,
+					document.Runtime.MetadataApiMinRequestDelayMs,
+					file,
+					"$.runtime.metadata_api_max_request_delay_ms",
+					"Value must be greater than or equal to runtime.metadata_api_min_request_delay_ms.",
+					result);
 				ValidateOptionalPositive(document.Runtime.MetadataApiCacheTtlHours, file, "$.runtime.metadata_api_cache_ttl_hours", result);
 				ValidateOptionalFlareSolverrServerUrl(document.Runtime.FlaresolverrServerUrl, file, "$.runtime.flaresolverr_server_url", result);
 				ValidateOptionalPositive(document.Runtime.FlaresolverrDirectRetryMinutes, file, "$.runtime.flaresolverr_direct_retry_minutes", result);
@@ -430,6 +446,34 @@ public sealed partial class SettingsDocumentValidator : IConfigValidator<Setting
 		if (value.Value < minimum || value.Value > maximum)
 		{
 			result.Add(new ValidationError(file, path, InvalidRangeCode, $"Value must be between {minimum} and {maximum}."));
+		}
+	}
+
+	/// <summary>
+	/// Ensures an optional numeric field, when present alongside its lower bound, is not less than that bound.
+	/// </summary>
+	/// <param name="value">Numeric value to validate.</param>
+	/// <param name="minimum">Optional lower bound value.</param>
+	/// <param name="file">File name associated with the validation result.</param>
+	/// <param name="path">JSON path-like location for the field in validation output.</param>
+	/// <param name="message">Validation error message for bound violations.</param>
+	/// <param name="result">Collector that receives validation errors.</param>
+	private static void ValidateOptionalMinimumBound(
+		int? value,
+		int? minimum,
+		string file,
+		string path,
+		string message,
+		ValidationResult result)
+	{
+		if (!value.HasValue || !minimum.HasValue)
+		{
+			return;
+		}
+
+		if (value.Value < minimum.Value)
+		{
+			result.Add(new ValidationError(file, path, InvalidRangeCode, message));
 		}
 	}
 

@@ -117,9 +117,13 @@ Selected behavior for this implemented feature:
 
 Implemented runtime settings:
 
-- `runtime.metadata_api_request_delay_ms` (default `1000`):
+- `runtime.metadata_api_min_request_delay_ms` (default `1000`):
   - non-negative integer milliseconds
-  - `0` disables pacing
+  - lower bound used when selecting per-request pacing delay
+- `runtime.metadata_api_max_request_delay_ms` (default `5000`):
+  - non-negative integer milliseconds
+  - must be greater than or equal to `runtime.metadata_api_min_request_delay_ms`
+  - pacing is disabled when both min and max are `0`
 - `runtime.metadata_api_cache_ttl_hours` (default `24`):
   - positive integer hour TTL for persisted Comick response cache entries
 

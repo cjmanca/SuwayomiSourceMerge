@@ -37,7 +37,8 @@ public sealed class MetadataOrchestrationOptionsTests
 		Assert.Equal(flaresolverrServerUri, options.FlaresolverrServerUri);
 		Assert.Equal(TimeSpan.FromMinutes(60), options.FlaresolverrDirectRetryInterval);
 		Assert.Equal("en", options.PreferredLanguage);
-		Assert.Equal(TimeSpan.FromMilliseconds(1000), options.MetadataApiRequestDelay);
+		Assert.Equal(TimeSpan.FromMilliseconds(1000), options.MetadataApiMinRequestDelay);
+		Assert.Equal(TimeSpan.FromMilliseconds(1000), options.MetadataApiMaxRequestDelay);
 		Assert.Equal(TimeSpan.FromHours(24), options.MetadataApiCacheTtl);
 	}
 
@@ -61,7 +62,8 @@ public sealed class MetadataOrchestrationOptionsTests
 			TimeSpan.FromHours(24));
 
 		Assert.Null(options.FlaresolverrServerUri);
-		Assert.Equal(TimeSpan.Zero, options.MetadataApiRequestDelay);
+		Assert.Equal(TimeSpan.Zero, options.MetadataApiMinRequestDelay);
+		Assert.Equal(TimeSpan.Zero, options.MetadataApiMaxRequestDelay);
 		Assert.Equal(new Uri("https://images.example.local/"), options.ComickImageBaseUri);
 		Assert.Equal("search/", options.ComickSearchEndpointPath);
 		Assert.Equal(4, options.ComickSearchMaxResults);
@@ -139,7 +141,7 @@ public sealed class MetadataOrchestrationOptionsTests
 	[Fact]
 	public void Constructor_Failure_ShouldThrow_WhenMetadataApiTimingValuesInvalid()
 	{
-		ArgumentOutOfRangeException metadataApiRequestDelayException = Assert.Throws<ArgumentOutOfRangeException>(
+		ArgumentOutOfRangeException metadataApiMinRequestDelayException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new MetadataOrchestrationOptions(
 				TimeSpan.FromHours(24),
 				new Uri("https://api.comick.dev/"),
@@ -151,6 +153,20 @@ public sealed class MetadataOrchestrationOptionsTests
 				TimeSpan.FromMinutes(60),
 				"en",
 				TimeSpan.FromMilliseconds(-1),
+				TimeSpan.FromHours(24)));
+		ArgumentOutOfRangeException metadataApiMaxRequestDelayException = Assert.Throws<ArgumentOutOfRangeException>(
+			() => new MetadataOrchestrationOptions(
+				TimeSpan.FromHours(24),
+				new Uri("https://api.comick.dev/"),
+				"v1.0/search/",
+				ComickDirectApiClientOptions.DefaultSearchMaxResults,
+				"comic/",
+				new Uri("https://meo.comick.pictures/"),
+				null,
+				TimeSpan.FromMinutes(60),
+				"en",
+				TimeSpan.FromMilliseconds(1000),
+				TimeSpan.FromMilliseconds(500),
 				TimeSpan.FromHours(24)));
 		ArgumentOutOfRangeException metadataApiCacheTtlZeroException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new MetadataOrchestrationOptions(
@@ -179,7 +195,8 @@ public sealed class MetadataOrchestrationOptionsTests
 				TimeSpan.FromMilliseconds(1000),
 				TimeSpan.FromHours(-1)));
 
-		Assert.Equal("metadataApiRequestDelay", metadataApiRequestDelayException.ParamName);
+		Assert.Equal("metadataApiMinRequestDelay", metadataApiMinRequestDelayException.ParamName);
+		Assert.Equal("metadataApiMaxRequestDelay", metadataApiMaxRequestDelayException.ParamName);
 		Assert.Equal("metadataApiCacheTtl", metadataApiCacheTtlZeroException.ParamName);
 		Assert.Equal("metadataApiCacheTtl", metadataApiCacheTtlNegativeException.ParamName);
 	}

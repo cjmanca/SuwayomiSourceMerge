@@ -28,7 +28,8 @@ public sealed class SettingsDocumentDefaultsTests
         Assert.Equal(4, document.Runtime.ComickSearchMaxResults);
         Assert.Equal("comic/", document.Runtime.ComickComicEndpointPath);
         Assert.Equal("https://meo.comick.pictures/", document.Runtime.ComickImageBaseUrl);
-        Assert.Equal(1000, document.Runtime.MetadataApiRequestDelayMs);
+        Assert.Equal(1000, document.Runtime.MetadataApiMinRequestDelayMs);
+        Assert.Equal(5000, document.Runtime.MetadataApiMaxRequestDelayMs);
         Assert.Equal(24, document.Runtime.MetadataApiCacheTtlHours);
         Assert.Equal(string.Empty, document.Runtime.FlaresolverrServerUrl);
         Assert.Equal(60, document.Runtime.FlaresolverrDirectRetryMinutes);
