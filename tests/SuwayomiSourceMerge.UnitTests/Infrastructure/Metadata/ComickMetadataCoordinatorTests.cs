@@ -35,6 +35,86 @@ public sealed partial class ComickMetadataCoordinatorTests
 	}
 
 	/// <summary>
+	/// Verifies missing FlareSolverr URL bypasses Comick calls while still allowing details fallback generation.
+	/// </summary>
+	[Fact]
+	public void EnsureMetadata_Expected_ShouldBypassComick_WhenFlaresolverrUrlIsMissing()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		TestFixture fixture = CreateFixture(
+			temporaryDirectory.Path,
+			static (_, _) => throw new InvalidOperationException("Comick API should not be called when FlareSolverr URL is missing."));
+		ComickMetadataCoordinatorRequest request = fixture.CreateRequestWithoutArtifacts(
+			"Canonical Title",
+			CreateMetadataOrchestrationOptions(flaresolverrServerUri: null));
+
+		ComickMetadataCoordinatorResult result = fixture.Coordinator.EnsureMetadata(request);
+
+		Assert.False(result.ApiCalled);
+		Assert.False(result.HadServiceInterruption);
+		Assert.Equal(0, fixture.ApiGateway.SearchCallCount);
+		Assert.Equal(0, fixture.CoverService.CallCount);
+		Assert.Equal(1, fixture.DetailsService.CallCount);
+	}
+
+	/// <summary>
+	/// Verifies FlareSolverr-unavailable outcomes suppress artifact writes without failing merge semantics.
+	/// </summary>
+	[Fact]
+	public void EnsureMetadata_Edge_ShouldSkipCoverAndDetails_WhenSearchReportsFlaresolverrUnavailable()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		TestFixture fixture = CreateFixture(
+			temporaryDirectory.Path,
+			static (_, _) => CreateSearchResult(ComickDirectApiOutcome.FlaresolverrUnavailable));
+		ComickMetadataCoordinatorRequest request = fixture.CreateRequestWithoutArtifacts("Canonical Title");
+
+		ComickMetadataCoordinatorResult result = fixture.Coordinator.EnsureMetadata(request);
+
+		Assert.True(result.ApiCalled);
+		Assert.False(result.HadServiceInterruption);
+		Assert.False(result.CoverExists);
+		Assert.False(result.DetailsExists);
+		Assert.Equal(0, fixture.CoverService.CallCount);
+		Assert.Equal(0, fixture.DetailsService.CallCount);
+		Assert.Equal(0, fixture.MetadataStateStore.TransformCallCount);
+	}
+
+	/// <summary>
+	/// Verifies matcher-reported FlareSolverr-unavailable invalidation suppresses writes even when a match payload is present.
+	/// </summary>
+	[Fact]
+	public void EnsureMetadata_Edge_ShouldSkipCoverAndDetails_WhenMatcherReportsMatchedUnavailableInvalidation()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		TestFixture fixture = CreateFixture(
+			temporaryDirectory.Path,
+			static (_, _) => CreateSearchResult(ComickDirectApiOutcome.Success));
+		ComickCandidateMatchResult matchedResult = CreateMatchedCandidateResult();
+		fixture.CandidateMatcher.NextMatchResult = new ComickCandidateMatchResult(
+			ComickCandidateMatchOutcome.Matched,
+			matchedResult.MatchedCandidate,
+			matchedCandidateIndex: 0,
+			hadTopTie: false,
+			matchScore: 2,
+			hadServiceInterruption: false,
+			hadFlaresolverrUnavailable: true);
+		ComickMetadataCoordinatorRequest request = fixture.CreateRequestWithoutArtifacts("Canonical Title");
+
+		ComickMetadataCoordinatorResult result = fixture.Coordinator.EnsureMetadata(request);
+
+		Assert.True(result.ApiCalled);
+		Assert.False(result.HadServiceInterruption);
+		Assert.False(result.CoverExists);
+		Assert.False(result.DetailsExists);
+		Assert.Equal(1, fixture.ApiGateway.SearchCallCount);
+		Assert.Equal(1, fixture.CandidateMatcher.MatchCallCount);
+		Assert.Equal(0, fixture.CoverService.CallCount);
+		Assert.Equal(0, fixture.DetailsService.CallCount);
+		Assert.Equal(0, fixture.MetadataStateStore.TransformCallCount);
+	}
+
+	/// <summary>
 	/// Verifies cooperative cancellation skips cooldown persistence and throws cooperatively.
 	/// </summary>
 	[Fact]
@@ -240,13 +320,23 @@ public sealed partial class ComickMetadataCoordinatorTests
 	/// <returns>Options instance.</returns>
 	private static MetadataOrchestrationOptions CreateMetadataOrchestrationOptions()
 	{
+		return CreateMetadataOrchestrationOptions(new Uri("http://flaresolverr.local/"));
+	}
+
+	/// <summary>
+	/// Creates baseline metadata orchestration options for coordinator tests.
+	/// </summary>
+	/// <param name="flaresolverrServerUri">Optional FlareSolverr server URI.</param>
+	/// <returns>Options instance.</returns>
+	private static MetadataOrchestrationOptions CreateMetadataOrchestrationOptions(Uri? flaresolverrServerUri)
+	{
 		return new MetadataOrchestrationOptions(
 			comickMetadataCooldown: TimeSpan.FromHours(24),
 			comickApiBaseUri: new Uri("https://api.comick.dev/"),
 			comickSearchEndpointPath: "v1.0/search/",
 			comickComicEndpointPath: "comic/",
 			comickImageBaseUri: new Uri("https://meo.comick.pictures/"),
-			flaresolverrServerUri: null,
+			flaresolverrServerUri: flaresolverrServerUri,
 			flaresolverrDirectRetryInterval: TimeSpan.FromMinutes(60),
 			preferredLanguage: "en",
 			metadataApiRequestDelay: TimeSpan.FromMilliseconds(1000),

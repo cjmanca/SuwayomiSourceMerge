@@ -12,7 +12,7 @@ using SuwayomiSourceMerge.Infrastructure.Metadata.Flaresolverr;
 public sealed partial class CloudflareAwareComickGatewayTests
 {
 	/// <summary>
-	/// Verifies direct success short-circuits FlareSolverr and preserves sticky state when none is present.
+	/// Verifies FlareSolverr success paths are used for both endpoints with no direct Comick probing.
 	/// </summary>
 	[Theory]
 	[InlineData("search")]
@@ -23,7 +23,10 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		StubComickDirectApiClient directClient = new(
 			_ => CreateDirectSearchSuccess(),
 			_ => CreateDirectComicSuccess());
-		StubFlaresolverrClient flaresolverrClient = new(_ => CreateFlaresolverrSearchSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => endpoint == "search"
+				? CreateFlaresolverrSearchSuccess()
+				: CreateFlaresolverrComicSuccess());
 		InMemoryMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty);
 		CloudflareAwareComickGateway gateway = CreateGateway(
 			directClient,
@@ -46,13 +49,15 @@ public sealed partial class CloudflareAwareComickGatewayTests
 			Assert.NotNull(result.Payload);
 		}
 
-		Assert.Equal(0, flaresolverrClient.CallCount);
+		Assert.Equal(0, directClient.SearchCallCount);
+		Assert.Equal(0, directClient.ComicCallCount);
+		Assert.Equal(1, flaresolverrClient.CallCount);
 		Assert.Null(stateStore.Read().StickyFlaresolverrUntilUtc);
 		Assert.Equal(1, stateStore.TransformCallCount);
 	}
 
 	/// <summary>
-	/// Verifies direct Cloudflare-blocked search falls back to FlareSolverr and enables sticky mode.
+	/// Verifies healthy FlareSolverr requests do not activate outage cooldown state.
 	/// </summary>
 	[Fact]
 	public async Task SearchAsync_Edge_ShouldFallbackToFlaresolverrAndPersistStickyUntil()
@@ -76,9 +81,9 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
 		Assert.NotNull(result.Payload);
-		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(0, directClient.SearchCallCount);
 		Assert.Equal(1, flaresolverrClient.CallCount);
-		Assert.Equal(nowUtc + directRetryInterval, stateStore.Read().StickyFlaresolverrUntilUtc);
+		Assert.Null(stateStore.Read().StickyFlaresolverrUntilUtc);
 		Assert.Contains("request.get", flaresolverrClient.LastPayload, StringComparison.Ordinal);
 		Assert.Contains("api.comick.dev", flaresolverrClient.LastPayload, StringComparison.Ordinal);
 		Assert.Contains("limit=4", flaresolverrClient.LastPayload, StringComparison.Ordinal);
@@ -86,7 +91,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 	}
 
 	/// <summary>
-	/// Verifies sticky-active mode routes directly to FlareSolverr without direct probing.
+	/// Verifies active outage cooldown short-circuits request execution with an unavailable outcome.
 	/// </summary>
 	[Fact]
 	public async Task GetComicAsync_Edge_ShouldUseStickyFlaresolverrRouteWithoutDirectProbe()
@@ -111,17 +116,17 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		ComickDirectApiResult<ComickComicResponse> result = await gateway.GetComicAsync("comic-slug");
 
-		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
-		Assert.NotNull(result.Payload);
+		Assert.Equal(ComickDirectApiOutcome.FlaresolverrUnavailable, result.Outcome);
+		Assert.Null(result.Payload);
 		Assert.Equal(0, directClient.SearchCallCount);
 		Assert.Equal(0, directClient.ComicCallCount);
-		Assert.Equal(1, flaresolverrClient.CallCount);
+		Assert.Equal(0, flaresolverrClient.CallCount);
 		Assert.Equal(stickyUntilUtc, stateStore.Read().StickyFlaresolverrUntilUtc);
-		Assert.Equal(1, stateStore.TransformCallCount);
+		Assert.Equal(0, stateStore.TransformCallCount);
 	}
 
 	/// <summary>
-	/// Verifies sticky-expired mode probes direct and clears sticky after non-blocked success.
+	/// Verifies expired cooldown state is cleared after a successful FlareSolverr request.
 	/// </summary>
 	[Fact]
 	public async Task SearchAsync_Edge_ShouldProbeDirectAfterStickyExpiryAndClearStickyOnSuccess()
@@ -151,8 +156,8 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
 
 		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
-		Assert.Equal(1, directClient.SearchCallCount);
-		Assert.Equal(0, flaresolverrClient.CallCount);
+		Assert.Equal(0, directClient.SearchCallCount);
+		Assert.Equal(1, flaresolverrClient.CallCount);
 		MetadataStateSnapshot updatedState = stateStore.Read();
 		Assert.Null(updatedState.StickyFlaresolverrUntilUtc);
 		Assert.Equal(cooldowns["preserved-title"], updatedState.TitleCooldownsUtc["preserved-title"]);
@@ -160,7 +165,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 	}
 
 	/// <summary>
-	/// Verifies expired sticky clears for non-cloudflare malformed direct outcomes.
+	/// Verifies expired cooldown state clears after successful FlareSolverr responses.
 	/// </summary>
 	[Fact]
 	public async Task SearchAsync_Expected_ShouldClearExpiredSticky_WhenDirectOutcomeIsMalformedPayload()
@@ -189,17 +194,17 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
 
-		Assert.Equal(ComickDirectApiOutcome.MalformedPayload, result.Outcome);
-		Assert.Equal(1, directClient.SearchCallCount);
-		Assert.Equal(0, flaresolverrClient.CallCount);
+		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
+		Assert.Equal(0, directClient.SearchCallCount);
+		Assert.Equal(1, flaresolverrClient.CallCount);
 		MetadataStateSnapshot updatedState = stateStore.Read();
 		Assert.Null(updatedState.StickyFlaresolverrUntilUtc);
 		Assert.Equal(cooldowns["cooldown-title"], updatedState.TitleCooldownsUtc["cooldown-title"]);
-		Assert.Equal(1, stateStore.TransformCallCount);
+		Assert.Equal(2, stateStore.TransformCallCount);
 	}
 
 	/// <summary>
-	/// Verifies stale clear attempts do not remove a newer sticky value that appears during direct request execution.
+	/// Verifies stale clear attempts do not remove a newer cooldown value that appears during request execution.
 	/// </summary>
 	[Fact]
 	public async Task SearchAsync_Edge_ShouldNotClearNewerSticky_WhenDirectHandlerUpdatesStickyToFuture()
@@ -212,6 +217,9 @@ public sealed partial class CloudflareAwareComickGatewayTests
 				new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal),
 				initialExpiredStickyUtc));
 		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchSuccess(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(
 			_ =>
 			{
 				stateStore.Transform(
@@ -219,10 +227,8 @@ public sealed partial class CloudflareAwareComickGatewayTests
 						new MetadataStateSnapshot(
 							current.TitleCooldownsUtc,
 							interleavedFutureStickyUtc));
-				return CreateDirectSearchMalformedPayload();
-			},
-			_ => CreateDirectComicSuccess());
-		StubFlaresolverrClient flaresolverrClient = new(_ => CreateFlaresolverrSearchSuccess());
+				return CreateFlaresolverrSearchSuccess();
+			});
 		CloudflareAwareComickGateway gateway = CreateGateway(
 			directClient,
 			stateStore,
@@ -233,15 +239,15 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
 
-		Assert.Equal(ComickDirectApiOutcome.MalformedPayload, result.Outcome);
-		Assert.Equal(1, directClient.SearchCallCount);
-		Assert.Equal(0, flaresolverrClient.CallCount);
+		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
+		Assert.Equal(0, directClient.SearchCallCount);
+		Assert.Equal(1, flaresolverrClient.CallCount);
 		Assert.Equal(interleavedFutureStickyUtc, stateStore.Read().StickyFlaresolverrUntilUtc);
-		Assert.Equal(1, stateStore.TransformCallCount);
+		Assert.Equal(2, stateStore.TransformCallCount);
 	}
 
 	/// <summary>
-	/// Verifies Cloudflare-blocked direct results return unchanged when FlareSolverr is not configured.
+	/// Verifies missing FlareSolverr configuration returns explicit unavailable outcomes.
 	/// </summary>
 	[Theory]
 	[InlineData("search")]
@@ -264,12 +270,12 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		if (endpoint == "search")
 		{
 			ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
-			Assert.Equal(ComickDirectApiOutcome.CloudflareBlocked, result.Outcome);
+			Assert.Equal(ComickDirectApiOutcome.FlaresolverrUnavailable, result.Outcome);
 		}
 		else
 		{
 			ComickDirectApiResult<ComickComicResponse> result = await gateway.GetComicAsync("slug");
-			Assert.Equal(ComickDirectApiOutcome.CloudflareBlocked, result.Outcome);
+			Assert.Equal(ComickDirectApiOutcome.FlaresolverrUnavailable, result.Outcome);
 		}
 
 		Assert.Equal(0, stateStore.TransformCallCount);
@@ -277,7 +283,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 	}
 
 	/// <summary>
-	/// Verifies sticky-mode FlareSolverr failures return failure results and keep sticky state unchanged.
+	/// Verifies sticky-mode FlareSolverr transport failures return unavailable outcomes and keep cooldown state unchanged.
 	/// </summary>
 	[Fact]
 	public async Task GetComicAsync_Failure_ShouldFailClosedAndRetainSticky_WhenStickyFlaresolverrRequestFails()
@@ -308,9 +314,9 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		ComickDirectApiResult<ComickComicResponse> result = await gateway.GetComicAsync("slug");
 
-		Assert.Equal(ComickDirectApiOutcome.TransportFailure, result.Outcome);
+		Assert.Equal(ComickDirectApiOutcome.FlaresolverrUnavailable, result.Outcome);
 		Assert.Equal(0, directClient.ComicCallCount);
-		Assert.Equal(1, flaresolverrClient.CallCount);
+		Assert.Equal(0, flaresolverrClient.CallCount);
 		Assert.Equal(stickyUntilUtc, stateStore.Read().StickyFlaresolverrUntilUtc);
 		Assert.Equal(0, stateStore.TransformCallCount);
 	}
@@ -346,7 +352,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		Assert.Equal(ComickDirectApiOutcome.MalformedPayload, result.Outcome);
 		Assert.Null(result.Payload);
 		Assert.Equal(HttpStatusCode.OK, result.StatusCode);
-		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(0, directClient.SearchCallCount);
 		Assert.Equal(1, flaresolverrClient.CallCount);
 	}
 
@@ -381,7 +387,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		Assert.Equal(ComickDirectApiOutcome.HttpFailure, result.Outcome);
 		Assert.Equal(HttpStatusCode.InternalServerError, result.StatusCode);
 		Assert.Equal("HTTP failure status code: 500.", result.Diagnostic);
-		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(0, directClient.SearchCallCount);
 		Assert.Equal(1, flaresolverrClient.CallCount);
 	}
 
@@ -416,7 +422,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		Assert.Equal(ComickDirectApiOutcome.CloudflareBlocked, result.Outcome);
 		Assert.Equal(HttpStatusCode.Forbidden, result.StatusCode);
 		Assert.Equal("Cloudflare challenge detected.", result.Diagnostic);
-		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(0, directClient.SearchCallCount);
 		Assert.Equal(1, flaresolverrClient.CallCount);
 	}
 
@@ -451,7 +457,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		Assert.Equal(ComickDirectApiOutcome.HttpFailure, result.Outcome);
 		Assert.Equal(HttpStatusCode.Forbidden, result.StatusCode);
 		Assert.Equal("HTTP failure status code: 403.", result.Diagnostic);
-		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(0, directClient.SearchCallCount);
 		Assert.Equal(1, flaresolverrClient.CallCount);
 	}
 
@@ -492,7 +498,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
 		Assert.NotNull(result.Payload);
 		Assert.Single(result.Payload.Comics);
-		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(0, directClient.SearchCallCount);
 		Assert.Equal(1, flaresolverrClient.CallCount);
 	}
 
@@ -532,7 +538,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		Assert.NotNull(result.Payload);
 		Assert.NotNull(result.Payload.Comic);
 		Assert.Equal("comic-slug-1", result.Payload.Comic.Slug);
-		Assert.Equal(1, directClient.ComicCallCount);
+		Assert.Equal(0, directClient.ComicCallCount);
 		Assert.Equal(1, flaresolverrClient.CallCount);
 	}
 
@@ -566,7 +572,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		Assert.Equal(ComickDirectApiOutcome.MalformedPayload, result.Outcome);
 		Assert.Null(result.Payload);
-		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(0, directClient.SearchCallCount);
 		Assert.Equal(1, flaresolverrClient.CallCount);
 	}
 
@@ -602,7 +608,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		Assert.Equal(
 			"FlareSolverr upstream response was not JSON and did not contain an HTML <pre> wrapper.",
 			result.Diagnostic);
-		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(0, directClient.SearchCallCount);
 		Assert.Equal(1, flaresolverrClient.CallCount);
 	}
 
@@ -750,7 +756,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		Assert.Equal(
 			"FlareSolverr HTML-wrapped response contained <pre> blocks but none began with a JSON root token.",
 			result.Diagnostic);
-		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(0, directClient.SearchCallCount);
 		Assert.Equal(1, flaresolverrClient.CallCount);
 	}
 
@@ -784,7 +790,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		Assert.Equal(ComickDirectApiOutcome.MalformedPayload, result.Outcome);
 		Assert.NotNull(result.Diagnostic);
-		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(0, directClient.SearchCallCount);
 		Assert.Equal(1, flaresolverrClient.CallCount);
 	}
 
@@ -819,7 +825,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		Assert.Equal(ComickDirectApiOutcome.MalformedPayload, result.Outcome);
 		Assert.Contains("could not be parsed: InvalidOperationException", result.Diagnostic, StringComparison.Ordinal);
-		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(0, directClient.SearchCallCount);
 		Assert.Equal(1, flaresolverrClient.CallCount);
 	}
 
@@ -852,7 +858,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		await Assert.ThrowsAsync<OutOfMemoryException>(
 			async () => await gateway.SearchAsync("title"));
-		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(0, directClient.SearchCallCount);
 		Assert.Equal(1, flaresolverrClient.CallCount);
 	}
 
@@ -886,12 +892,12 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		Assert.Equal(ComickDirectApiOutcome.MalformedPayload, result.Outcome);
 		Assert.Equal("FlareSolverr upstream response body was empty.", result.Diagnostic);
-		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(0, directClient.SearchCallCount);
 		Assert.Equal(1, flaresolverrClient.CallCount);
 	}
 
 	/// <summary>
-	/// Verifies sticky updates are monotonic and never shorten an existing later sticky expiry.
+	/// Verifies outage-cooldown persistence is monotonic and never shortens an existing later expiry.
 	/// </summary>
 	[Fact]
 	public async Task SearchAsync_Edge_ShouldKeepLaterSticky_WhenFallbackComputesEarlierSticky()
@@ -903,6 +909,9 @@ public sealed partial class CloudflareAwareComickGatewayTests
 				new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal),
 				stickyFlaresolverrUntilUtc: null));
 		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchSuccess(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(
 			_ =>
 			{
 				stateStore.Transform(
@@ -910,10 +919,13 @@ public sealed partial class CloudflareAwareComickGatewayTests
 						new MetadataStateSnapshot(
 							current.TitleCooldownsUtc,
 							interleavedLaterStickyUtc));
-				return CreateDirectSearchCloudflareBlocked();
-			},
-			_ => CreateDirectComicSuccess());
-		StubFlaresolverrClient flaresolverrClient = new(_ => CreateFlaresolverrSearchSuccess());
+				return new FlaresolverrApiResult(
+					FlaresolverrApiOutcome.TransportFailure,
+					statusCode: null,
+					upstreamStatusCode: null,
+					upstreamResponseBody: null,
+					diagnostic: "socket failure");
+			});
 		CloudflareAwareComickGateway gateway = CreateGateway(
 			directClient,
 			stateStore,
@@ -924,11 +936,11 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
 
-		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
-		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(ComickDirectApiOutcome.FlaresolverrUnavailable, result.Outcome);
+		Assert.Equal(0, directClient.SearchCallCount);
 		Assert.Equal(1, flaresolverrClient.CallCount);
 		Assert.Equal(interleavedLaterStickyUtc, stateStore.Read().StickyFlaresolverrUntilUtc);
-		Assert.Equal(3, stateStore.TransformCallCount);
+		Assert.Equal(2, stateStore.TransformCallCount);
 	}
 
 	/// <summary>

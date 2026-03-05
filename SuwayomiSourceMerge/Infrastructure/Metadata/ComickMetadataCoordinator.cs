@@ -204,14 +204,46 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 
 		bool apiCalled = false;
 		bool hadServiceInterruption = false;
+		bool hadFlaresolverrUnavailable = false;
 		ComickComicResponse? matchedComic = null;
-		if (!cooldownActive)
+		bool comickRoutingEnabled = request.MetadataOrchestration.FlaresolverrServerUri is not null;
+		if (comickRoutingEnabled && !cooldownActive)
 		{
-			(apiCalled, hadServiceInterruption, matchedComic) = ResolveMatchedComic(
+			(apiCalled, hadServiceInterruption, hadFlaresolverrUnavailable, matchedComic) = ResolveMatchedComic(
 				request,
 				normalizedTitleKey,
 				nowUtc,
 				cancellationToken);
+		}
+		else if (!comickRoutingEnabled)
+		{
+			_logger.Debug(
+				CooldownSkippedEvent,
+				"Skipped Comick API lookup because FlareSolverr routing is not configured.",
+				BuildContext(
+					("title", request.DisplayTitle),
+					("normalized_title_key", normalizedTitleKey),
+					("cooldown_active", "false"),
+					("timestamp_utc", nowUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture))));
+		}
+
+		if (hadFlaresolverrUnavailable)
+		{
+			if (!coverExists)
+			{
+				LogCoverSkipped(request.DisplayTitle, normalizedTitleKey, "flaresolverr_unavailable");
+			}
+
+			if (!detailsExists)
+			{
+				LogDetailsSkipped(request.DisplayTitle, normalizedTitleKey, "flaresolverr_unavailable");
+			}
+
+			return new ComickMetadataCoordinatorResult(
+				apiCalled: true,
+				hadServiceInterruption: false,
+				coverExists,
+				detailsExists);
 		}
 
 		if (!coverExists && matchedComic is not null)
@@ -264,7 +296,7 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 	/// <param name="nowUtc">Current UTC timestamp.</param>
 	/// <param name="cancellationToken">Cancellation token.</param>
 	/// <returns>API call metadata, interruption flag, and matched comic payload when available.</returns>
-	private (bool ApiCalled, bool HadServiceInterruption, ComickComicResponse? MatchedComic) ResolveMatchedComic(
+	private (bool ApiCalled, bool HadServiceInterruption, bool HadFlaresolverrUnavailable, ComickComicResponse? MatchedComic) ResolveMatchedComic(
 		ComickMetadataCoordinatorRequest request,
 		string normalizedTitleKey,
 		DateTimeOffset nowUtc,
@@ -284,14 +316,20 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 				throw new OperationCanceledException(cancellationToken);
 			}
 
+			if (searchResult.Outcome == ComickDirectApiOutcome.FlaresolverrUnavailable)
+			{
+				shouldPersistCooldown = false;
+				return (true, false, true, null);
+			}
+
 			if (IsServiceInterruptionOutcome(searchResult.Outcome))
 			{
-				return (true, true, null);
+				return (true, true, false, null);
 			}
 
 			if (searchResult.Outcome != ComickDirectApiOutcome.Success || searchResult.Payload is null)
 			{
-				return (true, false, null);
+				return (true, false, false, null);
 			}
 
 			ComickCandidateMatchResult matchResult = _comickCandidateMatcher
@@ -302,17 +340,23 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 				.GetAwaiter()
 				.GetResult();
 
+			if (matchResult.HadFlaresolverrUnavailable)
+			{
+				shouldPersistCooldown = false;
+				return (true, false, true, null);
+			}
+
 			if (matchResult.Outcome == ComickCandidateMatchOutcome.Matched)
 			{
-				return (true, false, matchResult.MatchedCandidate);
+				return (true, false, false, matchResult.MatchedCandidate);
 			}
 
 			if (matchResult.HadServiceInterruption)
 			{
-				return (true, true, null);
+				return (true, true, false, null);
 			}
 
-			return (true, false, null);
+			return (true, false, false, null);
 		}
 		catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
 		{
@@ -321,7 +365,7 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 		}
 		catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
 		{
-			return (true, true, null);
+			return (true, true, false, null);
 		}
 		finally
 		{

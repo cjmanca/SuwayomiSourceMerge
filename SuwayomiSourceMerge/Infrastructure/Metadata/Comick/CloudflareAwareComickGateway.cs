@@ -9,12 +9,13 @@ using SuwayomiSourceMerge.Infrastructure.Metadata.Flaresolverr;
 namespace SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 
 /// <summary>
-/// Executes Comick API requests with direct-first routing and sticky FlareSolverr fallback for Cloudflare challenge responses.
+/// Executes Comick API requests using FlareSolverr-only routing with outage-cooldown short-circuit behavior.
 /// </summary>
 internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 {
 	/// <summary>
-	/// Direct Comick API client dependency.
+	/// Direct Comick API client dependency retained for constructor compatibility.
+	/// Live gateway routing is FlareSolverr-only and never calls this client.
 	/// </summary>
 	private readonly IComickDirectApiClient _directClient;
 
@@ -130,7 +131,6 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		return ExecuteWithCacheAsync(
 			ComickApiCacheEndpointKind.Search,
 			requestKey,
-			ct => _directClient.SearchAsync(requestKey, ct),
 			endpointUri,
 			ComickPayloadParser.TryParseSearchPayload,
 			cancellationToken);
@@ -151,62 +151,61 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		return ExecuteWithCacheAsync(
 			ComickApiCacheEndpointKind.Comic,
 			requestKey,
-			ct => _directClient.GetComicAsync(requestKey, ct),
 			endpointUri,
 			ComickPayloadParser.TryParseComicPayload,
 			cancellationToken);
 	}
 
 	/// <summary>
-	/// Executes one typed request with direct-first and sticky-FlareSolverr routing semantics.
+	/// Executes one typed request using FlareSolverr-only routing with persisted outage-cooldown behavior.
 	/// </summary>
 	/// <typeparam name="TPayload">Typed payload type.</typeparam>
-	/// <param name="directRequest">Direct request callback.</param>
 	/// <param name="endpointUri">Absolute endpoint URI.</param>
 	/// <param name="payloadParser">Typed payload parser for successful response bodies.</param>
 	/// <param name="cancellationToken">Cancellation token.</param>
 	/// <returns>Typed Comick request result.</returns>
 	private async Task<ComickDirectApiResult<TPayload>> ExecuteWithRoutingAsync<TPayload>(
-		Func<CancellationToken, Task<ComickDirectApiResult<TPayload>>> directRequest,
 		Uri endpointUri,
 		Func<string, (bool Success, TPayload? Payload, string Diagnostic)> payloadParser,
 		CancellationToken cancellationToken)
 	{
-		ArgumentNullException.ThrowIfNull(directRequest);
 		ArgumentNullException.ThrowIfNull(endpointUri);
 		ArgumentNullException.ThrowIfNull(payloadParser);
+		_ = _directClient;
 
 		DateTimeOffset nowUtc = _utcNowProvider().ToUniversalTime();
+		if (!IsFlaresolverrConfigured())
+		{
+			return CreateFlaresolverrUnavailableResult<TPayload>(
+				"FlareSolverr routing is not configured.");
+		}
+
 		MetadataStateSnapshot currentState = TryReadMetadataStateSnapshot(
 			endpointUri,
-			operation: "sticky_precheck_read",
+			operation: "flaresolverr_cooldown_precheck_read",
 			operationKind: MetadataStateStoreOperationKind.Standard);
-		bool flaresolverrConfigured = IsFlaresolverrConfigured();
-		if (IsStickyActive(currentState, nowUtc) && flaresolverrConfigured)
+		if (IsStickyActive(currentState, nowUtc))
 		{
-			LogStickyRoute(endpointUri, currentState.StickyFlaresolverrUntilUtc);
-			return await ExecuteViaFlaresolverrAsync(endpointUri, payloadParser, cancellationToken).ConfigureAwait(false);
+			LogCooldownActiveSkip(endpointUri, currentState.StickyFlaresolverrUntilUtc);
+			return CreateFlaresolverrUnavailableResult<TPayload>(
+				"FlareSolverr outage cooldown is active.");
 		}
 
-		ComickDirectApiResult<TPayload> directResult = await _throttle
-			.ExecuteAsync(ct => directRequest(ct), cancellationToken)
-			.ConfigureAwait(false);
-		DateTimeOffset postDirectNowUtc = _utcNowProvider().ToUniversalTime();
-		if (directResult.Outcome == ComickDirectApiOutcome.CloudflareBlocked && flaresolverrConfigured)
+		ComickDirectApiResult<TPayload> flaresolverrResult = await ExecuteViaFlaresolverrAsync(
+			endpointUri,
+			payloadParser,
+			cancellationToken).ConfigureAwait(false);
+		DateTimeOffset postRequestUtc = _utcNowProvider().ToUniversalTime();
+		if (flaresolverrResult.Outcome == ComickDirectApiOutcome.FlaresolverrUnavailable)
 		{
-			DateTimeOffset stickyUntilUtc = postDirectNowUtc + _options.FlaresolverrDirectRetryInterval;
-			LogFallbackActivated(endpointUri, stickyUntilUtc);
+			DateTimeOffset stickyUntilUtc = postRequestUtc + _options.FlaresolverrDirectRetryInterval;
+			LogFlaresolverrUnavailable(endpointUri, stickyUntilUtc, flaresolverrResult.Diagnostic);
 			PersistStickyFlaresolverrUntil(stickyUntilUtc);
-			return await ExecuteViaFlaresolverrAsync(endpointUri, payloadParser, cancellationToken).ConfigureAwait(false);
-		}
-		else if (directResult.Outcome == ComickDirectApiOutcome.CloudflareBlocked)
-		{
-			LogFallbackUnavailable(endpointUri, directResult.Diagnostic);
+			return flaresolverrResult;
 		}
 
-		TryClearExpiredStickyAfterDirectNonCloudflare(postDirectNowUtc, directResult, endpointUri);
-
-		return directResult;
+		TryClearExpiredStickyAfterFlaresolverrResult(postRequestUtc, endpointUri);
+		return flaresolverrResult;
 	}
 
 	/// <summary>
@@ -226,11 +225,8 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		ArgumentNullException.ThrowIfNull(payloadParser);
 		if (_flaresolverrClient is null)
 		{
-			return new ComickDirectApiResult<TPayload>(
-				ComickDirectApiOutcome.TransportFailure,
-				payload: default,
-				statusCode: null,
-				diagnostic: "FlareSolverr client is not configured.");
+			return CreateFlaresolverrUnavailableResult<TPayload>(
+				"FlareSolverr client dependency is not configured.");
 		}
 
 		string requestPayloadJson = BuildFlaresolverrRequestPayload(endpointUri);
@@ -261,17 +257,11 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 			case FlaresolverrApiOutcome.Success:
 				return MapFlaresolverrSuccess(endpointUri, flaresolverrResult, payloadParser);
 			case FlaresolverrApiOutcome.HttpFailure:
-				return new ComickDirectApiResult<TPayload>(
-					ComickDirectApiOutcome.HttpFailure,
-					payload: default,
-					statusCode: flaresolverrResult.StatusCode,
-					diagnostic: $"FlareSolverr HTTP failure: {flaresolverrResult.Diagnostic}");
+				return CreateFlaresolverrUnavailableResult<TPayload>(
+					$"FlareSolverr HTTP failure: {flaresolverrResult.Diagnostic}");
 			case FlaresolverrApiOutcome.TransportFailure:
-				return new ComickDirectApiResult<TPayload>(
-					ComickDirectApiOutcome.TransportFailure,
-					payload: default,
-					statusCode: null,
-					diagnostic: $"FlareSolverr transport failure: {flaresolverrResult.Diagnostic}");
+				return CreateFlaresolverrUnavailableResult<TPayload>(
+					$"FlareSolverr transport failure: {flaresolverrResult.Diagnostic}");
 			case FlaresolverrApiOutcome.Cancelled:
 				return new ComickDirectApiResult<TPayload>(
 					ComickDirectApiOutcome.Cancelled,
@@ -422,24 +412,16 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 	/// <summary>
 	/// Attempts to clear sticky FlareSolverr state after a non-cloudflare direct outcome when current sticky state is expired.
 	/// </summary>
-	/// <typeparam name="TPayload">Typed payload type.</typeparam>
 	/// <param name="nowUtc">Current timestamp.</param>
-	/// <param name="directResult">Direct request result.</param>
-	private void TryClearExpiredStickyAfterDirectNonCloudflare<TPayload>(
+	/// <param name="endpointUri">Endpoint URI used for diagnostics.</param>
+	private void TryClearExpiredStickyAfterFlaresolverrResult(
 		DateTimeOffset nowUtc,
-		ComickDirectApiResult<TPayload> directResult,
 		Uri endpointUri)
 	{
-		ArgumentNullException.ThrowIfNull(directResult);
 		ArgumentNullException.ThrowIfNull(endpointUri);
-		if (directResult.Outcome == ComickDirectApiOutcome.CloudflareBlocked)
-		{
-			return;
-		}
-
 		MetadataStateSnapshot snapshot = TryReadMetadataStateSnapshot(
 			endpointUri,
-			operation: "sticky_clear_read",
+			operation: "flaresolverr_cooldown_clear_read",
 			operationKind: MetadataStateStoreOperationKind.Standard);
 		if (snapshot.StickyFlaresolverrUntilUtc is not DateTimeOffset currentStickyUntilUtc ||
 			currentStickyUntilUtc > nowUtc)
@@ -452,7 +434,7 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		bool stickyCleared = false;
 		if (!TryTransformMetadataStateSnapshot(
 			endpointUri,
-			operation: "sticky_clear_transform",
+			operation: "flaresolverr_cooldown_clear_transform",
 			operationKind: MetadataStateStoreOperationKind.Standard,
 			current =>
 			{
@@ -480,7 +462,7 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		// and logging does not run under store-internal synchronization.
 		if (stickyCleared)
 		{
-			LogStickyCleared(endpointUri, directResult.Outcome, nowUtc);
+			LogCooldownCleared(endpointUri, nowUtc);
 		}
 	}
 
@@ -502,7 +484,7 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 		DateTimeOffset normalizedStickyUntilUtc = stickyUntilUtc.ToUniversalTime();
 		_ = TryTransformMetadataStateSnapshot(
 			_options.ComickApiBaseUri,
-			operation: "sticky_persist_transform",
+			operation: "flaresolverr_cooldown_persist_transform",
 			operationKind: MetadataStateStoreOperationKind.Standard,
 			current =>
 			{
@@ -521,6 +503,22 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 					nextStickyUntilUtc,
 					current.ComickCache);
 			});
+	}
+
+	/// <summary>
+	/// Creates one deterministic FlareSolverr-unavailable result payload.
+	/// </summary>
+	/// <typeparam name="TPayload">Typed payload type.</typeparam>
+	/// <param name="diagnostic">Diagnostic text.</param>
+	/// <returns>Unavailable result.</returns>
+	private static ComickDirectApiResult<TPayload> CreateFlaresolverrUnavailableResult<TPayload>(string diagnostic)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(diagnostic);
+		return new ComickDirectApiResult<TPayload>(
+			ComickDirectApiOutcome.FlaresolverrUnavailable,
+			payload: default,
+			statusCode: null,
+			diagnostic: diagnostic.Trim());
 	}
 
 }

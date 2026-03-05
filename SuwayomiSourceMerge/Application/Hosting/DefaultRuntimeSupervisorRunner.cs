@@ -84,14 +84,7 @@ internal sealed class DefaultRuntimeSupervisorRunner : IRuntimeSupervisorRunner
 		IMetadataStateStore metadataStateStore = new FileBackedMetadataStateStore(metadataStatePaths);
 		IMetadataApiRequestThrottle metadataApiRequestThrottle = new MetadataApiRequestThrottle(
 			mergeOptions.MetadataOrchestration.MetadataApiRequestDelay);
-		IComickDirectApiClient comickDirectApiClient = new ComickDirectApiClient(
-			new ComickDirectApiClientOptions(
-				mergeOptions.MetadataOrchestration.ComickApiBaseUri,
-				TimeSpan.FromSeconds(ComickDirectApiClientOptions.DefaultTimeoutSeconds),
-				mergeOptions.MetadataOrchestration.ComickSearchEndpointPath,
-				mergeOptions.MetadataOrchestration.ComickSearchMaxResults,
-				mergeOptions.MetadataOrchestration.ComickComicEndpointPath),
-			httpClient: null);
+		IComickDirectApiClient comickDirectApiClient = new DisabledComickDirectApiClient();
 		IFlaresolverrClient? flaresolverrClient = mergeOptions.MetadataOrchestration.FlaresolverrServerUri is null
 			? null
 			: new FlaresolverrClient(
@@ -158,5 +151,41 @@ internal sealed class DefaultRuntimeSupervisorRunner : IRuntimeSupervisorRunner
 			new ConsoleSupervisorSignalRegistrar());
 
 		return supervisor.RunAsync().GetAwaiter().GetResult();
+	}
+
+	/// <summary>
+	/// Safety client used to prevent accidental raw Comick API calls from runtime composition.
+	/// </summary>
+	private sealed class DisabledComickDirectApiClient : IComickDirectApiClient
+	{
+		/// <inheritdoc />
+		public Task<ComickDirectApiResult<ComickSearchResponse>> SearchAsync(
+			string query,
+			CancellationToken cancellationToken = default)
+		{
+			ArgumentException.ThrowIfNullOrWhiteSpace(query);
+			cancellationToken.ThrowIfCancellationRequested();
+			return Task.FromResult(
+				new ComickDirectApiResult<ComickSearchResponse>(
+					ComickDirectApiOutcome.FlaresolverrUnavailable,
+					payload: null,
+					statusCode: null,
+					diagnostic: "Direct Comick API routing is disabled in runtime composition."));
+		}
+
+		/// <inheritdoc />
+		public Task<ComickDirectApiResult<ComickComicResponse>> GetComicAsync(
+			string slug,
+			CancellationToken cancellationToken = default)
+		{
+			ArgumentException.ThrowIfNullOrWhiteSpace(slug);
+			cancellationToken.ThrowIfCancellationRequested();
+			return Task.FromResult(
+				new ComickDirectApiResult<ComickComicResponse>(
+					ComickDirectApiOutcome.FlaresolverrUnavailable,
+					payload: null,
+					statusCode: null,
+					diagnostic: "Direct Comick API routing is disabled in runtime composition."));
+		}
 	}
 }

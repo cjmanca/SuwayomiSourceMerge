@@ -3,6 +3,7 @@ namespace SuwayomiSourceMerge.UnitTests.Infrastructure.Metadata;
 using SuwayomiSourceMerge.Infrastructure.Logging;
 using SuwayomiSourceMerge.Infrastructure.Metadata;
 using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
+using SuwayomiSourceMerge.Infrastructure.Metadata.Flaresolverr;
 using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 
 /// <summary>
@@ -11,7 +12,7 @@ using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 public sealed partial class CloudflareAwareComickGatewayTests
 {
 	/// <summary>
-	/// Verifies non-fatal metadata-state read failures fall back to direct request behavior.
+	/// Verifies non-fatal metadata-state read failures preserve request execution behavior.
 	/// </summary>
 	[Fact]
 	public async Task SearchAsync_Edge_ShouldContinueWhenStateReadFailsNonFatally()
@@ -38,18 +39,18 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
 
 		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
-		Assert.Equal(1, directClient.SearchCallCount);
-		Assert.Equal(0, flaresolverrClient.CallCount);
+		Assert.Equal(0, directClient.SearchCallCount);
+		Assert.Equal(1, flaresolverrClient.CallCount);
 		Assert.Contains(
 			logger.Events,
 			static entry => entry.EventId == "metadata.cloudflare.state_store.failed" &&
 				entry.Context is not null &&
 				entry.Context.TryGetValue("operation", out string? operationValue) &&
-				string.Equals(operationValue, "sticky_precheck_read", StringComparison.Ordinal));
+				string.Equals(operationValue, "flaresolverr_cooldown_precheck_read", StringComparison.Ordinal));
 	}
 
 	/// <summary>
-	/// Verifies non-fatal sticky persistence failures do not prevent fallback routing success.
+	/// Verifies non-fatal cooldown persistence failures do not prevent unavailable outcome mapping.
 	/// </summary>
 	[Fact]
 	public async Task SearchAsync_Edge_ShouldContinueWhenStickyPersistTransformFailsNonFatally()
@@ -57,9 +58,15 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-02-24T07:30:00+00:00");
 		RecordingLogger logger = new();
 		StubComickDirectApiClient directClient = new(
-			_ => CreateDirectSearchCloudflareBlocked(),
+			_ => CreateDirectSearchSuccess(),
 			_ => CreateDirectComicSuccess());
-		StubFlaresolverrClient flaresolverrClient = new(_ => CreateFlaresolverrSearchSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.TransportFailure,
+				statusCode: null,
+				upstreamStatusCode: null,
+				upstreamResponseBody: null,
+				diagnostic: "socket failure"));
 		FaultInjectingMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty)
 		{
 			TransformException = new IOException("simulated transform failure")
@@ -75,19 +82,19 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
 
-		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
-		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(ComickDirectApiOutcome.FlaresolverrUnavailable, result.Outcome);
+		Assert.Equal(0, directClient.SearchCallCount);
 		Assert.Equal(1, flaresolverrClient.CallCount);
 		Assert.Contains(
 			logger.Events,
 			static entry => entry.EventId == "metadata.cloudflare.state_store.failed" &&
 				entry.Context is not null &&
 				entry.Context.TryGetValue("operation", out string? operationValue) &&
-				string.Equals(operationValue, "sticky_persist_transform", StringComparison.Ordinal));
+				string.Equals(operationValue, "flaresolverr_cooldown_persist_transform", StringComparison.Ordinal));
 	}
 
 	/// <summary>
-	/// Verifies non-fatal sticky-clear transform failures do not interrupt direct request outcomes.
+	/// Verifies non-fatal cooldown-clear transform failures do not interrupt request outcomes.
 	/// </summary>
 	[Fact]
 	public async Task SearchAsync_Edge_ShouldContinueWhenStickyClearTransformFailsNonFatally()
@@ -95,7 +102,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-02-24T07:45:00+00:00");
 		RecordingLogger logger = new();
 		StubComickDirectApiClient directClient = new(
-			_ => CreateDirectSearchMalformedPayload(),
+			_ => CreateDirectSearchSuccess(),
 			_ => CreateDirectComicSuccess());
 		StubFlaresolverrClient flaresolverrClient = new(_ => CreateFlaresolverrSearchSuccess());
 		FaultInjectingMetadataStateStore stateStore = new(
@@ -116,15 +123,15 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("title");
 
-		Assert.Equal(ComickDirectApiOutcome.MalformedPayload, result.Outcome);
-		Assert.Equal(1, directClient.SearchCallCount);
-		Assert.Equal(0, flaresolverrClient.CallCount);
+		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
+		Assert.Equal(0, directClient.SearchCallCount);
+		Assert.Equal(1, flaresolverrClient.CallCount);
 		Assert.Contains(
 			logger.Events,
 			static entry => entry.EventId == "metadata.cloudflare.state_store.failed" &&
 				entry.Context is not null &&
 				entry.Context.TryGetValue("operation", out string? operationValue) &&
-				string.Equals(operationValue, "sticky_clear_transform", StringComparison.Ordinal));
+				string.Equals(operationValue, "flaresolverr_cooldown_clear_transform", StringComparison.Ordinal));
 	}
 
 	/// <summary>

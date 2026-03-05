@@ -121,12 +121,31 @@ public sealed partial class ComickMetadataCoordinatorTests
 			string preferredOverridePath = Path.Combine(RootPath, "override", "priority", displayTitle);
 			Directory.CreateDirectory(preferredOverridePath);
 			File.WriteAllText(Path.Combine(preferredOverridePath, "details.json"), "{}");
+			return CreateRequestWithExistingDetails(displayTitle, CreateMetadataOrchestrationOptions());
+		}
+
+		/// <summary>
+		/// Creates one request for a title where details.json already exists in the preferred override path.
+		/// </summary>
+		/// <param name="displayTitle">Display title.</param>
+		/// <param name="metadataOptions">Metadata orchestration options.</param>
+		/// <returns>Coordinator request.</returns>
+		public ComickMetadataCoordinatorRequest CreateRequestWithExistingDetails(
+			string displayTitle,
+			MetadataOrchestrationOptions metadataOptions)
+		{
+			ArgumentException.ThrowIfNullOrWhiteSpace(displayTitle);
+			ArgumentNullException.ThrowIfNull(metadataOptions);
+
+			string preferredOverridePath = Path.Combine(RootPath, "override", "priority", displayTitle);
+			Directory.CreateDirectory(preferredOverridePath);
+			File.WriteAllText(Path.Combine(preferredOverridePath, "details.json"), "{}");
 			return new ComickMetadataCoordinatorRequest(
 				preferredOverridePath,
 				[preferredOverridePath],
 				[],
 				displayTitle,
-				CreateMetadataOrchestrationOptions());
+				metadataOptions);
 		}
 
 		/// <summary>
@@ -140,12 +159,30 @@ public sealed partial class ComickMetadataCoordinatorTests
 
 			string preferredOverridePath = Path.Combine(RootPath, "override", "priority", displayTitle);
 			Directory.CreateDirectory(preferredOverridePath);
+			return CreateRequestWithoutArtifacts(displayTitle, CreateMetadataOrchestrationOptions());
+		}
+
+		/// <summary>
+		/// Creates one request for a title without existing metadata artifacts.
+		/// </summary>
+		/// <param name="displayTitle">Display title.</param>
+		/// <param name="metadataOptions">Metadata orchestration options.</param>
+		/// <returns>Coordinator request.</returns>
+		public ComickMetadataCoordinatorRequest CreateRequestWithoutArtifacts(
+			string displayTitle,
+			MetadataOrchestrationOptions metadataOptions)
+		{
+			ArgumentException.ThrowIfNullOrWhiteSpace(displayTitle);
+			ArgumentNullException.ThrowIfNull(metadataOptions);
+
+			string preferredOverridePath = Path.Combine(RootPath, "override", "priority", displayTitle);
+			Directory.CreateDirectory(preferredOverridePath);
 			return new ComickMetadataCoordinatorRequest(
 				preferredOverridePath,
 				[preferredOverridePath],
 				[],
 				displayTitle,
-				CreateMetadataOrchestrationOptions());
+				metadataOptions);
 		}
 	}
 }

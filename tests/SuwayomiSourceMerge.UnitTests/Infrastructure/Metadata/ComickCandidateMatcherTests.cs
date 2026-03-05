@@ -259,6 +259,31 @@ public sealed partial class ComickCandidateMatcherTests
 	}
 
 	/// <summary>
+	/// Verifies FlareSolverr-unavailable detail outcomes invalidate the title attempt and stop further probes.
+	/// </summary>
+	[Fact]
+	public async Task MatchAsync_Edge_ShouldStopFurtherCandidateProbes_WhenFlaresolverrUnavailableIsObserved()
+	{
+		RecordingComickApiGateway gateway = new(
+			slug => slug == "unavailable"
+				? CreateOutcomeOnlyResult(ComickDirectApiOutcome.FlaresolverrUnavailable)
+				: CreateOutcomeOnlyResult(ComickDirectApiOutcome.NotFound));
+		ComickCandidateMatcher matcher = new(gateway);
+
+		ComickCandidateMatchResult result = await matcher.MatchAsync(
+			[
+				CreateSearchCandidate("unavailable", "target"),
+				CreateSearchCandidate("not-found", "target")
+			],
+			["target title"]);
+
+		Assert.Equal(ComickCandidateMatchOutcome.NoHighConfidenceMatch, result.Outcome);
+		Assert.False(result.HadServiceInterruption);
+		Assert.True(result.HadFlaresolverrUnavailable);
+		Assert.Equal(["unavailable"], gateway.RequestedSlugs);
+	}
+
+	/// <summary>
 	/// Verifies scene-tag normalization continues to work when matching comic-detail titles.
 	/// </summary>
 	[Fact]

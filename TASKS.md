@@ -1,5 +1,9 @@
 # TASKS.md
 
+- [x] 2026-03-05 - Enforce outage cache miss invalidation for Comick title attempts by short-circuiting candidate probes on first `FlaresolverrUnavailable`, prioritizing coordinator invalidation over matched payload acceptance, and aligning docs/tests for cache-hit-allowed cooldown behavior.
+
+- [x] 2026-03-05 - Enforce FlareSolverr-only Comick routing with explicit `FlaresolverrUnavailable` outcome, outage-cooldown short-circuit behavior, coordinator metadata-write suppression for unavailable branches, runtime composition hardening against raw Comick calls, and aligned unit/integration coverage/docs updates.
+
 - [x] 2026-03-05 - Review AI code-review follow-ups for Comick metadata hardening, remove redundant `[InlineData]` test-parameter validation in `ComickDirectApiClientTests.PayloadValidation`, keep internal converter property-name guards by intent, and close nullable-field "breaking-change" notes as inaccurate with citations.
 
 - [x] 2026-03-05 - Harden Comick `/comic/{slug}/` payload tolerance by enforcing match-critical validation only (`comic` node + usable title/alias), adding tolerant DTO converters for non-critical scalar/list/object drift, and expanding malformed-schema regression coverage so non-used field shape drift no longer fails full comic parsing.

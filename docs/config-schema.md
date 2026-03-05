@@ -120,6 +120,10 @@ logging:
 - `runtime.metadata_api_request_delay_ms` must be `>= 0` when required or provided.
 - `runtime.metadata_api_cache_ttl_hours` must be `> 0` when required or provided.
 - `runtime.flaresolverr_server_url` may be empty; when non-empty it must be an absolute `http` or `https` URI.
+- When `runtime.flaresolverr_server_url` is empty, runtime metadata coordination bypasses Comick API calls and uses ComicInfo/source-only details fallback paths.
+- `runtime.flaresolverr_direct_retry_minutes` defines the FlareSolverr outage-cooldown retry window used to short-circuit Comick requests while unavailable.
+- While outage cooldown is active, cached Comick responses may still be used; live lookup misses remain short-circuited as unavailable.
+- During a single title metadata attempt, any required Comick lookup resolving as unavailable invalidates the full title attempt and suppresses both `cover.jpg` and `details.json` writes.
 - `runtime.preferred_language` must be non-empty when required or provided.
 - Settings self-heal canonicalizes `runtime.preferred_language`, `runtime.flaresolverr_server_url`, `runtime.comick_api_base_url`, `runtime.comick_search_endpoint_path`, `runtime.comick_comic_endpoint_path`, and `runtime.comick_image_base_url` by trimming surrounding whitespace when present; `runtime.preferred_language` falls back to default `en` when canonicalization yields an empty value.
 - `details_description_mode` allowed values: `text`, `br`, `html`

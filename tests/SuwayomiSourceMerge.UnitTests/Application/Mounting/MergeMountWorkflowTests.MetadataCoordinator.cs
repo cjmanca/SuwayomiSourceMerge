@@ -158,6 +158,73 @@ public sealed partial class MergeMountWorkflowTests
 	}
 
 	/// <summary>
+	/// Verifies FlareSolverr-unavailable search outcomes skip metadata writes and do not fail the merge pass.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Edge_ShouldRemainSuccess_WhenComickSearchReportsFlaresolverrUnavailable()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		fixture.ComickApiGateway.NextSearchResult = new ComickDirectApiResult<ComickSearchResponse>(
+			ComickDirectApiOutcome.FlaresolverrUnavailable,
+			payload: null,
+			statusCode: null,
+			diagnostic: "FlareSolverr outage cooldown is active.");
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("interval elapsed", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Success, outcome);
+		Assert.Equal(1, fixture.ComickApiGateway.SearchCallCount);
+		Assert.Empty(fixture.CoverService.Requests);
+		Assert.Empty(fixture.DetailsService.Requests);
+	}
+
+	/// <summary>
+	/// Verifies matcher-reported unavailable invalidation skips metadata writes without failing the merge pass.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Edge_ShouldRemainSuccessAndSkipMetadataWrites_WhenMatcherReportsMatchedUnavailableInvalidation()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		fixture.ComickApiGateway.NextSearchResult = new ComickDirectApiResult<ComickSearchResponse>(
+			ComickDirectApiOutcome.Success,
+			new ComickSearchResponse(
+			[
+				new ComickSearchComic
+				{
+					Slug = "candidate-slug"
+				}
+			]),
+			statusCode: HttpStatusCode.OK,
+			diagnostic: "Success.");
+		fixture.ComickCandidateMatcher.NextMatchResult = new ComickCandidateMatchResult(
+			ComickCandidateMatchOutcome.Matched,
+			new ComickComicResponse
+			{
+				Comic = new ComickComicDetails
+				{
+					Title = "Canonical Title"
+				}
+			},
+			matchedCandidateIndex: 0,
+			hadTopTie: false,
+			matchScore: 2,
+			hadServiceInterruption: false,
+			hadFlaresolverrUnavailable: true);
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("interval elapsed", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Success, outcome);
+		Assert.Equal(1, fixture.ComickApiGateway.SearchCallCount);
+		Assert.Equal(1, fixture.ComickCandidateMatcher.MatchCallCount);
+		Assert.Empty(fixture.CoverService.Requests);
+		Assert.Empty(fixture.DetailsService.Requests);
+	}
+
+	/// <summary>
 	/// Verifies matched candidate resolution remains successful even when interruption telemetry is present.
 	/// </summary>
 	[Fact]

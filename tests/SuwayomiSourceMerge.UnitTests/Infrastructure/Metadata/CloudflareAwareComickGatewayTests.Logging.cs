@@ -12,7 +12,7 @@ using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 public sealed partial class CloudflareAwareComickGatewayTests
 {
 	/// <summary>
-	/// Verifies sticky-route requests emit debug transition diagnostics.
+	/// Verifies active cooldown requests emit debug skip diagnostics.
 	/// </summary>
 	[Fact]
 	public async Task Execute_Expected_ShouldLogStickyRouteDebug_WhenStickyFallbackIsActive()
@@ -41,13 +41,13 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		RecordingLogger.CapturedLogEvent logEvent = Assert.Single(
 			logger.Events,
-			static entry => entry.EventId == "metadata.cloudflare.fallback.sticky_route");
+			static entry => entry.EventId == "metadata.cloudflare.fallback.cooldown_active");
 		Assert.Equal(LogLevel.Debug, logEvent.Level);
 		Assert.Contains("/comic/comic-slug", logEvent.Context!["endpoint"], StringComparison.Ordinal);
 	}
 
 	/// <summary>
-	/// Verifies Cloudflare blocks with configured fallback emit activation warnings.
+	/// Verifies FlareSolverr transport failures emit unavailable warning diagnostics.
 	/// </summary>
 	[Fact]
 	public async Task SearchAsync_Edge_ShouldLogFallbackActivatedWarning_WhenDirectCloudflareBlockedAndFallbackConfigured()
@@ -57,7 +57,13 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		StubComickDirectApiClient directClient = new(
 			_ => CreateDirectSearchCloudflareBlocked(),
 			_ => CreateDirectComicSuccess());
-		StubFlaresolverrClient flaresolverrClient = new(_ => CreateFlaresolverrSearchSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.TransportFailure,
+				statusCode: null,
+				upstreamStatusCode: null,
+				upstreamResponseBody: null,
+				diagnostic: "socket failure"));
 		InMemoryMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty);
 		CloudflareAwareComickGateway gateway = CreateGateway(
 			directClient,
@@ -72,13 +78,13 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		RecordingLogger.CapturedLogEvent logEvent = Assert.Single(
 			logger.Events,
-			static entry => entry.EventId == "metadata.cloudflare.fallback.activated");
+			static entry => entry.EventId == "metadata.cloudflare.fallback.unavailable");
 		Assert.Equal(LogLevel.Warning, logEvent.Level);
 		Assert.Contains("/v1.0/search/", logEvent.Context!["endpoint"], StringComparison.Ordinal);
 	}
 
 	/// <summary>
-	/// Verifies Cloudflare blocks without fallback emit unavailable warnings.
+	/// Verifies missing FlareSolverr configuration does not emit unavailable-transition warnings.
 	/// </summary>
 	[Fact]
 	public async Task Execute_Failure_ShouldLogFallbackUnavailableWarning_WhenCloudflareBlockedAndFallbackMissing()
@@ -100,15 +106,13 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		_ = await gateway.GetComicAsync("slug");
 
-		RecordingLogger.CapturedLogEvent logEvent = Assert.Single(
+		Assert.DoesNotContain(
 			logger.Events,
 			static entry => entry.EventId == "metadata.cloudflare.fallback.unavailable");
-		Assert.Equal(LogLevel.Warning, logEvent.Level);
-		Assert.Equal("Cloudflare challenge detected.", logEvent.Context!["diagnostic"]);
 	}
 
 	/// <summary>
-	/// Verifies expired sticky clears emit debug transition diagnostics.
+	/// Verifies expired cooldown clears emit debug transition diagnostics.
 	/// </summary>
 	[Fact]
 	public async Task SearchAsync_Expected_ShouldLogStickyClearedDebug_WhenExpiredStickyStateIsRemoved()
@@ -136,9 +140,9 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		RecordingLogger.CapturedLogEvent logEvent = Assert.Single(
 			logger.Events,
-			static entry => entry.EventId == "metadata.cloudflare.fallback.sticky_cleared");
+			static entry => entry.EventId == "metadata.cloudflare.fallback.cooldown_cleared");
 		Assert.Equal(LogLevel.Debug, logEvent.Level);
-		Assert.Equal("MalformedPayload", logEvent.Context!["direct_outcome"]);
+		Assert.Contains("/v1.0/search/", logEvent.Context!["endpoint"], StringComparison.Ordinal);
 	}
 
 	/// <summary>

@@ -76,6 +76,7 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 		TopSimilarityTieInfo topSimilarityTieInfo = GetTopSimilarityTieInfo(candidateSimilarityScores);
 		IReadOnlyList<int> evaluationOrder = BuildEvaluationOrder(candidates, candidateSimilarityScores);
 		bool hadServiceInterruption = false;
+		bool hadFlaresolverrUnavailable = false;
 		for (int orderIndex = 0; orderIndex < evaluationOrder.Count; orderIndex++)
 		{
 			cancellationToken.ThrowIfCancellationRequested();
@@ -108,6 +109,15 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 
 				hadServiceInterruption = true;
 				continue;
+			}
+
+			if (detailResult.Outcome == ComickDirectApiOutcome.FlaresolverrUnavailable)
+			{
+				hadFlaresolverrUnavailable = true;
+				// Title attempt is invalid once any detail probe is unavailable during outage cooldown/miss policy.
+				return CreateNoHighConfidenceResult(
+					hadServiceInterruption,
+					hadFlaresolverrUnavailable: true);
 			}
 
 			if (IsServiceInterruptionOutcome(detailResult.Outcome))
@@ -151,7 +161,8 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 				candidateIndex,
 				hadTopTie,
 				matchScore,
-				hadServiceInterruption);
+				hadServiceInterruption,
+				hadFlaresolverrUnavailable);
 		}
 
 		if (topSimilarityTieInfo.HasTopSimilarityTie)
@@ -163,14 +174,16 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 				topSimilarityTieInfo.TiedCandidateCount);
 		}
 
-		return CreateNoHighConfidenceResult(hadServiceInterruption);
+		return CreateNoHighConfidenceResult(hadServiceInterruption, hadFlaresolverrUnavailable);
 	}
 
 	/// <summary>
 	/// Creates a no-match result with canonical sentinel values.
 	/// </summary>
 	/// <returns>No-high-confidence match result.</returns>
-	private static ComickCandidateMatchResult CreateNoHighConfidenceResult(bool hadServiceInterruption = false)
+	private static ComickCandidateMatchResult CreateNoHighConfidenceResult(
+		bool hadServiceInterruption = false,
+		bool hadFlaresolverrUnavailable = false)
 	{
 		return new ComickCandidateMatchResult(
 			ComickCandidateMatchOutcome.NoHighConfidenceMatch,
@@ -178,7 +191,8 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 			ComickCandidateMatchResult.NoMatchCandidateIndex,
 			hadTopTie: false,
 			matchScore: NoMatchScore,
-			hadServiceInterruption);
+			hadServiceInterruption,
+			hadFlaresolverrUnavailable);
 	}
 
 	/// <summary>
@@ -188,6 +202,7 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 	/// <returns><see langword="true"/> when outcome indicates interruption; otherwise <see langword="false"/>.</returns>
 	private static bool IsServiceInterruptionOutcome(ComickDirectApiOutcome outcome)
 	{
+		// FlareSolverrUnavailable is tracked separately to support coordinator non-failing artifact-suppression behavior.
 		return outcome == ComickDirectApiOutcome.TransportFailure
 			|| outcome == ComickDirectApiOutcome.CloudflareBlocked
 			|| outcome == ComickDirectApiOutcome.HttpFailure

@@ -21,13 +21,17 @@ internal sealed class ComickCandidateMatchResult
 	/// <param name="hadServiceInterruption">
 	/// Whether detail-probe attempts encountered one or more Comick service interruption outcomes.
 	/// </param>
+	/// <param name="hadFlaresolverrUnavailable">
+	/// Whether detail-probe attempts encountered one or more FlareSolverr-unavailable outcomes.
+	/// </param>
 	public ComickCandidateMatchResult(
 		ComickCandidateMatchOutcome outcome,
 		ComickComicResponse? matchedCandidate,
 		int matchedCandidateIndex,
 		bool hadTopTie,
 		int matchScore,
-		bool hadServiceInterruption = false)
+		bool hadServiceInterruption = false,
+		bool hadFlaresolverrUnavailable = false)
 	{
 		if (matchScore < 0)
 		{
@@ -98,6 +102,7 @@ internal sealed class ComickCandidateMatchResult
 		HadTopTie = hadTopTie;
 		MatchScore = matchScore;
 		HadServiceInterruption = hadServiceInterruption;
+		HadFlaresolverrUnavailable = hadFlaresolverrUnavailable;
 	}
 
 	/// <summary>
@@ -144,6 +149,14 @@ internal sealed class ComickCandidateMatchResult
 	/// Gets a value indicating whether detail-probe attempts encountered service interruption outcomes.
 	/// </summary>
 	public bool HadServiceInterruption
+	{
+		get;
+	}
+
+	/// <summary>
+	/// Gets a value indicating whether detail-probe attempts encountered FlareSolverr-unavailable outcomes.
+	/// </summary>
+	public bool HadFlaresolverrUnavailable
 	{
 		get;
 	}
