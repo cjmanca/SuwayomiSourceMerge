@@ -873,6 +873,8 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiClientOptions.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiOutcome.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickDirectApiResult.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickLookupDiagnostics.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickLookupMode.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickEndpointUriBuilder.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickPayloadParser.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/Comick/ComickSearchComic.cs
@@ -937,11 +939,13 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickCandidateMatcherTests.Logging.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickCandidateMatcherTests.Regressions.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickCandidateMatcherTests.TopTie.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickCandidateMatchResultTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.CancellationAndTransport.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.Helpers.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.PayloadValidation.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.SuccessAndHttp.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiResultTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickMetadataCoordinatorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickMetadataCoordinatorTests.Fakes.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickMetadataCoordinatorTests.Fakes.Metadata.cs
@@ -1061,6 +1065,7 @@ modules:
       - Canonical Comick candidate malformed-detail telemetry should emit `metadata.candidate.malformed_payload` at debug level with `slug`, `candidate_index`, and parser `diagnostic` when detail probes return `MalformedPayload`; use ComickCandidateMatcher.LogMalformedCandidatePayload.
       - Canonical Comick candidate-ambiguity warning semantics should detect only explicit top-similarity ranking-hint ties (>0 with epsilon tie comparison) and emit `metadata.candidate.ambiguity` even when a deterministic match is selected; use ComickCandidateMatcher.GetTopSimilarityTieInfo and ComickCandidateMatcher.LogCandidateAmbiguity.
       - Canonical Comick comic-link DTO parsing should treat `comic.links` as dynamic extension-data entries keyed by upstream identifiers so unknown/new link keys and mixed token types are preserved without schema-specific hard-coding; use ComickComicLinks.
+      - Canonical Comick lookup-mode semantics should keep title-cooldown branches cache-only (no live requests), represent cache-only misses through typed result metadata (not diagnostic-string control flow), suppress configured-FlareSolverr details fallback writes when required lookups fail, and keep unresolved cache-only misses non-failing for merge passes; use ComickLookupMode, ComickDirectApiResult.IsCacheOnlyMiss, ComickCandidateMatchResult.HadRequiredLookupFailure, CloudflareAwareComickGateway.ExecuteWithCacheAsync, and ComickMetadataCoordinator.ResolveMatchedComic/EnsureMetadata.
       - Canonical Comick search alias-hint payload normalization for `md_titles` should be tolerant (array/object/string/mixed -> filtered alias list) without escalating to malformed search outcomes; use ComickTitleAliasListConverter.
       - Canonical Comick gateway base-URI normalization (absolute http/https + exactly one trailing slash) should be centralized and reused; use CloudflareAwareComickGateway.NormalizeBaseUri.
       - Canonical cover already-exists result construction should be centralized to preserve consistent CoverJpgPath/ExistingCoverPath semantics; use OverrideCoverService.CreateAlreadyExistsResult.

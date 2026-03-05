@@ -4,6 +4,7 @@ using System.Net;
 
 using SuwayomiSourceMerge.Application.Mounting;
 using SuwayomiSourceMerge.Application.Watching;
+using SuwayomiSourceMerge.Infrastructure.Metadata;
 using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 
@@ -99,7 +100,7 @@ public sealed partial class MergeMountWorkflowTests
 	}
 
 	/// <summary>
-	/// Verifies Comick service interruption outcomes fail the merge pass while preserving best-effort details fallback.
+	/// Verifies Comick service interruption outcomes fail the merge pass while suppressing details fallback writes.
 	/// </summary>
 	[Fact]
 	public void RunMergePass_Failure_ShouldReturnFailure_WhenComickSearchReportsServiceInterruption()
@@ -118,11 +119,42 @@ public sealed partial class MergeMountWorkflowTests
 		Assert.Equal(MergeScanDispatchOutcome.Failure, outcome);
 		Assert.Equal(1, fixture.ComickApiGateway.SearchCallCount);
 		Assert.Empty(fixture.CoverService.Requests);
-		Assert.Single(fixture.DetailsService.Requests);
+		Assert.Empty(fixture.DetailsService.Requests);
 	}
 
 	/// <summary>
-	/// Verifies no-match candidate resolution with interruption telemetry fails the merge pass.
+	/// Verifies cooldown cache-only misses suppress details fallback writes without failing the merge pass.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Edge_ShouldRemainSuccess_WhenComickSearchIsCacheOnlyMissDuringCooldown()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		fixture.ComickApiGateway.NextSearchResult = new ComickDirectApiResult<ComickSearchResponse>(
+			ComickDirectApiOutcome.NotFound,
+			payload: null,
+			statusCode: HttpStatusCode.NotFound,
+			diagnostic: ComickLookupDiagnostics.CacheOnlyMiss,
+			isCacheOnlyMiss: true);
+		fixture.MetadataStateStore.Transform(
+			static _ => new MetadataStateSnapshot(
+				new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal)
+				{
+					["canonicaltitle"] = DateTimeOffset.UtcNow.AddHours(1)
+				},
+				stickyFlaresolverrUntilUtc: null));
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("interval elapsed", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Success, outcome);
+		Assert.Equal(1, fixture.ComickApiGateway.SearchCallCount);
+		Assert.Empty(fixture.CoverService.Requests);
+		Assert.Empty(fixture.DetailsService.Requests);
+	}
+
+	/// <summary>
+	/// Verifies no-match candidate resolution with interruption telemetry fails the merge pass and suppresses details fallback writes.
 	/// </summary>
 	[Fact]
 	public void RunMergePass_Failure_ShouldReturnFailure_WhenCandidateResolutionHasInterruptionAndNoMatch()
@@ -154,7 +186,7 @@ public sealed partial class MergeMountWorkflowTests
 		Assert.Equal(MergeScanDispatchOutcome.Failure, outcome);
 		Assert.Equal(1, fixture.ComickApiGateway.SearchCallCount);
 		Assert.Empty(fixture.CoverService.Requests);
-		Assert.Single(fixture.DetailsService.Requests);
+		Assert.Empty(fixture.DetailsService.Requests);
 	}
 
 	/// <summary>

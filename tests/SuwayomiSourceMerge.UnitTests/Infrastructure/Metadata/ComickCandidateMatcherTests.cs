@@ -66,6 +66,59 @@ public sealed partial class ComickCandidateMatcherTests
 	}
 
 	/// <summary>
+	/// Verifies cache-only lookup mode is forwarded to comic-detail gateway probes.
+	/// </summary>
+	[Fact]
+	public async Task MatchAsync_Expected_ShouldForwardCacheOnlyLookupMode_ToDetailRequests()
+	{
+		RecordingComickApiGateway gateway = new(
+			_ => CreateSuccessResult(CreateDetailPayload("Target Title")));
+		ComickCandidateMatcher matcher = new(gateway);
+
+		ComickCandidateMatchResult result = await matcher.MatchAsync(
+			[
+				CreateSearchCandidate("first-slug", "Target Title")
+			],
+			["target title"],
+			cancellationToken: default,
+			lookupMode: ComickLookupMode.CacheOnly);
+
+		Assert.Equal(ComickCandidateMatchOutcome.Matched, result.Outcome);
+		Assert.Equal(["first-slug"], gateway.RequestedSlugs);
+		Assert.Equal([ComickLookupMode.CacheOnly], gateway.RequestedLookupModes);
+	}
+
+	/// <summary>
+	/// Verifies cache-only miss detail probes are tracked as required lookup failures, not service interruptions.
+	/// </summary>
+	[Fact]
+	public async Task MatchAsync_Edge_ShouldTrackRequiredLookupFailure_WhenDetailProbeIsCacheOnlyMiss()
+	{
+		RecordingComickApiGateway gateway = new(
+			_ => new ComickDirectApiResult<ComickComicResponse>(
+				ComickDirectApiOutcome.NotFound,
+				payload: null,
+				statusCode: HttpStatusCode.NotFound,
+				diagnostic: ComickLookupDiagnostics.CacheOnlyMiss,
+				isCacheOnlyMiss: true));
+		ComickCandidateMatcher matcher = new(gateway);
+
+		ComickCandidateMatchResult result = await matcher.MatchAsync(
+			[
+				CreateSearchCandidate("first-slug", "Target Title")
+			],
+			["target title"],
+			cancellationToken: default,
+			lookupMode: ComickLookupMode.CacheOnly);
+
+		Assert.Equal(ComickCandidateMatchOutcome.NoHighConfidenceMatch, result.Outcome);
+		Assert.False(result.HadServiceInterruption);
+		Assert.True(result.HadRequiredLookupFailure);
+		Assert.Equal(["first-slug"], gateway.RequestedSlugs);
+		Assert.Equal([ComickLookupMode.CacheOnly], gateway.RequestedLookupModes);
+	}
+
+	/// <summary>
 	/// Verifies remaining candidates are ordered by normalized Levenshtein similarity and can use search aliases as ranking hints.
 	/// </summary>
 	[Fact]
@@ -457,10 +510,19 @@ public sealed partial class ComickCandidateMatcherTests
 			get;
 		} = [];
 
+		/// <summary>
+		/// Gets lookup modes used for detail requests in call order.
+		/// </summary>
+		public List<ComickLookupMode> RequestedLookupModes
+		{
+			get;
+		} = [];
+
 		/// <inheritdoc />
 		public Task<ComickDirectApiResult<ComickSearchResponse>> SearchAsync(
 			string query,
-			CancellationToken cancellationToken = default)
+			CancellationToken cancellationToken = default,
+			ComickLookupMode lookupMode = ComickLookupMode.CacheThenLive)
 		{
 			ArgumentException.ThrowIfNullOrWhiteSpace(query);
 			cancellationToken.ThrowIfCancellationRequested();
@@ -476,12 +538,14 @@ public sealed partial class ComickCandidateMatcherTests
 		/// <inheritdoc />
 		public Task<ComickDirectApiResult<ComickComicResponse>> GetComicAsync(
 			string slug,
-			CancellationToken cancellationToken = default)
+			CancellationToken cancellationToken = default,
+			ComickLookupMode lookupMode = ComickLookupMode.CacheThenLive)
 		{
 			ArgumentException.ThrowIfNullOrWhiteSpace(slug);
 			cancellationToken.ThrowIfCancellationRequested();
 
 			RequestedSlugs.Add(slug);
+			RequestedLookupModes.Add(lookupMode);
 			return Task.FromResult(_comicHandler(slug));
 		}
 	}

@@ -23,6 +23,7 @@ public sealed partial class MergeMountWorkflowTests
 	{
 		using TemporaryDirectory temporaryDirectory = new();
 		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		ConfigureSuccessfulComickMatch(fixture);
 		MergeMountWorkflow workflow = fixture.CreateWorkflow();
 		MergeScanDispatchOutcome outcome = workflow.RunMergePass("interval elapsed", force: false);
 		Assert.Equal(MergeScanDispatchOutcome.Success, outcome);

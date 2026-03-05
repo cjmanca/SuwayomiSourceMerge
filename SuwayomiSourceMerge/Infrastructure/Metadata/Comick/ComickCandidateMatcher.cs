@@ -60,7 +60,8 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 	public async Task<ComickCandidateMatchResult> MatchAsync(
 		IReadOnlyList<ComickSearchComic> candidates,
 		IReadOnlyList<string> expectedTitles,
-		CancellationToken cancellationToken = default)
+		CancellationToken cancellationToken = default,
+		ComickLookupMode lookupMode = ComickLookupMode.CacheThenLive)
 	{
 		ArgumentNullException.ThrowIfNull(candidates);
 		ArgumentNullException.ThrowIfNull(expectedTitles);
@@ -77,6 +78,7 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 		IReadOnlyList<int> evaluationOrder = BuildEvaluationOrder(candidates, candidateSimilarityScores);
 		bool hadServiceInterruption = false;
 		bool hadFlaresolverrUnavailable = false;
+		bool hadRequiredLookupFailure = false;
 		for (int orderIndex = 0; orderIndex < evaluationOrder.Count; orderIndex++)
 		{
 			cancellationToken.ThrowIfCancellationRequested();
@@ -91,7 +93,7 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 			try
 			{
 				detailResult = await _comickApiGateway
-					.GetComicAsync(searchCandidate.Slug, cancellationToken)
+					.GetComicAsync(searchCandidate.Slug, cancellationToken, lookupMode)
 					.ConfigureAwait(false);
 			}
 			catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -117,7 +119,14 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 				// Title attempt is invalid once any detail probe is unavailable during outage cooldown/miss policy.
 				return CreateNoHighConfidenceResult(
 					hadServiceInterruption,
-					hadFlaresolverrUnavailable: true);
+					hadFlaresolverrUnavailable: true,
+					hadRequiredLookupFailure);
+			}
+
+			if (detailResult.IsCacheOnlyMiss)
+			{
+				hadRequiredLookupFailure = true;
+				continue;
 			}
 
 			if (IsServiceInterruptionOutcome(detailResult.Outcome))
@@ -162,7 +171,8 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 				hadTopTie,
 				matchScore,
 				hadServiceInterruption,
-				hadFlaresolverrUnavailable);
+				hadFlaresolverrUnavailable,
+				hadRequiredLookupFailure: false);
 		}
 
 		if (topSimilarityTieInfo.HasTopSimilarityTie)
@@ -174,7 +184,10 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 				topSimilarityTieInfo.TiedCandidateCount);
 		}
 
-		return CreateNoHighConfidenceResult(hadServiceInterruption, hadFlaresolverrUnavailable);
+		return CreateNoHighConfidenceResult(
+			hadServiceInterruption,
+			hadFlaresolverrUnavailable,
+			hadRequiredLookupFailure);
 	}
 
 	/// <summary>
@@ -183,7 +196,8 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 	/// <returns>No-high-confidence match result.</returns>
 	private static ComickCandidateMatchResult CreateNoHighConfidenceResult(
 		bool hadServiceInterruption = false,
-		bool hadFlaresolverrUnavailable = false)
+		bool hadFlaresolverrUnavailable = false,
+		bool hadRequiredLookupFailure = false)
 	{
 		return new ComickCandidateMatchResult(
 			ComickCandidateMatchOutcome.NoHighConfidenceMatch,
@@ -192,7 +206,8 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 			hadTopTie: false,
 			matchScore: NoMatchScore,
 			hadServiceInterruption,
-			hadFlaresolverrUnavailable);
+			hadFlaresolverrUnavailable,
+			hadRequiredLookupFailure);
 	}
 
 	/// <summary>

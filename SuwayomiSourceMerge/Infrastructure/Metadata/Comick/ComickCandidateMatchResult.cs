@@ -24,6 +24,9 @@ internal sealed class ComickCandidateMatchResult
 	/// <param name="hadFlaresolverrUnavailable">
 	/// Whether detail-probe attempts encountered one or more FlareSolverr-unavailable outcomes.
 	/// </param>
+	/// <param name="hadRequiredLookupFailure">
+	/// Whether required Comick lookup inputs were unresolved (for example cache-only misses) while no match was selected.
+	/// </param>
 	public ComickCandidateMatchResult(
 		ComickCandidateMatchOutcome outcome,
 		ComickComicResponse? matchedCandidate,
@@ -31,7 +34,8 @@ internal sealed class ComickCandidateMatchResult
 		bool hadTopTie,
 		int matchScore,
 		bool hadServiceInterruption = false,
-		bool hadFlaresolverrUnavailable = false)
+		bool hadFlaresolverrUnavailable = false,
+		bool hadRequiredLookupFailure = false)
 	{
 		if (matchScore < 0)
 		{
@@ -61,6 +65,13 @@ internal sealed class ComickCandidateMatchResult
 					nameof(matchScore),
 					matchScore,
 					"Match score must be > 0 when outcome is Matched.");
+			}
+
+			if (hadRequiredLookupFailure)
+			{
+				throw new ArgumentException(
+					"Required-lookup-failure flag must be false when a match is selected.",
+					nameof(hadRequiredLookupFailure));
 			}
 		}
 		else
@@ -103,6 +114,7 @@ internal sealed class ComickCandidateMatchResult
 		MatchScore = matchScore;
 		HadServiceInterruption = hadServiceInterruption;
 		HadFlaresolverrUnavailable = hadFlaresolverrUnavailable;
+		HadRequiredLookupFailure = hadRequiredLookupFailure;
 	}
 
 	/// <summary>
@@ -157,6 +169,14 @@ internal sealed class ComickCandidateMatchResult
 	/// Gets a value indicating whether detail-probe attempts encountered FlareSolverr-unavailable outcomes.
 	/// </summary>
 	public bool HadFlaresolverrUnavailable
+	{
+		get;
+	}
+
+	/// <summary>
+	/// Gets a value indicating whether required Comick lookups were unresolved while no match was selected.
+	/// </summary>
+	public bool HadRequiredLookupFailure
 	{
 		get;
 	}

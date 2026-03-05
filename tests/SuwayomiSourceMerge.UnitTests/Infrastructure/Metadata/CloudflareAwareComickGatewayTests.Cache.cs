@@ -204,6 +204,42 @@ public sealed partial class CloudflareAwareComickGatewayTests
 	}
 
 	/// <summary>
+	/// Verifies cache-only mode returns deterministic cache-miss output without live request execution.
+	/// </summary>
+	[Fact]
+	public async Task SearchAsync_Edge_ShouldReturnNotFoundWithoutLiveRequest_WhenCacheOnlyModeMisses()
+	{
+		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-03-01T01:45:00+00:00");
+		InMemoryMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty);
+		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchSuccess(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(_ => CreateFlaresolverrSearchSuccess());
+		TrackingMetadataApiRequestThrottle throttle = new();
+		CloudflareAwareComickGateway gateway = CreateGateway(
+			directClient,
+			stateStore,
+			flaresolverrClient,
+			flaresolverrServerUri: new Uri("http://flaresolverr.local/"),
+			directRetryInterval: TimeSpan.FromMinutes(60),
+			nowUtc,
+			logger: null,
+			throttle);
+
+		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync(
+			"cache-only-miss",
+			cancellationToken: default,
+			lookupMode: ComickLookupMode.CacheOnly);
+
+		Assert.Equal(ComickDirectApiOutcome.NotFound, result.Outcome);
+		Assert.True(result.IsCacheOnlyMiss);
+		Assert.Equal(0, directClient.SearchCallCount);
+		Assert.Equal(0, flaresolverrClient.CallCount);
+		Assert.Equal(0, throttle.CallCount);
+		Assert.Equal(0, stateStore.TransformCallCount);
+	}
+
+	/// <summary>
 	/// Verifies expired cache entries refresh through live routing and replacement persistence.
 	/// </summary>
 	[Fact]

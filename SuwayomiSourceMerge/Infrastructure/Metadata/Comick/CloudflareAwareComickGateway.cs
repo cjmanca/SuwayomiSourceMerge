@@ -118,7 +118,8 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 	/// <inheritdoc />
 	public Task<ComickDirectApiResult<ComickSearchResponse>> SearchAsync(
 		string query,
-		CancellationToken cancellationToken = default)
+		CancellationToken cancellationToken = default,
+		ComickLookupMode lookupMode = ComickLookupMode.CacheThenLive)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(query);
 		string requestKey = query.Trim();
@@ -133,13 +134,15 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 			requestKey,
 			endpointUri,
 			ComickPayloadParser.TryParseSearchPayload,
-			cancellationToken);
+			cancellationToken,
+			lookupMode);
 	}
 
 	/// <inheritdoc />
 	public Task<ComickDirectApiResult<ComickComicResponse>> GetComicAsync(
 		string slug,
-		CancellationToken cancellationToken = default)
+		CancellationToken cancellationToken = default,
+		ComickLookupMode lookupMode = ComickLookupMode.CacheThenLive)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(slug);
 		string requestKey = slug.Trim();
@@ -153,7 +156,8 @@ internal sealed partial class CloudflareAwareComickGateway : IComickApiGateway
 			requestKey,
 			endpointUri,
 			ComickPayloadParser.TryParseComicPayload,
-			cancellationToken);
+			cancellationToken,
+			lookupMode);
 	}
 
 	/// <summary>

@@ -194,7 +194,7 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 		{
 			_logger.Debug(
 				CooldownSkippedEvent,
-				"Skipped Comick API lookup because the title cooldown window is active.",
+				"Title cooldown is active; restricting Comick metadata lookup to cache-only mode.",
 				BuildContext(
 					("title", request.DisplayTitle),
 					("normalized_title_key", normalizedTitleKey),
@@ -205,14 +205,19 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 		bool apiCalled = false;
 		bool hadServiceInterruption = false;
 		bool hadFlaresolverrUnavailable = false;
+		bool hadRequiredLookupFailure = false;
 		ComickComicResponse? matchedComic = null;
 		bool comickRoutingEnabled = request.MetadataOrchestration.FlaresolverrServerUri is not null;
-		if (comickRoutingEnabled && !cooldownActive)
+		ComickLookupMode lookupMode = cooldownActive
+			? ComickLookupMode.CacheOnly
+			: ComickLookupMode.CacheThenLive;
+		if (comickRoutingEnabled)
 		{
-			(apiCalled, hadServiceInterruption, hadFlaresolverrUnavailable, matchedComic) = ResolveMatchedComic(
+			(apiCalled, hadServiceInterruption, hadFlaresolverrUnavailable, hadRequiredLookupFailure, matchedComic) = ResolveMatchedComic(
 				request,
 				normalizedTitleKey,
 				nowUtc,
+				lookupMode,
 				cancellationToken);
 		}
 		else if (!comickRoutingEnabled)
@@ -265,11 +270,24 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 			LogCoverSkipped(request.DisplayTitle, normalizedTitleKey, "no_matched_comic");
 		}
 
+		bool skipDetailsForUnresolvableComickLookup = comickRoutingEnabled &&
+			matchedComic is null &&
+			(hadServiceInterruption || hadRequiredLookupFailure);
 		if (!detailsExists)
 		{
-			OverrideDetailsResult detailsResult = EnsureDetails(request, matchedComic);
-			LogDetailsOutcome(request.DisplayTitle, normalizedTitleKey, detailsResult);
-			detailsExists = detailsResult.DetailsJsonExists;
+			if (skipDetailsForUnresolvableComickLookup)
+			{
+				string skipReason = hadRequiredLookupFailure
+					? "cache_only_lookup_miss"
+					: "comick_unresolvable";
+				LogDetailsSkipped(request.DisplayTitle, normalizedTitleKey, skipReason);
+			}
+			else
+			{
+				OverrideDetailsResult detailsResult = EnsureDetails(request, matchedComic);
+				LogDetailsOutcome(request.DisplayTitle, normalizedTitleKey, detailsResult);
+				detailsExists = detailsResult.DetailsJsonExists;
+			}
 		}
 
 		if (matchedComic is not null)
@@ -294,19 +312,23 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 	/// <param name="request">Coordinator request.</param>
 	/// <param name="normalizedTitleKey">Normalized title key.</param>
 	/// <param name="nowUtc">Current UTC timestamp.</param>
+	/// <param name="lookupMode">Lookup mode controlling cache-only versus cache-then-live behavior.</param>
 	/// <param name="cancellationToken">Cancellation token.</param>
-	/// <returns>API call metadata, interruption flag, and matched comic payload when available.</returns>
-	private (bool ApiCalled, bool HadServiceInterruption, bool HadFlaresolverrUnavailable, ComickComicResponse? MatchedComic) ResolveMatchedComic(
+	/// <returns>
+	/// API call metadata, interruption and required-lookup-failure flags, and matched comic payload when available.
+	/// </returns>
+	private (bool ApiCalled, bool HadServiceInterruption, bool HadFlaresolverrUnavailable, bool HadRequiredLookupFailure, ComickComicResponse? MatchedComic) ResolveMatchedComic(
 		ComickMetadataCoordinatorRequest request,
 		string normalizedTitleKey,
 		DateTimeOffset nowUtc,
+		ComickLookupMode lookupMode,
 		CancellationToken cancellationToken)
 	{
-		bool shouldPersistCooldown = true;
+		bool shouldPersistCooldown = lookupMode == ComickLookupMode.CacheThenLive;
 		try
 		{
 			ComickDirectApiResult<ComickSearchResponse> searchResult = _comickApiGateway
-				.SearchAsync(request.DisplayTitle, cancellationToken)
+				.SearchAsync(request.DisplayTitle, cancellationToken, lookupMode)
 				.GetAwaiter()
 				.GetResult();
 
@@ -319,44 +341,50 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 			if (searchResult.Outcome == ComickDirectApiOutcome.FlaresolverrUnavailable)
 			{
 				shouldPersistCooldown = false;
-				return (true, false, true, null);
+				return (true, false, true, false, null);
+			}
+
+			if (searchResult.IsCacheOnlyMiss)
+			{
+				return (true, false, false, true, null);
 			}
 
 			if (IsServiceInterruptionOutcome(searchResult.Outcome))
 			{
-				return (true, true, false, null);
+				return (true, true, false, false, null);
 			}
 
 			if (searchResult.Outcome != ComickDirectApiOutcome.Success || searchResult.Payload is null)
 			{
-				return (true, false, false, null);
+				return (true, false, false, false, null);
 			}
 
 			ComickCandidateMatchResult matchResult = _comickCandidateMatcher
 				.MatchAsync(
 					searchResult.Payload.Comics,
 					BuildExpectedTitles(request.DisplayTitle),
-					cancellationToken)
+					cancellationToken,
+					lookupMode)
 				.GetAwaiter()
 				.GetResult();
 
 			if (matchResult.HadFlaresolverrUnavailable)
 			{
 				shouldPersistCooldown = false;
-				return (true, false, true, null);
+				return (true, false, true, false, null);
 			}
 
 			if (matchResult.Outcome == ComickCandidateMatchOutcome.Matched)
 			{
-				return (true, false, false, matchResult.MatchedCandidate);
+				return (true, false, false, false, matchResult.MatchedCandidate);
 			}
 
 			if (matchResult.HadServiceInterruption)
 			{
-				return (true, true, false, null);
+				return (true, true, false, false, null);
 			}
 
-			return (true, false, false, null);
+			return (true, false, false, matchResult.HadRequiredLookupFailure, null);
 		}
 		catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
 		{
@@ -365,7 +393,7 @@ internal sealed partial class ComickMetadataCoordinator : IComickMetadataCoordin
 		}
 		catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
 		{
-			return (true, true, false, null);
+			return (true, true, false, false, null);
 		}
 		finally
 		{

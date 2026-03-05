@@ -126,6 +126,9 @@ logging:
 - When `runtime.flaresolverr_server_url` is empty, runtime metadata coordination bypasses Comick API calls and uses ComicInfo/source-only details fallback paths.
 - `runtime.flaresolverr_direct_retry_minutes` defines the FlareSolverr outage-cooldown retry window used to short-circuit Comick requests while unavailable.
 - While outage cooldown is active, cached Comick responses may still be used; live lookup misses remain short-circuited as unavailable.
+- While per-title `runtime.comick_metadata_cooldown_hours` is active, coordinator performs cache-only Comick lookups (no live requests on cache miss) so cached matches can still drive metadata/equivalents updates.
+- During cache-only cooldown lookups with FlareSolverr configured, unresolved cache misses suppress `details.json` generation to prevent ComicInfo-only partial fallback writes, but do not fail merge passes by themselves.
+- With FlareSolverr configured, `details.json` ComicInfo fallback generation is suppressed only when required Comick lookups fail (for example unresolved cache miss, transport/HTTP failure, malformed payload, or unavailable routing). Clean no-match completion still allows fallback generation.
 - During a single title metadata attempt, any required Comick lookup resolving as unavailable invalidates the full title attempt and suppresses both `cover.jpg` and `details.json` writes.
 - `runtime.preferred_language` must be non-empty when required or provided.
 - Settings self-heal canonicalizes `runtime.preferred_language`, `runtime.flaresolverr_server_url`, `runtime.comick_api_base_url`, `runtime.comick_search_endpoint_path`, `runtime.comick_comic_endpoint_path`, and `runtime.comick_image_base_url` by trimming surrounding whitespace when present; `runtime.preferred_language` falls back to default `en` when canonicalization yields an empty value.

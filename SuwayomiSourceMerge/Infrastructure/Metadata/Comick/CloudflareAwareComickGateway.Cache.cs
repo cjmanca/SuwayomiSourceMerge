@@ -17,13 +17,15 @@ internal sealed partial class CloudflareAwareComickGateway
 	/// <param name="endpointUri">Absolute endpoint URI.</param>
 	/// <param name="payloadParser">Typed payload parser used by live routing paths.</param>
 	/// <param name="cancellationToken">Cancellation token.</param>
+	/// <param name="lookupMode">Lookup mode controlling cache-only versus cache-then-live behavior.</param>
 	/// <returns>Comick result from cache or live routing.</returns>
 	private async Task<ComickDirectApiResult<TPayload>> ExecuteWithCacheAsync<TPayload>(
 		ComickApiCacheEndpointKind endpointKind,
 		string requestKey,
 		Uri endpointUri,
 		Func<string, (bool Success, TPayload? Payload, string Diagnostic)> payloadParser,
-		CancellationToken cancellationToken)
+		CancellationToken cancellationToken,
+		ComickLookupMode lookupMode)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(requestKey);
 		ArgumentNullException.ThrowIfNull(endpointUri);
@@ -43,6 +45,16 @@ internal sealed partial class CloudflareAwareComickGateway
 		}
 
 		LogCacheMiss(endpointUri, endpointKind, requestKey, cacheReadDetail);
+		if (lookupMode == ComickLookupMode.CacheOnly)
+		{
+			return new ComickDirectApiResult<TPayload>(
+				ComickDirectApiOutcome.NotFound,
+				payload: default,
+				statusCode: HttpStatusCode.NotFound,
+				diagnostic: ComickLookupDiagnostics.CacheOnlyMiss,
+				isCacheOnlyMiss: true);
+		}
+
 		ComickDirectApiResult<TPayload> liveResult = await ExecuteWithRoutingAsync(
 			endpointUri,
 			payloadParser,

@@ -81,8 +81,10 @@ Planned Comick/Flaresolverr routing behavior:
 Implemented behavior:
 
 - Add configurable pacing between actual metadata HTTP requests so all requests are still attempted, but spaced out.
-- Keep current artifact/cooldown short-circuit behavior; when no outbound API call is needed, no pacing delay should be applied.
+- Keep artifact short-circuit behavior and title-cooldown live-call suppression; when no outbound API call is needed (including cache-only title-cooldown lookups), no pacing delay should be applied.
 - Add persisted Comick API response caching for both search and comic-detail endpoints so repeated lookups can be served from cache without outbound requests or pacing delay.
+- With FlareSolverr configured, `details.json` fallback generation is suppressed only when required Comick lookups fail (including cooldown cache-only misses and non-cooldown lookup failures); clean no-match completion still allows ComicInfo fallback.
+- Cache-only cooldown misses are treated as required-lookup failures (details suppression) but not as merge-pass service interruptions.
 - All Comick search and comic-detail endpoint requests append `tachiyomi=true` (FlareSolverr-routed).
 - Keep scan behavior resilient: pacing delays and cache misses must not be treated as scan failures by themselves.
 

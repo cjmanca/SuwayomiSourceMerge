@@ -1,5 +1,15 @@
 # TASKS.md
 
+- [x] 2026-03-05 - Stabilize cache-only metadata miss semantics with typed lookup-failure signaling so cooldown cache misses suppress details fallback without failing merge passes, and remove diagnostic-string control-flow dependence.
+
+- [x] 2026-03-05 - Narrow FlareSolverr-enabled details fallback suppression so ComicInfo fallback is skipped only when required Comick lookups fail (including unresolved cache-only misses), while clean no-match completion still permits fallback.
+
+- [x] 2026-03-05 - Extend FlareSolverr-enabled metadata safety gating so any unresolvable Comick lookup path suppresses `details.json` fallback generation (no ComicInfo-only details writes), not just cooldown cache-only misses.
+
+- [x] 2026-03-05 - When FlareSolverr is configured and title cooldown enforces cache-only Comick lookup, suppress `details.json` generation (including ComicInfo fallback) on cache miss/no-match to avoid partial metadata writes.
+
+- [x] 2026-03-05 - Fix metadata title-cooldown behavior to use cache-only Comick lookup mode (no live requests) so cached matches can still drive missing metadata artifacts and `manga_equivalents.yml` alias updates.
+
 - [x] 2026-03-05 - Lock metadata delay-rename policy by adding regression tests that preserve intentional behavior: legacy `runtime.metadata_api_request_delay_ms` is ignored during self-heal, and self-heal does not auto-correct `runtime.metadata_api_max_request_delay_ms < runtime.metadata_api_min_request_delay_ms`.
 
 - [x] 2026-03-05 - Validate AI review-note accuracy for metadata timing tests/throttle math, keep the valid `max < min` options test unchanged, and harden throttle full-range delay selection to preserve inclusive bounds with deterministic unit coverage.
