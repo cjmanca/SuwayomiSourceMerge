@@ -81,6 +81,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		Assert.Equal(nowUtc + directRetryInterval, stateStore.Read().StickyFlaresolverrUntilUtc);
 		Assert.Contains("request.get", flaresolverrClient.LastPayload, StringComparison.Ordinal);
 		Assert.Contains("api.comick.dev", flaresolverrClient.LastPayload, StringComparison.Ordinal);
+		Assert.Contains("tachiyomi=true", flaresolverrClient.LastPayload, StringComparison.Ordinal);
 	}
 
 	/// <summary>
@@ -468,6 +469,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		string? url = payloadDocument.RootElement.GetProperty("url").GetString();
 		Assert.NotNull(url);
 		Assert.StartsWith("https://api.comick.dev/", url, StringComparison.Ordinal);
+		Assert.Contains("tachiyomi=true", url, StringComparison.Ordinal);
 	}
 
 }

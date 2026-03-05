@@ -1,6 +1,8 @@
 # TASKS.md
 
 
+- [x] 2026-03-05 - Stabilize integration test determinism by fixing entrypoint symlink-ownership fixtures to use container-visible symlink targets and widening transient polling-recovery timeout in Docker assertions behavior coverage.
+- [x] 2026-03-04 - Add mandatory `tachiyomi=true` query parameter to all Comick API search/comic request URIs (direct + FlareSolverr-routed) and update metadata URL assertion coverage.
 - [x] 2026-03-04 - Fix unit-test determinism by using temp mount paths for fsname assertion coverage and enforce per-destination serialized `cover.jpg` writes in `OverrideCoverService` with concurrent-race regression updates.
 - [x] 2026-03-04 - Harden Comick endpoint path handling by enforcing relative non-root paths without query/fragment components across options + settings validation, and add regression tests for absolute/query/fragment/root path rejection.
 - [x] 2026-03-04 - Add runtime-configurable Comick API and image hosts plus configurable search/comic endpoint paths, and wire those settings through defaults/self-heal/validation/options/runtime composition with metadata test updates.

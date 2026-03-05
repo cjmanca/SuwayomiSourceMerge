@@ -1081,7 +1081,7 @@ modules:
       - Canonical persisted metadata state load/transform semantics with atomic JSON persistence and corrupt file/directory recovery; use FileBackedMetadataStateStore.
       - Canonical runtime contract for cover.jpg ensure operations; use IOverrideCoverService.
       - Canonical runtime contract for merge-pass title metadata artifact coordination; use IComickMetadataCoordinator.
-      - Canonical shared Comick endpoint request URI composition; use ComickEndpointUriBuilder.
+      - Canonical shared Comick endpoint request URI composition, including mandatory `tachiyomi=true` for search/comic endpoints; use ComickEndpointUriBuilder.
       - Canonical shared Comick payload parsing and required-field validation (including deterministic malformed classification for null search/comic items and null alias/cover list entries, plus tolerant nullable MU category votes) should be centralized; use ComickPayloadParser and ComickSharedModels.
       - Canonical sticky FlareSolverr persistence must be monotonic and never reduce an existing later expiry; use CloudflareAwareComickGateway.PersistStickyFlaresolverrUntil.
       - Canonical sticky retry anchor uses post-direct block-detection timestamp (not request-start time) when computing sticky expiry; use CloudflareAwareComickGateway.ExecuteWithRoutingAsync.
@@ -1514,6 +1514,7 @@ modules:
       - Canonical entrypoint non-root FUSE preflight validation that rejects non-character-device `FUSE_DEVICE_PATH` values; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
       - Canonical entrypoint non-root FUSE-device-access fail-fast harness; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
       - Canonical entrypoint symlink-safety ownership hardening harness (merged-child and daemon-log chown skips); use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs`.
+      - Canonical entrypoint symlink-safety assertions should be gated by an in-container bind-mount symlink precondition so host/runtime symlink flattening does not create false failures; use `IsContainerPathSymlink` in `ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs`.
       - Canonical entrypoint trusted-root log ownership guard that skips privileged chown outside `/ssm/config`; use ContainerRuntimeEndToEndTests.EntrypointLogPath.
       - Canonical image capability regression harness validating baked cap_sys_admin on mergerfs/fusermount3, Debian-version-aware pinned-upstream mergerfs package validation, build-only curl removal, and stripped-image negative controls; use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.Capabilities.cs`.
       - Canonical shared-read log-line counting with transient retry semantics; use DockerAssertions.CountFileLinesMatching.

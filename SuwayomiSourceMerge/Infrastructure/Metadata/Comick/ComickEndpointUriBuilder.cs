@@ -18,9 +18,10 @@ internal static class ComickEndpointUriBuilder
 		ArgumentException.ThrowIfNullOrWhiteSpace(searchPath);
 		ArgumentException.ThrowIfNullOrWhiteSpace(query);
 
+		string encodedQuery = Uri.EscapeDataString(query.Trim());
 		return new Uri(
 			baseUri,
-			$"{searchPath.Trim()}?q={Uri.EscapeDataString(query.Trim())}");
+			$"{searchPath.Trim()}?q={encodedQuery}&tachiyomi=true");
 	}
 
 	/// <summary>
@@ -38,6 +39,6 @@ internal static class ComickEndpointUriBuilder
 
 		return new Uri(
 			baseUri,
-			$"{comicPath.Trim()}{Uri.EscapeDataString(slug.Trim())}/");
+			$"{comicPath.Trim()}{Uri.EscapeDataString(slug.Trim())}/?tachiyomi=true");
 	}
 }

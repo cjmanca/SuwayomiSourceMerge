@@ -14,9 +14,15 @@ public sealed partial class ContainerRuntimeEndToEndTests
 	public void Run_Edge_ShouldSkipSymlinkedMergedChild_WhenRepairingOwnership()
 	{
 		using ContainerFixtureWorkspace workspace = new();
-		string symlinkTarget = Directory.CreateDirectory(Path.Combine(workspace.MergedRootPath, "Target")).FullName;
+		Directory.CreateDirectory(Path.Combine(workspace.MergedRootPath, "Target"));
+		const string symlinkTarget = "/ssm/merged/Target";
 		string symlinkPath = Path.Combine(workspace.MergedRootPath, "EscapeLink");
 		if (!TryCreateDirectorySymbolicLink(symlinkPath, symlinkTarget))
+		{
+			return;
+		}
+
+		if (!IsContainerPathSymlink(workspace, "/ssm/merged/EscapeLink"))
 		{
 			return;
 		}
@@ -59,11 +65,16 @@ public sealed partial class ContainerRuntimeEndToEndTests
 			  file_name: daemon.log
 			""");
 
-		string targetLogPath = Path.Combine(workspace.ConfigRootPath, "daemon-target.log");
-		File.WriteAllText(targetLogPath, "seed");
+		File.WriteAllText(Path.Combine(workspace.ConfigRootPath, "daemon-target.log"), "seed");
+		const string targetLogPath = "/ssm/config/daemon-target.log";
 		string symlinkLogPath = Path.Combine(workspace.ConfigRootPath, "daemon.log");
 		File.Delete(symlinkLogPath);
 		if (!TryCreateFileSymbolicLink(symlinkLogPath, targetLogPath))
+		{
+			return;
+		}
+
+		if (!IsContainerPathSymlink(workspace, "/ssm/config/daemon.log"))
 		{
 			return;
 		}
@@ -133,5 +144,33 @@ public sealed partial class ContainerRuntimeEndToEndTests
 		{
 			return false;
 		}
+	}
+
+	/// <summary>
+	/// Verifies one bind-mounted path is visible as a symbolic link from inside a test container.
+	/// </summary>
+	/// <param name="workspace">Workspace providing bind mounts.</param>
+	/// <param name="containerPath">Container path to probe.</param>
+	/// <returns><see langword="true"/> when container reports a symlink; otherwise <see langword="false"/>.</returns>
+	private bool IsContainerPathSymlink(ContainerFixtureWorkspace workspace, string containerPath)
+	{
+		ArgumentNullException.ThrowIfNull(workspace);
+		ArgumentException.ThrowIfNullOrWhiteSpace(containerPath);
+
+		List<string> arguments = ["run", "--rm"];
+		foreach ((string hostPath, string bindContainerPath, bool readOnly) in CreateBindMounts(workspace))
+		{
+			string suffix = readOnly ? ":ro" : string.Empty;
+			arguments.Add("--volume");
+			arguments.Add($"{hostPath}:{bindContainerPath}{suffix}");
+		}
+
+		arguments.Add(_fixture.ImageTag);
+		arguments.Add("bash");
+		arguments.Add("-lc");
+		arguments.Add($"test -L '{containerPath}'");
+
+		DockerCommandResult result = _fixture.Runner.Execute(arguments, timeout: TimeSpan.FromMinutes(2));
+		return !result.TimedOut && result.ExitCode == 0;
 	}
 }
