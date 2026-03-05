@@ -82,6 +82,6 @@ internal sealed partial class OverrideCoverService
 			throw new ArgumentException("Cover base URI must use http or https.", nameof(coverBaseUri));
 		}
 
-		return new Uri(coverBaseUri.AbsoluteUri.TrimEnd('/') + "/", UriKind.Absolute);
+		return MetadataUriNormalization.EnsureTrailingSlash(coverBaseUri);
 	}
 }

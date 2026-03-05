@@ -141,11 +141,11 @@ internal sealed class MetadataOrchestrationOptions
 		}
 
 		ComickMetadataCooldown = comickMetadataCooldown;
-		ComickApiBaseUri = new Uri(comickApiBaseUri.AbsoluteUri.TrimEnd('/') + "/", UriKind.Absolute);
+		ComickApiBaseUri = MetadataUriNormalization.EnsureTrailingSlash(comickApiBaseUri);
 		ComickSearchEndpointPath = NormalizeEndpointPath(comickSearchEndpointPath, nameof(comickSearchEndpointPath), "Comick search endpoint path");
 		ComickSearchMaxResults = comickSearchMaxResults;
 		ComickComicEndpointPath = NormalizeEndpointPath(comickComicEndpointPath, nameof(comickComicEndpointPath), "Comick comic endpoint path");
-		ComickImageBaseUri = new Uri(comickImageBaseUri.AbsoluteUri.TrimEnd('/') + "/", UriKind.Absolute);
+		ComickImageBaseUri = MetadataUriNormalization.EnsureTrailingSlash(comickImageBaseUri);
 		FlaresolverrServerUri = flaresolverrServerUri;
 		FlaresolverrDirectRetryInterval = flaresolverrDirectRetryInterval;
 		PreferredLanguage = preferredLanguage.Trim();

@@ -900,6 +900,7 @@ modules:
       - SuwayomiSourceMerge/Infrastructure/Metadata/MetadataOrchestrationOptions.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/MetadataStatePaths.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/MetadataStateSnapshot.cs
+      - SuwayomiSourceMerge/Infrastructure/Metadata/MetadataUriNormalization.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/NoOpMetadataApiRequestThrottle.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverOutcome.cs
       - SuwayomiSourceMerge/Infrastructure/Metadata/OverrideCoverPhysicalFileOperations.cs
@@ -948,6 +949,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataOrchestrationOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataStatePathsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataStateSnapshotTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataUriNormalizationTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/NoOpMetadataApiRequestThrottleTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.FailureDeterminism.cs
@@ -1075,6 +1077,7 @@ modules:
       - Canonical metadata expected-title expansion for candidate matching should include display title, resolved canonical title, and runtime equivalent-title groups with normalized-key dedupe in deterministic order, including canonical-title fallback equivalent lookup even when canonical dedupes against display normalization (fallback resolution is independent of canonical-title append dedupe success); use ComickMetadataCoordinator.BuildExpectedTitles.
       - Canonical metadata orchestration FlareSolverr URI invariants (non-null must be absolute http/https); use MetadataOrchestrationOptions.
       - Canonical metadata orchestration settings carrier and guards for Comick API/image base URIs, configurable search/comic endpoint paths, runtime.comick_search_max_results (>0, default 4), FlareSolverr routing, metadata_api_request_delay_ms (>=0), and metadata_api_cache_ttl_hours (>0) runtime values; use MetadataOrchestrationOptions.
+      - Canonical metadata URI trailing-slash normalization for absolute base URIs should be centralized and reused; use MetadataUriNormalization.EnsureTrailingSlash.
       - Canonical metadata structured logging for cooldown skips plus cooldown state-store best-effort read/persist failures, artifact writes/skips/failures, and equivalents update outcomes should remain coordinator-owned; use ComickMetadataCoordinator.
       - Canonical metadata throttle concurrent-serialization test assertions should use deterministic synchronization rather than fixed wall-clock race delays; use MetadataApiRequestThrottleTests.ExecuteAsync_Expected_ShouldSerializeConcurrentOperations.
       - Canonical no-op metadata API throttle behavior should honor caller cancellation before execution and otherwise pass through delegates immediately; use NoOpMetadataApiRequestThrottle.

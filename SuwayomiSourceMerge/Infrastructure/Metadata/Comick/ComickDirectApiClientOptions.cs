@@ -1,3 +1,5 @@
+using SuwayomiSourceMerge.Infrastructure.Metadata;
+
 namespace SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 
 /// <summary>
@@ -114,7 +116,7 @@ internal sealed class ComickDirectApiClientOptions
 				"Search max results must be > 0.");
 		}
 
-		BaseUri = new Uri(baseUri.AbsoluteUri.TrimEnd('/') + "/", UriKind.Absolute);
+		BaseUri = MetadataUriNormalization.EnsureTrailingSlash(baseUri);
 		SearchEndpointPath = NormalizeEndpointPath(
 			searchEndpointPath,
 			nameof(searchEndpointPath),
