@@ -194,8 +194,6 @@ public sealed partial class ComickDirectApiClientTests
 	[InlineData("[]")]
 	public async Task SearchAsync_Edge_ShouldReturnSuccess_WhenTranslationCompletedShapeVariesAsync(string translationCompletedToken)
 	{
-		ArgumentException.ThrowIfNullOrWhiteSpace(translationCompletedToken);
-
 		RecordingHttpMessageHandler handler = new(
 			_ =>
 				CreateResponse(

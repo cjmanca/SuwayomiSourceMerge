@@ -15,6 +15,7 @@ conventions:
   - Treat warnings as errors globally via central MSBuild props.
   - Use PascalCase for const fields and `_camelCase` for private static readonly fields.
   - Use xUnit for unit tests and keep reusable fixtures/helpers in a shared test project.
+  - Prefer keeping xUnit `[InlineData]`-driven parameter invariants in test data definitions rather than redundant runtime guard clauses inside theory methods.
   - Prefer extending existing orchestration/test roots over creating parallel frameworks.
   - Keep XMLDOC comments detailed for runtime and configuration APIs so intent/usage are clear in-code.
 modules:

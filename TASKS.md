@@ -1,5 +1,7 @@
 # TASKS.md
 
+- [x] 2026-03-05 - Review AI code-review follow-ups for Comick metadata hardening, remove redundant `[InlineData]` test-parameter validation in `ComickDirectApiClientTests.PayloadValidation`, keep internal converter property-name guards by intent, and close nullable-field "breaking-change" notes as inaccurate with citations.
+
 - [x] 2026-03-05 - Harden Comick `/comic/{slug}/` payload tolerance by enforcing match-critical validation only (`comic` node + usable title/alias), adding tolerant DTO converters for non-critical scalar/list/object drift, and expanding malformed-schema regression coverage so non-used field shape drift no longer fails full comic parsing.
 
 - [x] 2026-03-05 - Harden Comick search payload fault tolerance by adding tolerant `md_titles` converter normalization (array/object/string/mixed -> filtered alias list), removing typed `translation_completed` parsing from `ComickSearchComic`, and adding drift-focused payload regression coverage while keeping `slug`/`title` as the only strict search match fields.
