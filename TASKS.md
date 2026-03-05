@@ -1,5 +1,7 @@
 # TASKS.md
 
+- [x] 2026-03-05 - Include the ambiguous requested title in `metadata.candidate.ambiguity` warning telemetry context so ambiguity logs are actionable.
+
 - [x] 2026-03-05 - Stabilize cache-only metadata miss semantics with typed lookup-failure signaling so cooldown cache misses suppress details fallback without failing merge passes, and remove diagnostic-string control-flow dependence.
 
 - [x] 2026-03-05 - Narrow FlareSolverr-enabled details fallback suppression so ComicInfo fallback is skipped only when required Comick lookups fail (including unresolved cache-only misses), while clean no-match completion still permits fallback.

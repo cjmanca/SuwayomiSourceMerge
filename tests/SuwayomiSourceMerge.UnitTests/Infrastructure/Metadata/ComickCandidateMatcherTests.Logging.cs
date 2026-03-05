@@ -32,6 +32,7 @@ public sealed partial class ComickCandidateMatcherTests
 			logger.Events,
 			static entry => entry.EventId == "metadata.candidate.ambiguity");
 		Assert.Equal(LogLevel.Warning, logEvent.Level);
+		Assert.Equal("Target Title", logEvent.Context!["title"]);
 		Assert.Equal("2", logEvent.Context!["tied_candidate_count"]);
 		Assert.Equal("2", logEvent.Context["candidate_count"]);
 	}
@@ -79,6 +80,7 @@ public sealed partial class ComickCandidateMatcherTests
 			logger.Events,
 			static entry => entry.EventId == "metadata.candidate.ambiguity");
 		Assert.Equal(LogLevel.Warning, logEvent.Level);
+		Assert.Equal("Target Title", logEvent.Context!["title"]);
 		Assert.Equal("2", logEvent.Context!["tied_candidate_count"]);
 		Assert.Equal("2", logEvent.Context["candidate_count"]);
 	}

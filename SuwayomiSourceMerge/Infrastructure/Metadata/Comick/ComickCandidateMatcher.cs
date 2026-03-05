@@ -67,6 +67,7 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 		ArgumentNullException.ThrowIfNull(expectedTitles);
 
 		ValidateCandidateEntries(candidates);
+		string ambiguityTitle = ResolveAmbiguityTitle(expectedTitles);
 		HashSet<string> expectedTitleKeys = BuildExpectedTitleKeys(expectedTitles);
 		if (expectedTitleKeys.Count == 0)
 		{
@@ -158,6 +159,7 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 			if (topSimilarityTieInfo.HasTopSimilarityTie)
 			{
 				LogCandidateAmbiguity(
+					ambiguityTitle,
 					candidates.Count,
 					expectedTitleKeys.Count,
 					topSimilarityTieInfo.TopSimilarity,
@@ -178,6 +180,7 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 		if (topSimilarityTieInfo.HasTopSimilarityTie)
 		{
 			LogCandidateAmbiguity(
+				ambiguityTitle,
 				candidates.Count,
 				expectedTitleKeys.Count,
 				topSimilarityTieInfo.TopSimilarity,
@@ -239,6 +242,25 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 					nameof(candidates));
 			}
 		}
+	}
+
+	/// <summary>
+	/// Resolves one representative expected title used for ambiguity warning telemetry.
+	/// </summary>
+	/// <param name="expectedTitles">Expected title values provided for candidate matching.</param>
+	/// <returns>First non-empty expected title value; otherwise an empty value.</returns>
+	private static string ResolveAmbiguityTitle(IReadOnlyList<string> expectedTitles)
+	{
+		for (int index = 0; index < expectedTitles.Count; index++)
+		{
+			string? expectedTitle = expectedTitles[index];
+			if (!string.IsNullOrWhiteSpace(expectedTitle))
+			{
+				return expectedTitle.Trim();
+			}
+		}
+
+		return string.Empty;
 	}
 
 	/// <summary>

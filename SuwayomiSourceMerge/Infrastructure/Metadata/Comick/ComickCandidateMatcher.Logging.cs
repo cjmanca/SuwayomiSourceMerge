@@ -84,11 +84,13 @@ internal sealed partial class ComickCandidateMatcher
 	/// <summary>
 	/// Emits one candidate-ambiguity warning event.
 	/// </summary>
+	/// <param name="title">Representative expected title for the active candidate match attempt.</param>
 	/// <param name="candidateCount">Candidate count.</param>
 	/// <param name="expectedTitleCount">Expected-title count.</param>
 	/// <param name="topSimilarity">Top ranking-hint similarity.</param>
 	/// <param name="tiedCandidateCount">Number of candidates tied at top similarity.</param>
 	private void LogCandidateAmbiguity(
+		string title,
 		int candidateCount,
 		int expectedTitleCount,
 		double topSimilarity,
@@ -96,8 +98,9 @@ internal sealed partial class ComickCandidateMatcher
 	{
 		_logger.Warning(
 			CandidateAmbiguityEvent,
-			"Ranking hints produced an ambiguous top-candidate tie.",
+			"Ranking hints produced an ambiguous top-candidate tie for the requested title.",
 			BuildContext(
+				("title", title),
 				("candidate_count", candidateCount.ToString(CultureInfo.InvariantCulture)),
 				("expected_title_count", expectedTitleCount.ToString(CultureInfo.InvariantCulture)),
 				("top_similarity", topSimilarity.ToString("F6", CultureInfo.InvariantCulture)),
