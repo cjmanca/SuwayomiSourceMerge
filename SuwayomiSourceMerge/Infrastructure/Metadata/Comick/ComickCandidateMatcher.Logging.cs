@@ -13,6 +13,11 @@ internal sealed partial class ComickCandidateMatcher
 	private const string CandidateAmbiguityEvent = "metadata.candidate.ambiguity";
 
 	/// <summary>
+	/// Event id emitted when one comic-detail candidate payload is malformed.
+	/// </summary>
+	private const string CandidateMalformedPayloadEvent = "metadata.candidate.malformed_payload";
+
+	/// <summary>
 	/// Equality tolerance used for floating-point similarity tie checks.
 	/// The ranking helper computes normalized Levenshtein scores with repeated double arithmetic, so tie comparisons
 	/// use a small fixed tolerance to avoid platform/runtime rounding jitter.
@@ -97,6 +102,28 @@ internal sealed partial class ComickCandidateMatcher
 				("expected_title_count", expectedTitleCount.ToString(CultureInfo.InvariantCulture)),
 				("top_similarity", topSimilarity.ToString("F6", CultureInfo.InvariantCulture)),
 				("tied_candidate_count", tiedCandidateCount.ToString(CultureInfo.InvariantCulture))));
+	}
+
+	/// <summary>
+	/// Emits one malformed-payload debug event for a candidate detail lookup.
+	/// </summary>
+	/// <param name="slug">Candidate slug.</param>
+	/// <param name="candidateIndex">Candidate index in the original search payload.</param>
+	/// <param name="diagnostic">Parser diagnostic.</param>
+	private void LogMalformedCandidatePayload(
+		string slug,
+		int candidateIndex,
+		string diagnostic)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(slug);
+
+		_logger.Debug(
+			CandidateMalformedPayloadEvent,
+			"Comick candidate detail payload was malformed; continuing to next candidate.",
+			BuildContext(
+				("slug", slug),
+				("candidate_index", candidateIndex.ToString(CultureInfo.InvariantCulture)),
+				("diagnostic", diagnostic)));
 	}
 
 	/// <summary>

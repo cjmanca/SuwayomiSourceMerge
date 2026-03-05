@@ -4,112 +4,30 @@ using System.Text.Json.Serialization;
 namespace SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 
 /// <summary>
-/// Represents external link fields from comic-detail payload.
+/// Represents dynamic external link fields from comic-detail payload.
 /// </summary>
 internal sealed class ComickComicLinks
 {
-	/// <summary>Gets or sets AniList identifier.</summary>
-	[JsonPropertyName("al")]
-	public string? AniList
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets AnimePlanet slug.</summary>
-	[JsonPropertyName("ap")]
-	public string? AnimePlanet
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets BookWalker token.</summary>
-	[JsonPropertyName("bw")]
-	public string? BookWalker
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets Kitsu token.</summary>
-	[JsonPropertyName("kt")]
-	public string? Kitsu
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets MangaBuddy identifier.</summary>
-	[JsonPropertyName("mb")]
-	public int? MangaBuddy
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets MangaUpdates token.</summary>
-	[JsonPropertyName("mu")]
-	public string? MangaUpdates
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets Amazon URL.</summary>
-	[JsonPropertyName("amz")]
-	public string? Amazon
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets CDJapan URL.</summary>
-	[JsonPropertyName("cdj")]
-	public string? CdJapan
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets EbookJapan URL.</summary>
-	[JsonPropertyName("ebj")]
-	public string? EbookJapan
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets MyAnimeList identifier.</summary>
-	[JsonPropertyName("mal")]
-	public string? MyAnimeList
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets raw source URL.</summary>
-	[JsonPropertyName("raw")]
-	public string? RawSource
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets English translation URL.</summary>
-	[JsonPropertyName("engtl")]
-	public string? EnglishTranslation
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets unknown link properties retained for compatibility.</summary>
+	/// <summary>
+	/// Gets or sets dynamic link entries keyed by upstream link identifiers.
+	/// </summary>
 	[JsonExtensionData]
-	public IDictionary<string, JsonElement>? AdditionalProperties
+	public IDictionary<string, JsonElement> Entries
 	{
 		get;
 		init;
+	} = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+
+	/// <summary>
+	/// Attempts to read one link entry by key.
+	/// </summary>
+	/// <param name="key">Link key.</param>
+	/// <param name="value">Link value when found.</param>
+	/// <returns><see langword="true"/> when key exists; otherwise <see langword="false"/>.</returns>
+	public bool TryGetEntry(string key, out JsonElement value)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(key);
+		return Entries.TryGetValue(key, out value);
 	}
 }
 

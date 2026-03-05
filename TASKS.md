@@ -1,6 +1,14 @@
 # TASKS.md
 
 
+- [x] 2026-03-05 - Replace hard-coded `ComickComicLinks` DTO fields with dynamic extension-data link entry parsing so unknown/new Comick link keys and value token shapes are preserved without malformed-payload failures.
+
+- [x] 2026-03-05 - Harden Comick `links.mb` payload compatibility by treating empty/whitespace string tokens as null, widening MangaBuddy model/converter handling to `long?`, and adding regression coverage for Int64-range, overflow, and non-scalar token cases.
+
+- [x] 2026-03-05 - Add focused Comick candidate malformed-payload debug telemetry (`metadata.candidate.malformed_payload`) including slug/candidate index/parser diagnostic so schema drift is visible without cache-event correlation.
+
+- [x] 2026-03-05 - Fix Comick exact-match false negatives caused by polymorphic `links.mb` payload shape (`int` or numeric string) by adding targeted converter support and regression tests for direct payload parsing plus first-candidate short-circuit matching.
+
 - [x] 2026-03-05 - Resolve CloudflareAwareComickGateway response-normalization review follow-ups by confirming partial-class fatal-exception helper coverage, ordering TryExtractJsonPreContent out parameters with diagnostic last for consistency, and documenting response-prefix truncation rationale.
 
 - [x] 2026-03-05 - Refine CloudflareAwareComickGateway FlareSolverr normalization diagnostics with tri-state HTML wrapper detection (`detected`/`not_detected`/`unknown`), retain derived `is_html_wrapped` compatibility logging, and add regression coverage for failed `<pre>` detection and parser-failure unknown state.

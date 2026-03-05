@@ -115,6 +115,14 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 				hadServiceInterruption = true;
 			}
 
+			if (detailResult.Outcome == ComickDirectApiOutcome.MalformedPayload)
+			{
+				LogMalformedCandidatePayload(
+					searchCandidate.Slug,
+					candidateIndex,
+					detailResult.Diagnostic);
+			}
+
 			if (detailResult.Outcome != ComickDirectApiOutcome.Success || detailResult.Payload is null)
 			{
 				continue;

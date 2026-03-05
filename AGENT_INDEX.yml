@@ -929,6 +929,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComicInfoMetadataParserTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickCandidateMatcherTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickCandidateMatcherTests.Logging.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickCandidateMatcherTests.Regressions.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickCandidateMatcherTests.TopTie.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientOptionsTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickDirectApiClientTests.CancellationAndTransport.cs
@@ -1051,7 +1052,9 @@ modules:
       - Canonical Comick cache read-through/write-through for both search and comic endpoints (cache keying, expiry checks, and Success/NotFound-only persistence policy) should remain gateway-owned; use CloudflareAwareComickGateway.ExecuteWithCacheAsync.
       - Canonical completion-anchored metadata API pacing semantics (including cooperative cancellation propagation, concurrent-operation serialization, and failed-operation window advancement); use MetadataApiRequestThrottle.
       - Canonical Comick candidate resolution and detail-only exact-key matching semantics (search entries are ranking hints only), including interruption telemetry for non-cooperative detail failures, accurate `HadTopTie` result semantics for matched tied candidates only, and cancellation throws only when caller cancellation is requested; use ComickCandidateMatcher.MatchAsync.
+      - Canonical Comick candidate malformed-detail telemetry should emit `metadata.candidate.malformed_payload` at debug level with `slug`, `candidate_index`, and parser `diagnostic` when detail probes return `MalformedPayload`; use ComickCandidateMatcher.LogMalformedCandidatePayload.
       - Canonical Comick candidate-ambiguity warning semantics should detect only explicit top-similarity ranking-hint ties (>0 with epsilon tie comparison) and emit `metadata.candidate.ambiguity` even when a deterministic match is selected; use ComickCandidateMatcher.GetTopSimilarityTieInfo and ComickCandidateMatcher.LogCandidateAmbiguity.
+      - Canonical Comick comic-link DTO parsing should treat `comic.links` as dynamic extension-data entries keyed by upstream identifiers so unknown/new link keys and mixed token types are preserved without schema-specific hard-coding; use ComickComicLinks.
       - Canonical Comick gateway base-URI normalization (absolute http/https + exactly one trailing slash) should be centralized and reused; use CloudflareAwareComickGateway.NormalizeBaseUri.
       - Canonical cover already-exists result construction should be centralized to preserve consistent CoverJpgPath/ExistingCoverPath semantics; use OverrideCoverService.CreateAlreadyExistsResult.
       - Canonical cover concurrent-gate test handler call counting should be atomic to avoid racy gate signaling under concurrent SendAsync execution; use OverrideCoverServiceTests.ConcurrentGateHttpMessageHandler.SendAsync.
