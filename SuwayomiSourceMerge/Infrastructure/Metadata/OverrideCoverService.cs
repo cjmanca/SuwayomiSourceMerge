@@ -50,7 +50,7 @@ internal sealed partial class OverrideCoverService : IOverrideCoverService, IDis
 	/// <summary>
 	/// Process-local keyed write locks used to serialize concurrent cover writes per destination path.
 	/// </summary>
-	private static readonly ConcurrentDictionary<string, SemaphoreSlim> _coverWriteLocks = new(StringComparer.Ordinal);
+	private static readonly ConcurrentDictionary<string, CoverWriteLockEntry> _coverWriteLocks = new(StringComparer.Ordinal);
 
 	/// <summary>
 	/// HTTP client dependency.
@@ -146,10 +146,13 @@ internal sealed partial class OverrideCoverService : IOverrideCoverService, IDis
 			request.PreferredOverrideDirectoryPath,
 			CoverJpgFileName);
 		string lockKey = Path.GetFullPath(preferredCoverPath);
-		SemaphoreSlim coverWriteLock = _coverWriteLocks.GetOrAdd(lockKey, static _ => new SemaphoreSlim(1, 1));
-		await coverWriteLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+		CoverWriteLockEntry coverWriteLock = AcquireCoverWriteLock(lockKey);
+		bool enteredWriteGate = false;
 		try
 		{
+			await coverWriteLock.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+			enteredWriteGate = true;
+
 			if (TryFindExistingOverrideCoverPath(request, out string? existingCoverPath))
 			{
 				return CreateAlreadyExistsResult(existingCoverPath!, coverUri: null);
@@ -284,7 +287,138 @@ internal sealed partial class OverrideCoverService : IOverrideCoverService, IDis
 		}
 		finally
 		{
-			coverWriteLock.Release();
+			if (enteredWriteGate)
+			{
+				coverWriteLock.Gate.Release();
+			}
+
+			ReleaseCoverWriteLock(lockKey, coverWriteLock);
+		}
+	}
+
+	/// <summary>
+	/// Gets the current active cover-write lock entry count for unit tests.
+	/// </summary>
+	/// <returns>Current dictionary entry count.</returns>
+	internal static int GetCoverWriteLockCountForTests()
+	{
+		return _coverWriteLocks.Count;
+	}
+
+	/// <summary>
+	/// Acquires one ref-counted process-local cover-write lock entry by key.
+	/// </summary>
+	/// <param name="lockKey">Normalized lock key.</param>
+	/// <returns>Lock entry associated with the key.</returns>
+	private static CoverWriteLockEntry AcquireCoverWriteLock(string lockKey)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(lockKey);
+
+		while (true)
+		{
+			CoverWriteLockEntry lockEntry = _coverWriteLocks.GetOrAdd(lockKey, static _ => new CoverWriteLockEntry());
+			lock (lockEntry.SyncRoot)
+			{
+				if (lockEntry.IsRemoved)
+				{
+					continue;
+				}
+
+				lockEntry.ReferenceCount++;
+				return lockEntry;
+			}
+		}
+	}
+
+	/// <summary>
+	/// Releases one ref-counted process-local cover-write lock entry and disposes it when removed from the map.
+	/// </summary>
+	/// <param name="lockKey">Normalized lock key.</param>
+	/// <param name="lockEntry">Lock entry to release.</param>
+	private static void ReleaseCoverWriteLock(string lockKey, CoverWriteLockEntry lockEntry)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(lockKey);
+		ArgumentNullException.ThrowIfNull(lockEntry);
+
+		bool disposeGate = false;
+		lock (lockEntry.SyncRoot)
+		{
+			lockEntry.ReferenceCount--;
+			if (lockEntry.ReferenceCount < 0)
+			{
+				throw new InvalidOperationException("Cover write lock reference count must not be negative.");
+			}
+
+			if (lockEntry.ReferenceCount != 0)
+			{
+				return;
+			}
+
+			lockEntry.IsRemoved = true;
+			if (_coverWriteLocks.TryRemove(new KeyValuePair<string, CoverWriteLockEntry>(lockKey, lockEntry)))
+			{
+				disposeGate = true;
+			}
+			else
+			{
+				lockEntry.IsRemoved = false;
+			}
+		}
+
+		if (disposeGate)
+		{
+			lockEntry.Gate.Dispose();
+		}
+	}
+
+	/// <summary>
+	/// Ref-counted lock entry used for keyed cover-write serialization.
+	/// </summary>
+	private sealed class CoverWriteLockEntry
+	{
+		/// <summary>
+		/// Initializes a new instance of the <see cref="CoverWriteLockEntry"/> class.
+		/// </summary>
+		public CoverWriteLockEntry()
+		{
+			Gate = new SemaphoreSlim(1, 1);
+			SyncRoot = new object();
+			IsRemoved = false;
+			ReferenceCount = 0;
+		}
+
+		/// <summary>
+		/// Gets the semaphore gate.
+		/// </summary>
+		public SemaphoreSlim Gate
+		{
+			get;
+		}
+
+		/// <summary>
+		/// Gets the synchronization root used to coordinate reference and removal transitions.
+		/// </summary>
+		public object SyncRoot
+		{
+			get;
+		}
+
+		/// <summary>
+		/// Gets or sets a value indicating whether this lock entry has been removed from the dictionary.
+		/// </summary>
+		public bool IsRemoved
+		{
+			get;
+			set;
+		}
+
+		/// <summary>
+		/// Gets or sets the active-reference count for this lock entry.
+		/// </summary>
+		public int ReferenceCount
+		{
+			get;
+			set;
 		}
 	}
 

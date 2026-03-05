@@ -1,6 +1,8 @@
 # TASKS.md
 
 
+- [x] 2026-03-05 - Fix `OverrideCoverService` keyed-lock dispose race by synchronizing per-entry acquire/release/removal with `SyncRoot`/`IsRemoved` state and add repeated contention regression coverage to prevent semaphore disposal while in use.
+- [x] 2026-03-05 - Prevent unbounded `OverrideCoverService` keyed cover-write lock growth by introducing ref-counted lock-entry reclamation with regression coverage for cleanup, cancellation-wait, and write-failure release paths.
 - [x] 2026-03-05 - Change default `runtime.comick_search_max_results` from `100` to `4` and update default-dependent docs/test expectations.
 - [x] 2026-03-05 - Add runtime setting `runtime.comick_search_max_results` (default `100`, `> 0`) and thread it through settings/defaults/self-heal/validation/runtime mapping into Comick search request URI `limit=` query composition with updated tests/docs.
 - [x] 2026-03-05 - Stabilize integration test determinism by fixing entrypoint symlink-ownership fixtures to use container-visible symlink targets and widening transient polling-recovery timeout in Docker assertions behavior coverage.
