@@ -30,7 +30,7 @@ public sealed partial class ComickDirectApiClientTests
 		Assert.Equal("hid-1", result.Payload.Comics[0].Hid);
 		Assert.NotNull(handler.LastRequest);
 		Assert.Equal(
-			"https://api.comick.dev/v1.0/search/?q=one%20piece%2Fa%2Bb%3F",
+			"https://api.comick.dev/v1.0/search/?q=one%20piece%2Fa%2Bb%3F&limit=4&tachiyomi=true",
 			handler.LastRequest!.RequestUri!.AbsoluteUri);
 		Assert.Contains(
 			handler.LastRequest.Headers.Accept,
@@ -66,6 +66,42 @@ public sealed partial class ComickDirectApiClientTests
 		Assert.Equal("Pirate/s", result.Payload.Comic.MuComics.MuComicCategories[0].Category?.Title);
 		Assert.Equal(10, result.Payload.Comic.MuComics.MuComicCategories[0].PositiveVote);
 		Assert.Equal(1, result.Payload.Comic.MuComics.MuComicCategories[0].NegativeVote);
+	}
+
+	/// <summary>
+	/// Verifies configured endpoint path overrides are used for search and comic requests.
+	/// </summary>
+	[Fact]
+	public async Task SearchAndComicAsync_Edge_ShouldUseConfiguredEndpointPathsAsync()
+	{
+		RecordingHttpMessageHandler handler = new(
+			static request =>
+			{
+				string requestUri = request.RequestUri!.AbsoluteUri;
+				if (requestUri.Contains("search/", StringComparison.Ordinal))
+				{
+					return CreateResponse(HttpStatusCode.OK, CreateSearchJson());
+				}
+
+				return CreateResponse(HttpStatusCode.OK, CreateComicJson());
+			});
+		using HttpClient httpClient = new(handler);
+		ComickDirectApiClient client = new(
+			new ComickDirectApiClientOptions(
+				new Uri("https://api.example.local/"),
+				TimeSpan.FromSeconds(10),
+				searchEndpointPath: "search/",
+				searchMaxResults: 25,
+				comicEndpointPath: "v1.0/comic/"),
+			httpClient);
+
+		ComickDirectApiResult<ComickSearchResponse> searchResult = await client.SearchAsync("one piece");
+		Assert.Equal(ComickDirectApiOutcome.Success, searchResult.Outcome);
+		Assert.Equal("https://api.example.local/search/?q=one%20piece&limit=25&tachiyomi=true", handler.LastRequest!.RequestUri!.AbsoluteUri);
+
+		ComickDirectApiResult<ComickComicResponse> comicResult = await client.GetComicAsync("slug-1");
+		Assert.Equal(ComickDirectApiOutcome.Success, comicResult.Outcome);
+		Assert.Equal("https://api.example.local/v1.0/comic/slug-1/?tachiyomi=true", handler.LastRequest!.RequestUri!.AbsoluteUri);
 	}
 
 	/// <summary>

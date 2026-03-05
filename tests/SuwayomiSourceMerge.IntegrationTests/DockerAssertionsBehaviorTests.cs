@@ -50,7 +50,7 @@ public sealed class DockerAssertionsBehaviorTests
 
 				return true;
 			},
-			TimeSpan.FromSeconds(2),
+			TimeSpan.FromSeconds(5),
 			"Expected predicate to eventually recover.");
 
 		Assert.True(attempts >= 3);

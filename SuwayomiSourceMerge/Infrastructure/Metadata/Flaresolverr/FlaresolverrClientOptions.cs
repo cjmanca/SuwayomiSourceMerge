@@ -1,3 +1,5 @@
+using SuwayomiSourceMerge.Infrastructure.Metadata;
+
 namespace SuwayomiSourceMerge.Infrastructure.Metadata.Flaresolverr;
 
 /// <summary>
@@ -51,7 +53,7 @@ internal sealed class FlaresolverrClientOptions
 				"Request timeout must be > 0.");
 		}
 
-		BaseUri = new Uri(baseUri.AbsoluteUri.TrimEnd('/') + "/", UriKind.Absolute);
+		BaseUri = MetadataUriNormalization.EnsureTrailingSlash(baseUri);
 		RequestTimeout = requestTimeout;
 	}
 

@@ -76,6 +76,11 @@ public sealed partial class SettingsDocumentValidatorTests
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                ComickApiBaseUrl = baseline.Runtime!.ComickApiBaseUrl,
+                ComickSearchEndpointPath = baseline.Runtime.ComickSearchEndpointPath,
+                    ComickSearchMaxResults = baseline.Runtime.ComickSearchMaxResults,
+                ComickComicEndpointPath = baseline.Runtime.ComickComicEndpointPath,
+                ComickImageBaseUrl = baseline.Runtime.ComickImageBaseUrl,
                 MetadataApiRequestDelayMs = 0,
                 MetadataApiCacheTtlHours = 1,
                 FlaresolverrServerUrl = baseline.Runtime.FlaresolverrServerUrl,
@@ -120,7 +125,12 @@ public sealed partial class SettingsDocumentValidatorTests
                 RescanNow = baseline.Runtime.RescanNow,
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
-                ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                    ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                    ComickApiBaseUrl = baseline.Runtime!.ComickApiBaseUrl,
+                    ComickSearchEndpointPath = baseline.Runtime.ComickSearchEndpointPath,
+                    ComickSearchMaxResults = baseline.Runtime.ComickSearchMaxResults,
+                    ComickComicEndpointPath = baseline.Runtime.ComickComicEndpointPath,
+                ComickImageBaseUrl = baseline.Runtime.ComickImageBaseUrl,
                 MetadataApiRequestDelayMs = baseline.Runtime.MetadataApiRequestDelayMs,
                 MetadataApiCacheTtlHours = baseline.Runtime.MetadataApiCacheTtlHours,
                 FlaresolverrServerUrl = baseline.Runtime.FlaresolverrServerUrl,
@@ -161,6 +171,7 @@ public sealed partial class SettingsDocumentValidatorTests
     public void Validate_ShouldReportMissingAndRangeErrors_WhenRequiredValuesAreMissing()
     {
         SettingsDocumentValidator validator = new();
+        SettingsDocument baseline = ConfigurationTestData.CreateValidSettingsDocument();
         SettingsDocument document = new()
         {
             Paths = new SettingsPathsSection
@@ -228,6 +239,11 @@ public sealed partial class SettingsDocumentValidatorTests
                 EnableMountHealthcheck = true,
                 MaxConsecutiveMountFailures = 5,
                 ComickMetadataCooldownHours = 0,
+                ComickApiBaseUrl = baseline.Runtime!.ComickApiBaseUrl,
+                ComickSearchEndpointPath = baseline.Runtime.ComickSearchEndpointPath,
+                ComickSearchMaxResults = 0,
+                ComickComicEndpointPath = baseline.Runtime.ComickComicEndpointPath,
+                ComickImageBaseUrl = baseline.Runtime.ComickImageBaseUrl,
                 MetadataApiRequestDelayMs = -1,
                 MetadataApiCacheTtlHours = 0,
                 FlaresolverrServerUrl = "ftp://flaresolverr.example.local",
@@ -257,8 +273,9 @@ public sealed partial class SettingsDocumentValidatorTests
         Assert.Contains(result.Errors, error => error.Path == "$.shutdown.cleanup_apply_high_priority" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.shutdown.cleanup_priority_ionice_class" && error.Code == "CFG-SET-002");
         Assert.Contains(result.Errors, error => error.Path == "$.shutdown.cleanup_priority_nice_value" && error.Code == "CFG-SET-004");
-        Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_metadata_cooldown_hours" && error.Code == "CFG-SET-004");
-        Assert.Contains(result.Errors, error => error.Path == "$.runtime.metadata_api_request_delay_ms" && error.Code == "CFG-SET-004");
+            Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_metadata_cooldown_hours" && error.Code == "CFG-SET-004");
+            Assert.Contains(result.Errors, error => error.Path == "$.runtime.comick_search_max_results" && error.Code == "CFG-SET-004");
+            Assert.Contains(result.Errors, error => error.Path == "$.runtime.metadata_api_request_delay_ms" && error.Code == "CFG-SET-004");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.metadata_api_cache_ttl_hours" && error.Code == "CFG-SET-004");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.flaresolverr_server_url" && error.Code == "CFG-SET-005");
         Assert.Contains(result.Errors, error => error.Path == "$.runtime.flaresolverr_direct_retry_minutes" && error.Code == "CFG-SET-004");
@@ -288,6 +305,11 @@ public sealed partial class SettingsDocumentValidatorTests
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                ComickApiBaseUrl = baseline.Runtime!.ComickApiBaseUrl,
+                ComickSearchEndpointPath = baseline.Runtime.ComickSearchEndpointPath,
+                ComickSearchMaxResults = baseline.Runtime.ComickSearchMaxResults,
+                ComickComicEndpointPath = baseline.Runtime.ComickComicEndpointPath,
+                ComickImageBaseUrl = baseline.Runtime.ComickImageBaseUrl,
                 MetadataApiRequestDelayMs = baseline.Runtime.MetadataApiRequestDelayMs,
                 MetadataApiCacheTtlHours = baseline.Runtime.MetadataApiCacheTtlHours,
                 FlaresolverrServerUrl = baseline.Runtime.FlaresolverrServerUrl,
@@ -390,6 +412,11 @@ public sealed partial class SettingsDocumentValidatorTests
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                ComickApiBaseUrl = baseline.Runtime!.ComickApiBaseUrl,
+                ComickSearchEndpointPath = baseline.Runtime.ComickSearchEndpointPath,
+                ComickSearchMaxResults = baseline.Runtime.ComickSearchMaxResults,
+                ComickComicEndpointPath = baseline.Runtime.ComickComicEndpointPath,
+                ComickImageBaseUrl = baseline.Runtime.ComickImageBaseUrl,
                 MetadataApiRequestDelayMs = baseline.Runtime.MetadataApiRequestDelayMs,
                 MetadataApiCacheTtlHours = baseline.Runtime.MetadataApiCacheTtlHours,
                 FlaresolverrServerUrl = string.Empty,
@@ -428,6 +455,11 @@ public sealed partial class SettingsDocumentValidatorTests
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                ComickApiBaseUrl = baseline.Runtime!.ComickApiBaseUrl,
+                ComickSearchEndpointPath = baseline.Runtime.ComickSearchEndpointPath,
+                ComickSearchMaxResults = baseline.Runtime.ComickSearchMaxResults,
+                ComickComicEndpointPath = baseline.Runtime.ComickComicEndpointPath,
+                ComickImageBaseUrl = baseline.Runtime.ComickImageBaseUrl,
                 MetadataApiRequestDelayMs = baseline.Runtime.MetadataApiRequestDelayMs,
                 MetadataApiCacheTtlHours = baseline.Runtime.MetadataApiCacheTtlHours,
                 FlaresolverrServerUrl = "https://flaresolverr.example.local/",
@@ -466,6 +498,11 @@ public sealed partial class SettingsDocumentValidatorTests
                 EnableMountHealthcheck = baseline.Runtime.EnableMountHealthcheck,
                 MaxConsecutiveMountFailures = baseline.Runtime.MaxConsecutiveMountFailures,
                 ComickMetadataCooldownHours = baseline.Runtime.ComickMetadataCooldownHours,
+                ComickApiBaseUrl = baseline.Runtime!.ComickApiBaseUrl,
+                ComickSearchEndpointPath = baseline.Runtime.ComickSearchEndpointPath,
+                ComickSearchMaxResults = baseline.Runtime.ComickSearchMaxResults,
+                ComickComicEndpointPath = baseline.Runtime.ComickComicEndpointPath,
+                ComickImageBaseUrl = baseline.Runtime.ComickImageBaseUrl,
                 MetadataApiRequestDelayMs = baseline.Runtime.MetadataApiRequestDelayMs,
                 MetadataApiCacheTtlHours = baseline.Runtime.MetadataApiCacheTtlHours,
                 FlaresolverrServerUrl = "/flaresolverr",

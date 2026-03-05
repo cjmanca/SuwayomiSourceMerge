@@ -242,6 +242,10 @@ public sealed partial class ComickMetadataCoordinatorTests
 	{
 		return new MetadataOrchestrationOptions(
 			comickMetadataCooldown: TimeSpan.FromHours(24),
+			comickApiBaseUri: new Uri("https://api.comick.dev/"),
+			comickSearchEndpointPath: "v1.0/search/",
+			comickComicEndpointPath: "comic/",
+			comickImageBaseUri: new Uri("https://meo.comick.pictures/"),
 			flaresolverrServerUri: null,
 			flaresolverrDirectRetryInterval: TimeSpan.FromMinutes(60),
 			preferredLanguage: "en",

@@ -8,6 +8,7 @@ using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 /// <summary>
 /// Verifies expected, edge, and failure behavior for <see cref="OverrideCoverService"/>.
 /// </summary>
+[Collection(OverrideCoverServiceTestCollection.Name)]
 public sealed partial class OverrideCoverServiceTests
 {
 	/// <summary>
@@ -182,7 +183,7 @@ public sealed partial class OverrideCoverServiceTests
 	{
 		using TemporaryDirectory temporaryDirectory = new();
 		string preferredOverrideDirectoryPath = CreateDirectory(temporaryDirectory.Path, "override", "priority", "Manga Title");
-		ConcurrentGateHttpMessageHandler handler = new(_onePixelJpegPayload, expectedCallCount: 2);
+		ConcurrentGateHttpMessageHandler handler = new(_onePixelJpegPayload, expectedCallCount: 1);
 		using HttpClient httpClient = new(handler);
 		using OverrideCoverService service = new(httpClient, coverBaseUri: null);
 		OverrideCoverRequest request = new(
@@ -203,6 +204,7 @@ public sealed partial class OverrideCoverServiceTests
 
 		Assert.Equal(1, writtenCount);
 		Assert.Equal(1, alreadyExistsCount);
+		Assert.Equal(1, handler.CallCount);
 		Assert.True(File.Exists(Path.Combine(preferredOverrideDirectoryPath, "cover.jpg")));
 	}
 

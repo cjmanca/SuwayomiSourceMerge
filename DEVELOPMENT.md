@@ -67,7 +67,7 @@ Planned runtime settings for this feature:
 
 Planned Comick/Flaresolverr routing behavior:
 
-- API routing is direct-first for Comick (`/v1.0/search/`, `/comic/{slug}/`).
+- API routing is direct-first for Comick using configurable settings (`runtime.comick_api_base_url`, `runtime.comick_search_endpoint_path`, `runtime.comick_search_max_results`, `runtime.comick_comic_endpoint_path`) with defaults equivalent to `/v1.0/search/` and `/comic/{slug}/`.
 - Check each search result via `/comic/{slug}/`, using the `md_titles` (normalized) it returns to check against entries in `manga_equivalents.yml` (or normalized title if no matching entry in `manga_equivalents.yml`).
 - The first search result is often the correct one, so try that first. If that doesn't match, sort the remaining search results by most likely to least likely to reduce API hits on retrieving the full comic info. Short circuit out once a valid matching entry is found.
 - If direct access is Cloudflare-blocked and FlareSolverr is configured, switch to sticky FlareSolverr mode.
@@ -82,6 +82,7 @@ Implemented behavior:
 - Add configurable pacing between actual metadata HTTP requests so all requests are still attempted, but spaced out.
 - Keep current artifact/cooldown short-circuit behavior; when no outbound API call is needed, no pacing delay should be applied.
 - Add persisted Comick API response caching for both search and comic-detail endpoints so repeated lookups can be served from cache without outbound requests or pacing delay.
+- All Comick search and comic-detail endpoint requests append `tachiyomi=true` (direct and FlareSolverr-routed).
 - Keep scan behavior resilient: pacing delays and cache misses must not be treated as scan failures by themselves.
 
 Design rationale and implementation options considered:

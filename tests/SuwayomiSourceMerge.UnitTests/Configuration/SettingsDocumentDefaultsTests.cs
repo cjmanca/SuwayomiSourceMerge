@@ -23,6 +23,11 @@ public sealed class SettingsDocumentDefaultsTests
         Assert.Null(document.Scan!.MergeTriggerRequestTimeoutBufferSeconds);
         Assert.Equal("progressive", document.Scan.WatchStartupMode);
         Assert.Equal(24, document.Runtime!.ComickMetadataCooldownHours);
+        Assert.Equal("https://api.comick.dev/", document.Runtime.ComickApiBaseUrl);
+        Assert.Equal("v1.0/search/", document.Runtime.ComickSearchEndpointPath);
+        Assert.Equal(4, document.Runtime.ComickSearchMaxResults);
+        Assert.Equal("comic/", document.Runtime.ComickComicEndpointPath);
+        Assert.Equal("https://meo.comick.pictures/", document.Runtime.ComickImageBaseUrl);
         Assert.Equal(1000, document.Runtime.MetadataApiRequestDelayMs);
         Assert.Equal(24, document.Runtime.MetadataApiCacheTtlHours);
         Assert.Equal(string.Empty, document.Runtime.FlaresolverrServerUrl);

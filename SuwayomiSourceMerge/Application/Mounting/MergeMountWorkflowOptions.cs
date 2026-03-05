@@ -310,6 +310,11 @@ internal sealed class MergeMountWorkflowOptions
 		if (runtime.EnableMountHealthcheck is null ||
 			runtime.MaxConsecutiveMountFailures is null ||
 			runtime.ComickMetadataCooldownHours is null ||
+			runtime.ComickApiBaseUrl is null ||
+			runtime.ComickSearchEndpointPath is null ||
+			runtime.ComickSearchMaxResults is null ||
+			runtime.ComickComicEndpointPath is null ||
+			runtime.ComickImageBaseUrl is null ||
 			runtime.MetadataApiRequestDelayMs is null ||
 			runtime.MetadataApiCacheTtlHours is null ||
 			runtime.FlaresolverrServerUrl is null ||
@@ -320,7 +325,7 @@ internal sealed class MergeMountWorkflowOptions
 			runtime.StartupCleanup is null)
 		{
 			throw new ArgumentException(
-				"Settings runtime.enable_mount_healthcheck, runtime.max_consecutive_mount_failures, runtime.comick_metadata_cooldown_hours, runtime.metadata_api_request_delay_ms, runtime.metadata_api_cache_ttl_hours, runtime.flaresolverr_server_url (required key; empty value disables FlareSolverr), runtime.flaresolverr_direct_retry_minutes, runtime.preferred_language, runtime.details_description_mode, runtime.mergerfs_options_base, and runtime.startup_cleanup are required.",
+				"Settings runtime.enable_mount_healthcheck, runtime.max_consecutive_mount_failures, runtime.comick_metadata_cooldown_hours, runtime.comick_api_base_url, runtime.comick_search_endpoint_path, runtime.comick_search_max_results, runtime.comick_comic_endpoint_path, runtime.comick_image_base_url, runtime.metadata_api_request_delay_ms, runtime.metadata_api_cache_ttl_hours, runtime.flaresolverr_server_url (required key; empty value disables FlareSolverr), runtime.flaresolverr_direct_retry_minutes, runtime.preferred_language, runtime.details_description_mode, runtime.mergerfs_options_base, and runtime.startup_cleanup are required.",
 				nameof(settings));
 		}
 
@@ -350,6 +355,11 @@ internal sealed class MergeMountWorkflowOptions
 			runtime.DetailsDescriptionMode,
 			new MetadataOrchestrationOptions(
 				TimeSpan.FromHours(runtime.ComickMetadataCooldownHours.Value),
+				ParseRequiredAbsoluteUri(runtime.ComickApiBaseUrl, nameof(settings), "runtime.comick_api_base_url"),
+				runtime.ComickSearchEndpointPath,
+				runtime.ComickSearchMaxResults.Value,
+				runtime.ComickComicEndpointPath,
+				ParseRequiredAbsoluteUri(runtime.ComickImageBaseUrl, nameof(settings), "runtime.comick_image_base_url"),
 				TryParseAbsoluteUriOrNull(runtime.FlaresolverrServerUrl, nameof(settings)),
 				TimeSpan.FromMinutes(runtime.FlaresolverrDirectRetryMinutes.Value),
 				runtime.PreferredLanguage,
@@ -397,6 +407,37 @@ internal sealed class MergeMountWorkflowOptions
 		{
 			throw new ArgumentException(
 				"Settings runtime.flaresolverr_server_url must use http or https when non-empty.",
+				paramName);
+		}
+
+		return uri;
+	}
+
+	/// <summary>
+	/// Parses one required absolute HTTP/HTTPS URI from settings.
+	/// </summary>
+	/// <param name="value">Raw settings string value.</param>
+	/// <param name="paramName">Parameter name used for guard exceptions.</param>
+	/// <param name="settingKey">Setting key used in guard diagnostics.</param>
+	/// <returns>Parsed absolute URI.</returns>
+	private static Uri ParseRequiredAbsoluteUri(string value, string paramName, string settingKey)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(paramName);
+		ArgumentException.ThrowIfNullOrWhiteSpace(settingKey);
+
+		string trimmed = value.Trim();
+		if (!Uri.TryCreate(trimmed, UriKind.Absolute, out Uri? uri))
+		{
+			throw new ArgumentException(
+				$"Settings {settingKey} must be an absolute URI.",
+				paramName);
+		}
+
+		if (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+			!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+		{
+			throw new ArgumentException(
+				$"Settings {settingKey} must use http or https.",
 				paramName);
 		}
 

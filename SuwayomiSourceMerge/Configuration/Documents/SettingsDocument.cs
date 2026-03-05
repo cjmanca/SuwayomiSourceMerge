@@ -487,6 +487,48 @@ public sealed class SettingsRuntimeSection
 	}
 
 	/// <summary>
+	/// Gets or sets the absolute Comick API base URL used for metadata requests.
+	/// </summary>
+	public string? ComickApiBaseUrl
+	{
+		get; init;
+	}
+
+	/// <summary>
+	/// Gets or sets the relative Comick search endpoint path appended under <c>runtime.comick_api_base_url</c>.
+	/// Must not be absolute and must not include query/fragment components.
+	/// </summary>
+	public string? ComickSearchEndpointPath
+	{
+		get; init;
+	}
+
+	/// <summary>
+	/// Gets or sets the maximum number of Comick search results requested per query.
+	/// </summary>
+	public int? ComickSearchMaxResults
+	{
+		get; init;
+	}
+
+	/// <summary>
+	/// Gets or sets the relative Comick comic-detail endpoint path appended under <c>runtime.comick_api_base_url</c>.
+	/// Must not be absolute and must not include query/fragment components.
+	/// </summary>
+	public string? ComickComicEndpointPath
+	{
+		get; init;
+	}
+
+	/// <summary>
+	/// Gets or sets the absolute Comick image base URL used to resolve cover keys.
+	/// </summary>
+	public string? ComickImageBaseUrl
+	{
+		get; init;
+	}
+
+	/// <summary>
 	/// Gets or sets the minimum delay in milliseconds between outbound metadata API requests.
 	/// </summary>
 	public int? MetadataApiRequestDelayMs

@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Http.Headers;
 
@@ -45,6 +46,11 @@ internal sealed partial class OverrideCoverService : IOverrideCoverService, IDis
 	{
 		Quality = 90
 	};
+
+	/// <summary>
+	/// Process-local keyed write locks used to serialize concurrent cover writes per destination path.
+	/// </summary>
+	private static readonly ConcurrentDictionary<string, CoverWriteLockEntry> _coverWriteLocks = new(StringComparer.Ordinal);
 
 	/// <summary>
 	/// HTTP client dependency.
@@ -139,71 +145,57 @@ internal sealed partial class OverrideCoverService : IOverrideCoverService, IDis
 		string preferredCoverPath = Path.Combine(
 			request.PreferredOverrideDirectoryPath,
 			CoverJpgFileName);
-
-		if (TryFindExistingOverrideCoverPath(request, out string? existingCoverPath))
+		string lockKey = Path.GetFullPath(preferredCoverPath);
+		CoverWriteLockEntry coverWriteLock = AcquireCoverWriteLock(lockKey);
+		bool enteredWriteGate = false;
+		try
 		{
-			return CreateAlreadyExistsResult(existingCoverPath!, coverUri: null);
-		}
+			await coverWriteLock.Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+			enteredWriteGate = true;
 
-		(bool setupSuccess, string setupDiagnostic) = TryEnsurePreferredOverrideDirectoryExists(request.PreferredOverrideDirectoryPath);
-		if (!setupSuccess)
-		{
-			if (TryFindExistingOverrideCoverPath(request, out string? raceExistingCoverPath))
+			if (TryFindExistingOverrideCoverPath(request, out string? existingCoverPath))
 			{
-				return CreateAlreadyExistsResult(raceExistingCoverPath!, coverUri: null);
+				return CreateAlreadyExistsResult(existingCoverPath!, coverUri: null);
 			}
 
-			return new OverrideCoverResult(
-				OverrideCoverOutcome.WriteFailed,
-				preferredCoverPath,
-				coverJpgExists: false,
-				existingCoverPath: null,
-				coverUri: null,
-				diagnostic: setupDiagnostic);
-		}
-
-		(bool resolveSuccess, Uri? coverUri, string resolveDiagnostic) = TryResolveCoverUri(request.CoverKey);
-		if (!resolveSuccess || coverUri is null)
-		{
-			if (TryFindExistingOverrideCoverPath(request, out string? raceExistingCoverPath))
+			(bool setupSuccess, string setupDiagnostic) = TryEnsurePreferredOverrideDirectoryExists(request.PreferredOverrideDirectoryPath);
+			if (!setupSuccess)
 			{
-				return CreateAlreadyExistsResult(raceExistingCoverPath!, coverUri: null);
+				if (TryFindExistingOverrideCoverPath(request, out string? raceExistingCoverPath))
+				{
+					return CreateAlreadyExistsResult(raceExistingCoverPath!, coverUri: null);
+				}
+
+				return new OverrideCoverResult(
+					OverrideCoverOutcome.WriteFailed,
+					preferredCoverPath,
+					coverJpgExists: false,
+					existingCoverPath: null,
+					coverUri: null,
+					diagnostic: setupDiagnostic);
 			}
 
-			return new OverrideCoverResult(
-				OverrideCoverOutcome.DownloadFailed,
-				preferredCoverPath,
-				coverJpgExists: false,
-				existingCoverPath: null,
-				coverUri: null,
-				diagnostic: resolveDiagnostic);
-		}
-
-		(bool downloadSuccess, byte[]? payloadBytes, string? downloadDiagnostic) = await _throttle
-			.ExecuteAsync(ct => DownloadCoverBytesAsync(coverUri, ct), cancellationToken)
-			.ConfigureAwait(false);
-		if (!downloadSuccess || payloadBytes is null)
-		{
-			if (File.Exists(preferredCoverPath))
+			(bool resolveSuccess, Uri? coverUri, string resolveDiagnostic) = TryResolveCoverUri(request.CoverKey);
+			if (!resolveSuccess || coverUri is null)
 			{
-				return CreateAlreadyExistsResult(preferredCoverPath, coverUri);
+				if (TryFindExistingOverrideCoverPath(request, out string? raceExistingCoverPath))
+				{
+					return CreateAlreadyExistsResult(raceExistingCoverPath!, coverUri: null);
+				}
+
+				return new OverrideCoverResult(
+					OverrideCoverOutcome.DownloadFailed,
+					preferredCoverPath,
+					coverJpgExists: false,
+					existingCoverPath: null,
+					coverUri: null,
+					diagnostic: resolveDiagnostic);
 			}
 
-			return new OverrideCoverResult(
-				OverrideCoverOutcome.DownloadFailed,
-				preferredCoverPath,
-				coverJpgExists: false,
-				existingCoverPath: null,
-				coverUri,
-				downloadDiagnostic);
-		}
-
-		OverrideCoverOutcome successOutcome;
-		byte[] outputBytes;
-		if (IsJpegPayload(payloadBytes))
-		{
-			(bool jpegValidationSuccess, string jpegValidationDiagnostic) = TryValidateJpegPayload(payloadBytes);
-			if (!jpegValidationSuccess)
+			(bool downloadSuccess, byte[]? payloadBytes, string? downloadDiagnostic) = await _throttle
+				.ExecuteAsync(ct => DownloadCoverBytesAsync(coverUri, ct), cancellationToken)
+				.ConfigureAwait(false);
+			if (!downloadSuccess || payloadBytes is null)
 			{
 				if (File.Exists(preferredCoverPath))
 				{
@@ -211,66 +203,223 @@ internal sealed partial class OverrideCoverService : IOverrideCoverService, IDis
 				}
 
 				return new OverrideCoverResult(
-					OverrideCoverOutcome.UnsupportedImage,
+					OverrideCoverOutcome.DownloadFailed,
 					preferredCoverPath,
 					coverJpgExists: false,
 					existingCoverPath: null,
 					coverUri,
-					jpegValidationDiagnostic);
+					downloadDiagnostic);
 			}
 
-			successOutcome = OverrideCoverOutcome.WrittenDownloadedJpeg;
-			outputBytes = payloadBytes;
-		}
-		else
-		{
-			(bool conversionSuccess, byte[]? convertedBytes, string? conversionDiagnostic) = TryConvertToJpeg(payloadBytes);
-			if (!conversionSuccess || convertedBytes is null)
+			OverrideCoverOutcome successOutcome;
+			byte[] outputBytes;
+			if (IsJpegPayload(payloadBytes))
 			{
-				if (File.Exists(preferredCoverPath))
+				(bool jpegValidationSuccess, string jpegValidationDiagnostic) = TryValidateJpegPayload(payloadBytes);
+				if (!jpegValidationSuccess)
+				{
+					if (File.Exists(preferredCoverPath))
+					{
+						return CreateAlreadyExistsResult(preferredCoverPath, coverUri);
+					}
+
+					return new OverrideCoverResult(
+						OverrideCoverOutcome.UnsupportedImage,
+						preferredCoverPath,
+						coverJpgExists: false,
+						existingCoverPath: null,
+						coverUri,
+						jpegValidationDiagnostic);
+				}
+
+				successOutcome = OverrideCoverOutcome.WrittenDownloadedJpeg;
+				outputBytes = payloadBytes;
+			}
+			else
+			{
+				(bool conversionSuccess, byte[]? convertedBytes, string? conversionDiagnostic) = TryConvertToJpeg(payloadBytes);
+				if (!conversionSuccess || convertedBytes is null)
+				{
+					if (File.Exists(preferredCoverPath))
+					{
+						return CreateAlreadyExistsResult(preferredCoverPath, coverUri);
+					}
+
+					return new OverrideCoverResult(
+						OverrideCoverOutcome.UnsupportedImage,
+						preferredCoverPath,
+						coverJpgExists: false,
+						existingCoverPath: null,
+						coverUri,
+						conversionDiagnostic);
+				}
+
+				successOutcome = OverrideCoverOutcome.WrittenConvertedJpeg;
+				outputBytes = convertedBytes;
+			}
+
+			(bool writeSuccess, bool destinationAlreadyExists, string? writeDiagnostic) = TryWriteCoverAtomically(
+				preferredCoverPath,
+				outputBytes);
+			if (!writeSuccess)
+			{
+				if (destinationAlreadyExists || File.Exists(preferredCoverPath))
 				{
 					return CreateAlreadyExistsResult(preferredCoverPath, coverUri);
 				}
 
 				return new OverrideCoverResult(
-					OverrideCoverOutcome.UnsupportedImage,
+					OverrideCoverOutcome.WriteFailed,
 					preferredCoverPath,
 					coverJpgExists: false,
 					existingCoverPath: null,
 					coverUri,
-					conversionDiagnostic);
-			}
-
-			successOutcome = OverrideCoverOutcome.WrittenConvertedJpeg;
-			outputBytes = convertedBytes;
-		}
-
-		(bool writeSuccess, bool destinationAlreadyExists, string? writeDiagnostic) = TryWriteCoverAtomically(
-			preferredCoverPath,
-			outputBytes);
-		if (!writeSuccess)
-		{
-			if (destinationAlreadyExists || File.Exists(preferredCoverPath))
-			{
-				return CreateAlreadyExistsResult(preferredCoverPath, coverUri);
+					writeDiagnostic);
 			}
 
 			return new OverrideCoverResult(
-				OverrideCoverOutcome.WriteFailed,
+				successOutcome,
 				preferredCoverPath,
-				coverJpgExists: false,
+				coverJpgExists: true,
 				existingCoverPath: null,
 				coverUri,
-				writeDiagnostic);
+				diagnostic: null);
+		}
+		finally
+		{
+			if (enteredWriteGate)
+			{
+				coverWriteLock.Gate.Release();
+			}
+
+			ReleaseCoverWriteLock(lockKey, coverWriteLock);
+		}
+	}
+
+	/// <summary>
+	/// Gets the current active cover-write lock entry count for unit tests.
+	/// </summary>
+	/// <returns>Current dictionary entry count.</returns>
+	internal static int GetCoverWriteLockCountForTests()
+	{
+		return _coverWriteLocks.Count;
+	}
+
+	/// <summary>
+	/// Acquires one ref-counted process-local cover-write lock entry by key.
+	/// </summary>
+	/// <param name="lockKey">Normalized lock key.</param>
+	/// <returns>Lock entry associated with the key.</returns>
+	private static CoverWriteLockEntry AcquireCoverWriteLock(string lockKey)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(lockKey);
+
+		while (true)
+		{
+			CoverWriteLockEntry lockEntry = _coverWriteLocks.GetOrAdd(lockKey, static _ => new CoverWriteLockEntry());
+			lock (lockEntry.SyncRoot)
+			{
+				if (lockEntry.IsRemoved)
+				{
+					continue;
+				}
+
+				lockEntry.ReferenceCount++;
+				return lockEntry;
+			}
+		}
+	}
+
+	/// <summary>
+	/// Releases one ref-counted process-local cover-write lock entry and disposes it when removed from the map.
+	/// </summary>
+	/// <param name="lockKey">Normalized lock key.</param>
+	/// <param name="lockEntry">Lock entry to release.</param>
+	private static void ReleaseCoverWriteLock(string lockKey, CoverWriteLockEntry lockEntry)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(lockKey);
+		ArgumentNullException.ThrowIfNull(lockEntry);
+
+		bool disposeGate = false;
+		lock (lockEntry.SyncRoot)
+		{
+			lockEntry.ReferenceCount--;
+			if (lockEntry.ReferenceCount < 0)
+			{
+				throw new InvalidOperationException("Cover write lock reference count must not be negative.");
+			}
+
+			if (lockEntry.ReferenceCount != 0)
+			{
+				return;
+			}
+
+			lockEntry.IsRemoved = true;
+			if (_coverWriteLocks.TryRemove(new KeyValuePair<string, CoverWriteLockEntry>(lockKey, lockEntry)))
+			{
+				disposeGate = true;
+			}
+			else
+			{
+				lockEntry.IsRemoved = false;
+			}
 		}
 
-		return new OverrideCoverResult(
-			successOutcome,
-			preferredCoverPath,
-			coverJpgExists: true,
-			existingCoverPath: null,
-			coverUri,
-			diagnostic: null);
+		if (disposeGate)
+		{
+			lockEntry.Gate.Dispose();
+		}
+	}
+
+	/// <summary>
+	/// Ref-counted lock entry used for keyed cover-write serialization.
+	/// </summary>
+	private sealed class CoverWriteLockEntry
+	{
+		/// <summary>
+		/// Initializes a new instance of the <see cref="CoverWriteLockEntry"/> class.
+		/// </summary>
+		public CoverWriteLockEntry()
+		{
+			Gate = new SemaphoreSlim(1, 1);
+			SyncRoot = new object();
+			IsRemoved = false;
+			ReferenceCount = 0;
+		}
+
+		/// <summary>
+		/// Gets the semaphore gate.
+		/// </summary>
+		public SemaphoreSlim Gate
+		{
+			get;
+		}
+
+		/// <summary>
+		/// Gets the synchronization root used to coordinate reference and removal transitions.
+		/// </summary>
+		public object SyncRoot
+		{
+			get;
+		}
+
+		/// <summary>
+		/// Gets or sets a value indicating whether this lock entry has been removed from the dictionary.
+		/// </summary>
+		public bool IsRemoved
+		{
+			get;
+			set;
+		}
+
+		/// <summary>
+		/// Gets or sets the active-reference count for this lock entry.
+		/// </summary>
+		public int ReferenceCount
+		{
+			get;
+			set;
+		}
 	}
 
 	/// <summary>

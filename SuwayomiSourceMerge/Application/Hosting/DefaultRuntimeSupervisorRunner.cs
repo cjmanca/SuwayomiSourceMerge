@@ -84,7 +84,14 @@ internal sealed class DefaultRuntimeSupervisorRunner : IRuntimeSupervisorRunner
 		IMetadataStateStore metadataStateStore = new FileBackedMetadataStateStore(metadataStatePaths);
 		IMetadataApiRequestThrottle metadataApiRequestThrottle = new MetadataApiRequestThrottle(
 			mergeOptions.MetadataOrchestration.MetadataApiRequestDelay);
-		IComickDirectApiClient comickDirectApiClient = new ComickDirectApiClient();
+		IComickDirectApiClient comickDirectApiClient = new ComickDirectApiClient(
+			new ComickDirectApiClientOptions(
+				mergeOptions.MetadataOrchestration.ComickApiBaseUri,
+				TimeSpan.FromSeconds(ComickDirectApiClientOptions.DefaultTimeoutSeconds),
+				mergeOptions.MetadataOrchestration.ComickSearchEndpointPath,
+				mergeOptions.MetadataOrchestration.ComickSearchMaxResults,
+				mergeOptions.MetadataOrchestration.ComickComicEndpointPath),
+			httpClient: null);
 		IFlaresolverrClient? flaresolverrClient = mergeOptions.MetadataOrchestration.FlaresolverrServerUri is null
 			? null
 			: new FlaresolverrClient(
@@ -102,7 +109,10 @@ internal sealed class DefaultRuntimeSupervisorRunner : IRuntimeSupervisorRunner
 			comickApiGateway,
 			sceneTagMatcher,
 			logger);
-		IOverrideCoverService overrideCoverService = new OverrideCoverService(metadataApiRequestThrottle);
+		IOverrideCoverService overrideCoverService = new OverrideCoverService(
+			httpClient: null,
+			coverBaseUri: mergeOptions.MetadataOrchestration.ComickImageBaseUri,
+			throttle: metadataApiRequestThrottle);
 		IOverrideDetailsService overrideDetailsService = new OverrideDetailsService();
 		IComickMetadataCoordinator comickMetadataCoordinator = new ComickMetadataCoordinator(
 			comickApiGateway,

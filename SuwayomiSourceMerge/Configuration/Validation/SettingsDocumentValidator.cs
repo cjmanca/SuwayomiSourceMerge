@@ -1,5 +1,6 @@
 using SuwayomiSourceMerge.Configuration.Documents;
 using SuwayomiSourceMerge.Infrastructure.Logging;
+using SuwayomiSourceMerge.Infrastructure.Metadata;
 
 namespace SuwayomiSourceMerge.Configuration.Validation;
 
@@ -195,6 +196,11 @@ public sealed partial class SettingsDocumentValidator : IConfigValidator<Setting
 			if (_profile == SettingsValidationProfile.StrictRuntime)
 			{
 				ValidatePositive(document.Runtime.ComickMetadataCooldownHours, file, "$.runtime.comick_metadata_cooldown_hours", result);
+				ValidateRequiredComickAbsoluteUrl(document.Runtime.ComickApiBaseUrl, file, "$.runtime.comick_api_base_url", result);
+				ValidateRequiredComickEndpointPath(document.Runtime.ComickSearchEndpointPath, file, "$.runtime.comick_search_endpoint_path", result);
+				ValidatePositive(document.Runtime.ComickSearchMaxResults, file, "$.runtime.comick_search_max_results", result);
+				ValidateRequiredComickEndpointPath(document.Runtime.ComickComicEndpointPath, file, "$.runtime.comick_comic_endpoint_path", result);
+				ValidateRequiredComickAbsoluteUrl(document.Runtime.ComickImageBaseUrl, file, "$.runtime.comick_image_base_url", result);
 				ValidateNonNegative(document.Runtime.MetadataApiRequestDelayMs, file, "$.runtime.metadata_api_request_delay_ms", result);
 				ValidatePositive(document.Runtime.MetadataApiCacheTtlHours, file, "$.runtime.metadata_api_cache_ttl_hours", result);
 				ValidateRequiredFlareSolverrServerUrl(document.Runtime.FlaresolverrServerUrl, file, "$.runtime.flaresolverr_server_url", result);
@@ -204,6 +210,11 @@ public sealed partial class SettingsDocumentValidator : IConfigValidator<Setting
 			else
 			{
 				ValidateOptionalPositive(document.Runtime.ComickMetadataCooldownHours, file, "$.runtime.comick_metadata_cooldown_hours", result);
+				ValidateOptionalComickAbsoluteUrl(document.Runtime.ComickApiBaseUrl, file, "$.runtime.comick_api_base_url", result);
+				ValidateOptionalComickEndpointPath(document.Runtime.ComickSearchEndpointPath, file, "$.runtime.comick_search_endpoint_path", result);
+				ValidateOptionalPositive(document.Runtime.ComickSearchMaxResults, file, "$.runtime.comick_search_max_results", result);
+				ValidateOptionalComickEndpointPath(document.Runtime.ComickComicEndpointPath, file, "$.runtime.comick_comic_endpoint_path", result);
+				ValidateOptionalComickAbsoluteUrl(document.Runtime.ComickImageBaseUrl, file, "$.runtime.comick_image_base_url", result);
 				ValidateOptionalNonNegative(document.Runtime.MetadataApiRequestDelayMs, file, "$.runtime.metadata_api_request_delay_ms", result);
 				ValidateOptionalPositive(document.Runtime.MetadataApiCacheTtlHours, file, "$.runtime.metadata_api_cache_ttl_hours", result);
 				ValidateOptionalFlareSolverrServerUrl(document.Runtime.FlaresolverrServerUrl, file, "$.runtime.flaresolverr_server_url", result);
@@ -554,6 +565,110 @@ public sealed partial class SettingsDocumentValidator : IConfigValidator<Setting
 			(uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
 		{
 			result.Add(new ValidationError(file, path, InvalidEnumCode, "Allowed values: empty string or absolute HTTP/HTTPS URI."));
+		}
+	}
+
+	/// <summary>
+	/// Validates required absolute Comick URL settings.
+	/// </summary>
+	/// <param name="value">Configured Comick URL value.</param>
+	/// <param name="file">File name associated with the validation result.</param>
+	/// <param name="path">JSON path-like location for the field in validation output.</param>
+	/// <param name="result">Collector that receives validation errors.</param>
+	private static void ValidateRequiredComickAbsoluteUrl(string? value, string file, string path, ValidationResult result)
+	{
+		if (value is null)
+		{
+			result.Add(new ValidationError(file, path, MissingFieldCode, "Required field is missing."));
+			return;
+		}
+
+		ValidateOptionalComickAbsoluteUrl(value, file, path, result);
+	}
+
+	/// <summary>
+	/// Validates optional absolute Comick URL settings.
+	/// </summary>
+	/// <param name="value">Configured Comick URL value.</param>
+	/// <param name="file">File name associated with the validation result.</param>
+	/// <param name="path">JSON path-like location for the field in validation output.</param>
+	/// <param name="result">Collector that receives validation errors.</param>
+	private static void ValidateOptionalComickAbsoluteUrl(string? value, string file, string path, ValidationResult result)
+	{
+		if (value is null)
+		{
+			return;
+		}
+
+		string trimmed = value.Trim();
+		if (trimmed.Length == 0)
+		{
+			result.Add(new ValidationError(file, path, MissingFieldCode, "Field must not be empty when provided."));
+			return;
+		}
+
+		if (!Uri.TryCreate(trimmed, UriKind.Absolute, out Uri? uri) ||
+			(uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+		{
+			result.Add(new ValidationError(file, path, InvalidEnumCode, "Allowed values: absolute HTTP/HTTPS URI."));
+		}
+	}
+
+	/// <summary>
+	/// Validates required relative Comick endpoint path settings.
+	/// </summary>
+	/// <param name="value">Configured endpoint path value.</param>
+	/// <param name="file">File name associated with the validation result.</param>
+	/// <param name="path">JSON path-like location for the field in validation output.</param>
+	/// <param name="result">Collector that receives validation errors.</param>
+	private static void ValidateRequiredComickEndpointPath(string? value, string file, string path, ValidationResult result)
+	{
+		if (value is null)
+		{
+			result.Add(new ValidationError(file, path, MissingFieldCode, "Required field is missing."));
+			return;
+		}
+
+		ValidateOptionalComickEndpointPath(value, file, path, result);
+	}
+
+	/// <summary>
+	/// Validates optional relative Comick endpoint path settings.
+	/// </summary>
+	/// <param name="value">Configured endpoint path value.</param>
+	/// <param name="file">File name associated with the validation result.</param>
+	/// <param name="path">JSON path-like location for the field in validation output.</param>
+	/// <param name="result">Collector that receives validation errors.</param>
+	private static void ValidateOptionalComickEndpointPath(string? value, string file, string path, ValidationResult result)
+	{
+		if (value is null)
+		{
+			return;
+		}
+
+		string trimmed = value.Trim();
+		if (trimmed.Length == 0)
+		{
+			result.Add(new ValidationError(file, path, MissingFieldCode, "Field must not be empty when provided."));
+			return;
+		}
+
+		if (MetadataUriNormalization.HasUriSchemePrefix(trimmed))
+		{
+			result.Add(new ValidationError(file, path, InvalidEnumCode, "Allowed values: relative endpoint path without URI scheme/host."));
+			return;
+		}
+
+		string normalized = trimmed.TrimStart('/');
+		if (normalized.Length == 0)
+		{
+			result.Add(new ValidationError(file, path, InvalidEnumCode, "Allowed values: relative endpoint path that does not resolve to root."));
+			return;
+		}
+
+		if (normalized.IndexOf('?') >= 0 || normalized.IndexOf('#') >= 0)
+		{
+			result.Add(new ValidationError(file, path, InvalidEnumCode, "Allowed values: relative endpoint path without query or fragment."));
 		}
 	}
 

@@ -1,3 +1,5 @@
+using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
+
 namespace SuwayomiSourceMerge.Infrastructure.Metadata;
 
 /// <summary>
@@ -9,6 +11,10 @@ internal sealed class MetadataOrchestrationOptions
 	/// Initializes a new instance of the <see cref="MetadataOrchestrationOptions"/> class.
 	/// </summary>
 	/// <param name="comickMetadataCooldown">Per-title cooldown window for Comick metadata requests.</param>
+	/// <param name="comickApiBaseUri">Comick API base URI used for metadata requests.</param>
+	/// <param name="comickSearchEndpointPath">Relative Comick search endpoint path appended under <paramref name="comickApiBaseUri"/>.</param>
+	/// <param name="comickComicEndpointPath">Relative Comick comic-detail endpoint path appended under <paramref name="comickApiBaseUri"/>.</param>
+	/// <param name="comickImageBaseUri">Comick image base URI used to resolve relative cover keys.</param>
 	/// <param name="flaresolverrServerUri">Optional FlareSolverr server URI. <see langword="null"/> disables FlareSolverr routing.</param>
 	/// <param name="flaresolverrDirectRetryInterval">Retry interval before probing direct Comick access after sticky FlareSolverr routing.</param>
 	/// <param name="preferredLanguage">Preferred language code used for metadata canonical-title selection.</param>
@@ -16,12 +22,61 @@ internal sealed class MetadataOrchestrationOptions
 	/// <param name="metadataApiCacheTtl">TTL for persisted metadata API cache entries.</param>
 	public MetadataOrchestrationOptions(
 		TimeSpan comickMetadataCooldown,
+		Uri comickApiBaseUri,
+		string comickSearchEndpointPath,
+		string comickComicEndpointPath,
+		Uri comickImageBaseUri,
+		Uri? flaresolverrServerUri,
+		TimeSpan flaresolverrDirectRetryInterval,
+		string preferredLanguage,
+		TimeSpan metadataApiRequestDelay,
+		TimeSpan metadataApiCacheTtl)
+		: this(
+			comickMetadataCooldown,
+			comickApiBaseUri,
+			comickSearchEndpointPath,
+			ComickDirectApiClientOptions.DefaultSearchMaxResults,
+			comickComicEndpointPath,
+			comickImageBaseUri,
+			flaresolverrServerUri,
+			flaresolverrDirectRetryInterval,
+			preferredLanguage,
+			metadataApiRequestDelay,
+			metadataApiCacheTtl)
+	{
+	}
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="MetadataOrchestrationOptions"/> class.
+	/// </summary>
+	/// <param name="comickMetadataCooldown">Per-title cooldown window for Comick metadata requests.</param>
+	/// <param name="comickApiBaseUri">Comick API base URI used for metadata requests.</param>
+	/// <param name="comickSearchEndpointPath">Relative Comick search endpoint path appended under <paramref name="comickApiBaseUri"/>.</param>
+	/// <param name="comickSearchMaxResults">Maximum number of Comick search results requested per query.</param>
+	/// <param name="comickComicEndpointPath">Relative Comick comic-detail endpoint path appended under <paramref name="comickApiBaseUri"/>.</param>
+	/// <param name="comickImageBaseUri">Comick image base URI used to resolve relative cover keys.</param>
+	/// <param name="flaresolverrServerUri">Optional FlareSolverr server URI. <see langword="null"/> disables FlareSolverr routing.</param>
+	/// <param name="flaresolverrDirectRetryInterval">Retry interval before probing direct Comick access after sticky FlareSolverr routing.</param>
+	/// <param name="preferredLanguage">Preferred language code used for metadata canonical-title selection.</param>
+	/// <param name="metadataApiRequestDelay">Delay applied between outbound metadata API requests.</param>
+	/// <param name="metadataApiCacheTtl">TTL for persisted metadata API cache entries.</param>
+	public MetadataOrchestrationOptions(
+		TimeSpan comickMetadataCooldown,
+		Uri comickApiBaseUri,
+		string comickSearchEndpointPath,
+		int comickSearchMaxResults,
+		string comickComicEndpointPath,
+		Uri comickImageBaseUri,
 		Uri? flaresolverrServerUri,
 		TimeSpan flaresolverrDirectRetryInterval,
 		string preferredLanguage,
 		TimeSpan metadataApiRequestDelay,
 		TimeSpan metadataApiCacheTtl)
 	{
+		ArgumentNullException.ThrowIfNull(comickApiBaseUri);
+		ArgumentException.ThrowIfNullOrWhiteSpace(comickSearchEndpointPath);
+		ArgumentException.ThrowIfNullOrWhiteSpace(comickComicEndpointPath);
+		ArgumentNullException.ThrowIfNull(comickImageBaseUri);
 		ArgumentException.ThrowIfNullOrWhiteSpace(preferredLanguage);
 
 		if (comickMetadataCooldown <= TimeSpan.Zero)
@@ -40,6 +95,14 @@ internal sealed class MetadataOrchestrationOptions
 				"FlareSolverr direct retry interval must be > 0.");
 		}
 
+		if (comickSearchMaxResults <= 0)
+		{
+			throw new ArgumentOutOfRangeException(
+				nameof(comickSearchMaxResults),
+				comickSearchMaxResults,
+				"Comick search max results must be > 0.");
+		}
+
 		if (metadataApiRequestDelay < TimeSpan.Zero)
 		{
 			throw new ArgumentOutOfRangeException(
@@ -55,6 +118,9 @@ internal sealed class MetadataOrchestrationOptions
 				metadataApiCacheTtl,
 				"Metadata API cache TTL must be > 0.");
 		}
+
+		EnsureAbsoluteHttpOrHttpsUri(comickApiBaseUri, nameof(comickApiBaseUri), "Comick API base URI");
+		EnsureAbsoluteHttpOrHttpsUri(comickImageBaseUri, nameof(comickImageBaseUri), "Comick image base URI");
 
 		if (flaresolverrServerUri is not null)
 		{
@@ -75,6 +141,11 @@ internal sealed class MetadataOrchestrationOptions
 		}
 
 		ComickMetadataCooldown = comickMetadataCooldown;
+		ComickApiBaseUri = MetadataUriNormalization.EnsureTrailingSlash(comickApiBaseUri);
+		ComickSearchEndpointPath = MetadataUriNormalization.NormalizeEndpointPath(comickSearchEndpointPath, nameof(comickSearchEndpointPath), "Comick search endpoint path");
+		ComickSearchMaxResults = comickSearchMaxResults;
+		ComickComicEndpointPath = MetadataUriNormalization.NormalizeEndpointPath(comickComicEndpointPath, nameof(comickComicEndpointPath), "Comick comic endpoint path");
+		ComickImageBaseUri = MetadataUriNormalization.EnsureTrailingSlash(comickImageBaseUri);
 		FlaresolverrServerUri = flaresolverrServerUri;
 		FlaresolverrDirectRetryInterval = flaresolverrDirectRetryInterval;
 		PreferredLanguage = preferredLanguage.Trim();
@@ -86,6 +157,46 @@ internal sealed class MetadataOrchestrationOptions
 	/// Gets the per-title cooldown window for Comick metadata requests.
 	/// </summary>
 	public TimeSpan ComickMetadataCooldown
+	{
+		get;
+	}
+
+	/// <summary>
+	/// Gets the Comick API base URI used for metadata requests.
+	/// </summary>
+	public Uri ComickApiBaseUri
+	{
+		get;
+	}
+
+	/// <summary>
+	/// Gets the relative Comick search endpoint path appended under <see cref="ComickApiBaseUri"/>.
+	/// </summary>
+	public string ComickSearchEndpointPath
+	{
+		get;
+	}
+
+	/// <summary>
+	/// Gets the maximum number of Comick search results requested per query.
+	/// </summary>
+	public int ComickSearchMaxResults
+	{
+		get;
+	}
+
+	/// <summary>
+	/// Gets the relative Comick comic-detail endpoint path appended under <see cref="ComickApiBaseUri"/>.
+	/// </summary>
+	public string ComickComicEndpointPath
+	{
+		get;
+	}
+
+	/// <summary>
+	/// Gets the Comick image base URI used to resolve relative cover keys.
+	/// </summary>
+	public Uri ComickImageBaseUri
 	{
 		get;
 	}
@@ -129,4 +240,27 @@ internal sealed class MetadataOrchestrationOptions
 	{
 		get;
 	}
+
+	/// <summary>
+	/// Ensures one URI is absolute and uses HTTP or HTTPS.
+	/// </summary>
+	/// <param name="value">URI value.</param>
+	/// <param name="paramName">Guard parameter name.</param>
+	/// <param name="description">Guard message descriptor.</param>
+	private static void EnsureAbsoluteHttpOrHttpsUri(Uri value, string paramName, string description)
+	{
+		ArgumentNullException.ThrowIfNull(value);
+
+		if (!value.IsAbsoluteUri)
+		{
+			throw new ArgumentException($"{description} must be absolute.", paramName);
+		}
+
+		if (!string.Equals(value.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+			!string.Equals(value.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+		{
+			throw new ArgumentException($"{description} must use http or https.", paramName);
+		}
+	}
+
 }
