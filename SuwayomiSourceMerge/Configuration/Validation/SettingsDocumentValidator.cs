@@ -1,5 +1,6 @@
 using SuwayomiSourceMerge.Configuration.Documents;
 using SuwayomiSourceMerge.Infrastructure.Logging;
+using SuwayomiSourceMerge.Infrastructure.Metadata;
 
 namespace SuwayomiSourceMerge.Configuration.Validation;
 
@@ -652,7 +653,7 @@ public sealed partial class SettingsDocumentValidator : IConfigValidator<Setting
 			return;
 		}
 
-		if (HasUriSchemePrefix(trimmed))
+		if (MetadataUriNormalization.HasUriSchemePrefix(trimmed))
 		{
 			result.Add(new ValidationError(file, path, InvalidEnumCode, "Allowed values: relative endpoint path without URI scheme/host."));
 			return;
@@ -669,37 +670,6 @@ public sealed partial class SettingsDocumentValidator : IConfigValidator<Setting
 		{
 			result.Add(new ValidationError(file, path, InvalidEnumCode, "Allowed values: relative endpoint path without query or fragment."));
 		}
-	}
-
-	/// <summary>
-	/// Determines whether one value starts with a URI scheme token.
-	/// </summary>
-	/// <param name="value">Raw value.</param>
-	/// <returns><see langword="true"/> when a URI scheme prefix is present; otherwise <see langword="false"/>.</returns>
-	private static bool HasUriSchemePrefix(string value)
-	{
-		int schemeSeparatorIndex = value.IndexOf(':');
-		if (schemeSeparatorIndex <= 0)
-		{
-			return false;
-		}
-
-		ReadOnlySpan<char> schemeToken = value.AsSpan(0, schemeSeparatorIndex);
-		if (!char.IsLetter(schemeToken[0]))
-		{
-			return false;
-		}
-
-		for (int index = 1; index < schemeToken.Length; index++)
-		{
-			char character = schemeToken[index];
-			if (!char.IsLetterOrDigit(character) && character != '+' && character != '-' && character != '.')
-			{
-				return false;
-			}
-		}
-
-		return true;
 	}
 
 	/// <summary>

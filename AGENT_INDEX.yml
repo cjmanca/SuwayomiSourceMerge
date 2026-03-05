@@ -951,6 +951,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataStateSnapshotTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataUriNormalizationTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/NoOpMetadataApiRequestThrottleTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTestCollection.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.FailureDeterminism.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.LockLifecycle.cs
@@ -1074,6 +1075,7 @@ modules:
       - Canonical JPEG fast-path must decode-validate JPEG-signature payloads before reporting WrittenDownloadedJpeg; decode failures should map to UnsupportedImage outcomes; use OverrideCoverService.TryValidateJpegPayload and OverrideCoverService.EnsureCoverJpgAsync.
       - Canonical metadata best-effort IO/race handling for source seeding, candidate traversal, and details writes; use OverrideDetailsService.EnsureDetailsJson.
       - Canonical metadata cooldown persistence ordering should skip cooldown writes for cooperative cancellation during Comick search or candidate matching while preserving non-cooperative interruption persistence; use ComickMetadataCoordinator.ResolveMatchedComic.
+      - Canonical metadata endpoint-path normalization and URI-scheme-prefix detection for Comick endpoint settings should be centralized and reused; use MetadataUriNormalization.NormalizeEndpointPath and MetadataUriNormalization.HasUriSchemePrefix.
       - Canonical metadata expected-title expansion for candidate matching should include display title, resolved canonical title, and runtime equivalent-title groups with normalized-key dedupe in deterministic order, including canonical-title fallback equivalent lookup even when canonical dedupes against display normalization (fallback resolution is independent of canonical-title append dedupe success); use ComickMetadataCoordinator.BuildExpectedTitles.
       - Canonical metadata orchestration FlareSolverr URI invariants (non-null must be absolute http/https); use MetadataOrchestrationOptions.
       - Canonical metadata orchestration settings carrier and guards for Comick API/image base URIs, configurable search/comic endpoint paths, runtime.comick_search_max_results (>0, default 4), FlareSolverr routing, metadata_api_request_delay_ms (>=0), and metadata_api_cache_ttl_hours (>0) runtime values; use MetadataOrchestrationOptions.
@@ -1762,6 +1764,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComicInfoMetadataParserTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/ComickMetadataCoordinatorTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/MetadataOrchestrationOptionsTests.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTestCollection.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideCoverServiceTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.ApiFirstHardeningTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Metadata/OverrideDetailsService.ApiFirstTests.cs

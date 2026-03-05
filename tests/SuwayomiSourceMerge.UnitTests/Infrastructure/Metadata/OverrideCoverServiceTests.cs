@@ -8,6 +8,7 @@ using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 /// <summary>
 /// Verifies expected, edge, and failure behavior for <see cref="OverrideCoverService"/>.
 /// </summary>
+[Collection(OverrideCoverServiceTestCollection.Name)]
 public sealed partial class OverrideCoverServiceTests
 {
 	/// <summary>
