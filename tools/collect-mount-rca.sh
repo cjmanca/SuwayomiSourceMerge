@@ -40,11 +40,13 @@ is_pos_int() {
 }
 
 print_cmd() {
-	printf '[cmd]'
-	for a in "$@"; do
-		printf ' %q' "$a"
-	done
-	printf '\n' >>"$OUTPUT"
+	{
+		printf '[cmd]'
+		for a in "$@"; do
+			printf ' %q' "$a"
+		done
+		printf '\n'
+	} >>"$OUTPUT"
 }
 
 run_cmd() {

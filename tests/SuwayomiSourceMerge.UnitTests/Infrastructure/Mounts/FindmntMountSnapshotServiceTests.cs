@@ -203,6 +203,71 @@ public sealed class FindmntMountSnapshotServiceTests
 	}
 
 	/// <summary>
+	/// Verifies output capture task faults produce command-failure warnings using fallback diagnostics.
+	/// </summary>
+	[Fact]
+	public void Capture_Failure_ShouldReturnCommandFailure_WhenOutputCaptureTaskFaultsAndStderrIsEmpty()
+	{
+		FakeProcessFacade process = new()
+		{
+			ExitCode = 0,
+			StandardOutputReader = new FatalReadLineTextReader(),
+			StandardErrorReader = new StringReader(string.Empty)
+		};
+		process.WaitForExitHandler = _ =>
+		{
+			process.HasExited = true;
+			return true;
+		};
+		FindmntMountSnapshotService service = new(
+			() => process,
+			TimeSpan.FromSeconds(3),
+			TimeSpan.FromMilliseconds(50));
+
+		MountSnapshot snapshot = service.Capture();
+
+		Assert.Empty(snapshot.Entries);
+		Assert.Single(snapshot.Warnings);
+		Assert.Equal("MOUNT-SNAP-001", snapshot.Warnings[0].Code);
+		Assert.Equal(MountSnapshotWarningSeverity.DegradedVisibility, snapshot.Warnings[0].Severity);
+		Assert.Contains("NonZeroExit", snapshot.Warnings[0].Message, StringComparison.Ordinal);
+		Assert.Contains("findmnt output capture failed", snapshot.Warnings[0].Message, StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// Verifies output capture task faults preserve stderr diagnostics when available.
+	/// </summary>
+	[Fact]
+	public void Capture_Failure_ShouldPreserveStderr_WhenOutputCaptureTaskFaults()
+	{
+		const string standardError = "stderr from findmnt";
+		FakeProcessFacade process = new()
+		{
+			ExitCode = 0,
+			StandardOutputReader = new FatalReadLineTextReader(),
+			StandardErrorReader = new StringReader(standardError)
+		};
+		process.WaitForExitHandler = _ =>
+		{
+			process.HasExited = true;
+			return true;
+		};
+		FindmntMountSnapshotService service = new(
+			() => process,
+			TimeSpan.FromSeconds(3),
+			TimeSpan.FromMilliseconds(50));
+
+		MountSnapshot snapshot = service.Capture();
+
+		Assert.Empty(snapshot.Entries);
+		Assert.Single(snapshot.Warnings);
+		Assert.Equal("MOUNT-SNAP-001", snapshot.Warnings[0].Code);
+		Assert.Equal(MountSnapshotWarningSeverity.DegradedVisibility, snapshot.Warnings[0].Severity);
+		Assert.Contains("NonZeroExit", snapshot.Warnings[0].Message, StringComparison.Ordinal);
+		Assert.Contains(standardError, snapshot.Warnings[0].Message, StringComparison.Ordinal);
+	}
+
+	/// <summary>
 	/// Creates a fake process that exits successfully on first wait probe.
 	/// </summary>
 	/// <param name="standardOutput">Process standard output text.</param>
@@ -337,6 +402,18 @@ public sealed class FindmntMountSnapshotServiceTests
 		{
 			StandardOutputReader.Dispose();
 			StandardErrorReader.Dispose();
+		}
+	}
+
+	/// <summary>
+	/// Reader that throws a fatal exception to simulate capture task failure.
+	/// </summary>
+	private sealed class FatalReadLineTextReader : TextReader
+	{
+		/// <inheritdoc />
+		public override string? ReadLine()
+		{
+			throw new OutOfMemoryException("fatal read failure");
 		}
 	}
 }

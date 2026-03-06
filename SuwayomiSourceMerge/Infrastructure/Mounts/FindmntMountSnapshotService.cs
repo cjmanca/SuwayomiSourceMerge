@@ -144,6 +144,11 @@ internal sealed class FindmntMountSnapshotService : IMountSnapshotService
 			standardError = string.IsNullOrWhiteSpace(standardError)
 				? $"findmnt output capture failed: {BuildTrimmedDiagnostic(outputCaptureTask.Exception?.GetBaseException().Message ?? "unknown error")}"
 				: standardError;
+			return new MountSnapshot(
+				[],
+				[
+					BuildCommandFailureWarning(terminalOutcome, ExternalCommandFailureKind.None, exitCode: null, standardError)
+				]);
 		}
 
 		if (!exited)

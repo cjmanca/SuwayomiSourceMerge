@@ -7,7 +7,7 @@ In Suwayomi, set your local manga directory to use the merged output from Suwayo
 If you're running Suwayomi in a docker container, you'll need to set the local source volume to `rw,slave`:
 `-v '/mnt/cache/appdata/ssm/merged':'/home/suwayomi/.local/share/Tachidesk/local':'rw,slave'`
 
-If you're running SuwayomiSourceMerge in Docker, set the `/ssm/merged` bind to `rw,rshared`.
+If you're running SuwayomiSourceMerge in Docker, set the `/ssm/merged` bind to `rw,shared`.
 On the host, set the merged root as an isolated shared bind (`private` then `rshared`) to avoid duplicate host-visible mount entries.
 
 It uses `mergerfs` under a .NET control plane to:
