@@ -642,7 +642,7 @@ modules:
       - YAML parser unknown-key tolerance for schema evolution; use YamlDocumentParser.
     related: [config-resolution, domain-normalization, logging-infrastructure, runtime-host, unit-test-suite]
   - id: container-runtime-assets
-    summary: Container image, entrypoint identity/fuse policy, package integrity verification, and docker-context filtering for runtime deployment.
+    summary: Container image/runtime policy, volume-root safeguards, package integrity checks, and Docker publish workflow assets.
     tags: [container, docker, runtime]
     paths:
       - .dockerignore
@@ -658,15 +658,15 @@ modules:
       - symbol: .github/workflows/docker-publish.yml
         kind: file
         path: .github/workflows/docker-publish.yml
-        purpose: Defines canonical GitHub Actions workflow that builds/publishes to GHCR for all branches with clear branch-prefixed tags.
+        purpose: Defines canonical GitHub Actions workflow that guards image volume roots and builds/publishes branch-tagged GHCR images.
       - symbol: docker/entrypoint.sh
         kind: file
         path: docker/entrypoint.sh
-        purpose: Applies PUID/PGID identity mapping, uses consistent bash `[[ ... ]]` tests, parses settings scalars with YAML-aware inline-comment handling (including embedded `#` plain scalars) and escaped-backslash-aware quote handling for log mirroring, enforces runtime-parity logging.file_name safety checks (rooted/segmented, invalid/control chars, trailing dots/spaces, reserved device names) with fallback warnings, uses top-level fuse write-failure diagnostics helper flow, performs non-root FUSE device access preflight under the runtime identity, avoids recursive merged-root chown, performs best-effort first-level merged-child ownership repair with stale-endpoint-safe warnings, and launches the daemon.
+        purpose: Applies PUID/PGID identity mapping, uses consistent bash `[[ ... ]]` tests, parses settings scalars with YAML-aware inline-comment handling (including embedded `#` plain scalars) and escaped-backslash-aware quote handling for log mirroring, enforces runtime-parity logging.file_name safety checks (rooted/segmented, invalid/control chars, trailing dots/spaces, reserved device names) with fallback warnings, uses top-level fuse write-failure diagnostics helper flow, performs non-root FUSE device access preflight under the runtime identity, ensures `/ssm/sources` and `/ssm/override` roots exist for child bind-mount layouts, avoids recursive merged-root chown, performs best-effort first-level merged-child ownership repair with stale-endpoint-safe warnings, and launches the daemon.
       - symbol: Dockerfile
         kind: file
         path: Dockerfile
-        purpose: Defines canonical multi-stage .NET build/runtime image, pinned upstream mergerfs Bookworm package install with SHA256 integrity verification, required runtime packages, and baked `cap_sys_admin` file capabilities for mergerfs/fusermount3.
+        purpose: Defines canonical multi-stage .NET build/runtime image, pinned upstream mergerfs Bookworm package install with SHA256 integrity verification, required runtime packages, no parent volume declarations for `/ssm/sources` and `/ssm/override`, and baked `cap_sys_admin` file capabilities for mergerfs/fusermount3.
       - symbol: tests/SuwayomiSourceMerge.IntegrationTests/README.md
         kind: file
         path: tests/SuwayomiSourceMerge.IntegrationTests/README.md
@@ -687,6 +687,7 @@ modules:
     do_not_reimplement:
       - Canonical container build context exclusion policy; use .dockerignore.
       - Canonical container entrypoint bash test/readability policy (`[[ ... ]]` conditionals and inline fuse write stderr capture); use docker/entrypoint.sh.
+      - Canonical container image volume-root policy that reserves submount discovery for `/ssm/sources/*` and `/ssm/override/*` and must not declare `/ssm/sources` or `/ssm/override` as image volume roots; use Dockerfile.
       - Canonical container runtime file-capability baking for non-root mergerfs/fusermount3 command execution; use Dockerfile.
       - Canonical container runtime package and multi-stage image definition must remove build-only curl after mergerfs package install; use Dockerfile.
       - Canonical container runtime package and multi-stage image definition; use Dockerfile.
@@ -695,9 +696,10 @@ modules:
       - Canonical container startup log mirroring that parses settings scalars with YAML-aware inline-comment handling (embedded plain-scalar `#` values are preserved) plus escaped-backslash-aware quote handling, then writes entrypoint diagnostics into runtime log file path derived from settings/defaults; use docker/entrypoint.sh.
       - Canonical container startup logging.file_name safety gate that rejects rooted/segmented values, trailing dots/spaces, invalid/control characters, and reserved Windows device names, then falls back to default daemon.log with warning diagnostics; use docker/entrypoint.sh.
       - Canonical container startup non-root FUSE device access preflight under runtime identity (skip in mock-tool mode, warning when device is absent, fail-fast when present but inaccessible); use docker/entrypoint.sh.
+      - Canonical container startup root directory precreation for `/ssm/sources` and `/ssm/override` child bind-mount layouts without recursive ownership traversal; use docker/entrypoint.sh.
       - Canonical container startup ownership policy that avoids recursive chown under /ssm/merged and applies best-effort first-level child ownership repair (warning-only on stale endpoint failures); use docker/entrypoint.sh.
       - Canonical container startup PUID/PGID identity mapping and daemon launch; use docker/entrypoint.sh.
-      - Canonical GHCR image build/publish GitHub Actions pipeline; use .github/workflows/docker-publish.yml.
+      - Canonical GHCR image build/publish GitHub Actions pipeline with Docker image volume-root guard for `/ssm/sources` and `/ssm/override`; use .github/workflows/docker-publish.yml.
       - Canonical pinned mergerfs package integrity verification (arch-specific SHA256 checks) during image builds; use Dockerfile.
     related: [integration-test-suite, runtime-host, unit-test-suite]
   - id: domain-normalization
@@ -1651,7 +1653,7 @@ modules:
       - symbol: README.md
         kind: file
         path: README.md
-        purpose: Captures public usage guidance including Docker Compose, Unraid direct-disk mapping, rshared merged-bind requirements, CI, and bare-metal runtime instructions.
+        purpose: Captures public usage guidance including Docker Compose, Unraid direct-disk mapping, child submount policy for `/ssm/sources/*` and `/ssm/override/*`, rshared merged-bind requirements, CI, and bare-metal runtime instructions.
       - symbol: SuwayomiSourceMerge.csproj
         kind: file
         path: SuwayomiSourceMerge/SuwayomiSourceMerge.csproj
@@ -1659,7 +1661,7 @@ modules:
       - symbol: unraid/templates/my-SuwayomiSourceMerge.xml
         kind: file
         path: unraid/templates/my-SuwayomiSourceMerge.xml
-        purpose: Defines an Unraid Community Apps template with required FUSE/security flags and source/override path slots through disk10.
+        purpose: Defines an Unraid Community Apps template with required FUSE/security flags and source/override child-path slots through disk10.
     extension_points:
       - how: Add new runtime orchestration by introducing services and invoking them from Program.cs.
         symbols: [Program.cs]
@@ -1675,6 +1677,7 @@ modules:
       - Canonical default startup config root handoff to application host; use ProgramEntryPoint.Run.
       - Canonical public runtime usage and deployment documentation; use README.md.
       - Canonical Unraid Community Apps template wiring for this runtime; use unraid/templates/my-SuwayomiSourceMerge.xml.
+      - Canonical user-facing mount guidance must keep source/override storage on child targets (`/ssm/sources/*`, `/ssm/override/*`) and avoid parent-root Docker volumes; use README.md and unraid/templates/my-SuwayomiSourceMerge.xml.
       - Console entrypoint bootstrapping; extend Program.cs.
       - Runtime project configuration root; extend SuwayomiSourceMerge.csproj.
       - Warning policy overrides in app project; keep centralized in Directory.Build.props.

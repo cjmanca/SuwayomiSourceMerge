@@ -41,6 +41,12 @@ Avoid `/mnt/user/...` for these container paths:
 
 Why: `/mnt/user` is Unraid's user-share FUSE layer. SuwayomiSourceMerge also depends on FUSE (`mergerfs`) plus `inotify` change detection. Stacking those on top of `/mnt/user` adds an extra virtualization layer that can cause slower scans, delayed/missed watcher behavior, and confusing write placement behavior.
 
+Mount policy for sources/overrides:
+
+- Map each physical source to a child path under `/ssm/sources/*` (for example `/ssm/sources/disk1`).
+- Map each physical override path to a child path under `/ssm/override/*` (for example `/ssm/override/priority`).
+- Do not map Docker named/anonymous volumes to parent roots `/ssm/sources` or `/ssm/override`.
+
 Recommended host-to-container mapping layout:
 
 - Config: `/mnt/cache/appdata/ssm/config` -> `/ssm/config`
@@ -123,6 +129,8 @@ Required container paths:
 
 `/ssm/merged` must be configured with `bind-propagation=shared`.
 
+For sources and overrides, use child bind mounts (`/ssm/sources/*` and `/ssm/override/*`) instead of parent-root Docker volumes.
+
 ### Option B: deploy with Docker Compose
 
 Use the compose example in the "Docker Compose and CI examples" section below.
@@ -143,8 +151,10 @@ services:
       PGID: "100"
     volumes:
       - /mnt/cache/appdata/ssm/config:/ssm/config
-	  - /mnt/cache/appdata/ssm/merged:/ssm/merged:rw,shared
+      - /mnt/cache/appdata/ssm/merged:/ssm/merged:rw,shared
       - /mnt/cache/appdata/ssm/state:/ssm/state
+      # Use child bind mounts under /ssm/sources/* and /ssm/override/*.
+      # Do not mount Docker volumes to /ssm/sources or /ssm/override parent roots.
       - /mnt/disk1/share/suwayomi-manga-downloads/mangas:/ssm/sources/disk1
       - /mnt/disk2/share/suwayomi-manga-downloads/mangas:/ssm/sources/disk2
       - /mnt/disk3/share/suwayomi-manga-downloads/mangas:/ssm/sources/disk3
