@@ -15,7 +15,7 @@ public sealed partial class MergeMountWorkflowTests
 		/// <summary>
 		/// Sequence of apply outcomes consumed per action call.
 		/// </summary>
-		private readonly Queue<MountActionApplyOutcome> _applyOutcomeSequence = [];
+		private readonly Queue<(MountActionApplyOutcome Outcome, MountActionFailureSeverity FailureSeverity, string Diagnostic)> _applyOutcomeSequence = [];
 
 		/// <summary>
 		/// Sequence of unmount outcomes consumed per unmount call.
@@ -94,7 +94,24 @@ public sealed partial class MergeMountWorkflowTests
 		/// <param name="outcome">Outcome value.</param>
 		public void EnqueueApplyOutcome(MountActionApplyOutcome outcome)
 		{
-			_applyOutcomeSequence.Enqueue(outcome);
+			MountActionFailureSeverity failureSeverity = outcome == MountActionApplyOutcome.Failure
+				? MountActionFailureSeverity.Hard
+				: MountActionFailureSeverity.None;
+			_applyOutcomeSequence.Enqueue((outcome, failureSeverity, "apply"));
+		}
+
+		/// <summary>
+		/// Enqueues one apply result with explicit failure-severity classification.
+		/// </summary>
+		/// <param name="outcome">Apply outcome value.</param>
+		/// <param name="failureSeverity">Failure-severity classification.</param>
+		/// <param name="diagnostic">Optional diagnostic text.</param>
+		public void EnqueueApplyResult(
+			MountActionApplyOutcome outcome,
+			MountActionFailureSeverity failureSeverity,
+			string diagnostic = "apply")
+		{
+			_applyOutcomeSequence.Enqueue((outcome, failureSeverity, diagnostic));
 		}
 
 		/// <summary>
@@ -128,17 +145,20 @@ public sealed partial class MergeMountWorkflowTests
 		{
 			AppliedActions.Add(action);
 			LastApplyCleanupHighPriority = cleanupHighPriority;
-			MountActionApplyOutcome outcome = _applyOutcomeSequence.Count > 0
+			(MountActionApplyOutcome Outcome, MountActionFailureSeverity FailureSeverity, string Diagnostic) apply = _applyOutcomeSequence.Count > 0
 				? _applyOutcomeSequence.Dequeue()
-				: ApplyOutcome;
-			if (outcome == MountActionApplyOutcome.Success &&
+				: (
+					ApplyOutcome,
+					ApplyOutcome == MountActionApplyOutcome.Failure ? MountActionFailureSeverity.Hard : MountActionFailureSeverity.None,
+					"apply");
+			if (apply.Outcome == MountActionApplyOutcome.Success &&
 				AutoCreateMountPointOnSuccess &&
 				(action.Kind == MountReconciliationActionKind.Mount || action.Kind == MountReconciliationActionKind.Remount))
 			{
 				Directory.CreateDirectory(action.MountPoint);
 			}
 
-			return new MountActionApplyResult(action, outcome, "apply");
+			return new MountActionApplyResult(action, apply.Outcome, apply.Diagnostic, apply.FailureSeverity);
 		}
 
 		/// <inheritdoc />
@@ -163,7 +183,8 @@ public sealed partial class MergeMountWorkflowTests
 					mountPayload: null,
 					MountReconciliationReason.StaleMount),
 				outcome,
-				"unmount");
+				"unmount",
+				outcome == MountActionApplyOutcome.Failure ? MountActionFailureSeverity.Hard : MountActionFailureSeverity.None);
 		}
 
 		/// <inheritdoc />

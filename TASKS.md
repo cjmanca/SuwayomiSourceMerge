@@ -1,5 +1,9 @@
 # TASKS.md
 
+- [x] 2026-03-06 - Fix remount ENOTCONN recovery to retry via mount-only apply (avoid duplicate unmount), switch mountpoint-ensure failure severity to probe-based directory usability checks, and reset consecutive hard-failure fail-fast counters on soft failures.
+
+- [x] 2026-03-06 - Stabilize mount reconciliation against duplicate-stack growth by streaming `findmnt` snapshot parsing, suppressing degraded-visibility mount/remount apply actions, iterating lifecycle cleanup to convergence, counting only hard mount failures for fail-fast, and auto-recovering ENOTCONN readiness failures with one inline retry cycle.
+
 - [x] 2026-03-05 - Include the ambiguous requested title in `metadata.candidate.ambiguity` warning telemetry context so ambiguity logs are actionable.
 
 - [x] 2026-03-05 - Stabilize cache-only metadata miss semantics with typed lookup-failure signaling so cooldown cache misses suppress details fallback without failing merge passes, and remove diagnostic-string control-flow dependence.

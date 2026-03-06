@@ -160,27 +160,55 @@ internal sealed partial class MergeMountWorkflow
 			forceRemountSet);
 		MountReconciliationPlan reconciliationPlan = _mountReconciliationService.Reconcile(reconciliationInput);
 		bool suppressStaleUnmountActions = buildFailure || hasDegradedSnapshotWarning || hasSourceDiscoveryWarning;
-		IReadOnlyList<MountReconciliationAction> actionsToApply = reconciliationPlan.Actions;
-		if (suppressStaleUnmountActions)
+		int suppressedStaleUnmountActions = 0;
+		int suppressedMountRemountActions = 0;
+		List<MountReconciliationAction> actionsToApplyBuilder = new(reconciliationPlan.Actions.Count);
+		for (int index = 0; index < reconciliationPlan.Actions.Count; index++)
 		{
-			MountReconciliationAction[] filteredActions = reconciliationPlan.Actions
-				.Where(static action => action.Kind != MountReconciliationActionKind.Unmount || action.Reason != MountReconciliationReason.StaleMount)
-				.ToArray();
-			int suppressedActionCount = reconciliationPlan.Actions.Count - filteredActions.Length;
-			if (suppressedActionCount > 0)
+			MountReconciliationAction action = reconciliationPlan.Actions[index];
+			if (suppressStaleUnmountActions &&
+				action.Kind == MountReconciliationActionKind.Unmount &&
+				action.Reason == MountReconciliationReason.StaleMount)
 			{
-				_logger.Warning(
-					MergePassWarningEvent,
-					"Suppressed stale-unmount actions because merge visibility was degraded for this pass.",
-					BuildContext(
-						("suppressed_actions", suppressedActionCount.ToString()),
-						("build_failure", buildFailure ? "true" : "false"),
-						("snapshot_degraded", hasDegradedSnapshotWarning ? "true" : "false"),
-						("source_discovery_warning", hasSourceDiscoveryWarning ? "true" : "false")));
+				suppressedStaleUnmountActions++;
+				continue;
 			}
 
-			actionsToApply = filteredActions;
+			if (hasDegradedSnapshotWarning &&
+				(action.Kind == MountReconciliationActionKind.Mount || action.Kind == MountReconciliationActionKind.Remount))
+			{
+				suppressedMountRemountActions++;
+				continue;
+			}
+
+			actionsToApplyBuilder.Add(action);
 		}
+
+		if (suppressedStaleUnmountActions > 0)
+		{
+			_logger.Warning(
+				MergePassWarningEvent,
+				"Suppressed stale-unmount actions because merge visibility was degraded for this pass.",
+				BuildContext(
+					("suppressed_stale_unmount_actions", suppressedStaleUnmountActions.ToString()),
+					("suppressed_mount_remount_actions", suppressedMountRemountActions.ToString()),
+					("build_failure", buildFailure ? "true" : "false"),
+					("snapshot_degraded", hasDegradedSnapshotWarning ? "true" : "false"),
+					("source_discovery_warning", hasSourceDiscoveryWarning ? "true" : "false")));
+		}
+
+		if (suppressedMountRemountActions > 0)
+		{
+			_logger.Warning(
+				MergePassWarningEvent,
+				"Suppressed mount/remount actions because mount snapshot visibility was degraded for this pass.",
+				BuildContext(
+					("suppressed_mount_remount_actions", suppressedMountRemountActions.ToString()),
+					("suppressed_stale_unmount_actions", suppressedStaleUnmountActions.ToString()),
+					("snapshot_degraded", hasDegradedSnapshotWarning ? "true" : "false")));
+		}
+
+		IReadOnlyList<MountReconciliationAction> actionsToApply = actionsToApplyBuilder;
 		(MergeScanDispatchOutcome outcome, bool hadBusy, bool hadFailure) = ApplyPlanActions(
 			actionsToApply,
 			cancellationToken);
@@ -192,6 +220,19 @@ internal sealed partial class MergeMountWorkflow
 		}
 
 		if (buildFailure)
+		{
+			hadFailure = true;
+			if (outcome == MergeScanDispatchOutcome.Success)
+			{
+				outcome = MergeScanDispatchOutcome.Failure;
+			}
+			else if (outcome == MergeScanDispatchOutcome.Busy)
+			{
+				outcome = MergeScanDispatchOutcome.Mixed;
+			}
+		}
+
+		if (suppressedMountRemountActions > 0)
 		{
 			hadFailure = true;
 			if (outcome == MergeScanDispatchOutcome.Success)

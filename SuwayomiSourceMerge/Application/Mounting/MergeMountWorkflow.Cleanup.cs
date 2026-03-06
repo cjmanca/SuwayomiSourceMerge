@@ -17,66 +17,102 @@ internal sealed partial class MergeMountWorkflow
 		ArgumentException.ThrowIfNullOrWhiteSpace(phase);
 		cancellationToken.ThrowIfCancellationRequested();
 
-		MountSnapshot mountSnapshot = _mountSnapshotService.Capture();
-		for (int index = 0; index < mountSnapshot.Warnings.Count; index++)
-		{
-			_logger.Warning(
-				MergeCleanupEvent,
-				mountSnapshot.Warnings[index].Message,
-				BuildContext(
-					("phase", phase),
-					("warning_code", mountSnapshot.Warnings[index].Code)));
-		}
+		HashSet<string> observedManagedMountPoints = new(PathSafetyPolicy.GetPathComparer());
+		int totalPreUnmountWarnings = 0;
+		int totalPostUnmountWarnings = 0;
+		bool hasDegradedVisibilityPreOrPostWarning = false;
+		MountSnapshotEntry[] stillMountedManagedEntries = [];
+		int cleanupIterationsExecuted = 0;
 
-		string[] managedMergerfsMountPoints = mountSnapshot.Entries
-			.Where(IsManagedMergerfsMount)
-			.Select(static entry => entry.MountPoint)
-			.Distinct(PathSafetyPolicy.GetPathComparer())
-			.OrderByDescending(GetPathDepth)
-			.ThenBy(static path => path, PathSafetyPolicy.GetPathComparer())
-			.ToArray();
-
-		for (int index = 0; index < managedMergerfsMountPoints.Length; index++)
+		for (int iteration = 1; iteration <= MaxCleanupIterations; iteration++)
 		{
 			cancellationToken.ThrowIfCancellationRequested();
-			MountActionApplyResult unmountResult = _mountCommandService.UnmountMountPoint(
-				managedMergerfsMountPoints[index],
-				_options.UnmountCommandTimeout,
-				_options.CommandPollInterval,
-				_options.CleanupHighPriority,
-				_options.CleanupPriorityIoniceClass,
-				_options.CleanupPriorityNiceValue,
-				cancellationToken);
-			_logger.Debug(
-				MergeCleanupEvent,
-				"Lifecycle cleanup unmount attempt finished.",
-				BuildContext(
-					("phase", phase),
-					("mountpoint", managedMergerfsMountPoints[index]),
-					("outcome", unmountResult.Outcome.ToString()),
-					("diagnostic", unmountResult.Diagnostic)));
+			cleanupIterationsExecuted = iteration;
+
+			MountSnapshot mountSnapshot = _mountSnapshotService.Capture();
+			totalPreUnmountWarnings += mountSnapshot.Warnings.Count;
+			hasDegradedVisibilityPreOrPostWarning =
+				hasDegradedVisibilityPreOrPostWarning ||
+				mountSnapshot.Warnings.Any(IsPostUnmountSnapshotWarningDegradedVisibility);
+			for (int warningIndex = 0; warningIndex < mountSnapshot.Warnings.Count; warningIndex++)
+			{
+				_logger.Warning(
+					MergeCleanupEvent,
+					mountSnapshot.Warnings[warningIndex].Message,
+					BuildContext(
+						("phase", phase),
+						("iteration", iteration.ToString()),
+						("warning_code", mountSnapshot.Warnings[warningIndex].Code)));
+			}
+
+			string[] managedMergerfsMountPoints = mountSnapshot.Entries
+				.Where(IsManagedMergerfsMount)
+				.Select(static entry => entry.MountPoint)
+				.Distinct(PathSafetyPolicy.GetPathComparer())
+				.OrderByDescending(GetPathDepth)
+				.ThenBy(static path => path, PathSafetyPolicy.GetPathComparer())
+				.ToArray();
+			for (int managedMountIndex = 0; managedMountIndex < managedMergerfsMountPoints.Length; managedMountIndex++)
+			{
+				observedManagedMountPoints.Add(Path.GetFullPath(managedMergerfsMountPoints[managedMountIndex]));
+				cancellationToken.ThrowIfCancellationRequested();
+				MountActionApplyResult unmountResult = _mountCommandService.UnmountMountPoint(
+					managedMergerfsMountPoints[managedMountIndex],
+					_options.UnmountCommandTimeout,
+					_options.CommandPollInterval,
+					_options.CleanupHighPriority,
+					_options.CleanupPriorityIoniceClass,
+					_options.CleanupPriorityNiceValue,
+					cancellationToken);
+				_logger.Debug(
+					MergeCleanupEvent,
+					"Lifecycle cleanup unmount attempt finished.",
+					BuildContext(
+						("phase", phase),
+						("iteration", iteration.ToString()),
+						("mountpoint", managedMergerfsMountPoints[managedMountIndex]),
+						("outcome", unmountResult.Outcome.ToString()),
+						("failure_severity", unmountResult.FailureSeverity.ToString()),
+						("diagnostic", unmountResult.Diagnostic)));
+			}
+
+			MountSnapshot postUnmountSnapshot = _mountSnapshotService.Capture();
+			totalPostUnmountWarnings += postUnmountSnapshot.Warnings.Count;
+			hasDegradedVisibilityPreOrPostWarning =
+				hasDegradedVisibilityPreOrPostWarning ||
+				postUnmountSnapshot.Warnings.Any(IsPostUnmountSnapshotWarningDegradedVisibility);
+			for (int warningIndex = 0; warningIndex < postUnmountSnapshot.Warnings.Count; warningIndex++)
+			{
+				_logger.Warning(
+					MergeCleanupEvent,
+					postUnmountSnapshot.Warnings[warningIndex].Message,
+					BuildContext(
+						("phase", phase),
+						("iteration", iteration.ToString()),
+						("warning_code", postUnmountSnapshot.Warnings[warningIndex].Code),
+						("snapshot", "post_unmount")));
+			}
+
+			stillMountedManagedEntries = postUnmountSnapshot.Entries
+				.Where(IsManagedMergerfsMount)
+				.ToArray();
+			if (stillMountedManagedEntries.Length == 0)
+			{
+				break;
+			}
+
+			if (iteration == MaxCleanupIterations)
+			{
+				_logger.Warning(
+					MergeCleanupEvent,
+					"Lifecycle cleanup reached the maximum cleanup iteration limit with managed mounts still active.",
+					BuildContext(
+						("phase", phase),
+						("max_cleanup_iterations", MaxCleanupIterations.ToString()),
+						("still_mounted_managed_mounts", stillMountedManagedEntries.Length.ToString())));
+			}
 		}
 
-		MountSnapshot postUnmountSnapshot = _mountSnapshotService.Capture();
-		for (int index = 0; index < postUnmountSnapshot.Warnings.Count; index++)
-		{
-			_logger.Warning(
-				MergeCleanupEvent,
-				postUnmountSnapshot.Warnings[index].Message,
-				BuildContext(
-					("phase", phase),
-					("warning_code", postUnmountSnapshot.Warnings[index].Code),
-					("snapshot", "post_unmount")));
-		}
-
-		bool hasDegradedVisibilityPreOrPostWarning = mountSnapshot.Warnings
-			.Any(IsPostUnmountSnapshotWarningDegradedVisibility) ||
-			postUnmountSnapshot.Warnings
-			.Any(IsPostUnmountSnapshotWarningDegradedVisibility);
-
-		MountSnapshotEntry[] stillMountedManagedEntries = postUnmountSnapshot.Entries
-			.Where(IsManagedMergerfsMount)
-			.ToArray();
 		HashSet<string> stillMountedManagedMountPoints = stillMountedManagedEntries
 			.Select(static entry => Path.GetFullPath(entry.MountPoint))
 			.ToHashSet(PathSafetyPolicy.GetPathComparer());
@@ -117,8 +153,9 @@ internal sealed partial class MergeMountWorkflow
 				"Lifecycle cleanup skipped stale branch-directory pruning because mount snapshot reliability was degraded by pre/post warning severity.",
 				BuildContext(
 					("phase", phase),
-					("pre_unmount_warning_count", mountSnapshot.Warnings.Count.ToString()),
-					("post_unmount_warning_count", postUnmountSnapshot.Warnings.Count.ToString())));
+					("pre_unmount_warning_count", totalPreUnmountWarnings.ToString()),
+					("post_unmount_warning_count", totalPostUnmountWarnings.ToString()),
+					("cleanup_iterations", cleanupIterationsExecuted.ToString())));
 		}
 		else if (unresolvedUnmappedStillMountedBranchCount > 0)
 		{
@@ -147,8 +184,9 @@ internal sealed partial class MergeMountWorkflow
 				"Skipped merged-root directory cleanup because mount snapshot reliability was degraded by pre/post warning severity.",
 				BuildContext(
 					("phase", phase),
-					("pre_unmount_warning_count", mountSnapshot.Warnings.Count.ToString()),
-					("post_unmount_warning_count", postUnmountSnapshot.Warnings.Count.ToString())));
+					("pre_unmount_warning_count", totalPreUnmountWarnings.ToString()),
+					("post_unmount_warning_count", totalPostUnmountWarnings.ToString()),
+					("cleanup_iterations", cleanupIterationsExecuted.ToString())));
 		}
 		else
 		{
@@ -161,7 +199,8 @@ internal sealed partial class MergeMountWorkflow
 			"Lifecycle cleanup pass completed.",
 			BuildContext(
 				("phase", phase),
-				("managed_mounts", managedMergerfsMountPoints.Length.ToString()),
+				("cleanup_iterations", cleanupIterationsExecuted.ToString()),
+				("managed_mounts", observedManagedMountPoints.Count.ToString()),
 				("still_mounted_managed_mounts", stillMountedManagedMountPoints.Count.ToString()),
 				("inferred_unmapped_branch_count", inferredUnmappedStillMountedBranchCount.ToString()),
 				("unresolved_unmapped_branch_count", unresolvedUnmappedStillMountedBranchCount.ToString()),

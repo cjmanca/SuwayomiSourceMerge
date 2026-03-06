@@ -1,5 +1,7 @@
 namespace SuwayomiSourceMerge.UnitTests.Infrastructure.Mounts;
 
+using System.ComponentModel;
+using System.Diagnostics;
 using SuwayomiSourceMerge.Infrastructure.Mounts;
 using SuwayomiSourceMerge.Infrastructure.Processes;
 
@@ -9,41 +11,32 @@ using SuwayomiSourceMerge.Infrastructure.Processes;
 public sealed class FindmntMountSnapshotServiceTests
 {
 	/// <summary>
-	/// Verifies valid <c>findmnt -P</c> output lines are parsed into snapshot entries.
+	/// Verifies streaming capture parses large output without truncation-induced malformed tails.
 	/// </summary>
 	[Fact]
-	public void Capture_Expected_ShouldParseValidFindmntOutput()
+	public void Capture_Expected_ShouldParseLargeFindmntOutputWithoutTruncation()
 	{
-		FakeExternalCommandExecutor commandExecutor = new(
-			new ExternalCommandResult(
-				ExternalCommandOutcome.Success,
-				ExternalCommandFailureKind.None,
-				0,
-				"TARGET=\"/ssm/merged/Title\" FSTYPE=\"fuse3.mergerfs\" SOURCE=\"suwayomi_hash\" OPTIONS=\"rw,fsname=suwayomi_hash\"",
-				string.Empty,
-				false,
-				false,
-				TimeSpan.FromMilliseconds(5)));
+		const int entryCount = 1400;
+		string output = string.Join(
+			Environment.NewLine,
+			Enumerable.Range(0, entryCount)
+				.Select(static index => $"TARGET=\"/ssm/merged/Title {index:D4}\" FSTYPE=\"fuse3.mergerfs\" SOURCE=\"src-{index:D4}\" OPTIONS=\"rw,fsname=src-{index:D4}\""));
+		FakeProcessFacade process = CreateSuccessfulProcess(output, string.Empty);
 		FindmntMountSnapshotService service = new(
-			commandExecutor,
+			() => process,
 			TimeSpan.FromSeconds(3),
-			TimeSpan.FromMilliseconds(50),
-			4096);
+			TimeSpan.FromMilliseconds(50));
 
 		MountSnapshot snapshot = service.Capture();
 
 		Assert.Empty(snapshot.Warnings);
-		Assert.Single(snapshot.Entries);
-		MountSnapshotEntry entry = snapshot.Entries[0];
-		Assert.Equal("/ssm/merged/Title", entry.MountPoint);
-		Assert.Equal("fuse3.mergerfs", entry.FileSystemType);
-		Assert.Equal("suwayomi_hash", entry.Source);
-		Assert.Equal("rw,fsname=suwayomi_hash", entry.Options);
-		Assert.Null(entry.IsHealthy);
-		Assert.NotNull(commandExecutor.LastRequest);
-		Assert.Equal("findmnt", commandExecutor.LastRequest!.FileName);
-		Assert.Equal(["-n", "-P", "-o", "TARGET,FSTYPE,SOURCE,OPTIONS"], commandExecutor.LastRequest.Arguments);
-		Assert.DoesNotContain("-r", commandExecutor.LastRequest.Arguments);
+		Assert.Equal(entryCount, snapshot.Entries.Count);
+		Assert.Equal("/ssm/merged/Title 0000", snapshot.Entries[0].MountPoint);
+		Assert.Equal($"/ssm/merged/Title {entryCount - 1:D4}", snapshot.Entries[^1].MountPoint);
+		Assert.NotNull(process.ConfiguredStartInfo);
+		Assert.Equal("findmnt", process.ConfiguredStartInfo!.FileName);
+		Assert.Equal(["-n", "-P", "-o", "TARGET,FSTYPE,SOURCE,OPTIONS"], process.ConfiguredStartInfo.ArgumentList);
+		Assert.Equal(0, process.KillCallCount);
 	}
 
 	/// <summary>
@@ -56,21 +49,11 @@ public sealed class FindmntMountSnapshotServiceTests
 			"TARGET=\"/ssm/merged/Space\\040Title\" FSTYPE=\"fuse.mergerfs\" SOURCE=\"mergerfs#disk\\040one\" OPTIONS=\"rw,fsname=suwayomi\\040abc\""
 			+ Environment.NewLine
 			+ "BROKEN-LINE";
-		FakeExternalCommandExecutor commandExecutor = new(
-			new ExternalCommandResult(
-				ExternalCommandOutcome.Success,
-				ExternalCommandFailureKind.None,
-				0,
-				output,
-				string.Empty,
-				false,
-				false,
-				TimeSpan.FromMilliseconds(5)));
+		FakeProcessFacade process = CreateSuccessfulProcess(output, string.Empty);
 		FindmntMountSnapshotService service = new(
-			commandExecutor,
+			() => process,
 			TimeSpan.FromSeconds(3),
-			TimeSpan.FromMilliseconds(50),
-			4096);
+			TimeSpan.FromMilliseconds(50));
 
 		MountSnapshot snapshot = service.Capture();
 
@@ -90,21 +73,11 @@ public sealed class FindmntMountSnapshotServiceTests
 	public void Capture_Edge_ShouldPreserveBackslashes_WhenEscapeSequenceIsUnknown()
 	{
 		string output = "TARGET=\"/ssm/merged/Unknown\\qValue\" FSTYPE=\"fuse.mergerfs\" SOURCE=\"source\\qid\" OPTIONS=\"rw\"";
-		FakeExternalCommandExecutor commandExecutor = new(
-			new ExternalCommandResult(
-				ExternalCommandOutcome.Success,
-				ExternalCommandFailureKind.None,
-				0,
-				output,
-				string.Empty,
-				false,
-				false,
-				TimeSpan.FromMilliseconds(5)));
+		FakeProcessFacade process = CreateSuccessfulProcess(output, string.Empty);
 		FindmntMountSnapshotService service = new(
-			commandExecutor,
+			() => process,
 			TimeSpan.FromSeconds(3),
-			TimeSpan.FromMilliseconds(50),
-			4096);
+			TimeSpan.FromMilliseconds(50));
 
 		MountSnapshot snapshot = service.Capture();
 
@@ -121,21 +94,11 @@ public sealed class FindmntMountSnapshotServiceTests
 	public void Capture_Edge_ShouldParseLine_WhenQuotedValueEndsWithEscapedBackslash()
 	{
 		string output = "TARGET=\"/ssm/merged/Trail\\\\\" FSTYPE=\"fuse.mergerfs\" SOURCE=\"source-id\" OPTIONS=\"rw\"";
-		FakeExternalCommandExecutor commandExecutor = new(
-			new ExternalCommandResult(
-				ExternalCommandOutcome.Success,
-				ExternalCommandFailureKind.None,
-				0,
-				output,
-				string.Empty,
-				false,
-				false,
-				TimeSpan.FromMilliseconds(5)));
+		FakeProcessFacade process = CreateSuccessfulProcess(output, string.Empty);
 		FindmntMountSnapshotService service = new(
-			commandExecutor,
+			() => process,
 			TimeSpan.FromSeconds(3),
-			TimeSpan.FromMilliseconds(50),
-			4096);
+			TimeSpan.FromMilliseconds(50));
 
 		MountSnapshot snapshot = service.Capture();
 
@@ -154,21 +117,11 @@ public sealed class FindmntMountSnapshotServiceTests
 			"TARGET=\"/ssm/merged/Zeta\" FSTYPE=\"fuse.mergerfs\" SOURCE=\"zeta\" OPTIONS=\"rw\""
 			+ Environment.NewLine
 			+ "TARGET=\"/ssm/merged/Alpha\" FSTYPE=\"fuse.mergerfs\" SOURCE=\"alpha\" OPTIONS=\"rw\"";
-		FakeExternalCommandExecutor commandExecutor = new(
-			new ExternalCommandResult(
-				ExternalCommandOutcome.Success,
-				ExternalCommandFailureKind.None,
-				0,
-				output,
-				string.Empty,
-				false,
-				false,
-				TimeSpan.FromMilliseconds(5)));
+		FakeProcessFacade process = CreateSuccessfulProcess(output, string.Empty);
 		FindmntMountSnapshotService service = new(
-			commandExecutor,
+			() => process,
 			TimeSpan.FromSeconds(3),
-			TimeSpan.FromMilliseconds(50),
-			4096);
+			TimeSpan.FromMilliseconds(50));
 
 		MountSnapshot snapshot = service.Capture();
 
@@ -176,39 +129,19 @@ public sealed class FindmntMountSnapshotServiceTests
 	}
 
 	/// <summary>
-	/// Verifies non-success command outcomes return an empty snapshot with deterministic warning diagnostics.
+	/// Verifies start failures return degraded-visibility warnings with command-failure code.
 	/// </summary>
-	/// <param name="outcome">Outcome emitted by command execution.</param>
-	/// <param name="failureKind">Failure kind emitted by command execution.</param>
-	/// <param name="exitCode">Optional command exit code.</param>
-	[Theory]
-	[InlineData("TimedOut", "None", null)]
-	[InlineData("Cancelled", "None", null)]
-	[InlineData("StartFailed", "ToolNotFound", null)]
-	[InlineData("NonZeroExit", "None", 3)]
-	public void Capture_Failure_ShouldReturnWarningAndNoEntries_WhenCommandFails(
-		string outcome,
-		string failureKind,
-		int? exitCode)
+	[Fact]
+	public void Capture_Failure_ShouldReturnWarningAndNoEntries_WhenProcessStartFails()
 	{
-		ExternalCommandOutcome parsedOutcome = Enum.Parse<ExternalCommandOutcome>(outcome);
-		ExternalCommandFailureKind parsedFailureKind = Enum.Parse<ExternalCommandFailureKind>(failureKind);
-
-		FakeExternalCommandExecutor commandExecutor = new(
-			new ExternalCommandResult(
-				parsedOutcome,
-				parsedFailureKind,
-				exitCode,
-				string.Empty,
-				"diagnostic stderr",
-				false,
-				false,
-				TimeSpan.FromMilliseconds(5)));
+		FakeProcessFacade process = new()
+		{
+			StartException = new Win32Exception(2)
+		};
 		FindmntMountSnapshotService service = new(
-			commandExecutor,
+			() => process,
 			TimeSpan.FromSeconds(3),
-			TimeSpan.FromMilliseconds(50),
-			4096);
+			TimeSpan.FromMilliseconds(50));
 
 		MountSnapshot snapshot = service.Capture();
 
@@ -216,44 +149,194 @@ public sealed class FindmntMountSnapshotServiceTests
 		Assert.Single(snapshot.Warnings);
 		Assert.Equal("MOUNT-SNAP-001", snapshot.Warnings[0].Code);
 		Assert.Equal(MountSnapshotWarningSeverity.DegradedVisibility, snapshot.Warnings[0].Severity);
-		Assert.Contains(parsedOutcome.ToString(), snapshot.Warnings[0].Message, StringComparison.Ordinal);
-		Assert.Contains("diagnostic stderr", snapshot.Warnings[0].Message, StringComparison.Ordinal);
+		Assert.Contains("StartFailed", snapshot.Warnings[0].Message, StringComparison.Ordinal);
 	}
 
 	/// <summary>
-	/// Fake command executor used to provide deterministic command results in tests.
+	/// Verifies timeout outcomes return degraded-visibility warnings with command-failure code.
 	/// </summary>
-	private sealed class FakeExternalCommandExecutor : IExternalCommandExecutor
+	[Fact]
+	public void Capture_Failure_ShouldReturnWarningAndNoEntries_WhenProcessTimesOut()
+	{
+		FakeProcessFacade process = new()
+		{
+			StandardOutputReader = new StringReader(string.Empty),
+			StandardErrorReader = new StringReader("stalled stderr")
+		};
+		process.WaitForExitHandler = _ => false;
+		FindmntMountSnapshotService service = new(
+			() => process,
+			TimeSpan.FromMilliseconds(15),
+			TimeSpan.FromMilliseconds(1));
+
+		MountSnapshot snapshot = service.Capture();
+
+		Assert.Empty(snapshot.Entries);
+		Assert.Single(snapshot.Warnings);
+		Assert.Equal("MOUNT-SNAP-001", snapshot.Warnings[0].Code);
+		Assert.Equal(MountSnapshotWarningSeverity.DegradedVisibility, snapshot.Warnings[0].Severity);
+		Assert.Contains("TimedOut", snapshot.Warnings[0].Message, StringComparison.Ordinal);
+		Assert.Equal(1, process.KillCallCount);
+	}
+
+	/// <summary>
+	/// Verifies non-zero exits return degraded-visibility warnings with command-failure code.
+	/// </summary>
+	[Fact]
+	public void Capture_Failure_ShouldReturnWarningAndNoEntries_WhenProcessExitsNonZero()
+	{
+		FakeProcessFacade process = CreateSuccessfulProcess(string.Empty, "findmnt error");
+		process.ExitCode = 3;
+		FindmntMountSnapshotService service = new(
+			() => process,
+			TimeSpan.FromSeconds(3),
+			TimeSpan.FromMilliseconds(50));
+
+		MountSnapshot snapshot = service.Capture();
+
+		Assert.Empty(snapshot.Entries);
+		Assert.Single(snapshot.Warnings);
+		Assert.Equal("MOUNT-SNAP-001", snapshot.Warnings[0].Code);
+		Assert.Equal(MountSnapshotWarningSeverity.DegradedVisibility, snapshot.Warnings[0].Severity);
+		Assert.Contains("NonZeroExit", snapshot.Warnings[0].Message, StringComparison.Ordinal);
+		Assert.Contains("findmnt error", snapshot.Warnings[0].Message, StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// Creates a fake process that exits successfully on first wait probe.
+	/// </summary>
+	/// <param name="standardOutput">Process standard output text.</param>
+	/// <param name="standardError">Process standard error text.</param>
+	/// <returns>Configured process facade.</returns>
+	private static FakeProcessFacade CreateSuccessfulProcess(string standardOutput, string standardError)
+	{
+		FakeProcessFacade process = new()
+		{
+			ExitCode = 0,
+			StandardOutputReader = new StringReader(standardOutput),
+			StandardErrorReader = new StringReader(standardError)
+		};
+		process.WaitForExitHandler = _ =>
+		{
+			process.HasExited = true;
+			return true;
+		};
+		return process;
+	}
+
+	/// <summary>
+	/// Test process facade used to script snapshot command behavior without spawning host processes.
+	/// </summary>
+	private sealed class FakeProcessFacade : IProcessFacade
 	{
 		/// <summary>
-		/// Result returned by this fake executor.
+		/// Gets or sets startup exception to throw from <see cref="Start"/>.
 		/// </summary>
-		private readonly ExternalCommandResult _result;
-
-		/// <summary>
-		/// Initializes a new instance of the <see cref="FakeExternalCommandExecutor"/> class.
-		/// </summary>
-		/// <param name="result">Command result to return from <see cref="Execute"/>.</param>
-		public FakeExternalCommandExecutor(ExternalCommandResult result)
+		public Exception? StartException
 		{
-			_result = result ?? throw new ArgumentNullException(nameof(result));
+			get;
+			set;
 		}
 
 		/// <summary>
-		/// Gets the last command request passed to <see cref="Execute"/>.
+		/// Gets or sets start return value when <see cref="StartException"/> is not set.
 		/// </summary>
-		public ExternalCommandRequest? LastRequest
+		public bool StartReturnValue
+		{
+			get;
+			set;
+		} = true;
+
+		/// <summary>
+		/// Gets or sets handler used by <see cref="WaitForExit"/>.
+		/// </summary>
+		public Func<int, bool> WaitForExitHandler
+		{
+			get;
+			set;
+		} = _ => true;
+
+		/// <inheritdoc />
+		public bool HasExited
+		{
+			get;
+			set;
+		}
+
+		/// <inheritdoc />
+		public int ExitCode
+		{
+			get;
+			set;
+		}
+
+		/// <inheritdoc />
+		public TextReader StandardOutputReader
+		{
+			get;
+			set;
+		} = new StringReader(string.Empty);
+
+		/// <inheritdoc />
+		public TextReader StandardErrorReader
+		{
+			get;
+			set;
+		} = new StringReader(string.Empty);
+
+		/// <summary>
+		/// Gets configured startup settings.
+		/// </summary>
+		public ProcessStartInfo? ConfiguredStartInfo
+		{
+			get;
+			private set;
+		}
+
+		/// <summary>
+		/// Gets kill-call count.
+		/// </summary>
+		public int KillCallCount
 		{
 			get;
 			private set;
 		}
 
 		/// <inheritdoc />
-		public ExternalCommandResult Execute(ExternalCommandRequest request, CancellationToken cancellationToken = default)
+		public void ConfigureStartInfo(ProcessStartInfo startInfo)
 		{
-			ArgumentNullException.ThrowIfNull(request);
-			LastRequest = request;
-			return _result;
+			ConfiguredStartInfo = startInfo;
+		}
+
+		/// <inheritdoc />
+		public bool Start()
+		{
+			if (StartException is not null)
+			{
+				throw StartException;
+			}
+
+			return StartReturnValue;
+		}
+
+		/// <inheritdoc />
+		public bool WaitForExit(int milliseconds)
+		{
+			return WaitForExitHandler(milliseconds);
+		}
+
+		/// <inheritdoc />
+		public void Kill(bool entireProcessTree)
+		{
+			KillCallCount++;
+			HasExited = true;
+		}
+
+		/// <inheritdoc />
+		public void Dispose()
+		{
+			StandardOutputReader.Dispose();
+			StandardErrorReader.Dispose();
 		}
 	}
 }

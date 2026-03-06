@@ -191,7 +191,7 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 				continue;
 			}
 
-			(MountActionApplyOutcome outcome, string diagnostic) = ClassifyCommandResult(commandResult);
+			(MountActionApplyOutcome outcome, string diagnostic, _) = ClassifyCommandResult(commandResult);
 			if (outcome == MountActionApplyOutcome.Success)
 			{
 				return new MountActionApplyResult(action, MountActionApplyOutcome.Success, diagnostic);
@@ -288,9 +288,9 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 		TimeSpan pollInterval,
 		CancellationToken cancellationToken)
 	{
-		if (!TryEnsureMountPointDirectory(action.MountPoint, out string ensureDiagnostic))
+		if (!TryEnsureMountPointDirectory(action.MountPoint, out string ensureDiagnostic, out MountActionFailureSeverity ensureFailureSeverity))
 		{
-			return new MountActionApplyResult(action, MountActionApplyOutcome.Failure, ensureDiagnostic);
+			return new MountActionApplyResult(action, MountActionApplyOutcome.Failure, ensureDiagnostic, ensureFailureSeverity);
 		}
 
 		string options = MergerfsOptionComposer.ComposeMountOptions(mergerfsOptionsBase, action.DesiredIdentity!);
@@ -301,20 +301,21 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 			pollInterval);
 
 		ExternalCommandResult commandResult = _commandExecutor.Execute(request, cancellationToken);
-		(MountActionApplyOutcome outcome, string diagnostic) = ClassifyCommandResult(commandResult);
+		(MountActionApplyOutcome outcome, string diagnostic, MountActionFailureSeverity failureSeverity) = ClassifyCommandResult(commandResult);
 		if (ShouldRetryMountAfterBadMountPoint(commandResult))
 		{
 			cancellationToken.ThrowIfCancellationRequested();
-			if (!TryEnsureMountPointDirectory(action.MountPoint, out string retryEnsureDiagnostic))
+			if (!TryEnsureMountPointDirectory(action.MountPoint, out string retryEnsureDiagnostic, out MountActionFailureSeverity retryEnsureFailureSeverity))
 			{
 				return new MountActionApplyResult(
 					action,
 					MountActionApplyOutcome.Failure,
-					$"Initial mount failed with bad mount point. Retry mountpoint directory creation also failed. initial_mount='{diagnostic}' retry_directory_creation='{retryEnsureDiagnostic}'");
+					$"Initial mount failed with bad mount point. Retry mountpoint directory creation also failed. initial_mount='{diagnostic}' retry_directory_creation='{retryEnsureDiagnostic}'",
+					retryEnsureFailureSeverity);
 			}
 
 			ExternalCommandResult retryResult = _commandExecutor.Execute(request, cancellationToken);
-			(MountActionApplyOutcome retryOutcome, string retryDiagnostic) = ClassifyCommandResult(retryResult);
+			(MountActionApplyOutcome retryOutcome, string retryDiagnostic, MountActionFailureSeverity retryFailureSeverity) = ClassifyCommandResult(retryResult);
 			if (retryOutcome == MountActionApplyOutcome.Success)
 			{
 				return new MountActionApplyResult(action, MountActionApplyOutcome.Success, "Command succeeded after bad-mountpoint retry.");
@@ -323,10 +324,11 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 			return new MountActionApplyResult(
 				action,
 				retryOutcome,
-				$"Mount failed after bad-mountpoint retry. initial='{diagnostic}' retry='{retryDiagnostic}'");
+				$"Mount failed after bad-mountpoint retry. initial='{diagnostic}' retry='{retryDiagnostic}'",
+				retryFailureSeverity);
 		}
 
-		return new MountActionApplyResult(action, outcome, diagnostic);
+		return new MountActionApplyResult(action, outcome, diagnostic, failureSeverity);
 	}
 
 	/// <summary>
@@ -350,18 +352,28 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 	/// </summary>
 	/// <param name="mountPoint">Mountpoint directory path.</param>
 	/// <param name="diagnostic">Failure diagnostic text.</param>
+	/// <param name="failureSeverity">Failure-severity classification when directory ensure fails.</param>
 	/// <returns><see langword="true"/> when the directory exists or is created; otherwise <see langword="false"/>.</returns>
-	private bool TryEnsureMountPointDirectory(string mountPoint, out string diagnostic)
+	private bool TryEnsureMountPointDirectory(
+		string mountPoint,
+		out string diagnostic,
+		out MountActionFailureSeverity failureSeverity)
 	{
 		try
 		{
 			_ = _mountPointDirectoryEnsurer(mountPoint);
 			diagnostic = string.Empty;
+			failureSeverity = MountActionFailureSeverity.None;
 			return true;
 		}
 		catch (Exception exception) when (!IsFatalException(exception))
 		{
 			diagnostic = $"Failed to ensure mountpoint directory '{mountPoint}': {exception.GetType().Name}: {exception.Message}";
+			failureSeverity = ClassifyMountPointEnsureFailureSeverity(mountPoint, out string probeDiagnostic);
+			if (!string.IsNullOrWhiteSpace(probeDiagnostic))
+			{
+				diagnostic = $"{diagnostic} ensure_post_check='{probeDiagnostic}'";
+			}
 			return false;
 		}
 	}
@@ -401,7 +413,8 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 			return new MountActionApplyResult(
 				action,
 				unmountResult.Outcome,
-				$"Remount unmount phase failed: {unmountResult.Diagnostic}");
+				$"Remount unmount phase failed: {unmountResult.Diagnostic}",
+				unmountResult.FailureSeverity);
 		}
 
 		MountActionApplyResult mountResult = ExecuteMountCommand(
@@ -418,7 +431,8 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 		return new MountActionApplyResult(
 			action,
 			mountResult.Outcome,
-			$"Remount mount phase failed: {mountResult.Diagnostic}");
+			$"Remount mount phase failed: {mountResult.Diagnostic}",
+			mountResult.FailureSeverity);
 	}
 
 	/// <summary>
@@ -528,19 +542,19 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 	/// </summary>
 	/// <param name="commandResult">Command result.</param>
 	/// <returns>Outcome and diagnostic text.</returns>
-	private static (MountActionApplyOutcome Outcome, string Diagnostic) ClassifyCommandResult(ExternalCommandResult commandResult)
+	private static (MountActionApplyOutcome Outcome, string Diagnostic, MountActionFailureSeverity FailureSeverity) ClassifyCommandResult(ExternalCommandResult commandResult)
 	{
 		ArgumentNullException.ThrowIfNull(commandResult);
 
 		if (commandResult.Outcome == ExternalCommandOutcome.Success)
 		{
-			return (MountActionApplyOutcome.Success, "Command succeeded.");
+			return (MountActionApplyOutcome.Success, "Command succeeded.", MountActionFailureSeverity.None);
 		}
 
 		if (commandResult.Outcome == ExternalCommandOutcome.TimedOut ||
 			commandResult.Outcome == ExternalCommandOutcome.Cancelled)
 		{
-			return (MountActionApplyOutcome.Busy, $"Command {commandResult.Outcome}.");
+			return (MountActionApplyOutcome.Busy, $"Command {commandResult.Outcome}.", MountActionFailureSeverity.None);
 		}
 
 		if (commandResult.Outcome == ExternalCommandOutcome.NonZeroExit)
@@ -554,17 +568,66 @@ internal sealed class MergerfsMountCommandService : IMergerfsMountCommandService
 
 			if (ContainsBusyToken(busyCheckText))
 			{
-				return (MountActionApplyOutcome.Busy, $"Command reported busy state: {busyCheckText}");
+				return (MountActionApplyOutcome.Busy, $"Command reported busy state: {busyCheckText}", MountActionFailureSeverity.None);
 			}
 
 			return (
 				MountActionApplyOutcome.Failure,
-				$"Command exited non-zero ({commandResult.ExitCode?.ToString() ?? "<none>"}): {stderr}");
+				$"Command exited non-zero ({commandResult.ExitCode?.ToString() ?? "<none>"}): {stderr}",
+				MountActionFailureSeverity.Hard);
 		}
 
 		return (
 			MountActionApplyOutcome.Failure,
-			$"Command failed: outcome={commandResult.Outcome} failure_kind={commandResult.FailureKind}.");
+			$"Command failed: outcome={commandResult.Outcome} failure_kind={commandResult.FailureKind}.",
+			MountActionFailureSeverity.Hard);
+	}
+
+	/// <summary>
+	/// Classifies mountpoint-directory ensure failure severity using a post-failure directory probe.
+	/// </summary>
+	/// <param name="mountPoint">Mountpoint directory path.</param>
+	/// <param name="probeDiagnostic">Post-check diagnostic details when probe fails.</param>
+	/// <returns>Soft when a usable directory is present; otherwise hard.</returns>
+	private static MountActionFailureSeverity ClassifyMountPointEnsureFailureSeverity(
+		string mountPoint,
+		out string probeDiagnostic)
+	{
+		if (TryProbeUsableMountPointDirectory(mountPoint, out probeDiagnostic))
+		{
+			return MountActionFailureSeverity.Soft;
+		}
+
+		return MountActionFailureSeverity.Hard;
+	}
+
+	/// <summary>
+	/// Performs one best-effort probe to verify the mountpoint path is a usable directory.
+	/// </summary>
+	/// <param name="mountPoint">Mountpoint path to probe.</param>
+	/// <param name="diagnostic">Probe diagnostic when probe fails.</param>
+	/// <returns><see langword="true"/> when the path exists as a readable directory; otherwise <see langword="false"/>.</returns>
+	private static bool TryProbeUsableMountPointDirectory(string mountPoint, out string diagnostic)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(mountPoint);
+		if (!Directory.Exists(mountPoint))
+		{
+			diagnostic = "mountpoint directory does not exist after ensure failure.";
+			return false;
+		}
+
+		try
+		{
+			using IEnumerator<string> entryEnumerator = Directory.EnumerateFileSystemEntries(mountPoint).GetEnumerator();
+			_ = entryEnumerator.MoveNext();
+			diagnostic = string.Empty;
+			return true;
+		}
+		catch (Exception exception) when (!IsFatalException(exception))
+		{
+			diagnostic = $"mountpoint directory probe failed: {exception.GetType().Name}: {exception.Message}";
+			return false;
+		}
 	}
 
 	/// <summary>

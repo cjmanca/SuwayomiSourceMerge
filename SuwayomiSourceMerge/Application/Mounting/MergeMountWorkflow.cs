@@ -37,6 +37,9 @@ internal sealed partial class MergeMountWorkflow : IMergeMountWorkflow, IMergeRu
 	/// <summary>Event id emitted for lifecycle cleanup runs.</summary>
 	private const string MergeCleanupEvent = "merge.workflow.cleanup";
 
+	/// <summary>Maximum cleanup iterations used for convergent startup/shutdown unmount passes.</summary>
+	private const int MaxCleanupIterations = 4;
+
 	/// <summary>
 	/// Path comparison mode used by mountpoint containment checks.
 	/// </summary>

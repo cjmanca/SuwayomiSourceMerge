@@ -67,14 +67,16 @@ public sealed partial class MergeMountWorkflowTests
 					isHealthy: true)
 			],
 			[]);
-		// RunCleanupPass captures mount state twice (pre-unmount + post-unmount), so enqueue two snapshots.
-		fixture.MountSnapshotService.EnqueueSnapshot(activeMountSnapshot);
-		fixture.MountSnapshotService.EnqueueSnapshot(activeMountSnapshot);
+		for (int iteration = 0; iteration < 4; iteration++)
+		{
+			fixture.MountSnapshotService.EnqueueSnapshot(activeMountSnapshot);
+			fixture.MountSnapshotService.EnqueueSnapshot(activeMountSnapshot);
+		}
 
 		MergeMountWorkflow workflow = fixture.CreateWorkflow();
 		workflow.OnWorkerStarting();
 
-		Assert.Equal(2, fixture.MountSnapshotService.CaptureCount);
+		Assert.Equal(8, fixture.MountSnapshotService.CaptureCount);
 		Assert.True(Directory.Exists(stillMountedDirectoryPath));
 		string quarantineRootPath = Path.Combine(fixture.Options.ConfigRootPath, "cleanup", "merged-residual");
 		Assert.False(Directory.Exists(quarantineRootPath));
@@ -83,6 +85,11 @@ public sealed partial class MergeMountWorkflowTests
 			static entry => entry.EventId == "merge.workflow.cleanup" &&
 				entry.Level == LogLevel.Warning &&
 				entry.Message.Contains("Skipped merged-root directory cleanup", StringComparison.Ordinal));
+		Assert.Contains(
+			fixture.Logger.Events,
+			static entry => entry.EventId == "merge.workflow.cleanup"
+				&& entry.Level == LogLevel.Warning
+				&& entry.Message.Contains("maximum cleanup iteration limit", StringComparison.Ordinal));
 	}
 
 	/// <summary>
@@ -117,5 +124,57 @@ public sealed partial class MergeMountWorkflowTests
 			static entry => entry.EventId == "merge.workflow.cleanup" &&
 				entry.Level == LogLevel.Warning &&
 				entry.Message.Contains("Skipped merged-root directory cleanup because mount snapshot reliability was degraded", StringComparison.Ordinal));
+	}
+
+	/// <summary>
+	/// Verifies cleanup converges across multiple iterations when one still-mounted managed target clears later.
+	/// </summary>
+	[Fact]
+	public void OnWorkerStarting_Expected_ShouldIterateCleanupUntilManagedMountsClear()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		string mountedPath = Path.Combine(fixture.Options.MergedRootPath, "Canonical Title");
+		MountSnapshot mountedSnapshot = new(
+			[
+				new MountSnapshotEntry(
+					mountedPath,
+					"fuse.mergerfs",
+					"source",
+					"rw",
+					isHealthy: true)
+			],
+			[]);
+		fixture.MountSnapshotService.EnqueueSnapshot(mountedSnapshot);
+		fixture.MountSnapshotService.EnqueueSnapshot(mountedSnapshot);
+		fixture.MountSnapshotService.EnqueueSnapshot(mountedSnapshot);
+		fixture.MountSnapshotService.EnqueueSnapshot(new MountSnapshot([], []));
+		fixture.MountCommandService.EnqueueUnmountOutcome(MountActionApplyOutcome.Failure);
+		fixture.MountCommandService.EnqueueUnmountOutcome(MountActionApplyOutcome.Success);
+
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+		workflow.OnWorkerStarting();
+
+		Assert.Equal(4, fixture.MountSnapshotService.CaptureCount);
+		Assert.Equal(2, fixture.MountCommandService.UnmountedMountPoints.Count);
+		Assert.Equal(1, fixture.BranchStagingService.CleanupCalls);
+	}
+
+	/// <summary>
+	/// Verifies cleanup exits after one iteration when no managed mounts are present.
+	/// </summary>
+	[Fact]
+	public void OnWorkerStarting_Edge_ShouldStopCleanupAfterFirstIteration_WhenNoManagedMountsExist()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		fixture.MountSnapshotService.EnqueueSnapshot(new MountSnapshot([], []));
+		fixture.MountSnapshotService.EnqueueSnapshot(new MountSnapshot([], []));
+
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+		workflow.OnWorkerStarting();
+
+		Assert.Equal(2, fixture.MountSnapshotService.CaptureCount);
+		Assert.Empty(fixture.MountCommandService.UnmountedMountPoints);
 	}
 }
