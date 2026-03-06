@@ -1653,7 +1653,7 @@ modules:
       - symbol: README.md
         kind: file
         path: README.md
-        purpose: Captures public usage guidance including Docker Compose, Unraid direct-disk mapping, child submount policy for `/ssm/sources/*` and `/ssm/override/*`, rshared merged-bind requirements, CI, and bare-metal runtime instructions.
+        purpose: Captures public usage guidance including Docker Compose, Unraid direct-disk mapping, child submount policy for `/ssm/sources/*` and `/ssm/override/*`, isolated shared merged-bind requirements (`private` then `rshared`), CI, and bare-metal runtime instructions.
       - symbol: SuwayomiSourceMerge.csproj
         kind: file
         path: SuwayomiSourceMerge/SuwayomiSourceMerge.csproj
@@ -1677,7 +1677,7 @@ modules:
       - Canonical default startup config root handoff to application host; use ProgramEntryPoint.Run.
       - Canonical public runtime usage and deployment documentation; use README.md.
       - Canonical Unraid Community Apps template wiring for this runtime; use unraid/templates/my-SuwayomiSourceMerge.xml.
-      - Canonical user-facing mount guidance must keep source/override storage on child targets (`/ssm/sources/*`, `/ssm/override/*`) and avoid parent-root Docker volumes; use README.md and unraid/templates/my-SuwayomiSourceMerge.xml.
+      - Canonical user-facing mount guidance must keep source/override storage on child targets (`/ssm/sources/*`, `/ssm/override/*`), avoid parent-root Docker volumes, and prepare the host merged root as isolated shared (`mount --make-private` then `mount --make-rshared`); use README.md and unraid/templates/my-SuwayomiSourceMerge.xml.
       - Console entrypoint bootstrapping; extend Program.cs.
       - Runtime project configuration root; extend SuwayomiSourceMerge.csproj.
       - Warning policy overrides in app project; keep centralized in Directory.Build.props.

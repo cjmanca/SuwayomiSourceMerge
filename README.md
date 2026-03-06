@@ -7,7 +7,8 @@ In Suwayomi, set your local manga directory to use the merged output from Suwayo
 If you're running Suwayomi in a docker container, you'll need to set the local source volume to `rw,slave`:
 `-v '/mnt/cache/appdata/ssm/merged':'/home/suwayomi/.local/share/Tachidesk/local':'rw,slave'`
 
-If you're running SuwayomiSourceMerge in Docker, set the `/ssm/merged` bind to `rw,shared`.
+If you're running SuwayomiSourceMerge in Docker, set the `/ssm/merged` bind to `rw,rshared`.
+On the host, set the merged root as an isolated shared bind (`private` then `rshared`) to avoid duplicate host-visible mount entries.
 
 It uses `mergerfs` under a .NET control plane to:
 
@@ -71,14 +72,15 @@ Note that the source name (`SourceName (EN)`) is a direct child to the entered v
 
 ## Prep merge directory for sharing
 
-The directory used for the merged output needs to be set to rshared in order for the two docker containers to properly interact with the fuse mounts.
+The directory used for the merged output needs to be configured as an isolated shared bind so the two docker containers can interact with the FUSE mounts while avoiding duplicate host-visible mount entries.
 
-Create a script to set the merged directory as an rshared mount:
+Create a script to set the merged directory as an isolated `rshared` mount:
 ```bash
 #!/bin/bash
 MERGED="/mnt/cache/appdata/ssm/merged"
 mkdir -p "$MERGED"
 mountpoint -q "$MERGED" || mount --bind "$MERGED" "$MERGED"
+mount --make-private "$MERGED"
 mount --make-rshared "$MERGED"
 ```
 
@@ -127,7 +129,7 @@ Required container paths:
 - `/ssm/merged`
 - `/ssm/state`
 
-`/ssm/merged` must be configured with `bind-propagation=shared`.
+`/ssm/merged` must be configured with `bind-propagation=shared`, and the host merged root should be prepared as an isolated shared bind (`mount --make-private` then `mount --make-rshared`).
 
 For sources and overrides, use child bind mounts (`/ssm/sources/*` and `/ssm/override/*`) instead of parent-root Docker volumes.
 

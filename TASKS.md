@@ -1,5 +1,7 @@
 # TASKS.md
 
+- [x] 2026-03-06 - Update README merged-root setup guidance to require isolated shared host bind semantics (`mount --make-private` then `mount --make-rshared`) to avoid duplicate host-visible mount entries.
+
 - [x] 2026-03-06 - Clarify `docker/entrypoint.sh` sources/override root ownership comment to document parent-root child-bind intent and non-recursive ownership safety.
 
 - [x] 2026-03-06 - Prevent Docker mount-root conflicts for source/override submount deployments by removing image-level `/ssm/sources` and `/ssm/override` VOLUME roots, ensuring entrypoint root directory creation, adding GHCR workflow volume-root guardrails, and aligning README/Unraid template guidance.
