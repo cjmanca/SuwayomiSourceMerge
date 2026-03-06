@@ -15,18 +15,36 @@ internal sealed class ComickDirectApiResult<TPayload>
 	/// <param name="payload">Typed payload when available.</param>
 	/// <param name="statusCode">HTTP status code when available.</param>
 	/// <param name="diagnostic">Deterministic diagnostic text.</param>
+	/// <param name="isCacheOnlyMiss">
+	/// Whether this result represents a deterministic cache-only lookup miss (no live request attempted).
+	/// </param>
 	public ComickDirectApiResult(
 		ComickDirectApiOutcome outcome,
 		TPayload? payload,
 		HttpStatusCode? statusCode,
-		string diagnostic)
+		string diagnostic,
+		bool isCacheOnlyMiss = false)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(diagnostic);
+		if (isCacheOnlyMiss && outcome != ComickDirectApiOutcome.NotFound)
+		{
+			throw new ArgumentException(
+				"Cache-only miss flag requires NotFound outcome.",
+				nameof(isCacheOnlyMiss));
+		}
+
+		if (isCacheOnlyMiss && payload is not null)
+		{
+			throw new ArgumentException(
+				"Cache-only miss flag requires a null payload.",
+				nameof(isCacheOnlyMiss));
+		}
 
 		Outcome = outcome;
 		Payload = payload;
 		StatusCode = statusCode;
 		Diagnostic = diagnostic;
+		IsCacheOnlyMiss = isCacheOnlyMiss;
 	}
 
 	/// <summary>
@@ -57,6 +75,14 @@ internal sealed class ComickDirectApiResult<TPayload>
 	/// Gets deterministic diagnostic text.
 	/// </summary>
 	public string Diagnostic
+	{
+		get;
+	}
+
+	/// <summary>
+	/// Gets a value indicating whether this result represents a cache-only lookup miss.
+	/// </summary>
+	public bool IsCacheOnlyMiss
 	{
 		get;
 	}

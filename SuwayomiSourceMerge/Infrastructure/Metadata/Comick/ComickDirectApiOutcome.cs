@@ -38,5 +38,10 @@ internal enum ComickDirectApiOutcome
 	/// <summary>
 	/// Response content could not be parsed into the expected typed model.
 	/// </summary>
-	MalformedPayload = 6
+	MalformedPayload = 6,
+
+	/// <summary>
+	/// FlareSolverr routing is unavailable and requests are currently in outage-cooldown skip mode.
+	/// </summary>
+	FlaresolverrUnavailable = 7
 }

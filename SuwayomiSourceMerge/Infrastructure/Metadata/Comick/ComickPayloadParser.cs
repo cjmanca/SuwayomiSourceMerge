@@ -173,52 +173,11 @@ internal static class ComickPayloadParser
 				return false;
 			}
 
-			if (string.IsNullOrWhiteSpace(comic.Hid) ||
-				string.IsNullOrWhiteSpace(comic.Slug) ||
+			if (string.IsNullOrWhiteSpace(comic.Slug) ||
 				string.IsNullOrWhiteSpace(comic.Title))
 			{
-				diagnostic = $"Malformed payload: search item at index {index} is missing required identity fields.";
+				diagnostic = $"Malformed payload: search item at index {index} is missing required match fields.";
 				return false;
-			}
-
-			if (comic.MdTitles is null || comic.MdCovers is null || comic.Statistics is null)
-			{
-				diagnostic = $"Malformed payload: search item at index {index} is missing required nested collections.";
-				return false;
-			}
-
-			IReadOnlyList<ComickTitleAlias> titleAliases = comic.MdTitles;
-			IReadOnlyList<ComickCover> covers = comic.MdCovers;
-			for (int titleIndex = 0; titleIndex < titleAliases.Count; titleIndex++)
-			{
-				ComickTitleAlias? titleAlias = titleAliases[titleIndex];
-				if (titleAlias is null)
-				{
-					diagnostic = $"Malformed payload: search item at index {index} has null md_titles[{titleIndex}] entry.";
-					return false;
-				}
-
-				if (string.IsNullOrWhiteSpace(titleAlias.Title))
-				{
-					diagnostic = $"Malformed payload: search item at index {index} has empty md_titles[{titleIndex}].title.";
-					return false;
-				}
-			}
-
-			for (int coverIndex = 0; coverIndex < covers.Count; coverIndex++)
-			{
-				ComickCover? cover = covers[coverIndex];
-				if (cover is null)
-				{
-					diagnostic = $"Malformed payload: search item at index {index} has null md_covers[{coverIndex}] entry.";
-					return false;
-				}
-
-				if (string.IsNullOrWhiteSpace(cover.B2Key))
-				{
-					diagnostic = $"Malformed payload: search item at index {index} has empty md_covers[{coverIndex}].b2key.";
-					return false;
-				}
 			}
 		}
 
@@ -242,58 +201,25 @@ internal static class ComickPayloadParser
 			return false;
 		}
 
-		if (string.IsNullOrWhiteSpace(payload.Comic.Hid) ||
-			string.IsNullOrWhiteSpace(payload.Comic.Slug) ||
-			string.IsNullOrWhiteSpace(payload.Comic.Title))
+		bool hasPrimaryTitle = !string.IsNullOrWhiteSpace(payload.Comic.Title);
+		bool hasAliasTitle = false;
+		if (payload.Comic.MdTitles is not null)
 		{
-			diagnostic = "Malformed payload: comic identity fields are missing.";
+			for (int aliasIndex = 0; aliasIndex < payload.Comic.MdTitles.Count; aliasIndex++)
+			{
+				ComickTitleAlias? titleAlias = payload.Comic.MdTitles[aliasIndex];
+				if (titleAlias is not null && !string.IsNullOrWhiteSpace(titleAlias.Title))
+				{
+					hasAliasTitle = true;
+					break;
+				}
+			}
+		}
+
+		if (!hasPrimaryTitle && !hasAliasTitle)
+		{
+			diagnostic = "Malformed payload: comic is missing match-critical title fields.";
 			return false;
-		}
-
-		if (payload.Comic.Links is null ||
-			payload.Comic.Statistics is null ||
-			payload.Comic.Recommendations is null ||
-			payload.Comic.RelateFrom is null ||
-			payload.Comic.MdTitles is null ||
-			payload.Comic.MdCovers is null ||
-			payload.Comic.GenreMappings is null)
-		{
-			diagnostic = "Malformed payload: comic nested collections are missing.";
-			return false;
-		}
-
-		IReadOnlyList<ComickTitleAlias> titleAliases = payload.Comic.MdTitles;
-		IReadOnlyList<ComickCover> covers = payload.Comic.MdCovers;
-		for (int aliasIndex = 0; aliasIndex < titleAliases.Count; aliasIndex++)
-		{
-			ComickTitleAlias? titleAlias = titleAliases[aliasIndex];
-			if (titleAlias is null)
-			{
-				diagnostic = $"Malformed payload: comic md_titles[{aliasIndex}] entry is null.";
-				return false;
-			}
-
-			if (string.IsNullOrWhiteSpace(titleAlias.Title))
-			{
-				diagnostic = $"Malformed payload: comic md_titles[{aliasIndex}].title is empty.";
-				return false;
-			}
-		}
-
-		for (int coverIndex = 0; coverIndex < covers.Count; coverIndex++)
-		{
-			ComickCover? cover = covers[coverIndex];
-			if (cover is null)
-			{
-				diagnostic = $"Malformed payload: comic md_covers[{coverIndex}] entry is null.";
-				return false;
-			}
-
-			if (string.IsNullOrWhiteSpace(cover.B2Key))
-			{
-				diagnostic = $"Malformed payload: comic md_covers[{coverIndex}].b2key is empty.";
-				return false;
-			}
 		}
 
 		diagnostic = "Success.";

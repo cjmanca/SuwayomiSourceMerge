@@ -27,7 +27,8 @@ public sealed class MergeMountWorkflowOptionsTests
 		Assert.Null(options.MetadataOrchestration.FlaresolverrServerUri);
 		Assert.Equal(TimeSpan.FromMinutes(60), options.MetadataOrchestration.FlaresolverrDirectRetryInterval);
 		Assert.Equal("en", options.MetadataOrchestration.PreferredLanguage);
-		Assert.Equal(TimeSpan.FromMilliseconds(1000), options.MetadataOrchestration.MetadataApiRequestDelay);
+		Assert.Equal(TimeSpan.FromMilliseconds(1000), options.MetadataOrchestration.MetadataApiMinRequestDelay);
+		Assert.Equal(TimeSpan.FromMilliseconds(5000), options.MetadataOrchestration.MetadataApiMaxRequestDelay);
 		Assert.Equal(TimeSpan.FromHours(24), options.MetadataOrchestration.MetadataApiCacheTtl);
 	}
 
@@ -60,7 +61,8 @@ public sealed class MergeMountWorkflowOptionsTests
 					ComickSearchMaxResults = defaultRuntime.ComickSearchMaxResults,
 				ComickComicEndpointPath = "v1.0/comic",
 				ComickImageBaseUrl = "https://images.example.local",
-				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
+				MetadataApiMinRequestDelayMs = defaultRuntime.MetadataApiMinRequestDelayMs,
+				MetadataApiMaxRequestDelayMs = defaultRuntime.MetadataApiMaxRequestDelayMs,
 				MetadataApiCacheTtlHours = defaultRuntime.MetadataApiCacheTtlHours,
 				FlaresolverrServerUrl = "https://flaresolverr.example.local/",
 				FlaresolverrDirectRetryMinutes = defaultRuntime.FlaresolverrDirectRetryMinutes,
@@ -124,7 +126,8 @@ public sealed class MergeMountWorkflowOptionsTests
 
 		ArgumentException exception = Assert.Throws<ArgumentException>(() => MergeMountWorkflowOptions.FromSettings(settings));
 		Assert.Equal("settings", exception.ParamName);
-		Assert.Contains("runtime.metadata_api_request_delay_ms", exception.Message, StringComparison.Ordinal);
+		Assert.Contains("runtime.metadata_api_min_request_delay_ms", exception.Message, StringComparison.Ordinal);
+		Assert.Contains("runtime.metadata_api_max_request_delay_ms", exception.Message, StringComparison.Ordinal);
 		Assert.Contains("runtime.metadata_api_cache_ttl_hours", exception.Message, StringComparison.Ordinal);
 		Assert.Contains("runtime.comick_search_max_results", exception.Message, StringComparison.Ordinal);
 	}
@@ -159,7 +162,8 @@ public sealed class MergeMountWorkflowOptionsTests
 					ComickSearchMaxResults = defaultRuntime.ComickSearchMaxResults,
 				ComickComicEndpointPath = defaultRuntime.ComickComicEndpointPath,
 				ComickImageBaseUrl = defaultRuntime.ComickImageBaseUrl,
-				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
+				MetadataApiMinRequestDelayMs = defaultRuntime.MetadataApiMinRequestDelayMs,
+				MetadataApiMaxRequestDelayMs = defaultRuntime.MetadataApiMaxRequestDelayMs,
 				MetadataApiCacheTtlHours = defaultRuntime.MetadataApiCacheTtlHours,
 				FlaresolverrServerUrl = "not-a-uri",
 				FlaresolverrDirectRetryMinutes = defaultRuntime.FlaresolverrDirectRetryMinutes,
@@ -192,7 +196,8 @@ public sealed class MergeMountWorkflowOptionsTests
 					ComickSearchMaxResults = defaultRuntime.ComickSearchMaxResults,
 				ComickComicEndpointPath = defaultRuntime.ComickComicEndpointPath,
 				ComickImageBaseUrl = defaultRuntime.ComickImageBaseUrl,
-				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
+				MetadataApiMinRequestDelayMs = defaultRuntime.MetadataApiMinRequestDelayMs,
+				MetadataApiMaxRequestDelayMs = defaultRuntime.MetadataApiMaxRequestDelayMs,
 				MetadataApiCacheTtlHours = defaultRuntime.MetadataApiCacheTtlHours,
 				FlaresolverrServerUrl = string.Empty,
 				FlaresolverrDirectRetryMinutes = defaultRuntime.FlaresolverrDirectRetryMinutes,
@@ -225,7 +230,8 @@ public sealed class MergeMountWorkflowOptionsTests
 					ComickSearchMaxResults = defaultRuntime.ComickSearchMaxResults,
 				ComickComicEndpointPath = defaultRuntime.ComickComicEndpointPath,
 				ComickImageBaseUrl = defaultRuntime.ComickImageBaseUrl,
-				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
+				MetadataApiMinRequestDelayMs = defaultRuntime.MetadataApiMinRequestDelayMs,
+				MetadataApiMaxRequestDelayMs = defaultRuntime.MetadataApiMaxRequestDelayMs,
 				MetadataApiCacheTtlHours = defaultRuntime.MetadataApiCacheTtlHours,
 				FlaresolverrServerUrl = "ftp://flaresolverr.example.local/",
 				FlaresolverrDirectRetryMinutes = defaultRuntime.FlaresolverrDirectRetryMinutes,
@@ -258,7 +264,8 @@ public sealed class MergeMountWorkflowOptionsTests
 					ComickSearchMaxResults = defaultRuntime.ComickSearchMaxResults,
 				ComickComicEndpointPath = defaultRuntime.ComickComicEndpointPath,
 				ComickImageBaseUrl = defaultRuntime.ComickImageBaseUrl,
-				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
+				MetadataApiMinRequestDelayMs = defaultRuntime.MetadataApiMinRequestDelayMs,
+				MetadataApiMaxRequestDelayMs = defaultRuntime.MetadataApiMaxRequestDelayMs,
 				MetadataApiCacheTtlHours = defaultRuntime.MetadataApiCacheTtlHours,
 				FlaresolverrServerUrl = string.Empty,
 				FlaresolverrDirectRetryMinutes = defaultRuntime.FlaresolverrDirectRetryMinutes,
@@ -291,7 +298,8 @@ public sealed class MergeMountWorkflowOptionsTests
 					ComickSearchMaxResults = defaultRuntime.ComickSearchMaxResults,
 				ComickComicEndpointPath = defaultRuntime.ComickComicEndpointPath,
 				ComickImageBaseUrl = defaultRuntime.ComickImageBaseUrl,
-				MetadataApiRequestDelayMs = -1,
+				MetadataApiMinRequestDelayMs = -1,
+				MetadataApiMaxRequestDelayMs = -1,
 				MetadataApiCacheTtlHours = defaultRuntime.MetadataApiCacheTtlHours,
 				FlaresolverrServerUrl = string.Empty,
 				FlaresolverrDirectRetryMinutes = defaultRuntime.FlaresolverrDirectRetryMinutes,
@@ -324,7 +332,8 @@ public sealed class MergeMountWorkflowOptionsTests
 					ComickSearchMaxResults = defaultRuntime.ComickSearchMaxResults,
 				ComickComicEndpointPath = defaultRuntime.ComickComicEndpointPath,
 				ComickImageBaseUrl = defaultRuntime.ComickImageBaseUrl,
-				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
+				MetadataApiMinRequestDelayMs = defaultRuntime.MetadataApiMinRequestDelayMs,
+				MetadataApiMaxRequestDelayMs = defaultRuntime.MetadataApiMaxRequestDelayMs,
 				MetadataApiCacheTtlHours = 0,
 				FlaresolverrServerUrl = string.Empty,
 				FlaresolverrDirectRetryMinutes = defaultRuntime.FlaresolverrDirectRetryMinutes,
@@ -357,7 +366,8 @@ public sealed class MergeMountWorkflowOptionsTests
 				ComickSearchMaxResults = defaultRuntime.ComickSearchMaxResults,
 				ComickComicEndpointPath = defaultRuntime.ComickComicEndpointPath,
 				ComickImageBaseUrl = defaultRuntime.ComickImageBaseUrl,
-				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
+				MetadataApiMinRequestDelayMs = defaultRuntime.MetadataApiMinRequestDelayMs,
+				MetadataApiMaxRequestDelayMs = defaultRuntime.MetadataApiMaxRequestDelayMs,
 				MetadataApiCacheTtlHours = defaultRuntime.MetadataApiCacheTtlHours,
 				FlaresolverrServerUrl = string.Empty,
 				FlaresolverrDirectRetryMinutes = defaultRuntime.FlaresolverrDirectRetryMinutes,
@@ -390,7 +400,8 @@ public sealed class MergeMountWorkflowOptionsTests
 				ComickSearchMaxResults = defaultRuntime.ComickSearchMaxResults,
 				ComickComicEndpointPath = "/",
 				ComickImageBaseUrl = defaultRuntime.ComickImageBaseUrl,
-				MetadataApiRequestDelayMs = defaultRuntime.MetadataApiRequestDelayMs,
+				MetadataApiMinRequestDelayMs = defaultRuntime.MetadataApiMinRequestDelayMs,
+				MetadataApiMaxRequestDelayMs = defaultRuntime.MetadataApiMaxRequestDelayMs,
 				MetadataApiCacheTtlHours = defaultRuntime.MetadataApiCacheTtlHours,
 				FlaresolverrServerUrl = string.Empty,
 				FlaresolverrDirectRetryMinutes = defaultRuntime.FlaresolverrDirectRetryMinutes,
@@ -414,7 +425,7 @@ public sealed class MergeMountWorkflowOptionsTests
 		Assert.Equal("comickMetadataCooldown", invalidCooldownException.ParamName);
 		Assert.Equal("settings", invalidSchemeException.ParamName);
 		Assert.Equal("preferredLanguage", invalidLanguageException.ParamName);
-		Assert.Equal("metadataApiRequestDelay", invalidRequestDelayException.ParamName);
+		Assert.Equal("metadataApiMinRequestDelay", invalidRequestDelayException.ParamName);
 		Assert.Equal("metadataApiCacheTtl", invalidCacheTtlException.ParamName);
 		Assert.Equal("comickSearchEndpointPath", invalidSearchEndpointPathException.ParamName);
 		Assert.Equal("comickComicEndpointPath", invalidComicEndpointPathException.ParamName);

@@ -2,6 +2,7 @@ namespace SuwayomiSourceMerge.UnitTests.Configuration.Bootstrap;
 
 using SuwayomiSourceMerge.Configuration.Bootstrap;
 using SuwayomiSourceMerge.Configuration.Loading;
+using SuwayomiSourceMerge.Configuration.Validation;
 
 /// <summary>
 /// Tests settings self-healing behavior and guard paths.
@@ -47,7 +48,8 @@ public sealed class SettingsSelfHealingServiceTests
         Assert.Equal(4, result.Document.Runtime.ComickSearchMaxResults);
         Assert.Equal("comic/", result.Document.Runtime.ComickComicEndpointPath);
         Assert.Equal("https://meo.comick.pictures/", result.Document.Runtime.ComickImageBaseUrl);
-        Assert.Equal(1000, result.Document.Runtime.MetadataApiRequestDelayMs);
+        Assert.Equal(1000, result.Document.Runtime.MetadataApiMinRequestDelayMs);
+        Assert.Equal(5000, result.Document.Runtime.MetadataApiMaxRequestDelayMs);
         Assert.Equal(24, result.Document.Runtime.MetadataApiCacheTtlHours);
         Assert.Equal(string.Empty, result.Document.Runtime.FlaresolverrServerUrl);
         Assert.Equal(60, result.Document.Runtime.FlaresolverrDirectRetryMinutes);
@@ -79,7 +81,8 @@ public sealed class SettingsSelfHealingServiceTests
         Assert.Equal(20, result.Document.Runtime.ComickSearchMaxResults);
         Assert.Equal("comic/", result.Document.Runtime.ComickComicEndpointPath);
         Assert.Equal("https://meo.comick.pictures/", result.Document.Runtime.ComickImageBaseUrl);
-        Assert.Equal(750, result.Document.Runtime.MetadataApiRequestDelayMs);
+        Assert.Equal(750, result.Document.Runtime.MetadataApiMinRequestDelayMs);
+        Assert.Equal(750, result.Document.Runtime.MetadataApiMaxRequestDelayMs);
         Assert.Equal(36, result.Document.Runtime.MetadataApiCacheTtlHours);
         Assert.Equal("https://flaresolverr.example.local/", result.Document.Runtime.FlaresolverrServerUrl);
         Assert.Equal(90, result.Document.Runtime.FlaresolverrDirectRetryMinutes);
@@ -186,6 +189,69 @@ public sealed class SettingsSelfHealingServiceTests
 
         Assert.False(result.WasHealed);
         Assert.Null(result.Document.Scan!.MergeTriggerRequestTimeoutBufferSeconds);
+    }
+
+    [Fact]
+    public void SelfHeal_ShouldIgnoreLegacyMetadataApiDelayKeyAndUseNewDefaults_WhenNewKeysMissing()
+    {
+        using TemporaryDirectory tempDirectory = new();
+        string settingsPath = Path.Combine(tempDirectory.Path, "settings.yml");
+        File.WriteAllText(
+            settingsPath,
+            CreateValidSettingsYaml(includeUnknownKey: false)
+                .Replace(
+                    "  metadata_api_min_request_delay_ms: 750\n",
+                    string.Empty,
+                    StringComparison.Ordinal)
+                .Replace(
+                    "  metadata_api_max_request_delay_ms: 750\n",
+                    "  metadata_api_request_delay_ms: 250\n",
+                    StringComparison.Ordinal));
+
+        SettingsSelfHealingService service = new(new YamlDocumentParser());
+
+        SettingsSelfHealingResult result = service.SelfHeal(settingsPath);
+
+        Assert.True(result.WasHealed);
+        Assert.Equal(1000, result.Document.Runtime!.MetadataApiMinRequestDelayMs);
+        Assert.Equal(5000, result.Document.Runtime.MetadataApiMaxRequestDelayMs);
+    }
+
+    [Fact]
+    public void SelfHeal_ShouldNotCorrectMetadataApiRange_WhenMaxIsLessThanMin()
+    {
+        using TemporaryDirectory tempDirectory = new();
+        string settingsPath = Path.Combine(tempDirectory.Path, "settings.yml");
+        File.WriteAllText(
+            settingsPath,
+            CreateValidSettingsYaml(includeUnknownKey: false)
+                .Replace(
+                    "  metadata_api_min_request_delay_ms: 750\n",
+                    "  metadata_api_min_request_delay_ms: 900\n",
+                    StringComparison.Ordinal)
+                .Replace(
+                    "  metadata_api_max_request_delay_ms: 750\n",
+                    "  metadata_api_max_request_delay_ms: 100\n",
+                    StringComparison.Ordinal));
+
+        SettingsSelfHealingService service = new(new YamlDocumentParser());
+
+        SettingsSelfHealingResult result = service.SelfHeal(settingsPath);
+
+        Assert.False(result.WasHealed);
+        Assert.Equal(900, result.Document.Runtime!.MetadataApiMinRequestDelayMs);
+        Assert.Equal(100, result.Document.Runtime.MetadataApiMaxRequestDelayMs);
+
+        SettingsDocumentValidator validator = new();
+        ValidationResult validation = validator.Validate(result.Document, "settings.yml");
+        ValidationError error = Assert.Single(
+            validation.Errors,
+            candidate => candidate.Path == "$.runtime.metadata_api_max_request_delay_ms");
+        Assert.Equal("CFG-SET-004", error.Code);
+        Assert.Contains(
+            "greater than or equal to runtime.metadata_api_min_request_delay_ms",
+            error.Message,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -302,7 +368,8 @@ public sealed class SettingsSelfHealingServiceTests
               comick_search_max_results: 20
               comick_comic_endpoint_path: comic/
               comick_image_base_url: https://meo.comick.pictures/
-              metadata_api_request_delay_ms: 750
+              metadata_api_min_request_delay_ms: 750
+              metadata_api_max_request_delay_ms: 750
               metadata_api_cache_ttl_hours: 36
               flaresolverr_server_url: https://flaresolverr.example.local/
               flaresolverr_direct_retry_minutes: 90

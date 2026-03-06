@@ -8,6 +8,43 @@ using SuwayomiSourceMerge.Infrastructure.Metadata;
 public sealed class MetadataApiRequestThrottleTests
 {
 	/// <summary>
+	/// Verifies configured min/max pacing selects one delay per operation from the allowed range.
+	/// </summary>
+	[Fact]
+	public async Task ExecuteAsync_Expected_ShouldApplySelectedDelayFromConfiguredRange()
+	{
+		DeterministicClock clock = new(new DateTimeOffset(2026, 2, 28, 11, 0, 0, TimeSpan.Zero));
+		Queue<TimeSpan> selectedDelays = new([TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(7), TimeSpan.FromSeconds(5)]);
+		MetadataApiRequestThrottle throttle = new(
+			TimeSpan.FromSeconds(3),
+			TimeSpan.FromSeconds(7),
+			clock.GetUtcNow,
+			clock.DelayAsync,
+			(minimumDelay, maximumDelay) => selectedDelays.Dequeue());
+
+		await throttle.ExecuteAsync(
+			token =>
+			{
+				clock.Advance(TimeSpan.FromSeconds(1));
+				return Task.CompletedTask;
+			});
+		await throttle.ExecuteAsync(
+			token =>
+			{
+				clock.Advance(TimeSpan.FromSeconds(1));
+				return Task.CompletedTask;
+			});
+		await throttle.ExecuteAsync(
+			token =>
+			{
+				clock.Advance(TimeSpan.FromSeconds(1));
+				return Task.CompletedTask;
+			});
+
+		Assert.Equal([TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(7)], clock.DelayRequests);
+	}
+
+	/// <summary>
 	/// Verifies completion-anchored pacing delays the next operation start until the configured delay elapses.
 	/// </summary>
 	[Fact]
@@ -198,7 +235,10 @@ public sealed class MetadataApiRequestThrottleTests
 	{
 		ArgumentOutOfRangeException delayException = Assert.Throws<ArgumentOutOfRangeException>(
 			() => new MetadataApiRequestThrottle(TimeSpan.FromMilliseconds(-1)));
-		Assert.Equal("requestDelay", delayException.ParamName);
+		Assert.Equal("minimumRequestDelay", delayException.ParamName);
+		ArgumentOutOfRangeException invalidRangeException = Assert.Throws<ArgumentOutOfRangeException>(
+			() => new MetadataApiRequestThrottle(TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(1)));
+		Assert.Equal("maximumRequestDelay", invalidRangeException.ParamName);
 
 		Assert.Throws<ArgumentNullException>(
 			() => new MetadataApiRequestThrottle(
@@ -210,6 +250,13 @@ public sealed class MetadataApiRequestThrottleTests
 				TimeSpan.FromSeconds(1),
 				static () => DateTimeOffset.UtcNow,
 				null!));
+		Assert.Throws<ArgumentNullException>(
+			() => new MetadataApiRequestThrottle(
+				TimeSpan.FromSeconds(1),
+				TimeSpan.FromSeconds(2),
+				static () => DateTimeOffset.UtcNow,
+				static (delay, cancellationToken) => Task.CompletedTask,
+				null!));
 
 		MetadataApiRequestThrottle throttle = new(
 			TimeSpan.Zero,
@@ -218,6 +265,27 @@ public sealed class MetadataApiRequestThrottleTests
 
 		await Assert.ThrowsAsync<ArgumentNullException>(() => throttle.ExecuteAsync((Func<CancellationToken, Task>)null!));
 		await Assert.ThrowsAsync<ArgumentNullException>(() => throttle.ExecuteAsync<int>((Func<CancellationToken, Task<int>>)null!));
+	}
+
+	/// <summary>
+	/// Verifies full-range random raw-bit normalization preserves inclusive non-negative bounds.
+	/// </summary>
+	/// <param name="rawRandomValue">Raw 64-bit random value.</param>
+	/// <param name="expectedOffsetTicks">Expected normalized non-negative tick offset.</param>
+	[Theory]
+	[InlineData(0UL, 0L)]
+	[InlineData(1UL, 1L)]
+	[InlineData(9223372036854775807UL, long.MaxValue)]
+	[InlineData(9223372036854775808UL, 0L)]
+	[InlineData(18446744073709551615UL, long.MaxValue)]
+	public void NormalizeInclusiveOffsetFromRawUInt64_Expected_ShouldMapRawBitsIntoInclusiveRange(
+		ulong rawRandomValue,
+		long expectedOffsetTicks)
+	{
+		long selectedOffsetTicks = MetadataApiRequestThrottle.NormalizeInclusiveOffsetFromRawUInt64(rawRandomValue);
+
+		Assert.Equal(expectedOffsetTicks, selectedOffsetTicks);
+		Assert.InRange(selectedOffsetTicks, 0L, long.MaxValue);
 	}
 
 	/// <summary>

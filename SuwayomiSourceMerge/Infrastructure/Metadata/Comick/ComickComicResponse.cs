@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
@@ -9,7 +10,7 @@ internal sealed class ComickComicResponse
 {
 	/// <summary>Gets or sets first-chapter metadata.</summary>
 	[JsonPropertyName("firstChap")]
-	public ComickComicFirstChapter? FirstChapter
+	public JsonElement? FirstChapter
 	{
 		get;
 		init;
@@ -25,6 +26,7 @@ internal sealed class ComickComicResponse
 
 	/// <summary>Gets or sets artist entries.</summary>
 	[JsonPropertyName("artists")]
+	[JsonConverter(typeof(ComickFilteredListJsonConverter<ComickCreator>))]
 	public IReadOnlyList<ComickCreator> Artists
 	{
 		get;
@@ -33,6 +35,7 @@ internal sealed class ComickComicResponse
 
 	/// <summary>Gets or sets author entries.</summary>
 	[JsonPropertyName("authors")]
+	[JsonConverter(typeof(ComickFilteredListJsonConverter<ComickCreator>))]
 	public IReadOnlyList<ComickCreator> Authors
 	{
 		get;
@@ -41,39 +44,49 @@ internal sealed class ComickComicResponse
 
 	/// <summary>Gets or sets language-list values.</summary>
 	[JsonPropertyName("langList")]
-	public IReadOnlyList<string> LanguageList
+	public JsonElement? LanguageList
 	{
 		get;
 		init;
-	} = [];
+	}
 
-	/// <summary>Gets or sets a value indicating whether recommendation is enabled.</summary>
+	/// <summary>Gets or sets recommendation-enabled payload in raw form.</summary>
 	[JsonPropertyName("recommendable")]
-	public bool Recommendable
+	public JsonElement? Recommendable
 	{
 		get;
 		init;
 	}
 
-	/// <summary>Gets or sets top-level demographic token.</summary>
+	/// <summary>Gets or sets top-level demographic payload in raw form.</summary>
 	[JsonPropertyName("demographic")]
-	public string? Demographic
+	public JsonElement? Demographic
 	{
 		get;
 		init;
 	}
 
-	/// <summary>Gets or sets a value indicating whether content is mature.</summary>
+	/// <summary>Gets or sets mature-content payload in raw form.</summary>
 	[JsonPropertyName("matureContent")]
-	public bool MatureContent
+	public JsonElement? MatureContent
 	{
 		get;
 		init;
 	}
 
-	/// <summary>Gets or sets a value indicating whether volume/chapter check is enabled.</summary>
+	/// <summary>Gets or sets volume/chapter-check payload in raw form.</summary>
 	[JsonPropertyName("checkVol2Chap1")]
-	public bool CheckVol2Chap1
+	public JsonElement? CheckVol2Chap1
+	{
+		get;
+		init;
+	}
+
+	/// <summary>
+	/// Gets or sets unknown top-level payload properties.
+	/// </summary>
+	[JsonExtensionData]
+	public IDictionary<string, JsonElement>? AdditionalProperties
 	{
 		get;
 		init;
@@ -129,10 +142,12 @@ internal sealed class ComickComicFirstChapter
 /// <summary>
 /// Represents one creator entry in comic author/artist lists.
 /// </summary>
+[JsonConverter(typeof(ComickCreatorJsonConverter))]
 internal sealed class ComickCreator
 {
 	/// <summary>Gets or sets creator name.</summary>
 	[JsonPropertyName("name")]
+	[JsonConverter(typeof(ComickTolerantStringConverter))]
 	public string Name
 	{
 		get;
@@ -141,6 +156,7 @@ internal sealed class ComickCreator
 
 	/// <summary>Gets or sets creator slug.</summary>
 	[JsonPropertyName("slug")]
+	[JsonConverter(typeof(ComickTolerantStringConverter))]
 	public string Slug
 	{
 		get;

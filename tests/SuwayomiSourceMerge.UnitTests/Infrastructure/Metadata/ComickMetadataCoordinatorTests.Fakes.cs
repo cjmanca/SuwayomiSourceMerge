@@ -36,21 +36,43 @@ public sealed partial class ComickMetadataCoordinatorTests
 			private set;
 		}
 
+		/// <summary>
+		/// Gets the most recent lookup mode used for search requests.
+		/// </summary>
+		public ComickLookupMode LastSearchLookupMode
+		{
+			get;
+			private set;
+		}
+
+		/// <summary>
+		/// Gets the most recent lookup mode used for comic-detail requests.
+		/// </summary>
+		public ComickLookupMode LastComicLookupMode
+		{
+			get;
+			private set;
+		}
+
 		/// <inheritdoc />
 		public Task<ComickDirectApiResult<ComickSearchResponse>> SearchAsync(
 			string query,
-			CancellationToken cancellationToken = default)
+			CancellationToken cancellationToken = default,
+			ComickLookupMode lookupMode = ComickLookupMode.CacheThenLive)
 		{
 			ArgumentException.ThrowIfNullOrWhiteSpace(query);
 			SearchCallCount++;
+			LastSearchLookupMode = lookupMode;
 			return Task.FromResult(_searchHandler(query, cancellationToken));
 		}
 
 		/// <inheritdoc />
 		public Task<ComickDirectApiResult<ComickComicResponse>> GetComicAsync(
 			string slug,
-			CancellationToken cancellationToken = default)
+			CancellationToken cancellationToken = default,
+			ComickLookupMode lookupMode = ComickLookupMode.CacheThenLive)
 		{
+			LastComicLookupMode = lookupMode;
 			throw new InvalidOperationException("Comic detail requests are not expected for these coordinator test scenarios.");
 		}
 	}
@@ -110,14 +132,25 @@ public sealed partial class ComickMetadataCoordinatorTests
 			private set;
 		} = [];
 
+		/// <summary>
+		/// Gets the most recent lookup mode passed to the matcher.
+		/// </summary>
+		public ComickLookupMode LastLookupMode
+		{
+			get;
+			private set;
+		} = ComickLookupMode.CacheThenLive;
+
 		/// <inheritdoc />
 		public Task<ComickCandidateMatchResult> MatchAsync(
 			IReadOnlyList<ComickSearchComic> candidates,
 			IReadOnlyList<string> expectedTitles,
-			CancellationToken cancellationToken = default)
+			CancellationToken cancellationToken = default,
+			ComickLookupMode lookupMode = ComickLookupMode.CacheThenLive)
 		{
 			MatchCallCount++;
 			LastExpectedTitles = expectedTitles.ToArray();
+			LastLookupMode = lookupMode;
 			if (ThrowOperationCanceledOnCall)
 			{
 				BeforeThrowOperationCanceled?.Invoke();

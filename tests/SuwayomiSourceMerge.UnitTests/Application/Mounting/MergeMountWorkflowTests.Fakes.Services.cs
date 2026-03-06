@@ -345,7 +345,8 @@ public sealed partial class MergeMountWorkflowTests
 		/// <inheritdoc />
 		public Task<ComickDirectApiResult<ComickSearchResponse>> SearchAsync(
 			string query,
-			CancellationToken cancellationToken = default)
+			CancellationToken cancellationToken = default,
+			ComickLookupMode lookupMode = ComickLookupMode.CacheThenLive)
 		{
 			SearchCallCount++;
 			return Task.FromResult(NextSearchResult);
@@ -354,7 +355,8 @@ public sealed partial class MergeMountWorkflowTests
 		/// <inheritdoc />
 		public Task<ComickDirectApiResult<ComickComicResponse>> GetComicAsync(
 			string slug,
-			CancellationToken cancellationToken = default)
+			CancellationToken cancellationToken = default,
+			ComickLookupMode lookupMode = ComickLookupMode.CacheThenLive)
 		{
 			return Task.FromResult(
 				new ComickDirectApiResult<ComickComicResponse>(
@@ -405,7 +407,8 @@ public sealed partial class MergeMountWorkflowTests
 		public Task<ComickCandidateMatchResult> MatchAsync(
 			IReadOnlyList<ComickSearchComic> candidates,
 			IReadOnlyList<string> expectedTitles,
-			CancellationToken cancellationToken = default)
+			CancellationToken cancellationToken = default,
+			ComickLookupMode lookupMode = ComickLookupMode.CacheThenLive)
 		{
 			MatchCallCount++;
 			ExpectedTitles.Add(expectedTitles.ToArray());

@@ -4,6 +4,7 @@ using System.Net;
 using System.Text.Json;
 using SuwayomiSourceMerge.Infrastructure.Metadata;
 using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
+using SuwayomiSourceMerge.Infrastructure.Metadata.Flaresolverr;
 using SuwayomiSourceMerge.UnitTests.TestInfrastructure;
 
 /// <summary>
@@ -37,11 +38,18 @@ public sealed partial class CloudflareAwareComickGatewayTests
 			_ => CreateDirectComicSuccess());
 		TrackingMetadataApiRequestThrottle throttle = new();
 		RecordingLogger logger = new();
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.Success,
+				HttpStatusCode.OK,
+				404,
+				upstreamResponseBody: string.Empty,
+				diagnostic: "Success."));
 		CloudflareAwareComickGateway gateway = CreateGateway(
 			directClient,
 			stateStore,
-			flaresolverrClient: null,
-			flaresolverrServerUri: null,
+			flaresolverrClient,
+			flaresolverrServerUri: new Uri("http://flaresolverr.local/"),
 			directRetryInterval: TimeSpan.FromMinutes(60),
 			nowUtc,
 			logger,
@@ -56,6 +64,54 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		Assert.Equal(0, throttle.CallCount);
 		Assert.Equal(0, stateStore.TransformCallCount);
 		Assert.Contains(logger.Events, static e => e.EventId == "metadata.comick.cache.hit");
+	}
+
+	/// <summary>
+	/// Verifies active outage cooldown still allows cache-hit responses without live request execution.
+	/// </summary>
+	[Fact]
+	public async Task SearchAsync_Edge_ShouldReturnCacheHitDuringActiveCooldownWithoutLiveRequestOrThrottle()
+	{
+		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-03-01T00:30:00+00:00");
+		DateTimeOffset stickyUntilUtc = nowUtc.AddMinutes(45);
+		ComickSearchResponse cachedPayload = BuildSearchPayload("cached-during-cooldown");
+		ComickApiCacheEntry cacheEntry = new(
+			ComickApiCacheEndpointKind.Search,
+			"cooldown-query",
+			ComickDirectApiOutcome.Success,
+			statusCode: 200,
+			diagnostic: "cached",
+			payloadJson: JsonSerializer.SerializeToElement(cachedPayload),
+			expiresAtUtc: nowUtc.AddHours(1));
+		InMemoryMetadataStateStore stateStore = new(
+			new MetadataStateSnapshot(
+				new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal),
+				stickyUntilUtc,
+				[cacheEntry]));
+		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchSuccess(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(_ => CreateFlaresolverrSearchSuccess());
+		TrackingMetadataApiRequestThrottle throttle = new();
+		CloudflareAwareComickGateway gateway = CreateGateway(
+			directClient,
+			stateStore,
+			flaresolverrClient,
+			flaresolverrServerUri: new Uri("http://flaresolverr.local/"),
+			directRetryInterval: TimeSpan.FromMinutes(60),
+			nowUtc,
+			logger: null,
+			throttle);
+
+		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("cooldown-query");
+
+		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
+		Assert.Equal("cached-during-cooldown", result.Payload!.Comics[0].Slug);
+		Assert.Equal(0, directClient.SearchCallCount);
+		Assert.Equal(0, flaresolverrClient.CallCount);
+		Assert.Equal(0, throttle.CallCount);
+		Assert.Equal(0, stateStore.TransformCallCount);
+		Assert.Equal(stickyUntilUtc, stateStore.Read().StickyFlaresolverrUntilUtc);
 	}
 
 	/// <summary>
@@ -75,11 +131,18 @@ public sealed partial class CloudflareAwareComickGatewayTests
 			_ => CreateDirectComicSuccess());
 		TrackingMetadataApiRequestThrottle throttle = new();
 		RecordingLogger logger = new();
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.Success,
+				HttpStatusCode.OK,
+				404,
+				upstreamResponseBody: string.Empty,
+				diagnostic: "Success."));
 		CloudflareAwareComickGateway gateway = CreateGateway(
 			directClient,
 			stateStore,
-			flaresolverrClient: null,
-			flaresolverrServerUri: null,
+			flaresolverrClient,
+			flaresolverrServerUri: new Uri("http://flaresolverr.local/"),
 			directRetryInterval: TimeSpan.FromMinutes(60),
 			nowUtc,
 			logger,
@@ -88,7 +151,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("query");
 
 		Assert.Equal(ComickDirectApiOutcome.NotFound, result.Outcome);
-		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal(0, directClient.SearchCallCount);
 		Assert.Equal(1, throttle.CallCount);
 		Assert.Equal(1, stateStore.TransformCallCount);
 		ComickApiCacheEntry persistedEntry = Assert.Single(stateStore.Read().ComickCache);
@@ -97,6 +160,83 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		Assert.Equal(ComickDirectApiOutcome.NotFound, persistedEntry.Outcome);
 		Assert.Contains(logger.Events, static e => e.EventId == "metadata.comick.cache.miss");
 		Assert.Contains(logger.Events, static e => e.EventId == "metadata.comick.cache.persisted");
+	}
+
+	/// <summary>
+	/// Verifies active outage cooldown returns unavailable when cache miss occurs for the requested title.
+	/// </summary>
+	[Fact]
+	public async Task SearchAsync_Edge_ShouldReturnUnavailableDuringActiveCooldown_WhenCacheMissOccurs()
+	{
+		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-03-01T01:30:00+00:00");
+		DateTimeOffset stickyUntilUtc = nowUtc.AddMinutes(45);
+		InMemoryMetadataStateStore stateStore = new(
+			new MetadataStateSnapshot(
+				new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal),
+				stickyUntilUtc,
+				comickCache: []));
+		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchSuccess(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(_ => CreateFlaresolverrSearchSuccess());
+		TrackingMetadataApiRequestThrottle throttle = new();
+		RecordingLogger logger = new();
+		CloudflareAwareComickGateway gateway = CreateGateway(
+			directClient,
+			stateStore,
+			flaresolverrClient,
+			flaresolverrServerUri: new Uri("http://flaresolverr.local/"),
+			directRetryInterval: TimeSpan.FromMinutes(60),
+			nowUtc,
+			logger,
+			throttle);
+
+		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("cooldown-miss");
+
+		Assert.Equal(ComickDirectApiOutcome.FlaresolverrUnavailable, result.Outcome);
+		Assert.Null(result.Payload);
+		Assert.Equal(0, directClient.SearchCallCount);
+		Assert.Equal(0, flaresolverrClient.CallCount);
+		Assert.Equal(0, throttle.CallCount);
+		Assert.Equal(0, stateStore.TransformCallCount);
+		Assert.Contains(logger.Events, static e => e.EventId == "metadata.comick.cache.miss");
+		Assert.Contains(logger.Events, static e => e.EventId == "metadata.cloudflare.fallback.cooldown_active");
+	}
+
+	/// <summary>
+	/// Verifies cache-only mode returns deterministic cache-miss output without live request execution.
+	/// </summary>
+	[Fact]
+	public async Task SearchAsync_Edge_ShouldReturnNotFoundWithoutLiveRequest_WhenCacheOnlyModeMisses()
+	{
+		DateTimeOffset nowUtc = ParseUtcTimestamp("2026-03-01T01:45:00+00:00");
+		InMemoryMetadataStateStore stateStore = new(MetadataStateSnapshot.Empty);
+		StubComickDirectApiClient directClient = new(
+			_ => CreateDirectSearchSuccess(),
+			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(_ => CreateFlaresolverrSearchSuccess());
+		TrackingMetadataApiRequestThrottle throttle = new();
+		CloudflareAwareComickGateway gateway = CreateGateway(
+			directClient,
+			stateStore,
+			flaresolverrClient,
+			flaresolverrServerUri: new Uri("http://flaresolverr.local/"),
+			directRetryInterval: TimeSpan.FromMinutes(60),
+			nowUtc,
+			logger: null,
+			throttle);
+
+		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync(
+			"cache-only-miss",
+			cancellationToken: default,
+			lookupMode: ComickLookupMode.CacheOnly);
+
+		Assert.Equal(ComickDirectApiOutcome.NotFound, result.Outcome);
+		Assert.True(result.IsCacheOnlyMiss);
+		Assert.Equal(0, directClient.SearchCallCount);
+		Assert.Equal(0, flaresolverrClient.CallCount);
+		Assert.Equal(0, throttle.CallCount);
+		Assert.Equal(0, stateStore.TransformCallCount);
 	}
 
 	/// <summary>
@@ -127,11 +267,12 @@ public sealed partial class CloudflareAwareComickGatewayTests
 				"live"),
 			_ => CreateDirectComicSuccess());
 		TrackingMetadataApiRequestThrottle throttle = new();
+		StubFlaresolverrClient flaresolverrClient = new(_ => CreateFlaresolverrSearchSuccess());
 		CloudflareAwareComickGateway gateway = CreateGateway(
 			directClient,
 			stateStore,
-			flaresolverrClient: null,
-			flaresolverrServerUri: null,
+			flaresolverrClient,
+			flaresolverrServerUri: new Uri("http://flaresolverr.local/"),
 			directRetryInterval: TimeSpan.FromMinutes(60),
 			nowUtc,
 			logger: null,
@@ -140,8 +281,8 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("query");
 
 		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
-		Assert.Equal("live-slug", result.Payload!.Comics[0].Slug);
-		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal("slug-1", result.Payload!.Comics[0].Slug);
+		Assert.Equal(0, directClient.SearchCallCount);
 		Assert.Equal(1, throttle.CallCount);
 		ComickApiCacheEntry refreshedEntry = Assert.Single(stateStore.Read().ComickCache);
 		Assert.Equal("query", refreshedEntry.RequestKey);
@@ -175,7 +316,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 
 		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("query");
 
-		Assert.Equal(ComickDirectApiOutcome.HttpFailure, result.Outcome);
+		Assert.Equal(ComickDirectApiOutcome.FlaresolverrUnavailable, result.Outcome);
 		Assert.Empty(stateStore.Read().ComickCache);
 		Assert.Equal(0, stateStore.TransformCallCount);
 		Assert.Contains(logger.Events, static e => e.EventId == "metadata.comick.cache.skipped");
@@ -208,19 +349,20 @@ public sealed partial class CloudflareAwareComickGatewayTests
 				HttpStatusCode.OK,
 				"live"),
 			_ => CreateDirectComicSuccess());
+		StubFlaresolverrClient flaresolverrClient = new(_ => CreateFlaresolverrSearchSuccess());
 		CloudflareAwareComickGateway gateway = CreateGateway(
 			directClient,
 			stateStore,
-			flaresolverrClient: null,
-			flaresolverrServerUri: null,
+			flaresolverrClient,
+			flaresolverrServerUri: new Uri("http://flaresolverr.local/"),
 			directRetryInterval: TimeSpan.FromMinutes(60),
 			nowUtc);
 
 		ComickDirectApiResult<ComickSearchResponse> result = await gateway.SearchAsync("query");
 
 		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
-		Assert.Equal("refreshed-slug", result.Payload!.Comics[0].Slug);
-		Assert.Equal(1, directClient.SearchCallCount);
+		Assert.Equal("slug-1", result.Payload!.Comics[0].Slug);
+		Assert.Equal(0, directClient.SearchCallCount);
 		Assert.Single(stateStore.Read().ComickCache);
 	}
 
@@ -239,11 +381,12 @@ public sealed partial class CloudflareAwareComickGatewayTests
 			_ => CreateDirectSearchSuccess(),
 			_ => CreateDirectComicSuccess());
 		RecordingLogger logger = new();
+		StubFlaresolverrClient flaresolverrClient = new(_ => CreateFlaresolverrSearchSuccess());
 		CloudflareAwareComickGateway gateway = CreateGateway(
 			directClient,
 			stateStore,
-			flaresolverrClient: null,
-			flaresolverrServerUri: null,
+			flaresolverrClient,
+			flaresolverrServerUri: new Uri("http://flaresolverr.local/"),
 			directRetryInterval: TimeSpan.FromMinutes(60),
 			nowUtc,
 			logger);
@@ -285,11 +428,18 @@ public sealed partial class CloudflareAwareComickGatewayTests
 			_ => CreateDirectComicSuccess());
 		TrackingMetadataApiRequestThrottle throttle = new();
 		RecordingLogger logger = new();
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.Success,
+				HttpStatusCode.OK,
+				404,
+				upstreamResponseBody: string.Empty,
+				diagnostic: "Success."));
 		CloudflareAwareComickGateway gateway = CreateGateway(
 			directClient,
 			stateStore,
-			flaresolverrClient: null,
-			flaresolverrServerUri: null,
+			flaresolverrClient,
+			flaresolverrServerUri: new Uri("http://flaresolverr.local/"),
 			directRetryInterval: TimeSpan.FromMinutes(60),
 			nowUtc,
 			logger,
@@ -323,11 +473,18 @@ public sealed partial class CloudflareAwareComickGatewayTests
 				diagnostic: "not found"));
 		TrackingMetadataApiRequestThrottle throttle = new();
 		RecordingLogger logger = new();
+		StubFlaresolverrClient flaresolverrClient = new(
+			_ => new FlaresolverrApiResult(
+				FlaresolverrApiOutcome.Success,
+				HttpStatusCode.OK,
+				404,
+				upstreamResponseBody: string.Empty,
+				diagnostic: "Success."));
 		CloudflareAwareComickGateway gateway = CreateGateway(
 			directClient,
 			stateStore,
-			flaresolverrClient: null,
-			flaresolverrServerUri: null,
+			flaresolverrClient,
+			flaresolverrServerUri: new Uri("http://flaresolverr.local/"),
 			directRetryInterval: TimeSpan.FromMinutes(60),
 			nowUtc,
 			logger,
@@ -336,7 +493,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		ComickDirectApiResult<ComickComicResponse> result = await gateway.GetComicAsync("comic-slug");
 
 		Assert.Equal(ComickDirectApiOutcome.NotFound, result.Outcome);
-		Assert.Equal(1, directClient.ComicCallCount);
+		Assert.Equal(0, directClient.ComicCallCount);
 		Assert.Equal(1, throttle.CallCount);
 		Assert.Equal(1, stateStore.TransformCallCount);
 		ComickApiCacheEntry persistedEntry = Assert.Single(stateStore.Read().ComickCache);
@@ -376,11 +533,12 @@ public sealed partial class CloudflareAwareComickGatewayTests
 				HttpStatusCode.OK,
 				"live"));
 		TrackingMetadataApiRequestThrottle throttle = new();
+		StubFlaresolverrClient flaresolverrClient = new(_ => CreateFlaresolverrComicSuccess());
 		CloudflareAwareComickGateway gateway = CreateGateway(
 			directClient,
 			stateStore,
-			flaresolverrClient: null,
-			flaresolverrServerUri: null,
+			flaresolverrClient,
+			flaresolverrServerUri: new Uri("http://flaresolverr.local/"),
 			directRetryInterval: TimeSpan.FromMinutes(60),
 			nowUtc,
 			logger: null,
@@ -389,8 +547,8 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		ComickDirectApiResult<ComickComicResponse> result = await gateway.GetComicAsync("comic-slug");
 
 		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
-		Assert.Equal("live-slug", result.Payload!.Comic!.Slug);
-		Assert.Equal(1, directClient.ComicCallCount);
+		Assert.Equal("comic-slug-1", result.Payload!.Comic!.Slug);
+		Assert.Equal(0, directClient.ComicCallCount);
 		Assert.Equal(1, throttle.CallCount);
 		ComickApiCacheEntry refreshedEntry = Assert.Single(stateStore.Read().ComickCache);
 		Assert.Equal("comic-slug", refreshedEntry.RequestKey);
@@ -424,19 +582,20 @@ public sealed partial class CloudflareAwareComickGatewayTests
 				BuildComicPayload("refreshed-slug"),
 				HttpStatusCode.OK,
 				"live"));
+		StubFlaresolverrClient flaresolverrClient = new(_ => CreateFlaresolverrComicSuccess());
 		CloudflareAwareComickGateway gateway = CreateGateway(
 			directClient,
 			stateStore,
-			flaresolverrClient: null,
-			flaresolverrServerUri: null,
+			flaresolverrClient,
+			flaresolverrServerUri: new Uri("http://flaresolverr.local/"),
 			directRetryInterval: TimeSpan.FromMinutes(60),
 			nowUtc);
 
 		ComickDirectApiResult<ComickComicResponse> result = await gateway.GetComicAsync("comic-slug");
 
 		Assert.Equal(ComickDirectApiOutcome.Success, result.Outcome);
-		Assert.Equal("refreshed-slug", result.Payload!.Comic!.Slug);
-		Assert.Equal(1, directClient.ComicCallCount);
+		Assert.Equal("comic-slug-1", result.Payload!.Comic!.Slug);
+		Assert.Equal(0, directClient.ComicCallCount);
 		Assert.Single(stateStore.Read().ComickCache);
 	}
 

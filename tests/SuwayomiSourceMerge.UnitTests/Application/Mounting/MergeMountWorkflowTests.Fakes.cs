@@ -55,7 +55,7 @@ public sealed partial class MergeMountWorkflowTests
 				comickSearchEndpointPath: "v1.0/search/",
 				comickComicEndpointPath: "comic/",
 				comickImageBaseUri: new Uri("https://meo.comick.pictures/"),
-				flaresolverrServerUri: null,
+				flaresolverrServerUri: new Uri("http://flaresolverr.local/"),
 				flaresolverrDirectRetryInterval: TimeSpan.FromMinutes(60),
 				preferredLanguage: "en",
 				metadataApiRequestDelay: TimeSpan.FromMilliseconds(1000),

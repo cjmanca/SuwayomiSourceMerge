@@ -10,18 +10,22 @@ internal interface IComickApiGateway
 	/// </summary>
 	/// <param name="query">Search query text.</param>
 	/// <param name="cancellationToken">Cancellation token.</param>
+	/// <param name="lookupMode">Lookup mode controlling cache-only versus cache-then-live behavior.</param>
 	/// <returns>Typed search response result.</returns>
 	Task<ComickDirectApiResult<ComickSearchResponse>> SearchAsync(
 		string query,
-		CancellationToken cancellationToken = default);
+		CancellationToken cancellationToken = default,
+		ComickLookupMode lookupMode = ComickLookupMode.CacheThenLive);
 
 	/// <summary>
 	/// Queries the Comick comic endpoint for one slug.
 	/// </summary>
 	/// <param name="slug">Comick comic slug.</param>
 	/// <param name="cancellationToken">Cancellation token.</param>
+	/// <param name="lookupMode">Lookup mode controlling cache-only versus cache-then-live behavior.</param>
 	/// <returns>Typed comic-detail response result.</returns>
 	Task<ComickDirectApiResult<ComickComicResponse>> GetComicAsync(
 		string slug,
-		CancellationToken cancellationToken = default);
+		CancellationToken cancellationToken = default,
+		ComickLookupMode lookupMode = ComickLookupMode.CacheThenLive);
 }

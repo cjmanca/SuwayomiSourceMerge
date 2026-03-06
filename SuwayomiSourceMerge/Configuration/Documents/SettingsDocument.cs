@@ -531,7 +531,15 @@ public sealed class SettingsRuntimeSection
 	/// <summary>
 	/// Gets or sets the minimum delay in milliseconds between outbound metadata API requests.
 	/// </summary>
-	public int? MetadataApiRequestDelayMs
+	public int? MetadataApiMinRequestDelayMs
+	{
+		get; init;
+	}
+
+	/// <summary>
+	/// Gets or sets the maximum delay in milliseconds between outbound metadata API requests.
+	/// </summary>
+	public int? MetadataApiMaxRequestDelayMs
 	{
 		get; init;
 	}

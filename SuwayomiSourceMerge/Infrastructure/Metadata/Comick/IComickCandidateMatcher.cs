@@ -11,9 +11,11 @@ internal interface IComickCandidateMatcher
 	/// <param name="candidates">Search candidates to evaluate and resolve by slug.</param>
 	/// <param name="expectedTitles">Expected raw title values used to build normalized match keys.</param>
 	/// <param name="cancellationToken">Cancellation token for detail requests.</param>
+	/// <param name="lookupMode">Lookup mode controlling cache-only versus cache-then-live detail probes.</param>
 	/// <returns>Deterministic candidate-match result.</returns>
 	Task<ComickCandidateMatchResult> MatchAsync(
 		IReadOnlyList<ComickSearchComic> candidates,
 		IReadOnlyList<string> expectedTitles,
-		CancellationToken cancellationToken = default);
+		CancellationToken cancellationToken = default,
+		ComickLookupMode lookupMode = ComickLookupMode.CacheThenLive);
 }

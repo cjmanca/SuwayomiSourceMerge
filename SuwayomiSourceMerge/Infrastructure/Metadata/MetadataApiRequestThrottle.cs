@@ -6,9 +6,14 @@ namespace SuwayomiSourceMerge.Infrastructure.Metadata;
 internal sealed class MetadataApiRequestThrottle : IMetadataApiRequestThrottle
 {
 	/// <summary>
-	/// Delay configured between one operation completion and the next operation start.
+	/// Minimum delay configured between one operation completion and the next operation start.
 	/// </summary>
-	private readonly TimeSpan _requestDelay;
+	private readonly TimeSpan _minimumRequestDelay;
+
+	/// <summary>
+	/// Maximum delay configured between one operation completion and the next operation start.
+	/// </summary>
+	private readonly TimeSpan _maximumRequestDelay;
 
 	/// <summary>
 	/// Clock provider used for deterministic pacing decisions.
@@ -19,6 +24,11 @@ internal sealed class MetadataApiRequestThrottle : IMetadataApiRequestThrottle
 	/// Delay callback used to wait for pacing windows.
 	/// </summary>
 	private readonly Func<TimeSpan, CancellationToken, Task> _delayAsync;
+
+	/// <summary>
+	/// Selects one delay value within the configured pacing range.
+	/// </summary>
+	private readonly Func<TimeSpan, TimeSpan, TimeSpan> _requestDelaySelector;
 
 	/// <summary>
 	/// Serializes operation execution to enforce one shared pacing timeline.
@@ -37,8 +47,25 @@ internal sealed class MetadataApiRequestThrottle : IMetadataApiRequestThrottle
 	public MetadataApiRequestThrottle(TimeSpan requestDelay)
 		: this(
 			requestDelay,
+			requestDelay,
 			static () => DateTimeOffset.UtcNow,
-			DefaultDelayAsync)
+			DefaultDelayAsync,
+			static (minimumDelay, maximumDelay) => minimumDelay)
+	{
+	}
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="MetadataApiRequestThrottle"/> class.
+	/// </summary>
+	/// <param name="minimumRequestDelay">Minimum delay applied between operation completion and the next operation start.</param>
+	/// <param name="maximumRequestDelay">Maximum delay applied between operation completion and the next operation start.</param>
+	public MetadataApiRequestThrottle(TimeSpan minimumRequestDelay, TimeSpan maximumRequestDelay)
+		: this(
+			minimumRequestDelay,
+			maximumRequestDelay,
+			static () => DateTimeOffset.UtcNow,
+			DefaultDelayAsync,
+			DefaultSelectDelay)
 	{
 	}
 
@@ -52,18 +79,59 @@ internal sealed class MetadataApiRequestThrottle : IMetadataApiRequestThrottle
 		TimeSpan requestDelay,
 		Func<DateTimeOffset> utcNowProvider,
 		Func<TimeSpan, CancellationToken, Task> delayAsync)
+		: this(
+			requestDelay,
+			requestDelay,
+			utcNowProvider,
+			delayAsync,
+			static (minimumDelay, maximumDelay) => minimumDelay)
 	{
-		if (requestDelay < TimeSpan.Zero)
+	}
+
+	/// <summary>
+	/// Initializes a new instance of the <see cref="MetadataApiRequestThrottle"/> class.
+	/// </summary>
+	/// <param name="minimumRequestDelay">Minimum delay applied between operation completion and the next operation start.</param>
+	/// <param name="maximumRequestDelay">Maximum delay applied between operation completion and the next operation start.</param>
+	/// <param name="utcNowProvider">Clock provider used for pacing decisions.</param>
+	/// <param name="delayAsync">Delay callback used when pacing requires waiting.</param>
+	/// <param name="requestDelaySelector">Selector used to pick the next pacing delay from the configured range.</param>
+	internal MetadataApiRequestThrottle(
+		TimeSpan minimumRequestDelay,
+		TimeSpan maximumRequestDelay,
+		Func<DateTimeOffset> utcNowProvider,
+		Func<TimeSpan, CancellationToken, Task> delayAsync,
+		Func<TimeSpan, TimeSpan, TimeSpan> requestDelaySelector)
+	{
+		if (minimumRequestDelay < TimeSpan.Zero)
 		{
 			throw new ArgumentOutOfRangeException(
-				nameof(requestDelay),
-				requestDelay,
-				"Metadata API request delay must be >= 0.");
+				nameof(minimumRequestDelay),
+				minimumRequestDelay,
+				"Metadata API minimum request delay must be >= 0.");
 		}
 
-		_requestDelay = requestDelay;
+		if (maximumRequestDelay < TimeSpan.Zero)
+		{
+			throw new ArgumentOutOfRangeException(
+				nameof(maximumRequestDelay),
+				maximumRequestDelay,
+				"Metadata API maximum request delay must be >= 0.");
+		}
+
+		if (maximumRequestDelay < minimumRequestDelay)
+		{
+			throw new ArgumentOutOfRangeException(
+				nameof(maximumRequestDelay),
+				maximumRequestDelay,
+				"Metadata API maximum request delay must be >= minimum request delay.");
+		}
+
+		_minimumRequestDelay = minimumRequestDelay;
+		_maximumRequestDelay = maximumRequestDelay;
 		_utcNowProvider = utcNowProvider ?? throw new ArgumentNullException(nameof(utcNowProvider));
 		_delayAsync = delayAsync ?? throw new ArgumentNullException(nameof(delayAsync));
+		_requestDelaySelector = requestDelaySelector ?? throw new ArgumentNullException(nameof(requestDelaySelector));
 	}
 
 	/// <inheritdoc />
@@ -100,8 +168,10 @@ internal sealed class MetadataApiRequestThrottle : IMetadataApiRequestThrottle
 			}
 			finally
 			{
+				TimeSpan selectedDelay = _requestDelaySelector(_minimumRequestDelay, _maximumRequestDelay);
+				ValidateSelectedDelay(selectedDelay);
 				DateTimeOffset completedAtUtc = _utcNowProvider().ToUniversalTime();
-				_nextAllowedStartUtc = completedAtUtc + _requestDelay;
+				_nextAllowedStartUtc = completedAtUtc + selectedDelay;
 			}
 		}
 		finally
@@ -117,7 +187,7 @@ internal sealed class MetadataApiRequestThrottle : IMetadataApiRequestThrottle
 	/// <returns>A task that completes when the current pacing window allows execution.</returns>
 	private async Task WaitForPacingWindowIfRequired(CancellationToken cancellationToken)
 	{
-		if (_requestDelay <= TimeSpan.Zero || !_nextAllowedStartUtc.HasValue)
+		if (_maximumRequestDelay <= TimeSpan.Zero || !_nextAllowedStartUtc.HasValue)
 		{
 			return;
 		}
@@ -134,6 +204,18 @@ internal sealed class MetadataApiRequestThrottle : IMetadataApiRequestThrottle
 	}
 
 	/// <summary>
+	/// Validates one selected delay value produced by the selector callback.
+	/// </summary>
+	/// <param name="selectedDelay">Selected delay value.</param>
+	private void ValidateSelectedDelay(TimeSpan selectedDelay)
+	{
+		if (selectedDelay < _minimumRequestDelay || selectedDelay > _maximumRequestDelay)
+		{
+			throw new InvalidOperationException("Selected metadata API request delay is outside the configured bounds.");
+		}
+	}
+
+	/// <summary>
 	/// Executes the default delay behavior for non-test runtime use.
 	/// </summary>
 	/// <param name="delay">Delay to apply.</param>
@@ -147,5 +229,52 @@ internal sealed class MetadataApiRequestThrottle : IMetadataApiRequestThrottle
 		}
 
 		return Task.Delay(delay, cancellationToken);
+	}
+
+	/// <summary>
+	/// Selects one random delay value between the configured bounds (inclusive).
+	/// </summary>
+	/// <param name="minimumDelay">Minimum configured delay.</param>
+	/// <param name="maximumDelay">Maximum configured delay.</param>
+	/// <returns>Selected delay value.</returns>
+	private static TimeSpan DefaultSelectDelay(TimeSpan minimumDelay, TimeSpan maximumDelay)
+	{
+		if (maximumDelay <= minimumDelay)
+		{
+			return minimumDelay;
+		}
+
+		long minimumTicks = minimumDelay.Ticks;
+		long rangeTicks = maximumDelay.Ticks - minimumTicks;
+		if (rangeTicks == long.MaxValue)
+		{
+			long selectedOffsetTicks = SelectInclusiveOffsetForFullRange();
+			return TimeSpan.FromTicks(minimumTicks + selectedOffsetTicks);
+		}
+
+		long randomOffsetTicks = Random.Shared.NextInt64(rangeTicks + 1);
+		return TimeSpan.FromTicks(minimumTicks + randomOffsetTicks);
+	}
+
+	/// <summary>
+	/// Produces one random offset in the inclusive range [0, <see cref="long.MaxValue"/>].
+	/// </summary>
+	/// <returns>Random offset in ticks.</returns>
+	private static long SelectInclusiveOffsetForFullRange()
+	{
+		Span<byte> randomBytes = stackalloc byte[sizeof(ulong)];
+		Random.Shared.NextBytes(randomBytes);
+		ulong rawRandomValue = BitConverter.ToUInt64(randomBytes);
+		return NormalizeInclusiveOffsetFromRawUInt64(rawRandomValue);
+	}
+
+	/// <summary>
+	/// Maps one raw random 64-bit value into the inclusive non-negative range used by full-range delay selection.
+	/// </summary>
+	/// <param name="rawRandomValue">Raw random 64-bit value.</param>
+	/// <returns>One non-negative tick offset in the inclusive range [0, <see cref="long.MaxValue"/>].</returns>
+	internal static long NormalizeInclusiveOffsetFromRawUInt64(ulong rawRandomValue)
+	{
+		return (long)(rawRandomValue & long.MaxValue);
 	}
 }

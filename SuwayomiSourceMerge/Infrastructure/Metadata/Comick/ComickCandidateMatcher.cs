@@ -60,12 +60,14 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 	public async Task<ComickCandidateMatchResult> MatchAsync(
 		IReadOnlyList<ComickSearchComic> candidates,
 		IReadOnlyList<string> expectedTitles,
-		CancellationToken cancellationToken = default)
+		CancellationToken cancellationToken = default,
+		ComickLookupMode lookupMode = ComickLookupMode.CacheThenLive)
 	{
 		ArgumentNullException.ThrowIfNull(candidates);
 		ArgumentNullException.ThrowIfNull(expectedTitles);
 
 		ValidateCandidateEntries(candidates);
+		string ambiguityTitle = ResolveAmbiguityTitle(expectedTitles);
 		HashSet<string> expectedTitleKeys = BuildExpectedTitleKeys(expectedTitles);
 		if (expectedTitleKeys.Count == 0)
 		{
@@ -76,6 +78,8 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 		TopSimilarityTieInfo topSimilarityTieInfo = GetTopSimilarityTieInfo(candidateSimilarityScores);
 		IReadOnlyList<int> evaluationOrder = BuildEvaluationOrder(candidates, candidateSimilarityScores);
 		bool hadServiceInterruption = false;
+		bool hadFlaresolverrUnavailable = false;
+		bool hadRequiredLookupFailure = false;
 		for (int orderIndex = 0; orderIndex < evaluationOrder.Count; orderIndex++)
 		{
 			cancellationToken.ThrowIfCancellationRequested();
@@ -90,7 +94,7 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 			try
 			{
 				detailResult = await _comickApiGateway
-					.GetComicAsync(searchCandidate.Slug, cancellationToken)
+					.GetComicAsync(searchCandidate.Slug, cancellationToken, lookupMode)
 					.ConfigureAwait(false);
 			}
 			catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -110,9 +114,33 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 				continue;
 			}
 
+			if (detailResult.Outcome == ComickDirectApiOutcome.FlaresolverrUnavailable)
+			{
+				hadFlaresolverrUnavailable = true;
+				// Title attempt is invalid once any detail probe is unavailable during outage cooldown/miss policy.
+				return CreateNoHighConfidenceResult(
+					hadServiceInterruption,
+					hadFlaresolverrUnavailable: true,
+					hadRequiredLookupFailure);
+			}
+
+			if (detailResult.IsCacheOnlyMiss)
+			{
+				hadRequiredLookupFailure = true;
+				continue;
+			}
+
 			if (IsServiceInterruptionOutcome(detailResult.Outcome))
 			{
 				hadServiceInterruption = true;
+			}
+
+			if (detailResult.Outcome == ComickDirectApiOutcome.MalformedPayload)
+			{
+				LogMalformedCandidatePayload(
+					searchCandidate.Slug,
+					candidateIndex,
+					detailResult.Diagnostic);
 			}
 
 			if (detailResult.Outcome != ComickDirectApiOutcome.Success || detailResult.Payload is null)
@@ -131,6 +159,7 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 			if (topSimilarityTieInfo.HasTopSimilarityTie)
 			{
 				LogCandidateAmbiguity(
+					ambiguityTitle,
 					candidates.Count,
 					expectedTitleKeys.Count,
 					topSimilarityTieInfo.TopSimilarity,
@@ -143,26 +172,35 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 				candidateIndex,
 				hadTopTie,
 				matchScore,
-				hadServiceInterruption);
+				hadServiceInterruption,
+				hadFlaresolverrUnavailable,
+				hadRequiredLookupFailure: false);
 		}
 
 		if (topSimilarityTieInfo.HasTopSimilarityTie)
 		{
 			LogCandidateAmbiguity(
+				ambiguityTitle,
 				candidates.Count,
 				expectedTitleKeys.Count,
 				topSimilarityTieInfo.TopSimilarity,
 				topSimilarityTieInfo.TiedCandidateCount);
 		}
 
-		return CreateNoHighConfidenceResult(hadServiceInterruption);
+		return CreateNoHighConfidenceResult(
+			hadServiceInterruption,
+			hadFlaresolverrUnavailable,
+			hadRequiredLookupFailure);
 	}
 
 	/// <summary>
 	/// Creates a no-match result with canonical sentinel values.
 	/// </summary>
 	/// <returns>No-high-confidence match result.</returns>
-	private static ComickCandidateMatchResult CreateNoHighConfidenceResult(bool hadServiceInterruption = false)
+	private static ComickCandidateMatchResult CreateNoHighConfidenceResult(
+		bool hadServiceInterruption = false,
+		bool hadFlaresolverrUnavailable = false,
+		bool hadRequiredLookupFailure = false)
 	{
 		return new ComickCandidateMatchResult(
 			ComickCandidateMatchOutcome.NoHighConfidenceMatch,
@@ -170,7 +208,9 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 			ComickCandidateMatchResult.NoMatchCandidateIndex,
 			hadTopTie: false,
 			matchScore: NoMatchScore,
-			hadServiceInterruption);
+			hadServiceInterruption,
+			hadFlaresolverrUnavailable,
+			hadRequiredLookupFailure);
 	}
 
 	/// <summary>
@@ -180,6 +220,7 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 	/// <returns><see langword="true"/> when outcome indicates interruption; otherwise <see langword="false"/>.</returns>
 	private static bool IsServiceInterruptionOutcome(ComickDirectApiOutcome outcome)
 	{
+		// FlareSolverrUnavailable is tracked separately to support coordinator non-failing artifact-suppression behavior.
 		return outcome == ComickDirectApiOutcome.TransportFailure
 			|| outcome == ComickDirectApiOutcome.CloudflareBlocked
 			|| outcome == ComickDirectApiOutcome.HttpFailure
@@ -201,6 +242,25 @@ internal sealed partial class ComickCandidateMatcher : IComickCandidateMatcher
 					nameof(candidates));
 			}
 		}
+	}
+
+	/// <summary>
+	/// Resolves one representative expected title used for ambiguity warning telemetry.
+	/// </summary>
+	/// <param name="expectedTitles">Expected title values provided for candidate matching.</param>
+	/// <returns>First non-empty expected title value; otherwise an empty value.</returns>
+	private static string ResolveAmbiguityTitle(IReadOnlyList<string> expectedTitles)
+	{
+		for (int index = 0; index < expectedTitles.Count; index++)
+		{
+			string? expectedTitle = expectedTitles[index];
+			if (!string.IsNullOrWhiteSpace(expectedTitle))
+			{
+				return expectedTitle.Trim();
+			}
+		}
+
+		return string.Empty;
 	}
 
 	/// <summary>

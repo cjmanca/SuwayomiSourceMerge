@@ -12,7 +12,8 @@ internal sealed class ComickStatistic
 	/// Gets or sets the score-count value.
 	/// </summary>
 	[JsonPropertyName("score_count")]
-	public int ScoreCount
+	[JsonConverter(typeof(ComickTolerantNullableInt32Converter))]
+	public int? ScoreCount
 	{
 		get;
 		init;
@@ -22,6 +23,7 @@ internal sealed class ComickStatistic
 	/// Gets or sets the weighted-score text.
 	/// </summary>
 	[JsonPropertyName("weighted_score")]
+	[JsonConverter(typeof(ComickTolerantStringConverter))]
 	public string WeightedScore
 	{
 		get;
@@ -32,16 +34,18 @@ internal sealed class ComickStatistic
 	/// Gets or sets score distribution values keyed from 1..10.
 	/// </summary>
 	[JsonPropertyName("distribution")]
-	public ComickScoreDistribution Distribution
+	[JsonConverter(typeof(ComickOptionalObjectJsonConverter<ComickScoreDistribution>))]
+	public ComickScoreDistribution? Distribution
 	{
 		get;
 		init;
-	} = new();
+	}
 
 	/// <summary>
 	/// Gets or sets score text.
 	/// </summary>
 	[JsonPropertyName("score")]
+	[JsonConverter(typeof(ComickTolerantStringConverter))]
 	public string Score
 	{
 		get;
@@ -56,7 +60,8 @@ internal sealed class ComickScoreDistribution
 {
 	/// <summary>Gets or sets votes for score bucket 1.</summary>
 	[JsonPropertyName("1")]
-	public int One
+	[JsonConverter(typeof(ComickTolerantNullableInt32Converter))]
+	public int? One
 	{
 		get;
 		init;
@@ -64,7 +69,8 @@ internal sealed class ComickScoreDistribution
 
 	/// <summary>Gets or sets votes for score bucket 2.</summary>
 	[JsonPropertyName("2")]
-	public int Two
+	[JsonConverter(typeof(ComickTolerantNullableInt32Converter))]
+	public int? Two
 	{
 		get;
 		init;
@@ -72,7 +78,8 @@ internal sealed class ComickScoreDistribution
 
 	/// <summary>Gets or sets votes for score bucket 3.</summary>
 	[JsonPropertyName("3")]
-	public int Three
+	[JsonConverter(typeof(ComickTolerantNullableInt32Converter))]
+	public int? Three
 	{
 		get;
 		init;
@@ -80,7 +87,8 @@ internal sealed class ComickScoreDistribution
 
 	/// <summary>Gets or sets votes for score bucket 4.</summary>
 	[JsonPropertyName("4")]
-	public int Four
+	[JsonConverter(typeof(ComickTolerantNullableInt32Converter))]
+	public int? Four
 	{
 		get;
 		init;
@@ -88,7 +96,8 @@ internal sealed class ComickScoreDistribution
 
 	/// <summary>Gets or sets votes for score bucket 5.</summary>
 	[JsonPropertyName("5")]
-	public int Five
+	[JsonConverter(typeof(ComickTolerantNullableInt32Converter))]
+	public int? Five
 	{
 		get;
 		init;
@@ -96,7 +105,8 @@ internal sealed class ComickScoreDistribution
 
 	/// <summary>Gets or sets votes for score bucket 6.</summary>
 	[JsonPropertyName("6")]
-	public int Six
+	[JsonConverter(typeof(ComickTolerantNullableInt32Converter))]
+	public int? Six
 	{
 		get;
 		init;
@@ -104,7 +114,8 @@ internal sealed class ComickScoreDistribution
 
 	/// <summary>Gets or sets votes for score bucket 7.</summary>
 	[JsonPropertyName("7")]
-	public int Seven
+	[JsonConverter(typeof(ComickTolerantNullableInt32Converter))]
+	public int? Seven
 	{
 		get;
 		init;
@@ -112,7 +123,8 @@ internal sealed class ComickScoreDistribution
 
 	/// <summary>Gets or sets votes for score bucket 8.</summary>
 	[JsonPropertyName("8")]
-	public int Eight
+	[JsonConverter(typeof(ComickTolerantNullableInt32Converter))]
+	public int? Eight
 	{
 		get;
 		init;
@@ -120,7 +132,8 @@ internal sealed class ComickScoreDistribution
 
 	/// <summary>Gets or sets votes for score bucket 9.</summary>
 	[JsonPropertyName("9")]
-	public int Nine
+	[JsonConverter(typeof(ComickTolerantNullableInt32Converter))]
+	public int? Nine
 	{
 		get;
 		init;
@@ -128,7 +141,8 @@ internal sealed class ComickScoreDistribution
 
 	/// <summary>Gets or sets votes for score bucket 10.</summary>
 	[JsonPropertyName("10")]
-	public int Ten
+	[JsonConverter(typeof(ComickTolerantNullableInt32Converter))]
+	public int? Ten
 	{
 		get;
 		init;
@@ -144,6 +158,7 @@ internal sealed class ComickTitleAlias
 	/// Gets or sets title text.
 	/// </summary>
 	[JsonPropertyName("title")]
+	[JsonConverter(typeof(ComickTolerantStringConverter))]
 	public string Title
 	{
 		get;
@@ -154,6 +169,7 @@ internal sealed class ComickTitleAlias
 	/// Gets or sets optional language code.
 	/// </summary>
 	[JsonPropertyName("lang")]
+	[JsonConverter(typeof(ComickTolerantNullableStringConverter))]
 	public string? Language
 	{
 		get;
@@ -164,12 +180,14 @@ internal sealed class ComickTitleAlias
 /// <summary>
 /// Represents one Comick cover entry.
 /// </summary>
+[JsonConverter(typeof(ComickCoverJsonConverter))]
 internal sealed class ComickCover
 {
 	/// <summary>
 	/// Gets or sets optional volume token.
 	/// </summary>
 	[JsonPropertyName("vol")]
+	[JsonConverter(typeof(ComickTolerantNullableStringConverter))]
 	public string? Volume
 	{
 		get;
@@ -180,7 +198,8 @@ internal sealed class ComickCover
 	/// Gets or sets image width.
 	/// </summary>
 	[JsonPropertyName("w")]
-	public int Width
+	[JsonConverter(typeof(ComickTolerantNullableInt32Converter))]
+	public int? Width
 	{
 		get;
 		init;
@@ -190,7 +209,8 @@ internal sealed class ComickCover
 	/// Gets or sets image height.
 	/// </summary>
 	[JsonPropertyName("h")]
-	public int Height
+	[JsonConverter(typeof(ComickTolerantNullableInt32Converter))]
+	public int? Height
 	{
 		get;
 		init;
@@ -200,6 +220,7 @@ internal sealed class ComickCover
 	/// Gets or sets B2 storage key.
 	/// </summary>
 	[JsonPropertyName("b2key")]
+	[JsonConverter(typeof(ComickTolerantStringConverter))]
 	public string B2Key
 	{
 		get;
@@ -216,6 +237,7 @@ internal sealed class ComickMuComics
 	/// Gets or sets release year.
 	/// </summary>
 	[JsonPropertyName("year")]
+	[JsonConverter(typeof(ComickTolerantNullableInt32Converter))]
 	public int? Year
 	{
 		get;
@@ -226,6 +248,7 @@ internal sealed class ComickMuComics
 	/// Gets or sets MangaUpdates category vote entries.
 	/// </summary>
 	[JsonPropertyName("mu_comic_categories")]
+	[JsonConverter(typeof(ComickFilteredListJsonConverter<ComickMuComicCategoryVote>))]
 	public IReadOnlyList<ComickMuComicCategoryVote>? MuComicCategories
 	{
 		get;
@@ -246,12 +269,14 @@ internal sealed class ComickMuComics
 /// <summary>
 /// Represents one MangaUpdates category vote aggregate entry.
 /// </summary>
+[JsonConverter(typeof(ComickMuComicCategoryVoteJsonConverter))]
 internal sealed class ComickMuComicCategoryVote
 {
 	/// <summary>
 	/// Gets or sets category descriptor metadata.
 	/// </summary>
 	[JsonPropertyName("mu_categories")]
+	[JsonConverter(typeof(ComickMuCategoryDescriptorJsonConverter))]
 	public ComickMuCategoryDescriptor? Category
 	{
 		get;
@@ -262,6 +287,7 @@ internal sealed class ComickMuComicCategoryVote
 	/// Gets or sets positive vote count.
 	/// </summary>
 	[JsonPropertyName("positive_vote")]
+	[JsonConverter(typeof(ComickTolerantNullableInt32Converter))]
 	public int? PositiveVote
 	{
 		get;
@@ -272,6 +298,7 @@ internal sealed class ComickMuComicCategoryVote
 	/// Gets or sets negative vote count.
 	/// </summary>
 	[JsonPropertyName("negative_vote")]
+	[JsonConverter(typeof(ComickTolerantNullableInt32Converter))]
 	public int? NegativeVote
 	{
 		get;
@@ -288,6 +315,7 @@ internal sealed class ComickMuCategoryDescriptor
 	/// Gets or sets category title text.
 	/// </summary>
 	[JsonPropertyName("title")]
+	[JsonConverter(typeof(ComickTolerantNullableStringConverter))]
 	public string? Title
 	{
 		get;
@@ -298,6 +326,7 @@ internal sealed class ComickMuCategoryDescriptor
 	/// Gets or sets category slug text.
 	/// </summary>
 	[JsonPropertyName("slug")]
+	[JsonConverter(typeof(ComickTolerantNullableStringConverter))]
 	public string? Slug
 	{
 		get;

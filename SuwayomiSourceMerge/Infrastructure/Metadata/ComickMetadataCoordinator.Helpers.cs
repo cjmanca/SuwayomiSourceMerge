@@ -202,6 +202,7 @@ internal sealed partial class ComickMetadataCoordinator
 	/// <returns><see langword="true"/> when outcome indicates interruption; otherwise <see langword="false"/>.</returns>
 	private static bool IsServiceInterruptionOutcome(ComickDirectApiOutcome outcome)
 	{
+		// FlareSolverrUnavailable is intentionally excluded; coordinator handles it as a non-failing skip branch.
 		return outcome == ComickDirectApiOutcome.TransportFailure ||
 			outcome == ComickDirectApiOutcome.Cancelled ||
 			outcome == ComickDirectApiOutcome.CloudflareBlocked ||

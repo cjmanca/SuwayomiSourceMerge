@@ -61,18 +61,19 @@ Planned implementation scope for the next feature iteration:
 Planned runtime settings for this feature:
 
 - `runtime.comick_metadata_cooldown_hours` (default `24`): per-title API cooldown window used to reduce repeated Comick requests.
-- `runtime.flaresolverr_server_url` (default empty): optional FlareSolverr base URL used only when Cloudflare blocks direct API calls.
-- `runtime.flaresolverr_direct_retry_minutes` (default `60`): sticky FlareSolverr mode retry interval for probing direct Comick access again.
+- `runtime.flaresolverr_server_url` (default empty): optional FlareSolverr base URL; when empty, Comick API calls are skipped and coordinator uses ComicInfo/source-only details fallback.
+- `runtime.flaresolverr_direct_retry_minutes` (default `60`): FlareSolverr outage cooldown retry interval before API probes are attempted again.
 - `runtime.preferred_language` (default `en`): preferred language code used for canonical-title selection from Comick alternate title lists. Canonical selection considers only alternate titles whose normalized title keys are non-empty. Allow any non-empty string. When matching, try to match exactly, but fall back to the first 2 characters (so `zh-CN` would fallback to just `zh` and match anything starting with that such as `zh`, `zh-TW`, `zh-HK`, etc). If none of that matches, still fall back to `en`, and then normal title if that also fails.
 
 Planned Comick/Flaresolverr routing behavior:
 
-- API routing is direct-first for Comick using configurable settings (`runtime.comick_api_base_url`, `runtime.comick_search_endpoint_path`, `runtime.comick_search_max_results`, `runtime.comick_comic_endpoint_path`) with defaults equivalent to `/v1.0/search/` and `/comic/{slug}/`.
+- API routing is FlareSolverr-only for Comick using configurable settings (`runtime.comick_api_base_url`, `runtime.comick_search_endpoint_path`, `runtime.comick_search_max_results`, `runtime.comick_comic_endpoint_path`) with defaults equivalent to `/v1.0/search/` and `/comic/{slug}/`.
 - Check each search result via `/comic/{slug}/`, using the `md_titles` (normalized) it returns to check against entries in `manga_equivalents.yml` (or normalized title if no matching entry in `manga_equivalents.yml`).
 - The first search result is often the correct one, so try that first. If that doesn't match, sort the remaining search results by most likely to least likely to reduce API hits on retrieving the full comic info. Short circuit out once a valid matching entry is found.
-- If direct access is Cloudflare-blocked and FlareSolverr is configured, switch to sticky FlareSolverr mode.
-- After `runtime.flaresolverr_direct_retry_minutes`, retry direct mode; if Cloudflare still blocks, return to sticky FlareSolverr mode.
-- If FlareSolverr is not configured, Cloudflare-blocked requests fall back to existing ComicInfo/source-only metadata paths.
+- If FlareSolverr transport/HTTP is unavailable, activate sticky outage cooldown and short-circuit Comick requests while cooldown is active.
+- While FlareSolverr outage cooldown is active, cache-hit Comick responses are still allowed for title resolution.
+- During one title attempt, any required Comick lookup that resolves to `FlaresolverrUnavailable` invalidates that title attempt; coordinator then skips both `cover.jpg` and `details.json` generation without failing merge passes.
+- If FlareSolverr is not configured, coordinator bypasses Comick API calls and uses existing ComicInfo/source-only details behavior.
 - If both `cover.jpg` and `details.json` already exist for a title, skip Comick API queries entirely for that title.
 
 ## Metadata API pacing and response caching (implemented)
@@ -80,9 +81,11 @@ Planned Comick/Flaresolverr routing behavior:
 Implemented behavior:
 
 - Add configurable pacing between actual metadata HTTP requests so all requests are still attempted, but spaced out.
-- Keep current artifact/cooldown short-circuit behavior; when no outbound API call is needed, no pacing delay should be applied.
+- Keep artifact short-circuit behavior and title-cooldown live-call suppression; when no outbound API call is needed (including cache-only title-cooldown lookups), no pacing delay should be applied.
 - Add persisted Comick API response caching for both search and comic-detail endpoints so repeated lookups can be served from cache without outbound requests or pacing delay.
-- All Comick search and comic-detail endpoint requests append `tachiyomi=true` (direct and FlareSolverr-routed).
+- With FlareSolverr configured, `details.json` fallback generation is suppressed only when required Comick lookups fail (including cooldown cache-only misses and non-cooldown lookup failures); clean no-match completion still allows ComicInfo fallback.
+- Cache-only cooldown misses are treated as required-lookup failures (details suppression) but not as merge-pass service interruptions.
+- All Comick search and comic-detail endpoint requests append `tachiyomi=true` (FlareSolverr-routed).
 - Keep scan behavior resilient: pacing delays and cache misses must not be treated as scan failures by themselves.
 
 Design rationale and implementation options considered:
@@ -116,9 +119,13 @@ Selected behavior for this implemented feature:
 
 Implemented runtime settings:
 
-- `runtime.metadata_api_request_delay_ms` (default `1000`):
+- `runtime.metadata_api_min_request_delay_ms` (default `1000`):
   - non-negative integer milliseconds
-  - `0` disables pacing
+  - lower bound used when selecting per-request pacing delay
+- `runtime.metadata_api_max_request_delay_ms` (default `5000`):
+  - non-negative integer milliseconds
+  - must be greater than or equal to `runtime.metadata_api_min_request_delay_ms`
+  - pacing is disabled when both min and max are `0`
 - `runtime.metadata_api_cache_ttl_hours` (default `24`):
   - positive integer hour TTL for persisted Comick response cache entries
 
@@ -150,7 +157,7 @@ Implemented gateway/cache flow:
 - On `SearchAsync` and `GetComicAsync`:
   - first attempt cache read for unexpired valid entries
   - on cache hit, return cached result immediately (no throttle, no outbound request)
-  - on cache miss, execute existing routing behavior (direct-first + sticky FlareSolverr fallback)
+  - on cache miss, execute existing routing behavior (FlareSolverr-only with outage cooldown short-circuit)
   - after live request, persist cache entry only for cacheable outcomes
   - keep state-store operations best-effort with warning telemetry on non-fatal failures
 

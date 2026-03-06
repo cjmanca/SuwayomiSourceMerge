@@ -33,6 +33,7 @@ You are a senior .NET developer and designer skilled in writing reliable, testab
 
 ## Coding Standards (Enforced)
 - SOLID principles
+- Test-Driven Development; follow a red-green-refactor cycle.
 - Composition over inheritance
 - Avoid god classes; split managers into focused systems or services with clear interfaces.
 - Decouple via interfaces, events, and data
@@ -43,15 +44,15 @@ You are a senior .NET developer and designer skilled in writing reliable, testab
 - Allman braces
 - `_privateMember` naming for private member fields
 - PascalCase static constants
-- Keep files under 500 lines. Refactor before you cross the limit.
+- Keep files under 500 lines. Refactor before you cross the limit. Prefer extracting functionality to helper classes over `partial` splits.
 - Organize code into clearly separated classes, structs, and interfaces grouped by feature and responsibility.
 
 ## Testing Expectations
 - All code paths must be testable
-- New features require tests
-- Changing existing features requires updated tests
+- New features require tests prior to implementation (TDD)
+- Changing existing features requires updated tests prior to implementation (TDD)
 - For every code path, include an expected case, an edge case, and a failure case.
-- While writing unit tests, don't assume that the code is accurate. Write the tests based on what the documentation implies that the function should return.
+- While writing unit tests for existing code, don't assume that the code is accurate. Write the tests based on what the documentation implies that the function should return.
 - If a test fails, analyze whether the function result is incorrect or the unit test was written incorrectly before deciding how to fix it.
 
 

@@ -8,24 +8,19 @@ namespace SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 internal sealed partial class CloudflareAwareComickGateway
 {
 	/// <summary>
-	/// Event id emitted when sticky mode routes directly to FlareSolverr.
-	/// </summary>
-	private const string StickyRouteEvent = "metadata.cloudflare.fallback.sticky_route";
-
-	/// <summary>
-	/// Event id emitted when Cloudflare block activates sticky FlareSolverr fallback.
-	/// </summary>
-	private const string FallbackActivatedEvent = "metadata.cloudflare.fallback.activated";
-
-	/// <summary>
-	/// Event id emitted when Cloudflare block is observed but FlareSolverr is unavailable.
+	/// Event id emitted when FlareSolverr is unavailable and outage cooldown is activated.
 	/// </summary>
 	private const string FallbackUnavailableEvent = "metadata.cloudflare.fallback.unavailable";
 
 	/// <summary>
-	/// Event id emitted when expired sticky routing state is cleared.
+	/// Event id emitted when FlareSolverr outage cooldown is active and request execution is skipped.
 	/// </summary>
-	private const string StickyClearedEvent = "metadata.cloudflare.fallback.sticky_cleared";
+	private const string CooldownActiveEvent = "metadata.cloudflare.fallback.cooldown_active";
+
+	/// <summary>
+	/// Event id emitted when expired FlareSolverr outage cooldown state is cleared.
+	/// </summary>
+	private const string CooldownClearedEvent = "metadata.cloudflare.fallback.cooldown_cleared";
 
 	/// <summary>
 	/// Event id emitted when metadata state-store operations fail and fallback behavior is applied.
@@ -58,66 +53,112 @@ internal sealed partial class CloudflareAwareComickGateway
 	private const string CacheStateStoreFailedEvent = "metadata.comick.cache.state_store_failed";
 
 	/// <summary>
-	/// Logs sticky-route diagnostics.
+	/// Event id emitted when FlareSolverr upstream response normalization is evaluated.
+	/// </summary>
+	private const string ResponseNormalizedEvent = "metadata.cloudflare.response.normalized";
+
+	/// <summary>
+	/// Logs FlareSolverr-unavailable activation diagnostics.
 	/// </summary>
 	/// <param name="endpointUri">Endpoint URI.</param>
 	/// <param name="stickyUntilUtc">Sticky expiry timestamp.</param>
-	private void LogStickyRoute(Uri endpointUri, DateTimeOffset? stickyUntilUtc)
+	/// <param name="diagnostic">Unavailable diagnostic.</param>
+	private void LogFlaresolverrUnavailable(Uri endpointUri, DateTimeOffset stickyUntilUtc, string diagnostic)
+	{
+		_logger.Warning(
+			FallbackUnavailableEvent,
+			"FlareSolverr unavailable; activating outage cooldown for Comick requests.",
+			BuildContext(
+				("endpoint", endpointUri.AbsoluteUri),
+				("sticky_until_utc", stickyUntilUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture)),
+				("direct_retry_minutes", _options.FlaresolverrDirectRetryInterval.TotalMinutes.ToString(CultureInfo.InvariantCulture)),
+				("diagnostic", diagnostic)));
+	}
+
+	/// <summary>
+	/// Logs cooldown-active skip diagnostics.
+	/// </summary>
+	/// <param name="endpointUri">Endpoint URI.</param>
+	/// <param name="stickyUntilUtc">Cooldown expiry timestamp.</param>
+	private void LogCooldownActiveSkip(Uri endpointUri, DateTimeOffset? stickyUntilUtc)
 	{
 		_logger.Debug(
-			StickyRouteEvent,
-			"Using sticky FlareSolverr route for Comick request.",
+			CooldownActiveEvent,
+			"Skipping Comick request while FlareSolverr outage cooldown is active.",
 			BuildContext(
 				("endpoint", endpointUri.AbsoluteUri),
 				("sticky_until_utc", stickyUntilUtc?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture))));
 	}
 
 	/// <summary>
-	/// Logs fallback activation diagnostics.
+	/// Logs cooldown-clear diagnostics.
 	/// </summary>
 	/// <param name="endpointUri">Endpoint URI.</param>
-	/// <param name="stickyUntilUtc">Sticky expiry timestamp.</param>
-	private void LogFallbackActivated(Uri endpointUri, DateTimeOffset stickyUntilUtc)
-	{
-		_logger.Warning(
-			FallbackActivatedEvent,
-			"Cloudflare block detected; activating sticky FlareSolverr fallback routing.",
-			BuildContext(
-				("endpoint", endpointUri.AbsoluteUri),
-				("sticky_until_utc", stickyUntilUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture)),
-				("direct_retry_minutes", _options.FlaresolverrDirectRetryInterval.TotalMinutes.ToString(CultureInfo.InvariantCulture))));
-	}
-
-	/// <summary>
-	/// Logs fallback-unavailable diagnostics.
-	/// </summary>
-	/// <param name="endpointUri">Endpoint URI.</param>
-	/// <param name="diagnostic">Direct-request diagnostic.</param>
-	private void LogFallbackUnavailable(Uri endpointUri, string diagnostic)
-	{
-		_logger.Warning(
-			FallbackUnavailableEvent,
-			"Cloudflare block detected but FlareSolverr fallback is not configured.",
-			BuildContext(
-				("endpoint", endpointUri.AbsoluteUri),
-				("diagnostic", diagnostic)));
-	}
-
-	/// <summary>
-	/// Logs sticky-clear diagnostics.
-	/// </summary>
-	/// <param name="endpointUri">Endpoint URI.</param>
-	/// <param name="directOutcome">Direct request outcome.</param>
 	/// <param name="nowUtc">Current UTC timestamp.</param>
-	private void LogStickyCleared(Uri endpointUri, ComickDirectApiOutcome directOutcome, DateTimeOffset nowUtc)
+	private void LogCooldownCleared(Uri endpointUri, DateTimeOffset nowUtc)
 	{
 		_logger.Debug(
-			StickyClearedEvent,
-			"Cleared expired sticky FlareSolverr fallback routing state.",
+			CooldownClearedEvent,
+			"Cleared expired FlareSolverr outage cooldown state.",
 			BuildContext(
 				("endpoint", endpointUri.AbsoluteUri),
-				("direct_outcome", directOutcome.ToString()),
 				("timestamp_utc", nowUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture))));
+	}
+
+	/// <summary>
+	/// Logs FlareSolverr upstream response-normalization diagnostics.
+	/// </summary>
+	/// <param name="endpointUri">Endpoint URI.</param>
+	/// <param name="upstreamStatusCode">Upstream status code from FlareSolverr wrapper.</param>
+	/// <param name="normalizationResult">Normalization result.</param>
+	private void LogResponseNormalization(
+		Uri endpointUri,
+		int? upstreamStatusCode,
+		ResponseNormalizationResult normalizationResult)
+	{
+		ArgumentNullException.ThrowIfNull(endpointUri);
+		_logger.Debug(
+			ResponseNormalizedEvent,
+			"Normalized FlareSolverr upstream response for Comick parsing.",
+				BuildContext(
+					("endpoint", endpointUri.AbsoluteUri),
+					("upstream_status", upstreamStatusCode?.ToString(CultureInfo.InvariantCulture)),
+					("normalization_mode", NormalizeResponseMode(normalizationResult.Mode)),
+					("html_wrapper_detection", NormalizeHtmlWrapperDetection(normalizationResult.HtmlWrapperDetection)),
+					("is_html_wrapped", normalizationResult.HtmlWrapperDetection == HtmlWrapperDetectionState.Detected ? "true" : "false"),
+					("success", normalizationResult.Success ? "true" : "false"),
+					("diagnostic", normalizationResult.Diagnostic),
+					("response_prefix", normalizationResult.ResponsePrefix)));
+	}
+
+	/// <summary>
+	/// Converts one response-normalization mode into the canonical diagnostics token.
+	/// </summary>
+	/// <param name="mode">Normalization mode.</param>
+	/// <returns>Canonical diagnostics token.</returns>
+	private static string NormalizeResponseMode(ResponseNormalizationMode mode)
+	{
+		return mode switch
+		{
+			ResponseNormalizationMode.RawJson => "raw_json",
+			ResponseNormalizationMode.HtmlPreExtracted => "html_pre_extracted",
+			_ => "failed"
+		};
+	}
+
+	/// <summary>
+	/// Converts one HTML-wrapper detection state into the canonical diagnostics token.
+	/// </summary>
+	/// <param name="state">HTML-wrapper detection state.</param>
+	/// <returns>Canonical diagnostics token.</returns>
+	private static string NormalizeHtmlWrapperDetection(HtmlWrapperDetectionState state)
+	{
+		return state switch
+		{
+			HtmlWrapperDetectionState.Detected => "detected",
+			HtmlWrapperDetectionState.Unknown => "unknown",
+			_ => "not_detected"
+		};
 	}
 
 	/// <summary>

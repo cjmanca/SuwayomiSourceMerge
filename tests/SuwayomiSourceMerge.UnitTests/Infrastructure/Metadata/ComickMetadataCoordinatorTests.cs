@@ -35,6 +35,252 @@ public sealed partial class ComickMetadataCoordinatorTests
 	}
 
 	/// <summary>
+	/// Verifies missing FlareSolverr URL bypasses Comick calls while still allowing details fallback generation.
+	/// </summary>
+	[Fact]
+	public void EnsureMetadata_Expected_ShouldBypassComick_WhenFlaresolverrUrlIsMissing()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		TestFixture fixture = CreateFixture(
+			temporaryDirectory.Path,
+			static (_, _) => throw new InvalidOperationException("Comick API should not be called when FlareSolverr URL is missing."));
+		ComickMetadataCoordinatorRequest request = fixture.CreateRequestWithoutArtifacts(
+			"Canonical Title",
+			CreateMetadataOrchestrationOptions(flaresolverrServerUri: null));
+
+		ComickMetadataCoordinatorResult result = fixture.Coordinator.EnsureMetadata(request);
+
+		Assert.False(result.ApiCalled);
+		Assert.False(result.HadServiceInterruption);
+		Assert.Equal(0, fixture.ApiGateway.SearchCallCount);
+		Assert.Equal(0, fixture.CoverService.CallCount);
+		Assert.Equal(1, fixture.DetailsService.CallCount);
+	}
+
+	/// <summary>
+	/// Verifies active title cooldown still allows cache-only matching and equivalents updates without cooldown extension.
+	/// </summary>
+	[Fact]
+	public void EnsureMetadata_Edge_ShouldUseCacheOnlyLookup_WhenTitleCooldownIsActive()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		RecordingMangaEquivalenceCatalog catalog = new(
+			new MangaEquivalenceCatalogUpdateResult(
+				MangaEquivalenceCatalogUpdateOutcome.Applied,
+				new MangaEquivalentsUpdateResult(
+					MangaEquivalentsUpdateOutcome.UpdatedExistingGroup,
+					Path.Combine(temporaryDirectory.Path, "manga_equivalents.yml"),
+					0,
+					3,
+					diagnostic: null),
+				diagnostic: null));
+		TestFixture fixture = CreateFixture(
+			temporaryDirectory.Path,
+			static (_, _) => CreateSearchResult(ComickDirectApiOutcome.Success),
+			catalog);
+		fixture.CandidateMatcher.NextMatchResult = CreateMatchedCandidateResult();
+		fixture.MetadataStateStore.SetSnapshot(
+			new MetadataStateSnapshot(
+				new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal)
+				{
+					["canonicaltitle"] = DateTimeOffset.UtcNow.AddHours(1)
+				},
+				stickyFlaresolverrUntilUtc: null));
+		ComickMetadataCoordinatorRequest request = fixture.CreateRequestWithoutArtifacts("Canonical Title");
+
+		ComickMetadataCoordinatorResult result = fixture.Coordinator.EnsureMetadata(request);
+
+		Assert.True(result.ApiCalled);
+		Assert.False(result.HadServiceInterruption);
+		Assert.Equal(ComickLookupMode.CacheOnly, fixture.ApiGateway.LastSearchLookupMode);
+		Assert.Equal(ComickLookupMode.CacheOnly, fixture.CandidateMatcher.LastLookupMode);
+		Assert.Equal(1, fixture.CandidateMatcher.MatchCallCount);
+		Assert.Equal(1, fixture.CoverService.CallCount);
+		Assert.Equal(1, fixture.DetailsService.CallCount);
+		Assert.Equal(0, fixture.MetadataStateStore.TransformCallCount);
+	}
+
+	/// <summary>
+	/// Verifies cache-only cooldown lookup suppresses details fallback writes when no matched Comick payload is available.
+	/// </summary>
+	[Fact]
+	public void EnsureMetadata_Edge_ShouldSkipDetailsFallback_WhenCacheOnlyLookupHasNoMatchedComic()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		TestFixture fixture = CreateFixture(
+			temporaryDirectory.Path,
+			static (_, _) => new ComickDirectApiResult<ComickSearchResponse>(
+				ComickDirectApiOutcome.NotFound,
+				payload: null,
+				statusCode: HttpStatusCode.NotFound,
+				diagnostic: ComickLookupDiagnostics.CacheOnlyMiss,
+				isCacheOnlyMiss: true));
+		fixture.MetadataStateStore.SetSnapshot(
+			new MetadataStateSnapshot(
+				new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal)
+				{
+					["canonicaltitle"] = DateTimeOffset.UtcNow.AddHours(1)
+				},
+				stickyFlaresolverrUntilUtc: null));
+		ComickMetadataCoordinatorRequest request = fixture.CreateRequestWithoutArtifacts("Canonical Title");
+
+		ComickMetadataCoordinatorResult result = fixture.Coordinator.EnsureMetadata(request);
+
+		Assert.True(result.ApiCalled);
+		Assert.False(result.HadServiceInterruption);
+		Assert.False(result.CoverExists);
+		Assert.False(result.DetailsExists);
+		Assert.Equal(ComickLookupMode.CacheOnly, fixture.ApiGateway.LastSearchLookupMode);
+		Assert.Equal(0, fixture.CandidateMatcher.MatchCallCount);
+		Assert.Equal(0, fixture.CoverService.CallCount);
+		Assert.Equal(0, fixture.DetailsService.CallCount);
+		Assert.Equal(0, fixture.MetadataStateStore.TransformCallCount);
+	}
+
+	/// <summary>
+	/// Verifies diagnostic text alone does not trigger cache-only miss handling without the typed miss flag.
+	/// </summary>
+	[Fact]
+	public void EnsureMetadata_Edge_ShouldAllowDetailsFallback_WhenCacheOnlyMissFlagIsNotSet()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		TestFixture fixture = CreateFixture(
+			temporaryDirectory.Path,
+			static (_, _) => new ComickDirectApiResult<ComickSearchResponse>(
+				ComickDirectApiOutcome.NotFound,
+				payload: null,
+				statusCode: HttpStatusCode.NotFound,
+				diagnostic: ComickLookupDiagnostics.CacheOnlyMiss));
+		fixture.MetadataStateStore.SetSnapshot(
+			new MetadataStateSnapshot(
+				new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal)
+				{
+					["canonicaltitle"] = DateTimeOffset.UtcNow.AddHours(1)
+				},
+				stickyFlaresolverrUntilUtc: null));
+		ComickMetadataCoordinatorRequest request = fixture.CreateRequestWithoutArtifacts("Canonical Title");
+
+		ComickMetadataCoordinatorResult result = fixture.Coordinator.EnsureMetadata(request);
+
+		Assert.True(result.ApiCalled);
+		Assert.False(result.HadServiceInterruption);
+		Assert.False(result.CoverExists);
+		Assert.True(result.DetailsExists);
+		Assert.Equal(ComickLookupMode.CacheOnly, fixture.ApiGateway.LastSearchLookupMode);
+		Assert.Equal(0, fixture.CandidateMatcher.MatchCallCount);
+		Assert.Equal(0, fixture.CoverService.CallCount);
+		Assert.Equal(1, fixture.DetailsService.CallCount);
+		Assert.Equal(0, fixture.MetadataStateStore.TransformCallCount);
+	}
+
+	/// <summary>
+	/// Verifies normal lookup mode suppresses details fallback writes when required Comick lookups fail.
+	/// </summary>
+	[Fact]
+	public void EnsureMetadata_Edge_ShouldSkipDetailsFallback_WhenComickLookupFails()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		TestFixture fixture = CreateFixture(
+			temporaryDirectory.Path,
+			static (_, _) => CreateSearchResult(ComickDirectApiOutcome.HttpFailure));
+		ComickMetadataCoordinatorRequest request = fixture.CreateRequestWithoutArtifacts("Canonical Title");
+
+		ComickMetadataCoordinatorResult result = fixture.Coordinator.EnsureMetadata(request);
+
+		Assert.True(result.ApiCalled);
+		Assert.True(result.HadServiceInterruption);
+		Assert.False(result.CoverExists);
+		Assert.False(result.DetailsExists);
+		Assert.Equal(ComickLookupMode.CacheThenLive, fixture.ApiGateway.LastSearchLookupMode);
+		Assert.Equal(0, fixture.CandidateMatcher.MatchCallCount);
+		Assert.Equal(0, fixture.CoverService.CallCount);
+		Assert.Equal(0, fixture.DetailsService.CallCount);
+		Assert.Equal(1, fixture.MetadataStateStore.TransformCallCount);
+	}
+
+	/// <summary>
+	/// Verifies clean no-match outcomes still allow details fallback generation when required lookups do not fail.
+	/// </summary>
+	[Fact]
+	public void EnsureMetadata_Expected_ShouldAllowDetailsFallback_WhenLookupCompletesWithoutMatchFailures()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		TestFixture fixture = CreateFixture(
+			temporaryDirectory.Path,
+			static (_, _) => CreateSearchResult(ComickDirectApiOutcome.NotFound));
+		ComickMetadataCoordinatorRequest request = fixture.CreateRequestWithoutArtifacts("Canonical Title");
+
+		ComickMetadataCoordinatorResult result = fixture.Coordinator.EnsureMetadata(request);
+
+		Assert.True(result.ApiCalled);
+		Assert.False(result.HadServiceInterruption);
+		Assert.False(result.CoverExists);
+		Assert.True(result.DetailsExists);
+		Assert.Equal(ComickLookupMode.CacheThenLive, fixture.ApiGateway.LastSearchLookupMode);
+		Assert.Equal(0, fixture.CandidateMatcher.MatchCallCount);
+		Assert.Equal(0, fixture.CoverService.CallCount);
+		Assert.Equal(1, fixture.DetailsService.CallCount);
+		Assert.Equal(1, fixture.MetadataStateStore.TransformCallCount);
+	}
+
+	/// <summary>
+	/// Verifies FlareSolverr-unavailable outcomes suppress artifact writes without failing merge semantics.
+	/// </summary>
+	[Fact]
+	public void EnsureMetadata_Edge_ShouldSkipCoverAndDetails_WhenSearchReportsFlaresolverrUnavailable()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		TestFixture fixture = CreateFixture(
+			temporaryDirectory.Path,
+			static (_, _) => CreateSearchResult(ComickDirectApiOutcome.FlaresolverrUnavailable));
+		ComickMetadataCoordinatorRequest request = fixture.CreateRequestWithoutArtifacts("Canonical Title");
+
+		ComickMetadataCoordinatorResult result = fixture.Coordinator.EnsureMetadata(request);
+
+		Assert.True(result.ApiCalled);
+		Assert.False(result.HadServiceInterruption);
+		Assert.False(result.CoverExists);
+		Assert.False(result.DetailsExists);
+		Assert.Equal(0, fixture.CoverService.CallCount);
+		Assert.Equal(0, fixture.DetailsService.CallCount);
+		Assert.Equal(0, fixture.MetadataStateStore.TransformCallCount);
+	}
+
+	/// <summary>
+	/// Verifies matcher-reported FlareSolverr-unavailable invalidation suppresses writes even when a match payload is present.
+	/// </summary>
+	[Fact]
+	public void EnsureMetadata_Edge_ShouldSkipCoverAndDetails_WhenMatcherReportsMatchedUnavailableInvalidation()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		TestFixture fixture = CreateFixture(
+			temporaryDirectory.Path,
+			static (_, _) => CreateSearchResult(ComickDirectApiOutcome.Success));
+		ComickCandidateMatchResult matchedResult = CreateMatchedCandidateResult();
+		fixture.CandidateMatcher.NextMatchResult = new ComickCandidateMatchResult(
+			ComickCandidateMatchOutcome.Matched,
+			matchedResult.MatchedCandidate,
+			matchedCandidateIndex: 0,
+			hadTopTie: false,
+			matchScore: 2,
+			hadServiceInterruption: false,
+			hadFlaresolverrUnavailable: true);
+		ComickMetadataCoordinatorRequest request = fixture.CreateRequestWithoutArtifacts("Canonical Title");
+
+		ComickMetadataCoordinatorResult result = fixture.Coordinator.EnsureMetadata(request);
+
+		Assert.True(result.ApiCalled);
+		Assert.False(result.HadServiceInterruption);
+		Assert.False(result.CoverExists);
+		Assert.False(result.DetailsExists);
+		Assert.Equal(1, fixture.ApiGateway.SearchCallCount);
+		Assert.Equal(1, fixture.CandidateMatcher.MatchCallCount);
+		Assert.Equal(0, fixture.CoverService.CallCount);
+		Assert.Equal(0, fixture.DetailsService.CallCount);
+		Assert.Equal(0, fixture.MetadataStateStore.TransformCallCount);
+	}
+
+	/// <summary>
 	/// Verifies cooperative cancellation skips cooldown persistence and throws cooperatively.
 	/// </summary>
 	[Fact]
@@ -240,13 +486,23 @@ public sealed partial class ComickMetadataCoordinatorTests
 	/// <returns>Options instance.</returns>
 	private static MetadataOrchestrationOptions CreateMetadataOrchestrationOptions()
 	{
+		return CreateMetadataOrchestrationOptions(new Uri("http://flaresolverr.local/"));
+	}
+
+	/// <summary>
+	/// Creates baseline metadata orchestration options for coordinator tests.
+	/// </summary>
+	/// <param name="flaresolverrServerUri">Optional FlareSolverr server URI.</param>
+	/// <returns>Options instance.</returns>
+	private static MetadataOrchestrationOptions CreateMetadataOrchestrationOptions(Uri? flaresolverrServerUri)
+	{
 		return new MetadataOrchestrationOptions(
 			comickMetadataCooldown: TimeSpan.FromHours(24),
 			comickApiBaseUri: new Uri("https://api.comick.dev/"),
 			comickSearchEndpointPath: "v1.0/search/",
 			comickComicEndpointPath: "comic/",
 			comickImageBaseUri: new Uri("https://meo.comick.pictures/"),
-			flaresolverrServerUri: null,
+			flaresolverrServerUri: flaresolverrServerUri,
 			flaresolverrDirectRetryInterval: TimeSpan.FromMinutes(60),
 			preferredLanguage: "en",
 			metadataApiRequestDelay: TimeSpan.FromMilliseconds(1000),

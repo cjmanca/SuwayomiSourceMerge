@@ -32,6 +32,7 @@ public sealed partial class ComickCandidateMatcherTests
 			logger.Events,
 			static entry => entry.EventId == "metadata.candidate.ambiguity");
 		Assert.Equal(LogLevel.Warning, logEvent.Level);
+		Assert.Equal("Target Title", logEvent.Context!["title"]);
 		Assert.Equal("2", logEvent.Context!["tied_candidate_count"]);
 		Assert.Equal("2", logEvent.Context["candidate_count"]);
 	}
@@ -79,6 +80,7 @@ public sealed partial class ComickCandidateMatcherTests
 			logger.Events,
 			static entry => entry.EventId == "metadata.candidate.ambiguity");
 		Assert.Equal(LogLevel.Warning, logEvent.Level);
+		Assert.Equal("Target Title", logEvent.Context!["title"]);
 		Assert.Equal("2", logEvent.Context!["tied_candidate_count"]);
 		Assert.Equal("2", logEvent.Context["candidate_count"]);
 	}
@@ -121,5 +123,40 @@ public sealed partial class ComickCandidateMatcherTests
 			["target"]);
 
 		Assert.DoesNotContain(logger.Events, static entry => entry.EventId == "metadata.candidate.ambiguity");
+	}
+
+	/// <summary>
+	/// Verifies malformed candidate payload outcomes emit focused debug diagnostics with slug and parser message.
+	/// </summary>
+	[Fact]
+	public async Task MatchAsync_Failure_ShouldLogMalformedCandidatePayload_WithSlugAndDiagnostic()
+	{
+		RecordingLogger logger = new();
+		RecordingComickApiGateway gateway = new(
+			slug => slug switch
+			{
+				"bad-slug" => new ComickDirectApiResult<ComickComicResponse>(
+					ComickDirectApiOutcome.MalformedPayload,
+					payload: null,
+					statusCode: null,
+					diagnostic: "Malformed payload: comic md_titles[0].title is empty."),
+				_ => CreateOutcomeOnlyResult(ComickDirectApiOutcome.NotFound)
+			});
+		ComickCandidateMatcher matcher = new(gateway, sceneTagMatcher: null, logger: logger);
+
+		_ = await matcher.MatchAsync(
+			[
+				CreateSearchCandidate("bad-slug", "Target Title"),
+				CreateSearchCandidate("fallback-slug", "Other Title")
+			],
+			["Target Title"]);
+
+		RecordingLogger.CapturedLogEvent logEvent = Assert.Single(
+			logger.Events,
+			static entry => entry.EventId == "metadata.candidate.malformed_payload");
+		Assert.Equal(LogLevel.Debug, logEvent.Level);
+		Assert.Equal("bad-slug", logEvent.Context!["slug"]);
+		Assert.Equal("0", logEvent.Context["candidate_index"]);
+		Assert.Equal("Malformed payload: comic md_titles[0].title is empty.", logEvent.Context["diagnostic"]);
 	}
 }

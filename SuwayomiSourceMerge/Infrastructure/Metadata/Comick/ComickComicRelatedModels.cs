@@ -4,112 +4,30 @@ using System.Text.Json.Serialization;
 namespace SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 
 /// <summary>
-/// Represents external link fields from comic-detail payload.
+/// Represents dynamic external link fields from comic-detail payload.
 /// </summary>
 internal sealed class ComickComicLinks
 {
-	/// <summary>Gets or sets AniList identifier.</summary>
-	[JsonPropertyName("al")]
-	public string? AniList
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets AnimePlanet slug.</summary>
-	[JsonPropertyName("ap")]
-	public string? AnimePlanet
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets BookWalker token.</summary>
-	[JsonPropertyName("bw")]
-	public string? BookWalker
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets Kitsu token.</summary>
-	[JsonPropertyName("kt")]
-	public string? Kitsu
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets MangaBuddy identifier.</summary>
-	[JsonPropertyName("mb")]
-	public int? MangaBuddy
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets MangaUpdates token.</summary>
-	[JsonPropertyName("mu")]
-	public string? MangaUpdates
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets Amazon URL.</summary>
-	[JsonPropertyName("amz")]
-	public string? Amazon
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets CDJapan URL.</summary>
-	[JsonPropertyName("cdj")]
-	public string? CdJapan
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets EbookJapan URL.</summary>
-	[JsonPropertyName("ebj")]
-	public string? EbookJapan
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets MyAnimeList identifier.</summary>
-	[JsonPropertyName("mal")]
-	public string? MyAnimeList
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets raw source URL.</summary>
-	[JsonPropertyName("raw")]
-	public string? RawSource
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets English translation URL.</summary>
-	[JsonPropertyName("engtl")]
-	public string? EnglishTranslation
-	{
-		get;
-		init;
-	}
-
-	/// <summary>Gets or sets unknown link properties retained for compatibility.</summary>
+	/// <summary>
+	/// Gets or sets dynamic link entries keyed by upstream link identifiers.
+	/// </summary>
 	[JsonExtensionData]
-	public IDictionary<string, JsonElement>? AdditionalProperties
+	public IDictionary<string, JsonElement> Entries
 	{
 		get;
 		init;
+	} = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+
+	/// <summary>
+	/// Attempts to read one link entry by key.
+	/// </summary>
+	/// <param name="key">Link key.</param>
+	/// <param name="value">Link value when found.</param>
+	/// <returns><see langword="true"/> when key exists; otherwise <see langword="false"/>.</returns>
+	public bool TryGetEntry(string key, out JsonElement value)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(key);
+		return Entries.TryGetValue(key, out value);
 	}
 }
 
@@ -120,7 +38,8 @@ internal sealed class ComickComicRecommendation
 {
 	/// <summary>Gets or sets up-vote count.</summary>
 	[JsonPropertyName("up")]
-	public int UpVotes
+	[JsonConverter(typeof(ComickTolerantNullableInt32Converter))]
+	public int? UpVotes
 	{
 		get;
 		init;
@@ -128,7 +47,8 @@ internal sealed class ComickComicRecommendation
 
 	/// <summary>Gets or sets down-vote count.</summary>
 	[JsonPropertyName("down")]
-	public int DownVotes
+	[JsonConverter(typeof(ComickTolerantNullableInt32Converter))]
+	public int? DownVotes
 	{
 		get;
 		init;
@@ -136,7 +56,8 @@ internal sealed class ComickComicRecommendation
 
 	/// <summary>Gets or sets total score value.</summary>
 	[JsonPropertyName("total")]
-	public int Total
+	[JsonConverter(typeof(ComickTolerantNullableInt32Converter))]
+	public int? Total
 	{
 		get;
 		init;
@@ -158,6 +79,7 @@ internal sealed class ComickComicRecommendationRelates
 {
 	/// <summary>Gets or sets title text.</summary>
 	[JsonPropertyName("title")]
+	[JsonConverter(typeof(ComickTolerantStringConverter))]
 	public string Title
 	{
 		get;
@@ -166,6 +88,7 @@ internal sealed class ComickComicRecommendationRelates
 
 	/// <summary>Gets or sets slug text.</summary>
 	[JsonPropertyName("slug")]
+	[JsonConverter(typeof(ComickTolerantStringConverter))]
 	public string Slug
 	{
 		get;
@@ -174,6 +97,7 @@ internal sealed class ComickComicRecommendationRelates
 
 	/// <summary>Gets or sets hid identifier.</summary>
 	[JsonPropertyName("hid")]
+	[JsonConverter(typeof(ComickTolerantStringConverter))]
 	public string Hid
 	{
 		get;
@@ -182,6 +106,7 @@ internal sealed class ComickComicRecommendationRelates
 
 	/// <summary>Gets or sets cover list.</summary>
 	[JsonPropertyName("md_covers")]
+	[JsonConverter(typeof(ComickFilteredListJsonConverter<ComickCover>))]
 	public IReadOnlyList<ComickCover> MdCovers
 	{
 		get;
@@ -218,6 +143,7 @@ internal sealed class ComickComicRelateTarget
 {
 	/// <summary>Gets or sets target slug.</summary>
 	[JsonPropertyName("slug")]
+	[JsonConverter(typeof(ComickTolerantStringConverter))]
 	public string Slug
 	{
 		get;
@@ -226,6 +152,7 @@ internal sealed class ComickComicRelateTarget
 
 	/// <summary>Gets or sets target title.</summary>
 	[JsonPropertyName("title")]
+	[JsonConverter(typeof(ComickTolerantStringConverter))]
 	public string Title
 	{
 		get;
@@ -240,6 +167,7 @@ internal sealed class ComickComicRelation
 {
 	/// <summary>Gets or sets relation name.</summary>
 	[JsonPropertyName("name")]
+	[JsonConverter(typeof(ComickTolerantStringConverter))]
 	public string Name
 	{
 		get;
@@ -250,10 +178,12 @@ internal sealed class ComickComicRelation
 /// <summary>
 /// Represents one comic-genre mapping entry.
 /// </summary>
+[JsonConverter(typeof(ComickComicGenreMappingJsonConverter))]
 internal sealed class ComickComicGenreMapping
 {
 	/// <summary>Gets or sets mapped genre payload.</summary>
 	[JsonPropertyName("md_genres")]
+	[JsonConverter(typeof(ComickOptionalObjectJsonConverter<ComickGenreDescriptor>))]
 	public ComickGenreDescriptor? Genre
 	{
 		get;
@@ -268,6 +198,7 @@ internal sealed class ComickGenreDescriptor
 {
 	/// <summary>Gets or sets genre name.</summary>
 	[JsonPropertyName("name")]
+	[JsonConverter(typeof(ComickTolerantStringConverter))]
 	public string Name
 	{
 		get;
@@ -276,6 +207,7 @@ internal sealed class ComickGenreDescriptor
 
 	/// <summary>Gets or sets genre type token.</summary>
 	[JsonPropertyName("type")]
+	[JsonConverter(typeof(ComickTolerantNullableStringConverter))]
 	public string? Type
 	{
 		get;
@@ -284,6 +216,7 @@ internal sealed class ComickGenreDescriptor
 
 	/// <summary>Gets or sets genre slug.</summary>
 	[JsonPropertyName("slug")]
+	[JsonConverter(typeof(ComickTolerantStringConverter))]
 	public string Slug
 	{
 		get;
@@ -292,6 +225,7 @@ internal sealed class ComickGenreDescriptor
 
 	/// <summary>Gets or sets genre group token.</summary>
 	[JsonPropertyName("group")]
+	[JsonConverter(typeof(ComickTolerantNullableStringConverter))]
 	public string? Group
 	{
 		get;

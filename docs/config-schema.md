@@ -76,7 +76,8 @@ runtime:
   comick_search_max_results: 4
   comick_comic_endpoint_path: comic/
   comick_image_base_url: https://meo.comick.pictures/
-  metadata_api_request_delay_ms: 1000
+  metadata_api_min_request_delay_ms: 1000
+  metadata_api_max_request_delay_ms: 5000
   metadata_api_cache_ttl_hours: 24
   flaresolverr_server_url: ""
   flaresolverr_direct_retry_minutes: 60
@@ -99,7 +100,7 @@ logging:
 - Required fields: all fields shown in schema (except `unraid_cache_pool_name`, which may be empty)
 - Path fields must be absolute paths
 - Numeric fields:
-  - Must be `>= 0`: `merge_min_seconds_between_scans`, `rename_delay_seconds`, `rename_quiet_seconds`, `debug_timing_min_item_ms`, `debug_scan_progress_every`, `debug_scan_progress_seconds`, `runtime.metadata_api_request_delay_ms`
+  - Must be `>= 0`: `merge_min_seconds_between_scans`, `rename_delay_seconds`, `rename_quiet_seconds`, `debug_timing_min_item_ms`, `debug_scan_progress_every`, `debug_scan_progress_seconds`, `runtime.metadata_api_min_request_delay_ms`, `runtime.metadata_api_max_request_delay_ms`
   - Must be `> 0`: all other numeric fields except those with explicit bounded ranges
   - Must be in range `1..3`: `shutdown.cleanup_priority_ionice_class`
   - Must be in range `-20..19`: `shutdown.cleanup_priority_nice_value`
@@ -110,16 +111,25 @@ logging:
 - `shutdown.cleanup_apply_high_priority` controls reconciliation apply-path wrapper execution.
 - `runtime.max_consecutive_mount_failures` controls merge-pass apply fail-fast behavior after repeated mount/remount failures.
 - Runtime bootstrap/settings parse (`ConfigurationSchemaService.ParseSettingsForRuntime`) uses strict validation for shutdown cleanup profile fields (`cleanup_apply_high_priority`, `cleanup_priority_ionice_class`, `cleanup_priority_nice_value`).
-- Runtime bootstrap/settings parse (`ConfigurationSchemaService.ParseSettingsForRuntime`) also requires `runtime.comick_metadata_cooldown_hours`, `runtime.comick_api_base_url`, `runtime.comick_search_endpoint_path`, `runtime.comick_search_max_results`, `runtime.comick_comic_endpoint_path`, `runtime.comick_image_base_url`, `runtime.metadata_api_request_delay_ms`, `runtime.metadata_api_cache_ttl_hours`, `runtime.flaresolverr_server_url`, `runtime.flaresolverr_direct_retry_minutes`, and `runtime.preferred_language`.
+- Runtime bootstrap/settings parse (`ConfigurationSchemaService.ParseSettingsForRuntime`) also requires `runtime.comick_metadata_cooldown_hours`, `runtime.comick_api_base_url`, `runtime.comick_search_endpoint_path`, `runtime.comick_search_max_results`, `runtime.comick_comic_endpoint_path`, `runtime.comick_image_base_url`, `runtime.metadata_api_min_request_delay_ms`, `runtime.metadata_api_max_request_delay_ms`, `runtime.metadata_api_cache_ttl_hours`, `runtime.flaresolverr_server_url`, `runtime.flaresolverr_direct_retry_minutes`, and `runtime.preferred_language`.
 - Tooling/schema-only settings parse (`ConfigurationSchemaService.ParseSettingsForTooling`) may omit those shutdown cleanup profile fields and the Comick/FlareSolverr/metadata API runtime fields; when provided, numeric ranges and URL/token constraints are still validated.
 - `runtime.comick_metadata_cooldown_hours` and `runtime.flaresolverr_direct_retry_minutes` must be `> 0` when required or provided.
 - `runtime.comick_search_max_results` must be `> 0` when required or provided.
 - `runtime.comick_api_base_url` and `runtime.comick_image_base_url` must be absolute `http` or `https` URIs when required or provided.
 - `runtime.comick_search_endpoint_path` and `runtime.comick_comic_endpoint_path` must be non-empty relative endpoint paths when required or provided.
 - Endpoint paths must not be absolute URIs, must not resolve to root-only (`/`), and must not include query (`?`) or fragment (`#`) components.
-- `runtime.metadata_api_request_delay_ms` must be `>= 0` when required or provided.
+- `runtime.metadata_api_min_request_delay_ms` must be `>= 0` when required or provided.
+- `runtime.metadata_api_max_request_delay_ms` must be `>= 0` when required or provided.
+- `runtime.metadata_api_max_request_delay_ms` must be `>= runtime.metadata_api_min_request_delay_ms` when both are present.
 - `runtime.metadata_api_cache_ttl_hours` must be `> 0` when required or provided.
 - `runtime.flaresolverr_server_url` may be empty; when non-empty it must be an absolute `http` or `https` URI.
+- When `runtime.flaresolverr_server_url` is empty, runtime metadata coordination bypasses Comick API calls and uses ComicInfo/source-only details fallback paths.
+- `runtime.flaresolverr_direct_retry_minutes` defines the FlareSolverr outage-cooldown retry window used to short-circuit Comick requests while unavailable.
+- While outage cooldown is active, cached Comick responses may still be used; live lookup misses remain short-circuited as unavailable.
+- While per-title `runtime.comick_metadata_cooldown_hours` is active, coordinator performs cache-only Comick lookups (no live requests on cache miss) so cached matches can still drive metadata/equivalents updates.
+- During cache-only cooldown lookups with FlareSolverr configured, unresolved cache misses suppress `details.json` generation to prevent ComicInfo-only partial fallback writes, but do not fail merge passes by themselves.
+- With FlareSolverr configured, `details.json` ComicInfo fallback generation is suppressed only when required Comick lookups fail (for example unresolved cache miss, transport/HTTP failure, malformed payload, or unavailable routing). Clean no-match completion still allows fallback generation.
+- During a single title metadata attempt, any required Comick lookup resolving as unavailable invalidates the full title attempt and suppresses both `cover.jpg` and `details.json` writes.
 - `runtime.preferred_language` must be non-empty when required or provided.
 - Settings self-heal canonicalizes `runtime.preferred_language`, `runtime.flaresolverr_server_url`, `runtime.comick_api_base_url`, `runtime.comick_search_endpoint_path`, `runtime.comick_comic_endpoint_path`, and `runtime.comick_image_base_url` by trimming surrounding whitespace when present; `runtime.preferred_language` falls back to default `en` when canonicalization yields an empty value.
 - `details_description_mode` allowed values: `text`, `br`, `html`

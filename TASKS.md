@@ -1,6 +1,49 @@
 # TASKS.md
 
+- [x] 2026-03-05 - Include the ambiguous requested title in `metadata.candidate.ambiguity` warning telemetry context so ambiguity logs are actionable.
 
+- [x] 2026-03-05 - Stabilize cache-only metadata miss semantics with typed lookup-failure signaling so cooldown cache misses suppress details fallback without failing merge passes, and remove diagnostic-string control-flow dependence.
+
+- [x] 2026-03-05 - Narrow FlareSolverr-enabled details fallback suppression so ComicInfo fallback is skipped only when required Comick lookups fail (including unresolved cache-only misses), while clean no-match completion still permits fallback.
+
+- [x] 2026-03-05 - Extend FlareSolverr-enabled metadata safety gating so any unresolvable Comick lookup path suppresses `details.json` fallback generation (no ComicInfo-only details writes), not just cooldown cache-only misses.
+
+- [x] 2026-03-05 - When FlareSolverr is configured and title cooldown enforces cache-only Comick lookup, suppress `details.json` generation (including ComicInfo fallback) on cache miss/no-match to avoid partial metadata writes.
+
+- [x] 2026-03-05 - Fix metadata title-cooldown behavior to use cache-only Comick lookup mode (no live requests) so cached matches can still drive missing metadata artifacts and `manga_equivalents.yml` alias updates.
+
+- [x] 2026-03-05 - Lock metadata delay-rename policy by adding regression tests that preserve intentional behavior: legacy `runtime.metadata_api_request_delay_ms` is ignored during self-heal, and self-heal does not auto-correct `runtime.metadata_api_max_request_delay_ms < runtime.metadata_api_min_request_delay_ms`.
+
+- [x] 2026-03-05 - Validate AI review-note accuracy for metadata timing tests/throttle math, keep the valid `max < min` options test unchanged, and harden throttle full-range delay selection to preserve inclusive bounds with deterministic unit coverage.
+
+- [x] 2026-03-05 - Rename metadata pacing setting `runtime.metadata_api_request_delay_ms` to `runtime.metadata_api_min_request_delay_ms`, add `runtime.metadata_api_max_request_delay_ms` (default `5000`), apply `max >= min` validation, and randomize per-request pacing delay selection between configured bounds.
+
+- [x] 2026-03-05 - Enforce outage cache miss invalidation for Comick title attempts by short-circuiting candidate probes on first `FlaresolverrUnavailable`, prioritizing coordinator invalidation over matched payload acceptance, and aligning docs/tests for cache-hit-allowed cooldown behavior.
+
+- [x] 2026-03-05 - Enforce FlareSolverr-only Comick routing with explicit `FlaresolverrUnavailable` outcome, outage-cooldown short-circuit behavior, coordinator metadata-write suppression for unavailable branches, runtime composition hardening against raw Comick calls, and aligned unit/integration coverage/docs updates.
+
+- [x] 2026-03-05 - Review AI code-review follow-ups for Comick metadata hardening, remove redundant `[InlineData]` test-parameter validation in `ComickDirectApiClientTests.PayloadValidation`, keep internal converter property-name guards by intent, and close nullable-field "breaking-change" notes as inaccurate with citations.
+
+- [x] 2026-03-05 - Harden Comick `/comic/{slug}/` payload tolerance by enforcing match-critical validation only (`comic` node + usable title/alias), adding tolerant DTO converters for non-critical scalar/list/object drift, and expanding malformed-schema regression coverage so non-used field shape drift no longer fails full comic parsing.
+
+- [x] 2026-03-05 - Harden Comick search payload fault tolerance by adding tolerant `md_titles` converter normalization (array/object/string/mixed -> filtered alias list), removing typed `translation_completed` parsing from `ComickSearchComic`, and adding drift-focused payload regression coverage while keeping `slug`/`title` as the only strict search match fields.
+
+- [x] 2026-03-05 - Replace hard-coded `ComickComicLinks` DTO fields with dynamic extension-data link entry parsing so unknown/new Comick link keys and value token shapes are preserved without malformed-payload failures.
+
+- [x] 2026-03-05 - Harden Comick `links.mb` payload compatibility by treating empty/whitespace string tokens as null, widening MangaBuddy model/converter handling to `long?`, and adding regression coverage for Int64-range, overflow, and non-scalar token cases.
+
+- [x] 2026-03-05 - Add focused Comick candidate malformed-payload debug telemetry (`metadata.candidate.malformed_payload`) including slug/candidate index/parser diagnostic so schema drift is visible without cache-event correlation.
+
+- [x] 2026-03-05 - Fix Comick exact-match false negatives caused by polymorphic `links.mb` payload shape (`int` or numeric string) by adding targeted converter support and regression tests for direct payload parsing plus first-candidate short-circuit matching.
+
+- [x] 2026-03-05 - Resolve CloudflareAwareComickGateway response-normalization review follow-ups by confirming partial-class fatal-exception helper coverage, ordering TryExtractJsonPreContent out parameters with diagnostic last for consistency, and documenting response-prefix truncation rationale.
+
+- [x] 2026-03-05 - Refine CloudflareAwareComickGateway FlareSolverr normalization diagnostics with tri-state HTML wrapper detection (`detected`/`not_detected`/`unknown`), retain derived `is_html_wrapped` compatibility logging, and add regression coverage for failed `<pre>` detection and parser-failure unknown state.
+- [x] 2026-03-05 - Align CloudflareAwareComickGateway parser exception handling with fatal-exception policy by restricting FlareSolverr HTML pre-node parse catches to non-fatal exceptions and adding regression coverage for non-fatal malformed mapping plus fatal passthrough rethrow behavior.
+- [x] 2026-03-05 - Eliminate false `<pre` prefix matches in FlareSolverr response normalization by switching `CloudflareAwareComickGateway` HTML extraction to parser-backed `<pre>` node selection (HtmlAgilityPack), and add regression coverage for `<preload>` + valid `<pre>` success and malformed-wrapper no-throw behavior.
+- [x] 2026-03-05 - Harden FlareSolverr upstream response normalization in CloudflareAwareComickGateway by stripping optional UTF BOM prefixes for raw/pre-extracted JSON candidates, scanning multiple `<pre>` blocks for the first JSON-root-compatible payload, and adding regression coverage for BOM success, multi-`<pre>` selection, and missing `</pre>` malformed diagnostics.
+- [x] 2026-03-05 - Restore FlareSolverr wrapper status-precedence in CloudflareAwareComickGateway so 403/503 challenge and non-2xx HttpFailure classification occur before response normalization, and add regression coverage for 500/403 precedence paths.
+- [x] 2026-03-05 - Normalize FlareSolverr HTML-wrapped Comick upstream responses (`<pre>...</pre>`) before Comick payload parsing, add response-normalization diagnostics, and extend metadata gateway regression coverage.
 - [x] 2026-03-05 - Address unresolved PR #45 AI review threads by centralizing metadata endpoint-path normalization helpers, fixing workflow-options test indentation, isolating OverrideCoverService lock-lifecycle tests from parallel execution, clarifying comick_search_max_results task chronology, and posting thread resolutions.
 - [x] 2026-03-04 - Centralize metadata base-URI trailing-slash normalization via a shared helper and adopt it across MetadataOrchestrationOptions, ComickDirectApiClientOptions, FlaresolverrClientOptions, and OverrideCoverService URI resolution.
 - [x] 2026-03-05 - Fix `OverrideCoverService` keyed-lock dispose race by synchronizing per-entry acquire/release/removal with `SyncRoot`/`IsRemoved` state and add repeated contention regression coverage to prevent semaphore disposal while in use.

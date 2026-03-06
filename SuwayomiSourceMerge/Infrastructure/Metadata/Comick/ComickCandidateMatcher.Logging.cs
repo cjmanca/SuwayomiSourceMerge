@@ -13,6 +13,11 @@ internal sealed partial class ComickCandidateMatcher
 	private const string CandidateAmbiguityEvent = "metadata.candidate.ambiguity";
 
 	/// <summary>
+	/// Event id emitted when one comic-detail candidate payload is malformed.
+	/// </summary>
+	private const string CandidateMalformedPayloadEvent = "metadata.candidate.malformed_payload";
+
+	/// <summary>
 	/// Equality tolerance used for floating-point similarity tie checks.
 	/// The ranking helper computes normalized Levenshtein scores with repeated double arithmetic, so tie comparisons
 	/// use a small fixed tolerance to avoid platform/runtime rounding jitter.
@@ -79,11 +84,13 @@ internal sealed partial class ComickCandidateMatcher
 	/// <summary>
 	/// Emits one candidate-ambiguity warning event.
 	/// </summary>
+	/// <param name="title">Representative expected title for the active candidate match attempt.</param>
 	/// <param name="candidateCount">Candidate count.</param>
 	/// <param name="expectedTitleCount">Expected-title count.</param>
 	/// <param name="topSimilarity">Top ranking-hint similarity.</param>
 	/// <param name="tiedCandidateCount">Number of candidates tied at top similarity.</param>
 	private void LogCandidateAmbiguity(
+		string title,
 		int candidateCount,
 		int expectedTitleCount,
 		double topSimilarity,
@@ -91,12 +98,35 @@ internal sealed partial class ComickCandidateMatcher
 	{
 		_logger.Warning(
 			CandidateAmbiguityEvent,
-			"Ranking hints produced an ambiguous top-candidate tie.",
+			"Ranking hints produced an ambiguous top-candidate tie for the requested title.",
 			BuildContext(
+				("title", title),
 				("candidate_count", candidateCount.ToString(CultureInfo.InvariantCulture)),
 				("expected_title_count", expectedTitleCount.ToString(CultureInfo.InvariantCulture)),
 				("top_similarity", topSimilarity.ToString("F6", CultureInfo.InvariantCulture)),
 				("tied_candidate_count", tiedCandidateCount.ToString(CultureInfo.InvariantCulture))));
+	}
+
+	/// <summary>
+	/// Emits one malformed-payload debug event for a candidate detail lookup.
+	/// </summary>
+	/// <param name="slug">Candidate slug.</param>
+	/// <param name="candidateIndex">Candidate index in the original search payload.</param>
+	/// <param name="diagnostic">Parser diagnostic.</param>
+	private void LogMalformedCandidatePayload(
+		string slug,
+		int candidateIndex,
+		string diagnostic)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(slug);
+
+		_logger.Debug(
+			CandidateMalformedPayloadEvent,
+			"Comick candidate detail payload was malformed; continuing to next candidate.",
+			BuildContext(
+				("slug", slug),
+				("candidate_index", candidateIndex.ToString(CultureInfo.InvariantCulture)),
+				("diagnostic", diagnostic)));
 	}
 
 	/// <summary>

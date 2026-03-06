@@ -2,6 +2,7 @@ namespace SuwayomiSourceMerge.UnitTests.Infrastructure.Metadata;
 
 using System.Globalization;
 using System.Net;
+using HtmlAgilityPack;
 using SuwayomiSourceMerge.Infrastructure.Metadata;
 using SuwayomiSourceMerge.Infrastructure.Metadata.Comick;
 using SuwayomiSourceMerge.Infrastructure.Metadata.Flaresolverr;
@@ -44,7 +45,8 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		TimeSpan directRetryInterval,
 		DateTimeOffset nowUtc,
 		RecordingLogger? logger = null,
-		IMetadataApiRequestThrottle? throttle = null)
+		IMetadataApiRequestThrottle? throttle = null,
+		Func<string, HtmlNodeCollection?>? preNodeSelector = null)
 	{
 		return CreateGateway(
 			directClient,
@@ -54,7 +56,8 @@ public sealed partial class CloudflareAwareComickGatewayTests
 			directRetryInterval,
 			() => nowUtc,
 			logger,
-			throttle);
+			throttle,
+			preNodeSelector);
 	}
 
 	/// <summary>
@@ -75,7 +78,8 @@ public sealed partial class CloudflareAwareComickGatewayTests
 		TimeSpan directRetryInterval,
 		Func<DateTimeOffset> utcNowProvider,
 		RecordingLogger? logger = null,
-		IMetadataApiRequestThrottle? throttle = null)
+		IMetadataApiRequestThrottle? throttle = null,
+		Func<string, HtmlNodeCollection?>? preNodeSelector = null)
 	{
 		MetadataOrchestrationOptions options = new(
 			TimeSpan.FromHours(24),
@@ -95,7 +99,8 @@ public sealed partial class CloudflareAwareComickGatewayTests
 			options,
 			utcNowProvider,
 			throttle ?? new NoOpMetadataApiRequestThrottle(),
-			logger);
+			logger,
+			preNodeSelector);
 	}
 
 	/// <summary>
@@ -111,9 +116,7 @@ public sealed partial class CloudflareAwareComickGatewayTests
 					Hid = "hid-search",
 					Slug = "slug-search",
 					Title = "Title Search",
-					MdTitles = [new ComickTitleAlias { Title = "Title Search" }],
-					MdCovers = [new ComickCover { B2Key = "cover-search.jpg" }],
-					Statistics = [new ComickStatistic()]
+					MdTitles = [new ComickTitleAlias { Title = "Title Search" }]
 				}
 			]);
 		return new ComickDirectApiResult<ComickSearchResponse>(

@@ -60,7 +60,9 @@ public sealed partial class ComickMetadataCoordinatorTests
 
 		ComickMetadataCoordinatorResult result = fixture.Coordinator.EnsureMetadata(request);
 
-		Assert.False(result.ApiCalled);
+		Assert.True(result.ApiCalled);
+		Assert.Equal(ComickLookupMode.CacheOnly, fixture.ApiGateway.LastSearchLookupMode);
+		Assert.Equal(ComickLookupMode.CacheOnly, fixture.CandidateMatcher.LastLookupMode);
 		RecordingLogger.CapturedLogEvent logEvent = Assert.Single(
 			fixture.Logger.Events,
 			static entry => entry.EventId == "metadata.cooldown.skipped");
@@ -103,6 +105,46 @@ public sealed partial class ComickMetadataCoordinatorTests
 	}
 
 	/// <summary>
+	/// Verifies cache-only cooldown misses log a details skip reason and avoid fallback generation.
+	/// </summary>
+	[Fact]
+	public void EnsureMetadata_Expected_ShouldLogDetailsSkipped_WhenCacheOnlyLookupMisses()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		TestFixture fixture = CreateFixture(
+			temporaryDirectory.Path,
+			static (_, _) => new ComickDirectApiResult<ComickSearchResponse>(
+				ComickDirectApiOutcome.NotFound,
+				payload: null,
+				statusCode: HttpStatusCode.NotFound,
+				diagnostic: ComickLookupDiagnostics.CacheOnlyMiss,
+				isCacheOnlyMiss: true));
+		fixture.MetadataStateStore.SetSnapshot(
+			new MetadataStateSnapshot(
+				new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal)
+				{
+					["canonicaltitle"] = DateTimeOffset.UtcNow.AddHours(1)
+				},
+				stickyFlaresolverrUntilUtc: null));
+		ComickMetadataCoordinatorRequest request = fixture.CreateRequestWithoutArtifacts("Canonical Title");
+
+		ComickMetadataCoordinatorResult result = fixture.Coordinator.EnsureMetadata(request);
+
+		Assert.True(result.ApiCalled);
+		Assert.False(result.HadServiceInterruption);
+		Assert.Equal(0, fixture.DetailsService.CallCount);
+		RecordingLogger.CapturedLogEvent logEvent = Assert.Single(
+			fixture.Logger.Events,
+			static entry => entry.EventId == "metadata.artifact.details.skipped" &&
+				entry.Context is not null &&
+				entry.Context.TryGetValue("reason", out string? reasonValue) &&
+				string.Equals(reasonValue, "cache_only_lookup_miss", StringComparison.Ordinal));
+		Assert.Equal(LogLevel.Debug, logEvent.Level);
+		Assert.Equal("Canonical Title", logEvent.Context!["title"]);
+		Assert.Equal("canonicaltitle", logEvent.Context["normalized_title_key"]);
+	}
+
+	/// <summary>
 	/// Verifies details writes emit structured debug diagnostics.
 	/// </summary>
 	[Fact]
@@ -111,7 +153,18 @@ public sealed partial class ComickMetadataCoordinatorTests
 		using TemporaryDirectory temporaryDirectory = new();
 		TestFixture fixture = CreateFixture(
 			temporaryDirectory.Path,
-			static (_, _) => CreateSearchResult(ComickDirectApiOutcome.NotFound));
+			static (_, _) => new ComickDirectApiResult<ComickSearchResponse>(
+				ComickDirectApiOutcome.Success,
+				new ComickSearchResponse(
+				[
+					new ComickSearchComic
+					{
+						Slug = "candidate-slug"
+					}
+				]),
+				HttpStatusCode.OK,
+				"Success."));
+		fixture.CandidateMatcher.NextMatchResult = CreateMatchedCandidateResult();
 		ComickMetadataCoordinatorRequest request = fixture.CreateRequestWithoutArtifacts("Canonical Title");
 		string detailsPath = Path.Combine(request.PreferredOverrideDirectoryPath, "details.json");
 		fixture.DetailsService.NextResult = new OverrideDetailsResult(
@@ -129,6 +182,33 @@ public sealed partial class ComickMetadataCoordinatorTests
 		Assert.Equal(LogLevel.Debug, logEvent.Level);
 		Assert.Equal(OverrideDetailsOutcome.GeneratedFromComick.ToString(), logEvent.Context!["outcome"]);
 		Assert.Equal(detailsPath, logEvent.Context["details_path"]);
+	}
+
+	/// <summary>
+	/// Verifies required Comick lookup failures log a details skip reason and suppress fallback generation.
+	/// </summary>
+	[Fact]
+	public void EnsureMetadata_Expected_ShouldLogDetailsSkipped_WhenComickLookupFails()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		TestFixture fixture = CreateFixture(
+			temporaryDirectory.Path,
+			static (_, _) => CreateSearchResult(ComickDirectApiOutcome.HttpFailure));
+		ComickMetadataCoordinatorRequest request = fixture.CreateRequestWithoutArtifacts("Canonical Title");
+
+		ComickMetadataCoordinatorResult result = fixture.Coordinator.EnsureMetadata(request);
+
+		Assert.True(result.ApiCalled);
+		Assert.Equal(0, fixture.DetailsService.CallCount);
+		RecordingLogger.CapturedLogEvent logEvent = Assert.Single(
+			fixture.Logger.Events,
+			static entry => entry.EventId == "metadata.artifact.details.skipped" &&
+				entry.Context is not null &&
+				entry.Context.TryGetValue("reason", out string? reasonValue) &&
+				string.Equals(reasonValue, "comick_unresolvable", StringComparison.Ordinal));
+		Assert.Equal(LogLevel.Debug, logEvent.Level);
+		Assert.Equal("Canonical Title", logEvent.Context!["title"]);
+		Assert.Equal("canonicaltitle", logEvent.Context["normalized_title_key"]);
 	}
 
 	/// <summary>
