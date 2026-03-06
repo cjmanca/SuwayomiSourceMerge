@@ -45,7 +45,7 @@ COPY --from=build /app/publish/ /app/
 COPY docker/entrypoint.sh /usr/local/bin/ssm-entrypoint.sh
 RUN chmod +x /usr/local/bin/ssm-entrypoint.sh
 
-VOLUME ["/ssm/config", "/ssm/sources", "/ssm/override", "/ssm/merged", "/ssm/state"]
+VOLUME ["/ssm/config", "/ssm/merged", "/ssm/state"]
 
 ENTRYPOINT ["/usr/local/bin/ssm-entrypoint.sh"]
 CMD ["dotnet", "/app/SuwayomiSourceMerge.dll"]

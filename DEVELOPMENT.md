@@ -37,8 +37,10 @@ Startup mount safeguards:
 
 - Command-reported mount success is validated by checking for a live mergerfs mount entry and probing directory access.
 - Mount-readiness directory access probing is timeout-bounded via command execution (`ls -A`) using the existing unmount command timeout settings.
-- Consecutive mount/remount failures abort remaining actions for the pass after `runtime.max_consecutive_mount_failures` (default `5`).
-- `Transport endpoint is not connected` conditions are treated as failed mount readiness checks and surfaced as mount failures.
+- Pre-apply degraded snapshot visibility suppresses all mount/remount actions for the pass, while existing stale-unmount suppression remains active; suppression forces pass failure so retry/backoff is preserved.
+- Lifecycle startup/shutdown cleanup runs as bounded iterative convergence (`maxCleanupIterations = 4`): pre-snapshot, managed unmount attempts, post-snapshot, repeat until no managed mounts remain or the cap is reached.
+- Consecutive mount/remount fail-fast counters increment only for hard failures; soft failures fail actions/passes and reset consecutive hard-failure streak counting.
+- `Transport endpoint is not connected` readiness failures trigger one inline recovery cycle per action (detach/unmount, mount-only retry, re-probe) before returning final failure diagnostics.
 - Mount command composition applies `threads=1` when `runtime.mergerfs_options_base` does not explicitly set a `threads` value to reduce per-mount process/thread pressure on high mount-count startups.
 
 ## Planned metadata enrichment (docs-only, not yet implemented)

@@ -32,7 +32,71 @@ public sealed partial class MergeMountWorkflowTests
 			fixture.Logger.Events,
 			static log => log.EventId == "merge.workflow.action_fail_fast"
 				&& log.Level == LogLevel.Warning
-				&& log.Message.Contains("consecutive mount failure threshold", StringComparison.Ordinal));
+				&& log.Message.Contains("consecutive hard mount failure threshold", StringComparison.Ordinal));
+	}
+
+	/// <summary>
+	/// Verifies soft mount failures do not advance hard-failure fail-fast counters.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Edge_ShouldNotFailFast_WhenOnlySoftMountFailuresOccur()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory, maxConsecutiveMountFailures: 2);
+		string mountPointA = Path.Combine(fixture.Options.MergedRootPath, "A");
+		string mountPointB = Path.Combine(fixture.Options.MergedRootPath, "B");
+		string mountPointC = Path.Combine(fixture.Options.MergedRootPath, "C");
+		fixture.ReconciliationService.NextPlanFactory = _ => new MountReconciliationPlan(
+		[
+			new MountReconciliationAction(MountReconciliationActionKind.Mount, mountPointA, "id-a", "payload-a", MountReconciliationReason.MissingMount),
+			new MountReconciliationAction(MountReconciliationActionKind.Mount, mountPointB, "id-b", "payload-b", MountReconciliationReason.MissingMount),
+			new MountReconciliationAction(MountReconciliationActionKind.Mount, mountPointC, "id-c", "payload-c", MountReconciliationReason.MissingMount)
+		]);
+		fixture.MountCommandService.EnqueueApplyResult(MountActionApplyOutcome.Failure, MountActionFailureSeverity.Soft);
+		fixture.MountCommandService.EnqueueApplyResult(MountActionApplyOutcome.Failure, MountActionFailureSeverity.Soft);
+		fixture.MountCommandService.EnqueueApplyResult(MountActionApplyOutcome.Failure, MountActionFailureSeverity.Soft);
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("startup", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Failure, outcome);
+		Assert.Equal(3, fixture.MountCommandService.AppliedActions.Count);
+		Assert.DoesNotContain(fixture.Logger.Events, log => log.EventId == "merge.workflow.action_fail_fast");
+	}
+
+	/// <summary>
+	/// Verifies soft failures reset hard-failure streak counting for fail-fast thresholding.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Edge_ShouldResetHardFailureCounterAfterSoftFailure()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory, maxConsecutiveMountFailures: 2);
+		string mountPointA = Path.Combine(fixture.Options.MergedRootPath, "A");
+		string mountPointB = Path.Combine(fixture.Options.MergedRootPath, "B");
+		string mountPointC = Path.Combine(fixture.Options.MergedRootPath, "C");
+		string mountPointD = Path.Combine(fixture.Options.MergedRootPath, "D");
+		string mountPointE = Path.Combine(fixture.Options.MergedRootPath, "E");
+		fixture.ReconciliationService.NextPlanFactory = _ => new MountReconciliationPlan(
+		[
+			new MountReconciliationAction(MountReconciliationActionKind.Mount, mountPointA, "id-a", "payload-a", MountReconciliationReason.MissingMount),
+			new MountReconciliationAction(MountReconciliationActionKind.Mount, mountPointB, "id-b", "payload-b", MountReconciliationReason.MissingMount),
+			new MountReconciliationAction(MountReconciliationActionKind.Mount, mountPointC, "id-c", "payload-c", MountReconciliationReason.MissingMount),
+			new MountReconciliationAction(MountReconciliationActionKind.Mount, mountPointD, "id-d", "payload-d", MountReconciliationReason.MissingMount),
+			new MountReconciliationAction(MountReconciliationActionKind.Mount, mountPointE, "id-e", "payload-e", MountReconciliationReason.MissingMount)
+		]);
+		fixture.MountCommandService.EnqueueApplyResult(MountActionApplyOutcome.Failure, MountActionFailureSeverity.Soft);
+		fixture.MountCommandService.EnqueueApplyResult(MountActionApplyOutcome.Failure, MountActionFailureSeverity.Hard);
+		fixture.MountCommandService.EnqueueApplyResult(MountActionApplyOutcome.Failure, MountActionFailureSeverity.Soft);
+		fixture.MountCommandService.EnqueueApplyResult(MountActionApplyOutcome.Failure, MountActionFailureSeverity.Hard);
+		fixture.MountCommandService.EnqueueApplyOutcome(MountActionApplyOutcome.Success);
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("startup", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Failure, outcome);
+		Assert.Equal(5, fixture.MountCommandService.AppliedActions.Count);
+		Assert.DoesNotContain(fixture.Logger.Events, static log => log.EventId == "merge.workflow.action_fail_fast");
 	}
 
 	/// <summary>
@@ -163,22 +227,125 @@ public sealed partial class MergeMountWorkflowTests
 	}
 
 	/// <summary>
-	/// Verifies readiness-probe failures contribute to consecutive mount failure fail-fast threshold.
+	/// Verifies ENOTCONN readiness probe failures trigger one inline detach/mount/probe recovery attempt.
 	/// </summary>
 	[Fact]
-	public void RunMergePass_Failure_ShouldFailFast_WhenReadinessProbeFailureReachesThreshold()
+	public void RunMergePass_Expected_ShouldRecoverFromEnotconnReadinessFailure()
 	{
 		using TemporaryDirectory temporaryDirectory = new();
-		WorkflowFixture fixture = CreateFixture(temporaryDirectory, maxConsecutiveMountFailures: 1);
-		Directory.CreateDirectory(Path.Combine(fixture.Options.SourcesRootPath, "disk1", "SourceA", "Another Title"));
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		fixture.MountCommandService.EnqueueApplyOutcome(MountActionApplyOutcome.Success);
+		fixture.MountCommandService.EnqueueApplyOutcome(MountActionApplyOutcome.Success);
+		fixture.MountCommandService.EnqueueReadinessProbeResult(
+			MountReadinessProbeResult.NotReady("Readiness probe command exited non-zero (1): Transport endpoint is not connected"));
+		fixture.MountCommandService.EnqueueReadinessProbeResult(
+			MountReadinessProbeResult.Ready("Readiness probe command succeeded."));
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("startup", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Success, outcome);
+		Assert.Equal(2, fixture.MountCommandService.AppliedActions.Count);
+		Assert.Single(fixture.MountCommandService.UnmountedMountPoints);
+	}
+
+	/// <summary>
+	/// Verifies remount ENOTCONN recovery retries with a mount-only action to avoid double-unmount flows.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Expected_ShouldRetryEnotconnRecoveryWithMountAction_WhenOriginalActionWasRemount()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		string mountPoint = Path.Combine(fixture.Options.MergedRootPath, "Canonical Title");
+		fixture.ReconciliationService.NextPlanFactory = _ => new MountReconciliationPlan(
+		[
+			new MountReconciliationAction(
+				MountReconciliationActionKind.Remount,
+				mountPoint,
+				"id-remount",
+				"/state/linkA=RW:/state/linkB=RO",
+				MountReconciliationReason.DesiredIdentityMismatch)
+		]);
+		fixture.MountCommandService.EnqueueApplyOutcome(MountActionApplyOutcome.Success);
+		fixture.MountCommandService.EnqueueApplyOutcome(MountActionApplyOutcome.Success);
+		fixture.MountCommandService.EnqueueReadinessProbeResult(
+			MountReadinessProbeResult.NotReady("Readiness probe command exited non-zero (1): Transport endpoint is not connected"));
+		fixture.MountCommandService.EnqueueReadinessProbeResult(
+			MountReadinessProbeResult.Ready("Readiness probe command succeeded."));
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("startup", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Success, outcome);
+		Assert.Equal(2, fixture.MountCommandService.AppliedActions.Count);
+		Assert.Equal(MountReconciliationActionKind.Remount, fixture.MountCommandService.AppliedActions[0].Kind);
+		Assert.Equal(MountReconciliationActionKind.Mount, fixture.MountCommandService.AppliedActions[1].Kind);
+		Assert.Single(fixture.MountCommandService.UnmountedMountPoints);
+	}
+
+	/// <summary>
+	/// Verifies non-ENOTCONN readiness probe failures keep existing no-recovery failure behavior.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Failure_ShouldNotAttemptRecovery_WhenReadinessProbeFailsWithoutEnotconn()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
 		fixture.MountCommandService.ApplyOutcome = MountActionApplyOutcome.Success;
-		fixture.MountCommandService.ReadinessProbeResult = MountReadinessProbeResult.NotReady("Readiness probe command exited non-zero (1): Transport endpoint is not connected");
+		fixture.MountCommandService.ReadinessProbeResult = MountReadinessProbeResult.NotReady("Readiness probe command exited non-zero (1): permission denied");
 		MergeMountWorkflow workflow = fixture.CreateWorkflow();
 
 		MergeScanDispatchOutcome outcome = workflow.RunMergePass("startup", force: false);
 
 		Assert.Equal(MergeScanDispatchOutcome.Failure, outcome);
 		Assert.Single(fixture.MountCommandService.AppliedActions);
+		Assert.Empty(fixture.MountCommandService.UnmountedMountPoints);
+	}
+
+	/// <summary>
+	/// Verifies failed ENOTCONN recovery contributes hard failures and emits combined diagnostics.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Failure_ShouldEmitCombinedRecoveryDiagnostic_WhenEnotconnRecoveryFails()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory, maxConsecutiveMountFailures: 1);
+		fixture.MountCommandService.ApplyOutcome = MountActionApplyOutcome.Success;
+		fixture.MountCommandService.ReadinessProbeResult = MountReadinessProbeResult.NotReady("Readiness probe command exited non-zero (1): Transport endpoint is not connected");
+		fixture.MountCommandService.UnmountOutcome = MountActionApplyOutcome.Failure;
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("startup", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Failure, outcome);
 		Assert.Contains(fixture.Logger.Events, static log => log.EventId == "merge.workflow.action_fail_fast");
+		Assert.Contains(
+			fixture.Logger.Events,
+			static entry => entry.EventId == "merge.workflow.action"
+				&& entry.Context is not null
+				&& entry.Context.TryGetValue("diagnostic", out string? diagnostic)
+				&& diagnostic.Contains("recovery_unmount", StringComparison.Ordinal));
+	}
+
+	/// <summary>
+	/// Verifies per-action diagnostics log the failure severity classification.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Edge_ShouldLogFailureSeverityContext_ForAppliedActions()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		fixture.MountCommandService.EnqueueApplyResult(MountActionApplyOutcome.Failure, MountActionFailureSeverity.Soft);
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		_ = workflow.RunMergePass("startup", force: false);
+
+		Assert.Contains(
+			fixture.Logger.Events,
+			static entry => entry.EventId == "merge.workflow.action"
+				&& entry.Context is not null
+				&& entry.Context.TryGetValue("failure_severity", out string? severity)
+				&& severity == nameof(MountActionFailureSeverity.Soft));
 	}
 }

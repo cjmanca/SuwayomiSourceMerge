@@ -9,6 +9,11 @@ namespace SuwayomiSourceMerge.Application.Mounting;
 internal sealed partial class MergeMountWorkflow
 {
 	/// <summary>
+	/// Diagnostic token used to detect ENOTCONN mount-readiness failures.
+	/// </summary>
+	private const string TransportEndpointNotConnectedToken = "Transport endpoint is not connected";
+
+	/// <summary>
 	/// Applies one reconciliation plan and maps aggregate action outcomes to dispatch outcome semantics.
 	/// </summary>
 	/// <param name="actions">Actions to apply.</param>
@@ -20,7 +25,7 @@ internal sealed partial class MergeMountWorkflow
 	{
 		bool hadBusy = false;
 		bool hadFailure = false;
-		int consecutiveMountFailures = 0;
+		int consecutiveHardMountFailures = 0;
 		List<MountReconciliationAction> successfulMountActions = [];
 
 		for (int index = 0; index < actions.Count; index++)
@@ -62,29 +67,42 @@ internal sealed partial class MergeMountWorkflow
 					("mountpoint", action.MountPoint),
 					("reason", action.Reason.ToString()),
 					("outcome", applyResult.Outcome.ToString()),
+					("failure_severity", applyResult.FailureSeverity.ToString()),
 					("diagnostic", applyResult.Diagnostic)));
 
 			if (IsMountOrRemount(action))
 			{
-				consecutiveMountFailures = applyResult.Outcome == MountActionApplyOutcome.Failure
-					? consecutiveMountFailures + 1
-					: 0;
+				if (applyResult.Outcome == MountActionApplyOutcome.Failure)
+				{
+					if (applyResult.FailureSeverity == MountActionFailureSeverity.Hard)
+					{
+						consecutiveHardMountFailures++;
+					}
+					else
+					{
+						consecutiveHardMountFailures = 0;
+					}
+				}
+				else
+				{
+					consecutiveHardMountFailures = 0;
+				}
 			}
 			else
 			{
-				consecutiveMountFailures = 0;
+				consecutiveHardMountFailures = 0;
 			}
 
-			if (consecutiveMountFailures >= _options.MaxConsecutiveMountFailures)
+			if (consecutiveHardMountFailures >= _options.MaxConsecutiveMountFailures)
 			{
 				int skippedActions = actions.Count - index - 1;
 				hadFailure = true;
 				_logger.Warning(
 					MergeActionFailFastEvent,
-					"Aborted remaining apply actions after reaching consecutive mount failure threshold.",
+					"Aborted remaining apply actions after reaching consecutive hard mount failure threshold.",
 					BuildContext(
 						("threshold", _options.MaxConsecutiveMountFailures.ToString()),
-						("consecutive_failures", consecutiveMountFailures.ToString()),
+						("consecutive_hard_failures", consecutiveHardMountFailures.ToString()),
 						("skipped_actions", skippedActions.ToString()),
 						("last_mountpoint", action.MountPoint)));
 				break;
@@ -144,6 +162,11 @@ internal sealed partial class MergeMountWorkflow
 			cancellationToken);
 		if (!probeResult.IsReady)
 		{
+			if (ContainsTransportEndpointNotConnectedDiagnostic(probeResult.Diagnostic))
+			{
+				return AttemptEnotconnRecovery(action, normalizedMountPoint, probeResult, cancellationToken);
+			}
+
 			return new MountActionApplyResult(
 				action,
 				MountActionApplyOutcome.Failure,
@@ -151,6 +174,143 @@ internal sealed partial class MergeMountWorkflow
 		}
 
 		return applyResult;
+	}
+
+	/// <summary>
+	/// Attempts one inline ENOTCONN recovery cycle for one mount/remount action.
+	/// </summary>
+	/// <param name="action">Applied mount/remount action.</param>
+	/// <param name="normalizedMountPoint">Normalized mountpoint path.</param>
+	/// <param name="initialProbeResult">Initial failed readiness probe result.</param>
+	/// <param name="cancellationToken">Cancellation token.</param>
+	/// <returns>Recovery success/failure apply result.</returns>
+	private MountActionApplyResult AttemptEnotconnRecovery(
+		MountReconciliationAction action,
+		string normalizedMountPoint,
+		MountReadinessProbeResult initialProbeResult,
+		CancellationToken cancellationToken)
+	{
+		MountActionApplyResult recoveryUnmountResult = _mountCommandService.UnmountMountPoint(
+			normalizedMountPoint,
+			_options.UnmountCommandTimeout,
+			_options.CommandPollInterval,
+			_options.CleanupApplyHighPriority,
+			_options.CleanupPriorityIoniceClass,
+			_options.CleanupPriorityNiceValue,
+			cancellationToken);
+		if (recoveryUnmountResult.Outcome != MountActionApplyOutcome.Success)
+		{
+			return new MountActionApplyResult(
+				action,
+				MountActionApplyOutcome.Failure,
+				BuildEnotconnRecoveryDiagnostic(
+					normalizedMountPoint,
+					initialProbeResult.Diagnostic,
+					recoveryUnmountResult.Diagnostic,
+					retryApplyDiagnostic: "not attempted",
+					retryProbeDiagnostic: "not attempted"),
+				MountActionFailureSeverity.Hard);
+		}
+
+		MountReconciliationAction retryAction = BuildMountOnlyRetryAction(action);
+		MountActionApplyResult retryApplyResult = _mountCommandService.ApplyAction(
+			retryAction,
+			_options.MergerfsOptionsBase,
+			_options.UnmountCommandTimeout,
+			_options.CommandPollInterval,
+			_options.CleanupApplyHighPriority,
+			_options.CleanupPriorityIoniceClass,
+			_options.CleanupPriorityNiceValue,
+			cancellationToken);
+		if (retryApplyResult.Outcome != MountActionApplyOutcome.Success)
+		{
+			return new MountActionApplyResult(
+				action,
+				MountActionApplyOutcome.Failure,
+				BuildEnotconnRecoveryDiagnostic(
+					normalizedMountPoint,
+					initialProbeResult.Diagnostic,
+					recoveryUnmountResult.Diagnostic,
+					retryApplyResult.Diagnostic,
+					retryProbeDiagnostic: "not attempted"),
+				MountActionFailureSeverity.Hard);
+		}
+
+		MountReadinessProbeResult retryProbeResult = _mountCommandService.ProbeMountPointReadiness(
+			normalizedMountPoint,
+			_options.UnmountCommandTimeout,
+			_options.CommandPollInterval,
+			cancellationToken);
+		if (!retryProbeResult.IsReady)
+		{
+			return new MountActionApplyResult(
+				action,
+				MountActionApplyOutcome.Failure,
+				BuildEnotconnRecoveryDiagnostic(
+					normalizedMountPoint,
+					initialProbeResult.Diagnostic,
+					recoveryUnmountResult.Diagnostic,
+					retryApplyResult.Diagnostic,
+					retryProbeResult.Diagnostic),
+				MountActionFailureSeverity.Hard);
+		}
+
+		return new MountActionApplyResult(
+			action,
+			MountActionApplyOutcome.Success,
+			$"Mount readiness recovered after ENOTCONN probe failure for '{normalizedMountPoint}'. initial_probe='{initialProbeResult.Diagnostic}' recovery_unmount='{recoveryUnmountResult.Diagnostic}' retry_apply='{retryApplyResult.Diagnostic}' retry_probe='{retryProbeResult.Diagnostic}'.");
+	}
+
+	/// <summary>
+	/// Builds one mount-only retry action for ENOTCONN recovery.
+	/// </summary>
+	/// <param name="action">Original mount/remount action.</param>
+	/// <returns>Mount action preserving original target and payload fields.</returns>
+	private static MountReconciliationAction BuildMountOnlyRetryAction(MountReconciliationAction action)
+	{
+		ArgumentNullException.ThrowIfNull(action);
+		if (action.Kind == MountReconciliationActionKind.Mount)
+		{
+			return action;
+		}
+
+		return new MountReconciliationAction(
+			MountReconciliationActionKind.Mount,
+			action.MountPoint,
+			action.DesiredIdentity,
+			action.MountPayload,
+			action.Reason);
+	}
+
+	/// <summary>
+	/// Builds one combined ENOTCONN recovery diagnostic payload.
+	/// </summary>
+	/// <param name="normalizedMountPoint">Normalized mountpoint path.</param>
+	/// <param name="initialProbeDiagnostic">Initial probe diagnostic.</param>
+	/// <param name="recoveryUnmountDiagnostic">Recovery unmount diagnostic.</param>
+	/// <param name="retryApplyDiagnostic">Retry apply diagnostic.</param>
+	/// <param name="retryProbeDiagnostic">Retry probe diagnostic.</param>
+	/// <returns>Combined diagnostic message.</returns>
+	private static string BuildEnotconnRecoveryDiagnostic(
+		string normalizedMountPoint,
+		string initialProbeDiagnostic,
+		string recoveryUnmountDiagnostic,
+		string retryApplyDiagnostic,
+		string retryProbeDiagnostic)
+	{
+		return
+			$"Mount readiness ENOTCONN recovery failed for '{normalizedMountPoint}'. initial_probe='{initialProbeDiagnostic}' recovery_unmount='{recoveryUnmountDiagnostic}' retry_apply='{retryApplyDiagnostic}' retry_probe='{retryProbeDiagnostic}'.";
+	}
+
+	/// <summary>
+	/// Returns whether one readiness diagnostic indicates ENOTCONN transport-endpoint disconnect state.
+	/// </summary>
+	/// <param name="diagnostic">Readiness diagnostic text.</param>
+	/// <returns><see langword="true"/> when ENOTCONN text is present; otherwise <see langword="false"/>.</returns>
+	private static bool ContainsTransportEndpointNotConnectedDiagnostic(string diagnostic)
+	{
+		ArgumentNullException.ThrowIfNull(diagnostic);
+		return diagnostic.Contains(TransportEndpointNotConnectedToken, StringComparison.OrdinalIgnoreCase);
 	}
 
 	/// <summary>

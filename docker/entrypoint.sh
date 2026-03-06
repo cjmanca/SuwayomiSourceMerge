@@ -494,10 +494,13 @@ ensure_entrypoint_log_file_ownership() {
   chown -h "$PUID:$PGID" "$resolved_log_file_path" >/dev/null 2>&1 || true
 }
 
-mkdir -p /ssm/config /ssm/state "$MERGED_ROOT_PATH"
+mkdir -p /ssm/config /ssm/state /ssm/sources /ssm/override "$MERGED_ROOT_PATH"
 # Securely fix ownership of config and state trees without following symlinks, to avoid
 # privilege escalation via symlinks planted inside these directories.
 find /ssm/config /ssm/state -xdev -exec chown -h "$PUID:$PGID" {} + >/dev/null 2>&1 || true
+# Parent roots for child bind mounts (/ssm/sources/*, /ssm/override/*): set
+# non-recursive ownership only so mounted child volumes are never traversed.
+chown -h "$PUID:$PGID" /ssm/sources /ssm/override >/dev/null 2>&1 || true
 # Only chown the merged root itself (not recursive) so stale FUSE mountpoints beneath
 # $MERGED_ROOT_PATH does not hard-fail container startup with transport-endpoint errors.
 ensure_merged_root_ownership

@@ -8,6 +8,7 @@ If you're running Suwayomi in a docker container, you'll need to set the local s
 `-v '/mnt/cache/appdata/ssm/merged':'/home/suwayomi/.local/share/Tachidesk/local':'rw,slave'`
 
 If you're running SuwayomiSourceMerge in Docker, set the `/ssm/merged` bind to `rw,shared`.
+On the host, set the merged root as an isolated shared bind (`private` then `rshared`) to avoid duplicate host-visible mount entries.
 
 It uses `mergerfs` under a .NET control plane to:
 
@@ -41,6 +42,12 @@ Avoid `/mnt/user/...` for these container paths:
 
 Why: `/mnt/user` is Unraid's user-share FUSE layer. SuwayomiSourceMerge also depends on FUSE (`mergerfs`) plus `inotify` change detection. Stacking those on top of `/mnt/user` adds an extra virtualization layer that can cause slower scans, delayed/missed watcher behavior, and confusing write placement behavior.
 
+Mount policy for sources/overrides:
+
+- Map each physical source to a child path under `/ssm/sources/*` (for example `/ssm/sources/disk1`).
+- Map each physical override path to a child path under `/ssm/override/*` (for example `/ssm/override/priority`).
+- Do not map Docker named/anonymous volumes to parent roots `/ssm/sources` or `/ssm/override`.
+
 Recommended host-to-container mapping layout:
 
 - Config: `/mnt/cache/appdata/ssm/config` -> `/ssm/config`
@@ -65,14 +72,15 @@ Note that the source name (`SourceName (EN)`) is a direct child to the entered v
 
 ## Prep merge directory for sharing
 
-The directory used for the merged output needs to be set to rshared in order for the two docker containers to properly interact with the fuse mounts.
+The directory used for the merged output needs to be configured as an isolated shared bind so the two docker containers can interact with the FUSE mounts while avoiding duplicate host-visible mount entries.
 
-Create a script to set the merged directory as an rshared mount:
+Create a script to set the merged directory as an isolated `rshared` mount:
 ```bash
 #!/bin/bash
 MERGED="/mnt/cache/appdata/ssm/merged"
 mkdir -p "$MERGED"
 mountpoint -q "$MERGED" || mount --bind "$MERGED" "$MERGED"
+mount --make-private "$MERGED"
 mount --make-rshared "$MERGED"
 ```
 
@@ -121,7 +129,9 @@ Required container paths:
 - `/ssm/merged`
 - `/ssm/state`
 
-`/ssm/merged` must be configured with `bind-propagation=shared`.
+`/ssm/merged` must be configured with `bind-propagation=shared`, and the host merged root should be prepared as an isolated shared bind (`mount --make-private` then `mount --make-rshared`).
+
+For sources and overrides, use child bind mounts (`/ssm/sources/*` and `/ssm/override/*`) instead of parent-root Docker volumes.
 
 ### Option B: deploy with Docker Compose
 
@@ -143,8 +153,10 @@ services:
       PGID: "100"
     volumes:
       - /mnt/cache/appdata/ssm/config:/ssm/config
-	  - /mnt/cache/appdata/ssm/merged:/ssm/merged:rw,shared
+      - /mnt/cache/appdata/ssm/merged:/ssm/merged:rw,shared
       - /mnt/cache/appdata/ssm/state:/ssm/state
+      # Use child bind mounts under /ssm/sources/* and /ssm/override/*.
+      # Do not mount Docker volumes to /ssm/sources or /ssm/override parent roots.
       - /mnt/disk1/share/suwayomi-manga-downloads/mangas:/ssm/sources/disk1
       - /mnt/disk2/share/suwayomi-manga-downloads/mangas:/ssm/sources/disk2
       - /mnt/disk3/share/suwayomi-manga-downloads/mangas:/ssm/sources/disk3

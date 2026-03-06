@@ -111,10 +111,10 @@ public sealed partial class MergeMountWorkflowTests
 	}
 
 	/// <summary>
-	/// Verifies degraded snapshot visibility suppresses stale-unmount apply actions while still applying mount actions.
+	/// Verifies degraded snapshot visibility suppresses stale-unmount and mount/remount apply actions.
 	/// </summary>
 	[Fact]
-	public void RunMergePass_Edge_ShouldSuppressStaleUnmountActions_WhenSnapshotVisibilityIsDegraded()
+	public void RunMergePass_Failure_ShouldSuppressMountRemountAndStaleUnmountActions_WhenSnapshotVisibilityIsDegraded()
 	{
 		using TemporaryDirectory temporaryDirectory = new();
 		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
@@ -145,13 +145,61 @@ public sealed partial class MergeMountWorkflowTests
 
 		MergeScanDispatchOutcome outcome = workflow.RunMergePass("interval elapsed", force: false);
 
-		Assert.Equal(MergeScanDispatchOutcome.Success, outcome);
-		Assert.Single(fixture.MountCommandService.AppliedActions);
-		Assert.Equal(MountReconciliationActionKind.Mount, fixture.MountCommandService.AppliedActions[0].Kind);
+		Assert.Equal(MergeScanDispatchOutcome.Failure, outcome);
+		Assert.Empty(fixture.MountCommandService.AppliedActions);
 		Assert.Contains(
 			fixture.Logger.Events,
 			static entry => entry.EventId == "merge.workflow.warning" &&
 				entry.Message.Contains("Suppressed stale-unmount actions", StringComparison.Ordinal));
+		Assert.Contains(
+			fixture.Logger.Events,
+			static entry => entry.EventId == "merge.workflow.warning" &&
+				entry.Message.Contains("Suppressed mount/remount actions", StringComparison.Ordinal));
+	}
+
+	/// <summary>
+	/// Verifies degraded mount/remount suppression logs include suppression-count context.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Failure_ShouldLogSuppressionCounts_WhenSnapshotVisibilityIsDegraded()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		fixture.MountSnapshotService.EnqueueSnapshot(new MountSnapshot(
+			[],
+			[
+				new MountSnapshotWarning(
+					"MOUNT-SNAP-001",
+					"degraded visibility",
+					MountSnapshotWarningSeverity.DegradedVisibility)
+			]));
+		fixture.ReconciliationService.NextPlanFactory = input => new MountReconciliationPlan(
+		[
+			new MountReconciliationAction(
+				MountReconciliationActionKind.Mount,
+				input.DesiredMounts[0].MountPoint,
+				input.DesiredMounts[0].DesiredIdentity,
+				input.DesiredMounts[0].MountPayload,
+				MountReconciliationReason.MissingMount),
+			new MountReconciliationAction(
+				MountReconciliationActionKind.Unmount,
+				Path.Combine(fixture.Options.MergedRootPath, "Stale Title"),
+				desiredIdentity: null,
+				mountPayload: null,
+				MountReconciliationReason.StaleMount)
+		]);
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("interval elapsed", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Failure, outcome);
+		RecordingLogger.CapturedLogEvent warning = Assert.Single(
+			fixture.Logger.Events,
+			entry => entry.EventId == "merge.workflow.warning"
+				&& entry.Message.Contains("Suppressed mount/remount actions", StringComparison.Ordinal));
+		Assert.NotNull(warning.Context);
+		Assert.Equal("1", warning.Context!["suppressed_mount_remount_actions"]);
+		Assert.Equal("true", warning.Context["snapshot_degraded"]);
 	}
 
 	/// <summary>

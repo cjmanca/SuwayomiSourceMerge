@@ -129,7 +129,140 @@ public sealed partial class MergerfsMountCommandServiceTests
 			cleanupPriorityNiceValue: -20);
 
 		Assert.Equal(MountActionApplyOutcome.Failure, result.Outcome);
+		Assert.Equal(MountActionFailureSeverity.Hard, result.FailureSeverity);
 		Assert.Contains("Failed to ensure mountpoint directory", result.Diagnostic, StringComparison.Ordinal);
+		Assert.Empty(executor.Requests);
+	}
+
+	/// <summary>
+	/// Verifies ensure failures are classified as soft when post-check confirms mountpoint is a usable directory.
+	/// </summary>
+	[Fact]
+	public void ApplyAction_Edge_ShouldClassifyEnsureFailureAsSoft_WhenPostCheckConfirmsUsableDirectory()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string mountPoint = Path.Combine(temporaryDirectory.Path, "merged", "Canonical Title");
+		Directory.CreateDirectory(mountPoint);
+		RecordingCommandExecutor executor = new(
+			new ExternalCommandResult(
+				ExternalCommandOutcome.Success,
+				ExternalCommandFailureKind.None,
+				0,
+				string.Empty,
+				string.Empty,
+				false,
+				false,
+				TimeSpan.FromMilliseconds(5)));
+		MergerfsMountCommandService service = new(
+			executor,
+			static _ => throw new IOException("Cannot create a file when that file already exists."));
+		MountReconciliationAction action = new(
+			MountReconciliationActionKind.Mount,
+			mountPoint,
+			"suwayomi_hash",
+			"/state/linkA=RW:/state/linkB=RO",
+			MountReconciliationReason.MissingMount);
+
+		MountActionApplyResult result = service.ApplyAction(
+			action,
+			"allow_other",
+			TimeSpan.FromSeconds(5),
+			TimeSpan.FromMilliseconds(10),
+			cleanupHighPriority: false,
+			cleanupPriorityIoniceClass: 3,
+			cleanupPriorityNiceValue: -20);
+
+		Assert.Equal(MountActionApplyOutcome.Failure, result.Outcome);
+		Assert.Equal(MountActionFailureSeverity.Soft, result.FailureSeverity);
+		Assert.Contains("already exists", result.Diagnostic, StringComparison.OrdinalIgnoreCase);
+		Assert.Empty(executor.Requests);
+	}
+
+	/// <summary>
+	/// Verifies ensure failures remain hard when the mountpoint path resolves to a file.
+	/// </summary>
+	[Fact]
+	public void ApplyAction_Failure_ShouldClassifyEnsureFailureAsHard_WhenPostCheckResolvesFileAtMountPoint()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string mountPoint = Path.Combine(temporaryDirectory.Path, "merged", "Canonical Title");
+		Directory.CreateDirectory(Path.GetDirectoryName(mountPoint)!);
+		File.WriteAllText(mountPoint, "file");
+		RecordingCommandExecutor executor = new(
+			new ExternalCommandResult(
+				ExternalCommandOutcome.Success,
+				ExternalCommandFailureKind.None,
+				0,
+				string.Empty,
+				string.Empty,
+				false,
+				false,
+				TimeSpan.FromMilliseconds(5)));
+		MergerfsMountCommandService service = new(
+			executor,
+			static _ => throw new IOException("Cannot create a file when that file already exists."));
+		MountReconciliationAction action = new(
+			MountReconciliationActionKind.Mount,
+			mountPoint,
+			"suwayomi_hash",
+			"/state/linkA=RW:/state/linkB=RO",
+			MountReconciliationReason.MissingMount);
+
+		MountActionApplyResult result = service.ApplyAction(
+			action,
+			"allow_other",
+			TimeSpan.FromSeconds(5),
+			TimeSpan.FromMilliseconds(10),
+			cleanupHighPriority: false,
+			cleanupPriorityIoniceClass: 3,
+			cleanupPriorityNiceValue: -20);
+
+		Assert.Equal(MountActionApplyOutcome.Failure, result.Outcome);
+		Assert.Equal(MountActionFailureSeverity.Hard, result.FailureSeverity);
+		Assert.Contains("ensure_post_check", result.Diagnostic, StringComparison.Ordinal);
+		Assert.Empty(executor.Requests);
+	}
+
+	/// <summary>
+	/// Verifies non-already-exists ensure failures are hard when post-check cannot confirm directory usability.
+	/// </summary>
+	[Fact]
+	public void ApplyAction_Failure_ShouldClassifyEnsureFailureAsHard_WhenExceptionIsNonAlreadyExists()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string mountPoint = Path.Combine(temporaryDirectory.Path, "merged", "Canonical Title");
+		RecordingCommandExecutor executor = new(
+			new ExternalCommandResult(
+				ExternalCommandOutcome.Success,
+				ExternalCommandFailureKind.None,
+				0,
+				string.Empty,
+				string.Empty,
+				false,
+				false,
+				TimeSpan.FromMilliseconds(5)));
+		MergerfsMountCommandService service = new(
+			executor,
+			static _ => throw new IOException("permission denied"));
+		MountReconciliationAction action = new(
+			MountReconciliationActionKind.Mount,
+			mountPoint,
+			"suwayomi_hash",
+			"/state/linkA=RW:/state/linkB=RO",
+			MountReconciliationReason.MissingMount);
+
+		MountActionApplyResult result = service.ApplyAction(
+			action,
+			"allow_other",
+			TimeSpan.FromSeconds(5),
+			TimeSpan.FromMilliseconds(10),
+			cleanupHighPriority: false,
+			cleanupPriorityIoniceClass: 3,
+			cleanupPriorityNiceValue: -20);
+
+		Assert.Equal(MountActionApplyOutcome.Failure, result.Outcome);
+		Assert.Equal(MountActionFailureSeverity.Hard, result.FailureSeverity);
+		Assert.Contains("permission denied", result.Diagnostic, StringComparison.OrdinalIgnoreCase);
 		Assert.Empty(executor.Requests);
 	}
 

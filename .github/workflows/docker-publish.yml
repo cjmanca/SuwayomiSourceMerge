@@ -50,6 +50,24 @@ jobs:
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Guard image volume roots
+        shell: bash
+        run: |
+          set -euo pipefail
+          preflight_tag="${{ steps.image.outputs.name }}:volume-guard-${{ github.sha }}"
+          docker build --file Dockerfile --tag "$preflight_tag" .
+          volumes_json="$(docker image inspect "$preflight_tag" --format '{{json .Config.Volumes}}')"
+          echo "Config.Volumes=$volumes_json"
+
+          if [[ "$volumes_json" != "null" ]]; then
+            if echo "$volumes_json" | grep -Eq '"/ssm\/sources\/?"|"/ssm\/override\/?"'; then
+              echo "ERROR: image must not declare /ssm/sources or /ssm/override as container volume roots." >&2
+              exit 1
+            fi
+          fi
+
+          docker image rm -f "$preflight_tag" >/dev/null 2>&1 || true
+
       - name: Build and publish image
         uses: docker/build-push-action@v6
         with:

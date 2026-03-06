@@ -141,16 +141,18 @@ modules:
     do_not_reimplement:
       - Canonical cancellation propagation during merge-pass branch planning and override-title discovery enumeration; use MergeMountWorkflow.RunMergePass and MergeMountWorkflow.Pass.Grouping helpers.
       - Canonical cleanup stale-prune safety gate that infers still-mounted branch directories from mergerfs source payloads and skips pruning only for degraded-visibility or unresolved mappings; use MergeMountWorkflow.RunCleanupPass.
+      - Canonical cleanup convergence loop should iterate bounded pre/post snapshots and managed unmount attempts until managed mounts clear or max iterations is reached; use MergeMountWorkflow.RunCleanupPass.
       - Canonical fatal-exception passthrough from merge-pass and cleanup exception shields so fatal CLR exceptions are never normalized into warning/failure outcomes; use MergeMountWorkflow.IsFatalException, MergeMountWorkflow.RunMergePass, and MergeMountWorkflow.RunCleanupPass.
       - Canonical FlareSolverr URL scheme guard parity for settings-to-workflow mapping (allow only absolute http/https when non-empty); use MergeMountWorkflowOptions.TryParseAbsoluteUriOrNull.
       - Canonical merged-root residual cleanup should delete empty merged directories and quarantine non-empty residual directories under config only when mount visibility is healthy and managed mounts are inactive; use MergeMountWorkflow.CleanupMergedRootDirectories.
-      - Canonical merge-pass degraded-visibility safety gate that suppresses stale-unmount apply actions when source discovery/build/snapshot visibility is degraded while still allowing mount/remount actions; use MergeMountWorkflow.RunMergePass.
+      - Canonical merge-pass degraded-visibility safety gate that suppresses stale-unmount and mount/remount apply actions when pre-apply mount visibility is degraded; use MergeMountWorkflow.RunMergePass.
       - Canonical merge-pass helper partitioning for action apply, force-remount resolution, and grouping helpers; use MergeMountWorkflow partial pass files.
       - Canonical merge-pass outcome mapping from action results (mixed when busy+failure, then busy over failure over success); use MergeMountWorkflow.RunMergePass.
       - Canonical merge-pass override-title catalog discovery/filtering before resolver construction; use MergeMountWorkflow.DiscoverExistingOverrideTitleCatalog and MergeMountWorkflow.TryCreateOverrideTitleCatalogEntry.
       - Canonical merge-pass title metadata artifact orchestration and interruption signaling; use MergeMountWorkflow.EnsureTitleMetadata and IComickMetadataCoordinator.
       - Canonical merge-workflow lifecycle status-event emission (`merge.workflow.started`, `merge.workflow.completed`, cleanup pass summary) at normal severity; use MergeMountWorkflow.RunMergePass and MergeMountWorkflow.RunCleanupPass.
-      - Canonical mount-readiness flow should run per-action timeout-bounded probes then validate successful mounts against one post-apply snapshot capture; use MergeMountWorkflow.ValidateMountReadinessProbe, MergeMountWorkflow.ValidatePostApplyMountSnapshot, and IMergerfsMountCommandService.ProbeMountPointReadiness.
+      - Canonical mount-action fail-fast counting should advance only on hard mount/remount failures while soft failures remain pass failures and reset consecutive hard-failure streaks; use MergeMountWorkflow.ApplyPlanActions and MountActionApplyResult.FailureSeverity.
+      - Canonical mount-readiness flow should run timeout-bounded probes, perform one ENOTCONN recovery cycle (detach + mount-only retry + reprobe), then validate successful mounts against one post-apply snapshot capture; use MergeMountWorkflow.ValidateMountReadinessProbe, MergeMountWorkflow.AttemptEnotconnRecovery, MergeMountWorkflow.ValidatePostApplyMountSnapshot, and IMergerfsMountCommandService.ProbeMountPointReadiness.
       - Canonical resolve-only force-remount reason resolution (`override-force:<title>`) targeting known desired mountpoints; use MergeMountWorkflow.RunMergePass.
       - Canonical settings-to-workflow FlareSolverr parse diagnostics should throw with `ParamName=settings` and keep strict key-presence semantics where empty value disables routing; use MergeMountWorkflowOptions.FromSettings.
       - Canonical settings-to-workflow metadata API/Comick endpoint mapping should require runtime keys and map runtime.comick_api_base_url/runtime.comick_search_endpoint_path/runtime.comick_search_max_results/runtime.comick_comic_endpoint_path/runtime.comick_image_base_url plus runtime.metadata_api_min_request_delay_ms/runtime.metadata_api_max_request_delay_ms/runtime.metadata_api_cache_ttl_hours to normalized runtime values, with endpoint paths constrained to relative non-root values without query/fragment components; use MergeMountWorkflowOptions.FromSettings.
@@ -640,7 +642,7 @@ modules:
       - YAML parser unknown-key tolerance for schema evolution; use YamlDocumentParser.
     related: [config-resolution, domain-normalization, logging-infrastructure, runtime-host, unit-test-suite]
   - id: container-runtime-assets
-    summary: Container image, entrypoint identity/fuse policy, package integrity verification, and docker-context filtering for runtime deployment.
+    summary: Container image/runtime policy, volume-root safeguards, package integrity checks, and Docker publish workflow assets.
     tags: [container, docker, runtime]
     paths:
       - .dockerignore
@@ -656,15 +658,15 @@ modules:
       - symbol: .github/workflows/docker-publish.yml
         kind: file
         path: .github/workflows/docker-publish.yml
-        purpose: Defines canonical GitHub Actions workflow that builds/publishes to GHCR for all branches with clear branch-prefixed tags.
+        purpose: Defines canonical GitHub Actions workflow that guards image volume roots and builds/publishes branch-tagged GHCR images.
       - symbol: docker/entrypoint.sh
         kind: file
         path: docker/entrypoint.sh
-        purpose: Applies PUID/PGID identity mapping, uses consistent bash `[[ ... ]]` tests, parses settings scalars with YAML-aware inline-comment handling (including embedded `#` plain scalars) and escaped-backslash-aware quote handling for log mirroring, enforces runtime-parity logging.file_name safety checks (rooted/segmented, invalid/control chars, trailing dots/spaces, reserved device names) with fallback warnings, uses top-level fuse write-failure diagnostics helper flow, performs non-root FUSE device access preflight under the runtime identity, avoids recursive merged-root chown, performs best-effort first-level merged-child ownership repair with stale-endpoint-safe warnings, and launches the daemon.
+        purpose: Applies PUID/PGID identity mapping, uses consistent bash `[[ ... ]]` tests, parses settings scalars with YAML-aware inline-comment handling (including embedded `#` plain scalars) and escaped-backslash-aware quote handling for log mirroring, enforces runtime-parity logging.file_name safety checks (rooted/segmented, invalid/control chars, trailing dots/spaces, reserved device names) with fallback warnings, uses top-level fuse write-failure diagnostics helper flow, performs non-root FUSE device access preflight under the runtime identity, ensures `/ssm/sources` and `/ssm/override` roots exist for child bind-mount layouts, avoids recursive merged-root chown, performs best-effort first-level merged-child ownership repair with stale-endpoint-safe warnings, and launches the daemon.
       - symbol: Dockerfile
         kind: file
         path: Dockerfile
-        purpose: Defines canonical multi-stage .NET build/runtime image, pinned upstream mergerfs Bookworm package install with SHA256 integrity verification, required runtime packages, and baked `cap_sys_admin` file capabilities for mergerfs/fusermount3.
+        purpose: Defines canonical multi-stage .NET build/runtime image, pinned upstream mergerfs Bookworm package install with SHA256 integrity verification, required runtime packages, no parent volume declarations for `/ssm/sources` and `/ssm/override`, and baked `cap_sys_admin` file capabilities for mergerfs/fusermount3.
       - symbol: tests/SuwayomiSourceMerge.IntegrationTests/README.md
         kind: file
         path: tests/SuwayomiSourceMerge.IntegrationTests/README.md
@@ -685,6 +687,7 @@ modules:
     do_not_reimplement:
       - Canonical container build context exclusion policy; use .dockerignore.
       - Canonical container entrypoint bash test/readability policy (`[[ ... ]]` conditionals and inline fuse write stderr capture); use docker/entrypoint.sh.
+      - Canonical container image volume-root policy that reserves submount discovery for `/ssm/sources/*` and `/ssm/override/*` and must not declare `/ssm/sources` or `/ssm/override` as image volume roots; use Dockerfile.
       - Canonical container runtime file-capability baking for non-root mergerfs/fusermount3 command execution; use Dockerfile.
       - Canonical container runtime package and multi-stage image definition must remove build-only curl after mergerfs package install; use Dockerfile.
       - Canonical container runtime package and multi-stage image definition; use Dockerfile.
@@ -693,9 +696,10 @@ modules:
       - Canonical container startup log mirroring that parses settings scalars with YAML-aware inline-comment handling (embedded plain-scalar `#` values are preserved) plus escaped-backslash-aware quote handling, then writes entrypoint diagnostics into runtime log file path derived from settings/defaults; use docker/entrypoint.sh.
       - Canonical container startup logging.file_name safety gate that rejects rooted/segmented values, trailing dots/spaces, invalid/control characters, and reserved Windows device names, then falls back to default daemon.log with warning diagnostics; use docker/entrypoint.sh.
       - Canonical container startup non-root FUSE device access preflight under runtime identity (skip in mock-tool mode, warning when device is absent, fail-fast when present but inaccessible); use docker/entrypoint.sh.
+      - Canonical container startup root directory precreation for `/ssm/sources` and `/ssm/override` child bind-mount layouts without recursive ownership traversal; use docker/entrypoint.sh.
       - Canonical container startup ownership policy that avoids recursive chown under /ssm/merged and applies best-effort first-level child ownership repair (warning-only on stale endpoint failures); use docker/entrypoint.sh.
       - Canonical container startup PUID/PGID identity mapping and daemon launch; use docker/entrypoint.sh.
-      - Canonical GHCR image build/publish GitHub Actions pipeline; use .github/workflows/docker-publish.yml.
+      - Canonical GHCR image build/publish GitHub Actions pipeline with Docker image volume-root guard for `/ssm/sources` and `/ssm/override`; use .github/workflows/docker-publish.yml.
       - Canonical pinned mergerfs package integrity verification (arch-specific SHA256 checks) during image builds; use Dockerfile.
     related: [integration-test-suite, runtime-host, unit-test-suite]
   - id: domain-normalization
@@ -1193,11 +1197,12 @@ modules:
       - Canonical dangling-entry replacement semantics for branch-link staging (delete-any-entry before relink); use BranchLinkStagingService.StageBranchLinks.
       - Canonical desired-vs-actual reconciliation decision engine; use MountReconciliationService.Reconcile.
       - Canonical findmnt escaped-byte decoding must preserve UTF-8 mountpoint text and replace malformed surrogate halves with U+FFFD instead of throwing; use FindmntSnapshotLineParser.DecodeEscapedValue.
-      - Canonical findmnt snapshot capture and parse-warning behavior (including non-throwing parser guards and escape decoding); use FindmntMountSnapshotService.
+      - Canonical findmnt snapshot capture should parse output line-by-line while the process runs, treat output-capture task faults as command failures, and preserve warning-code semantics without bounded-output truncation dependence; use FindmntMountSnapshotService.
       - Canonical legacy shell findmnt pairs-mode compatibility wrapper; use findmnt_pairs.
       - Canonical mergerfs mount option composition must enforce a default thread cap (`threads=1`) when no explicit threads option is configured; use MergerfsOptionComposer.ComposeMountOptions.
       - Canonical mount action precondition that ensures mountpoint directories exist before invoking mergerfs; use MergerfsMountCommandService.
       - Canonical mount/unmount/remount command fallback chains (`fusermount3`, `fusermount`, `umount`); use MergerfsMountCommandService.
+      - Canonical mountpoint-directory ensure failure severity mapping (probe-confirmed usable directory => soft, otherwise hard) must stay centralized; use MergerfsMountCommandService.TryEnsureMountPointDirectory and MountActionApplyResult.
       - Canonical mountpoint directory ensure diagnostics should map non-fatal creation failures to deterministic failure text while rethrowing fatal CLR exceptions; use MergerfsMountCommandService.TryEnsureMountPointDirectory.
       - Canonical mount-snapshot warning-code severity mapping used by cleanup safety decisions; use MountSnapshotWarningPolicy.ResolveSeverity.
       - Canonical non-zero mount busy classification should inspect stderr first and only fall back to stdout when stderr is blank; use MergerfsMountCommandService.ClassifyCommandResult.
@@ -1648,7 +1653,7 @@ modules:
       - symbol: README.md
         kind: file
         path: README.md
-        purpose: Captures public usage guidance including Docker Compose, Unraid direct-disk mapping, rshared merged-bind requirements, CI, and bare-metal runtime instructions.
+        purpose: Captures public usage guidance including Docker Compose, Unraid direct-disk mapping, child submount policy for `/ssm/sources/*` and `/ssm/override/*`, isolated shared merged-bind requirements (`private` then `rshared`), CI, and bare-metal runtime instructions.
       - symbol: SuwayomiSourceMerge.csproj
         kind: file
         path: SuwayomiSourceMerge/SuwayomiSourceMerge.csproj
@@ -1656,7 +1661,7 @@ modules:
       - symbol: unraid/templates/my-SuwayomiSourceMerge.xml
         kind: file
         path: unraid/templates/my-SuwayomiSourceMerge.xml
-        purpose: Defines an Unraid Community Apps template with required FUSE/security flags and source/override path slots through disk10.
+        purpose: Defines an Unraid Community Apps template with required FUSE/security flags and source/override child-path slots through disk10.
     extension_points:
       - how: Add new runtime orchestration by introducing services and invoking them from Program.cs.
         symbols: [Program.cs]
@@ -1672,6 +1677,7 @@ modules:
       - Canonical default startup config root handoff to application host; use ProgramEntryPoint.Run.
       - Canonical public runtime usage and deployment documentation; use README.md.
       - Canonical Unraid Community Apps template wiring for this runtime; use unraid/templates/my-SuwayomiSourceMerge.xml.
+      - Canonical user-facing mount guidance must keep source/override storage on child targets (`/ssm/sources/*`, `/ssm/override/*`), avoid parent-root Docker volumes, configure `/ssm/merged` container binds as `rw,shared`, and prepare the host merged root as isolated shared (`mount --make-private` then `mount --make-rshared`); use README.md and unraid/templates/my-SuwayomiSourceMerge.xml.
       - Console entrypoint bootstrapping; extend Program.cs.
       - Runtime project configuration root; extend SuwayomiSourceMerge.csproj.
       - Warning policy overrides in app project; keep centralized in Directory.Build.props.
