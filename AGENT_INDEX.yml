@@ -642,14 +642,18 @@ modules:
       - YAML parser unknown-key tolerance for schema evolution; use YamlDocumentParser.
     related: [config-resolution, domain-normalization, logging-infrastructure, runtime-host, unit-test-suite]
   - id: container-runtime-assets
-    summary: Container image/runtime policy, volume-root safeguards, package integrity checks, and Docker publish workflow assets.
+    summary: Container runtime assets for entrypoint policy, host preflight ownership/security setup, and Docker publish workflow.
     tags: [container, docker, runtime]
     paths:
       - .dockerignore
       - .github/workflows/docker-publish.yml
+      - docker/security/apparmor/ssm-mergerfs
+      - docker/security/checksums.sha256
+      - docker/security/seccomp-mergerfs.json
       - docker/entrypoint.sh
       - Dockerfile
       - tests/SuwayomiSourceMerge.IntegrationTests/README.md
+      - tools/setup-host-security.sh
     entrypoints:
       - symbol: .dockerignore
         kind: file
@@ -662,7 +666,19 @@ modules:
       - symbol: docker/entrypoint.sh
         kind: file
         path: docker/entrypoint.sh
-        purpose: Applies PUID/PGID identity mapping, uses consistent bash `[[ ... ]]` tests, parses settings scalars with YAML-aware inline-comment handling (including embedded `#` plain scalars) and escaped-backslash-aware quote handling for log mirroring, enforces runtime-parity logging.file_name safety checks (rooted/segmented, invalid/control chars, trailing dots/spaces, reserved device names) with fallback warnings, uses top-level fuse write-failure diagnostics helper flow, performs non-root FUSE device access preflight under the runtime identity, ensures `/ssm/sources` and `/ssm/override` roots exist for child bind-mount layouts, repairs one-level child bind-root ownership for sources/overrides, avoids recursive merged-root chown, performs best-effort first-level merged-child ownership repair with stale-endpoint-safe warnings, and launches the daemon.
+        purpose: Applies PUID/PGID identity mapping, uses consistent bash `[[ ... ]]` tests, parses settings scalars with YAML-aware inline-comment handling (including embedded `#` plain scalars) and escaped-backslash-aware quote handling for log mirroring, enforces runtime-parity logging.file_name safety checks (rooted/segmented, invalid/control chars, trailing dots/spaces, reserved device names) with fallback warnings, enforces `ENTRYPOINT_FUSE_CONF_MODE` policy (`auto` writable edits vs `host-managed` validation-only with container-visible bind guidance), supports non-root launch mode by skipping root-only identity/ownership/gosu operations, performs non-root FUSE device access preflight under the runtime identity, ensures `/ssm/sources` and `/ssm/override` roots exist for child bind-mount layouts, repairs one-level child bind-root ownership for sources/overrides, avoids recursive merged-root chown, performs best-effort first-level merged-child ownership repair with stale-endpoint-safe warnings, and launches the daemon.
+      - symbol: docker/security/apparmor/ssm-mergerfs
+        kind: file
+        path: docker/security/apparmor/ssm-mergerfs
+        purpose: Defines the hardened AppArmor profile used for container runtime security_opt policy with mount/FUSE allowances.
+      - symbol: docker/security/checksums.sha256
+        kind: file
+        path: docker/security/checksums.sha256
+        purpose: Defines canonical SHA256 checksums used by host bootstrap setup to verify seccomp and AppArmor profile integrity before install.
+      - symbol: docker/security/seccomp-mergerfs.json
+        kind: file
+        path: docker/security/seccomp-mergerfs.json
+        purpose: Defines the hardened seccomp profile used for container runtime security_opt policy.
       - symbol: Dockerfile
         kind: file
         path: Dockerfile
@@ -671,10 +687,17 @@ modules:
         kind: file
         path: tests/SuwayomiSourceMerge.IntegrationTests/README.md
         purpose: Documents container E2E test execution profile and Docker daemon prerequisites.
+      - symbol: tools/setup-host-security.sh
+        kind: file
+        path: tools/setup-host-security.sh
+        purpose: Prepares idempotent host bind-path parent ownership/mode preflight, merged propagation, fuse.conf `user_allow_other`, seccomp/AppArmor install, and checksum-verified security runtime guidance including host `/etc/fuse.conf` bind-mount snippets for host-managed mode.
     extension_points:
       - how: Adapt runtime package set and image-stage composition by editing Dockerfile stages and apt package list.
         symbols: [Dockerfile]
         paths: [Dockerfile]
+      - how: Adjust host bind-path preflight discovery and repair policy in the setup-host-security helper.
+        symbols: [tools/setup-host-security.sh]
+        paths: [tools/setup-host-security.sh]
       - how: Change startup identity defaults and ownership behavior by extending the container entrypoint script.
         symbols: [docker/entrypoint.sh]
         paths: [docker/entrypoint.sh]
@@ -691,11 +714,17 @@ modules:
       - Canonical container runtime file-capability baking for non-root mergerfs/fusermount3 command execution; use Dockerfile.
       - Canonical container runtime package and multi-stage image definition must remove build-only curl after mergerfs package install; use Dockerfile.
       - Canonical container runtime package and multi-stage image definition; use Dockerfile.
-      - Canonical container startup fuse policy: skip fuse.conf edits when PUID=0 and fail non-root startup with remediation guidance when /etc/fuse.conf cannot be updated; use docker/entrypoint.sh.
+      - Canonical container startup fuse policy: skip fuse.conf edits when running as root with PUID=0 and fail non-root startup with remediation guidance when /etc/fuse.conf cannot be updated; use docker/entrypoint.sh.
+      - Canonical container startup `ENTRYPOINT_FUSE_CONF_MODE` policy validation and host-managed fuse.conf gate (`user_allow_other` required without mutation); use docker/entrypoint.sh.
+      - Canonical container startup host-managed fuse guidance must require container-visible fuse.conf mounts (default `/etc/fuse.conf` bind) when validating `user_allow_other`; use docker/entrypoint.sh and tools/setup-host-security.sh.
       - Canonical container startup fuse write-failure diagnostics with root-cause details and manual `sh -c` remediation guidance; use docker/entrypoint.sh.
       - Canonical container startup log mirroring that parses settings scalars with YAML-aware inline-comment handling (embedded plain-scalar `#` values are preserved) plus escaped-backslash-aware quote handling, then writes entrypoint diagnostics into runtime log file path derived from settings/defaults; use docker/entrypoint.sh.
       - Canonical container startup logging.file_name safety gate that rejects rooted/segmented values, trailing dots/spaces, invalid/control characters, and reserved Windows device names, then falls back to default daemon.log with warning diagnostics; use docker/entrypoint.sh.
-      - Canonical container startup non-root FUSE device access preflight under runtime identity (skip in mock-tool mode, warning when device is absent, fail-fast when present but inaccessible); use docker/entrypoint.sh.
+      - Canonical container startup non-root launch mode: if entrypoint starts with non-root EUID, skip root-only user/group remapping, ownership/chmod repair, and gosu handoff, emit mismatch diagnostics when startup identity differs from configured PUID/PGID, then execute directly as container user with warning telemetry; use docker/entrypoint.sh.
+      - Canonical container startup non-root FUSE device access preflight under runtime identity (skip in mock-tool mode, warning when device is absent, fail-fast when present but inaccessible with actionable mapping/permission/SYS_ADMIN remediation guidance); use docker/entrypoint.sh.
+      - Canonical hardened runtime security profile assets (AppArmor/seccomp) and host bootstrap workflow; use docker/security/apparmor/ssm-mergerfs, docker/security/seccomp-mergerfs.json, and tools/setup-host-security.sh.
+      - Canonical host bind-path parent ownership preflight (peer `/mnt/disk*` majority + mtime tie-break + fallback owner); use tools/setup-host-security.sh.
+      - Canonical host security-profile checksum manifest and strict install verification flow for downloaded/local seccomp and AppArmor assets; use docker/security/checksums.sha256 and tools/setup-host-security.sh.
       - Canonical container startup root directory precreation for `/ssm/sources` and `/ssm/override` child bind-mount layouts plus one-level child bind-root ownership repair without recursive ownership traversal; use docker/entrypoint.sh.
       - Canonical container startup ownership policy that avoids recursive chown under /ssm/merged and applies best-effort first-level child ownership repair (warning-only on stale endpoint failures); use docker/entrypoint.sh.
       - Canonical container startup PUID/PGID identity mapping and daemon launch; use docker/entrypoint.sh.
@@ -1058,7 +1087,7 @@ modules:
       - Canonical Cloudflare challenge detection for Comick responses; use ComickPayloadParser.
       - Canonical Cloudflare fallback transition logging (`cooldown_active`, `unavailable`, `cooldown_cleared`) with structured context should remain gateway-owned; use CloudflareAwareComickGateway logging helpers.
       - Canonical Cloudflare FlareSolverr pre-content extraction helper should keep Try-pattern out-parameter ordering (`preContent`, `htmlWrapperDetection`, `diagnostic`) for deterministic call-site readability; use CloudflareAwareComickGateway.TryExtractJsonPreContent.
-      - Canonical Cloudflare FlareSolverr upstream response normalization + diagnostics (`raw_json`, `html_pre_extracted`, `failed`) with tri-state wrapper detection (`html_wrapper_detection`: `detected`/`not_detected`/`unknown`) plus derived compatibility flag (`is_html_wrapped`), including optional UTF BOM stripping, parser-backed `<pre>` node extraction, and non-fatal-only parser exception mapping (fatal passthrough), should remain gateway-owned; use CloudflareAwareComickGateway.NormalizeFlaresolverrUpstreamResponse and CloudflareAwareComickGateway.LogResponseNormalization.
+      - "Canonical Cloudflare FlareSolverr upstream response normalization + diagnostics (`raw_json`, `html_pre_extracted`, `failed`) with tri-state wrapper detection (`html_wrapper_detection`: `detected`/`not_detected`/`unknown`) plus derived compatibility flag (`is_html_wrapped`), including optional UTF BOM stripping, parser-backed `<pre>` node extraction, and non-fatal-only parser exception mapping (fatal passthrough), should remain gateway-owned; use CloudflareAwareComickGateway.NormalizeFlaresolverrUpstreamResponse and CloudflareAwareComickGateway.LogResponseNormalization."
       - Canonical Cloudflare gateway metadata-state operation-kind diagnostics routing must use explicit cache-vs-standard classification (not operation-name prefix inference); use CloudflareAwareComickGateway.TryReadMetadataStateSnapshot and CloudflareAwareComickGateway.TryTransformMetadataStateSnapshot.
       - Canonical Cloudflare gateway metadata-state read/transform handling should be best-effort for non-fatal exceptions (warning telemetry + request-flow continuation) while fatal exceptions are rethrown; use CloudflareAwareComickGateway.TryReadMetadataStateSnapshot and CloudflareAwareComickGateway.TryTransformMetadataStateSnapshot.
       - Canonical Cloudflare-aware FlareSolverr-only routing with explicit unavailable outcome mapping and sticky outage cooldown short-circuit behavior, while still permitting cache-hit responses during cooldown; use CloudflareAwareComickGateway.
@@ -1110,7 +1139,7 @@ modules:
       - Canonical runtime contract for cover.jpg ensure operations; use IOverrideCoverService.
       - Canonical runtime contract for merge-pass title metadata artifact coordination; use IComickMetadataCoordinator.
       - Canonical shared Comick endpoint request URI composition, including mandatory `tachiyomi=true` and configured search `limit=` for Comick search requests; use ComickEndpointUriBuilder.
-      - Canonical shared Comick payload parsing and required-field validation should remain centralized, with strictness limited to match-critical title fields (search: `slug`/`title`; comic: comic-node presence plus usable `title`/`md_titles`) and non-critical schema drift handled through tolerant converters/extension data; use ComickPayloadParser, ComickSearchComic, and Comick tolerant converter modules.
+      - "Canonical shared Comick payload parsing and required-field validation should remain centralized, with strictness limited to match-critical title fields (search: `slug`/`title`; comic: comic-node presence plus usable `title`/`md_titles`) and non-critical schema drift handled through tolerant converters/extension data; use ComickPayloadParser, ComickSearchComic, and Comick tolerant converter modules."
       - Canonical sticky FlareSolverr persistence must be monotonic and never reduce an existing later expiry; use CloudflareAwareComickGateway.PersistStickyFlaresolverrUntil.
       - Canonical sticky retry anchor uses post-request FlareSolverr-unavailable detection timestamp (not request-start time) when computing sticky expiry; use CloudflareAwareComickGateway.ExecuteWithRoutingAsync.
       - Canonical sticky-window clock reads should normalize provider timestamps to UTC at use sites for deterministic comparisons; use CloudflareAwareComickGateway.ExecuteWithRoutingAsync.
@@ -1483,6 +1512,7 @@ modules:
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointFuseDevice.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointLogPath.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs
+      - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointRuntimeIdentity.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.SignalHandling.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/DockerAssertionsBehaviorTests.cs
       - tests/SuwayomiSourceMerge.IntegrationTests/DockerCommandRunnerBehaviorTests.cs
@@ -1526,7 +1556,7 @@ modules:
     extension_points:
       - how: Add new end-to-end runtime scenarios by extending container test cases in ContainerRuntimeEndToEndTests.
         symbols: [ContainerRuntimeEndToEndTests]
-        paths: [tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.Capabilities.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointFuseDevice.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointLogPath.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.SignalHandling.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs]
+        paths: [tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.Capabilities.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointFuseDevice.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointLogPath.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.EntrypointRuntimeIdentity.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.SignalHandling.cs, tests/SuwayomiSourceMerge.IntegrationTests/ContainerRuntimeEndToEndTests.cs]
       - how: Expand Docker CLI orchestration coverage by adding helpers to DockerCommandRunner and DockerCommandResult.
         symbols: [DockerCommandResult, DockerCommandRunner]
         paths: [tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerCommandResult.cs, tests/SuwayomiSourceMerge.IntegrationTests/TestInfrastructure/DockerCommandRunner.cs]
@@ -1542,7 +1572,9 @@ modules:
       - Canonical Docker CLI command execution and diagnostics wrapper; use DockerCommandRunner.
       - Canonical Docker integration image build, daemon preflight, and teardown image cleanup fixture setup; use DockerIntegrationFixture.
       - Canonical entrypoint non-root FUSE preflight validation that rejects non-character-device `FUSE_DEVICE_PATH` values; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
-      - Canonical entrypoint non-root FUSE-device-access fail-fast harness; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
+      - Canonical entrypoint non-root FUSE-device-access fail-fast harness (including derived-image non-writable character-device diagnostics assertions); use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
+      - Canonical entrypoint non-root direct-launch harness that bypasses root-only identity/ownership/gosu startup operations and logs skip-policy plus PUID/PGID mismatch diagnostics; use ContainerRuntimeEndToEndTests.EntrypointRuntimeIdentity.
+      - Canonical entrypoint `ENTRYPOINT_FUSE_CONF_MODE` integration harness (auto mutation compatibility, host-managed validation-only success/failure, and invalid-mode fail-fast); use ContainerRuntimeEndToEndTests.
       - Canonical entrypoint one-level child bind-root ownership repair harness for `/ssm/sources/*` and `/ssm/override/*`; use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs`.
       - Canonical entrypoint symlink-safety ownership hardening harness (merged-child and daemon-log chown skips); use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs`.
       - Canonical entrypoint symlink-safety assertions should be gated by an in-container bind-mount symlink precondition so host/runtime symlink flattening does not create false failures; use `IsContainerPathSymlink` in `ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs`.
@@ -1655,7 +1687,7 @@ modules:
       - symbol: README.md
         kind: file
         path: README.md
-        purpose: Captures public usage guidance including Docker Compose, Unraid direct-disk mapping, child submount policy for `/ssm/sources/*` and `/ssm/override/*`, isolated shared merged-bind requirements (`private` then `rshared`), CI, and bare-metal runtime instructions.
+        purpose: Captures public usage guidance including Docker Compose, Unraid direct-disk mapping, optional non-root `user` mode behavior/caveats, child submount policy for `/ssm/sources/*` and `/ssm/override/*`, host-managed `/etc/fuse.conf` bind requirements, copy/paste host bootstrap security setup (inline + helper-script args), isolated shared merged-bind requirements (`private` then `rshared`), CI, and bare-metal runtime instructions.
       - symbol: SuwayomiSourceMerge.csproj
         kind: file
         path: SuwayomiSourceMerge/SuwayomiSourceMerge.csproj
@@ -1663,7 +1695,7 @@ modules:
       - symbol: unraid/templates/my-SuwayomiSourceMerge.xml
         kind: file
         path: unraid/templates/my-SuwayomiSourceMerge.xml
-        purpose: Defines an Unraid Community Apps template with required FUSE/security flags and source/override child-path slots through disk10.
+        purpose: Defines an Unraid Community Apps template with hardened default FUSE/security profile flags, host-managed fuse-conf mode wiring with host `/etc/fuse.conf` bind mapping, and source/override child-path slots through disk10.
     extension_points:
       - how: Add new runtime orchestration by introducing services and invoking them from Program.cs.
         symbols: [Program.cs]
@@ -1680,6 +1712,9 @@ modules:
       - Canonical public runtime usage and deployment documentation; use README.md.
       - Canonical Unraid Community Apps template wiring for this runtime; use unraid/templates/my-SuwayomiSourceMerge.xml.
       - Canonical user-facing mount guidance must keep source/override storage on child targets (`/ssm/sources/*`, `/ssm/override/*`), avoid parent-root Docker volumes, configure `/ssm/merged` container binds as `rw,shared`, and prepare the host merged root as isolated shared (`mount --make-private` then `mount --make-rshared`); use README.md and unraid/templates/my-SuwayomiSourceMerge.xml.
+      - Canonical user-facing hardened runtime guidance keeps `SYS_ADMIN` with `/dev/fuse`, uses custom AppArmor/seccomp profiles by default with host bootstrap setup, and reserves unconfined flags for fallback hosts; use README.md, DEVELOPMENT.md, and unraid/templates/my-SuwayomiSourceMerge.xml.
+      - Canonical user-facing host-managed fuse guidance requires a container-visible fuse.conf bind (default `/etc/fuse.conf:/etc/fuse.conf:ro`) or `FUSE_CONF_PATH` override to a mounted file; use README.md, DEVELOPMENT.md, tools/setup-host-security.sh, and unraid/templates/my-SuwayomiSourceMerge.xml.
+      - Canonical user-facing non-root `--user`/Compose `user` guidance must explain that entrypoint skips root-only identity remapping, ownership repair, and gosu handoff when startup EUID is non-root; use README.md and DEVELOPMENT.md.
       - Console entrypoint bootstrapping; extend Program.cs.
       - Runtime project configuration root; extend SuwayomiSourceMerge.csproj.
       - Warning policy overrides in app project; keep centralized in Directory.Build.props.
@@ -1819,6 +1854,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/RepositoryRootLocator.cs
       - tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/SceneTagMatcherTestDoubles.cs
       - tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/TemporaryDirectory.cs
+      - tests/SuwayomiSourceMerge.UnitTests/Tools/SetupHostSecurityScriptTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/UnitTest1.cs
     entrypoints:
       - symbol: ConfigurationBootstrapServiceTests
@@ -1833,6 +1869,10 @@ modules:
         kind: class
         path: tests/SuwayomiSourceMerge.UnitTests/Repository/LineEndingPolicyTests.cs
         purpose: Verifies tracked repository text blobs remain LF-only and fail on CRLF/lone-CR drift.
+      - symbol: SetupHostSecurityScriptTests
+        kind: class
+        path: tests/SuwayomiSourceMerge.UnitTests/Tools/SetupHostSecurityScriptTests.cs
+        purpose: Verifies setup-host-security bind-path preflight expected, tie-break edge, double-run idempotence, and inspect-discovery failure behavior.
       - symbol: SettingsSchemaTests
         kind: class
         path: tests/SuwayomiSourceMerge.UnitTests/Configuration/SettingsSchemaTests.cs

@@ -287,6 +287,106 @@ public sealed partial class ContainerRuntimeEndToEndTests
 	}
 
 	/// <summary>
+	/// Verifies host-managed fuse configuration mode skips mutation and succeeds when the configured file already contains <c>user_allow_other</c>.
+	/// </summary>
+	[Fact]
+	public void Run_Expected_ShouldSucceedInHostManagedFuseConfigMode_WhenFuseConfigAlreadyPrepared()
+	{
+		using ContainerFixtureWorkspace workspace = new();
+		string hostManagedFuseConfigPath = Path.Combine(workspace.StateRootPath, "fuse.conf");
+		File.WriteAllText(hostManagedFuseConfigPath, "user_allow_other\n");
+
+		DockerCommandResult result = _fixture.Runner.Execute(
+		[
+			"run",
+			"--rm",
+			"--volume",
+			$"{workspace.StateRootPath}:/ssm/state",
+			"--env",
+			"PUID=99",
+			"--env",
+			"PGID=100",
+			"--env",
+			"ENTRYPOINT_FUSE_CONF_MODE=host-managed",
+			"--env",
+			"FUSE_CONF_PATH=/ssm/state/fuse.conf",
+			_fixture.ImageTag,
+			"bash",
+			"-lc",
+			"true"
+		],
+		timeout: TimeSpan.FromMinutes(2));
+
+		Assert.False(result.TimedOut);
+		Assert.Equal(0, result.ExitCode);
+		Assert.DoesNotContain("Failed to update '/ssm/state/fuse.conf'", result.StandardError, StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// Verifies host-managed fuse configuration mode fails fast when the configured file does not contain <c>user_allow_other</c>.
+	/// </summary>
+	[Fact]
+	public void Run_Failure_ShouldFailInHostManagedFuseConfigMode_WhenFuseConfigMissingRequiredEntry()
+	{
+		using ContainerFixtureWorkspace workspace = new();
+		string hostManagedFuseConfigPath = Path.Combine(workspace.StateRootPath, "fuse.conf");
+		File.WriteAllText(hostManagedFuseConfigPath, "# intentionally missing user_allow_other\n");
+
+		DockerCommandResult result = _fixture.Runner.Execute(
+		[
+			"run",
+			"--rm",
+			"--volume",
+			$"{workspace.StateRootPath}:/ssm/state",
+			"--env",
+			"PUID=99",
+			"--env",
+			"PGID=100",
+			"--env",
+			"ENTRYPOINT_FUSE_CONF_MODE=host-managed",
+			"--env",
+			"FUSE_CONF_PATH=/ssm/state/fuse.conf",
+			_fixture.ImageTag,
+			"bash",
+			"-lc",
+			"true"
+		],
+		timeout: TimeSpan.FromMinutes(2));
+
+		Assert.False(result.TimedOut);
+		Assert.NotEqual(0, result.ExitCode);
+		Assert.Contains("Host-managed fuse mode requires '/ssm/state/fuse.conf' to contain 'user_allow_other'", result.StandardError, StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// Verifies invalid fuse configuration mode values fail startup with deterministic diagnostics.
+	/// </summary>
+	[Fact]
+	public void Run_Failure_ShouldFailFast_WhenEntrypointFuseConfigModeIsInvalid()
+	{
+		DockerCommandResult result = _fixture.Runner.Execute(
+		[
+			"run",
+			"--rm",
+			"--env",
+			"PUID=99",
+			"--env",
+			"PGID=100",
+			"--env",
+			"ENTRYPOINT_FUSE_CONF_MODE=unsupported",
+			_fixture.ImageTag,
+			"bash",
+			"-lc",
+			"true"
+		],
+		timeout: TimeSpan.FromMinutes(2));
+
+		Assert.False(result.TimedOut);
+		Assert.Equal(64, result.ExitCode);
+		Assert.Contains("Invalid ENTRYPOINT_FUSE_CONF_MODE value: 'unsupported'", result.StandardError, StringComparison.Ordinal);
+	}
+
+	/// <summary>
 	/// Verifies entrypoint ownership setup does not recursively chown <c>/ssm/merged</c>, which can fail on stale FUSE mountpoints.
 	/// </summary>
 	[Fact]

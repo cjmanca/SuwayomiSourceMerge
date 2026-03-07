@@ -7,16 +7,24 @@ DEFAULT_SSM_USER="ssm"
 DEFAULT_SSM_GROUP="ssm"
 DEFAULT_LOG_FILE_NAME="daemon.log"
 DEFAULT_LOG_ROOT_PATH="/ssm/config"
+DEFAULT_ENTRYPOINT_FUSE_CONF_MODE="auto"
 MERGED_ROOT_PATH="/ssm/merged"
 FUSE_CONF_PATH="${FUSE_CONF_PATH:-/etc/fuse.conf}"
 FUSE_DEVICE_PATH="${FUSE_DEVICE_PATH:-/dev/fuse}"
 ENTRYPOINT_SETTINGS_PATH="${ENTRYPOINT_SETTINGS_PATH:-/ssm/config/settings.yml}"
+ENTRYPOINT_FUSE_CONF_MODE="${ENTRYPOINT_FUSE_CONF_MODE:-$DEFAULT_ENTRYPOINT_FUSE_CONF_MODE}"
 ENTRYPOINT_LOG_FILE=""
 # Runtime identity string is intentionally formatted for direct gosu invocation.
 RUNTIME_GOSU_IDENTITY=""
 
 PUID="${PUID:-$DEFAULT_PUID}"
 PGID="${PGID:-$DEFAULT_PGID}"
+STARTUP_UID="$(id -u)"
+STARTUP_GID="$(id -g)"
+ENTRYPOINT_NON_ROOT_MODE=0
+if [[ "$STARTUP_UID" != "0" ]]; then
+  ENTRYPOINT_NON_ROOT_MODE=1
+fi
 
 resolve_settings_scalar() {
   local file_path="$1"
@@ -305,8 +313,20 @@ if ! [[ "$PGID" =~ ^[0-9]+$ ]]; then
   exit 64
 fi
 
+validate_entrypoint_fuse_conf_mode() {
+  case "$ENTRYPOINT_FUSE_CONF_MODE" in
+    auto|host-managed)
+      return
+      ;;
+    *)
+      entrypoint_log "Invalid ENTRYPOINT_FUSE_CONF_MODE value: '$ENTRYPOINT_FUSE_CONF_MODE'. Expected one of: auto, host-managed."
+      exit 64
+      ;;
+  esac
+}
+
 ensure_user_allow_other() {
-  if [[ "$PUID" = "0" ]]; then
+  if [[ "$ENTRYPOINT_NON_ROOT_MODE" = "0" && "$PUID" = "0" ]]; then
     return
   fi
 
@@ -319,7 +339,7 @@ ensure_user_allow_other() {
     return
   fi
 
-  if grep -Eq '^[[:space:]]*user_allow_other([[:space:]]*#.*)?$' "$FUSE_CONF_PATH"; then
+  if grep -Eq '^[[:space:]]*user_allow_other([[:space:]]*#.*)?[[:space:]]*$' "$FUSE_CONF_PATH"; then
     return
   fi
 
@@ -330,7 +350,54 @@ ensure_user_allow_other() {
   fi
 }
 
-ensure_user_allow_other
+validate_host_managed_fuse_config() {
+  if [[ "$ENTRYPOINT_NON_ROOT_MODE" = "0" && "$PUID" = "0" ]]; then
+    return
+  fi
+
+  if [[ ! -f "$FUSE_CONF_PATH" ]]; then
+    entrypoint_log "ERROR: Host-managed fuse mode requires '$FUSE_CONF_PATH' to contain 'user_allow_other', but the file does not exist."
+    entrypoint_log "Bind a host-managed fuse.conf into the container (for example: -v /etc/fuse.conf:/etc/fuse.conf:ro), or set FUSE_CONF_PATH to a mounted file path."
+    entrypoint_log "Then run host bootstrap setup (or add the value manually), or switch ENTRYPOINT_FUSE_CONF_MODE=auto."
+    exit 70
+  fi
+
+  if grep -Eq '^[[:space:]]*user_allow_other([[:space:]]*#.*)?[[:space:]]*$' "$FUSE_CONF_PATH"; then
+    return
+  fi
+
+  entrypoint_log "ERROR: Host-managed fuse mode requires '$FUSE_CONF_PATH' to contain 'user_allow_other'."
+  entrypoint_log "Bind a host-managed fuse.conf into the container (for example: -v /etc/fuse.conf:/etc/fuse.conf:ro), or set FUSE_CONF_PATH to a mounted file path."
+  entrypoint_log "Then run host bootstrap setup (or add the value manually), or switch ENTRYPOINT_FUSE_CONF_MODE=auto."
+  exit 70
+}
+
+apply_entrypoint_fuse_conf_policy() {
+  validate_entrypoint_fuse_conf_mode
+  case "$ENTRYPOINT_FUSE_CONF_MODE" in
+    auto)
+      ensure_user_allow_other
+      ;;
+    host-managed)
+      validate_host_managed_fuse_config
+      ;;
+  esac
+}
+
+log_non_root_startup_mode() {
+  if [[ "$ENTRYPOINT_NON_ROOT_MODE" != "1" ]]; then
+    return
+  fi
+
+  entrypoint_log "WARN: Non-root startup detected (uid=$STARTUP_UID gid=$STARTUP_GID). PUID/PGID identity remapping is skipped, along with root-only ownership repair and gosu handoff."
+
+  if [[ "$PUID" != "$STARTUP_UID" || "$PGID" != "$STARTUP_GID" ]]; then
+    entrypoint_log "WARN: Startup identity '$STARTUP_UID:$STARTUP_GID' differs from configured PUID/PGID '$PUID:$PGID'. Keep PUID/PGID aligned with container --user for consistent diagnostics."
+  fi
+}
+
+apply_entrypoint_fuse_conf_policy
+log_non_root_startup_mode
 
 resolve_runtime_gosu_identity() {
   local runtime_user_name
@@ -344,7 +411,7 @@ resolve_runtime_gosu_identity() {
 }
 
 ensure_runtime_fuse_device_access() {
-  if [[ "$PUID" = "0" ]]; then
+  if [[ "$ENTRYPOINT_NON_ROOT_MODE" = "0" && "$PUID" = "0" ]]; then
     return
   fi
 
@@ -362,6 +429,18 @@ ensure_runtime_fuse_device_access() {
     local fuse_file_type_detail
     fuse_file_type_detail="$(stat -c 'type=%F mode=%a owner=%u group=%g' "$FUSE_DEVICE_PATH" 2>/dev/null || echo "type unavailable")"
     entrypoint_log "ERROR: '$FUSE_DEVICE_PATH' is not a character device ($fuse_file_type_detail). Configure FUSE_DEVICE_PATH to point to a mapped '/dev/fuse' device."
+    exit 70
+  fi
+
+  if [[ "$ENTRYPOINT_NON_ROOT_MODE" = "1" ]]; then
+    if [[ -r "$FUSE_DEVICE_PATH" && -w "$FUSE_DEVICE_PATH" ]]; then
+      return
+    fi
+
+    local non_root_fuse_device_access_detail
+    non_root_fuse_device_access_detail="$(stat -c 'mode=%a owner=%u group=%g' "$FUSE_DEVICE_PATH" 2>/dev/null || echo "stat unavailable")"
+    entrypoint_log "ERROR: Runtime process '$STARTUP_UID:$STARTUP_GID' cannot read/write '$FUSE_DEVICE_PATH' ($non_root_fuse_device_access_detail). Mergerfs mounts will fail with 'Operation not permitted'."
+    entrypoint_log "Fix access by mapping '$FUSE_DEVICE_PATH' into the container, granting read/write permissions for the configured --user identity, and including --cap-add SYS_ADMIN."
     exit 70
   fi
 
@@ -393,44 +472,46 @@ ensure_runtime_fuse_device_access() {
   exit 70
 }
 
-existing_group_name="$(getent group "$PGID" | cut -d: -f1 || true)"
-if [[ -z "$existing_group_name" ]]; then
-  desired_group_name="$DEFAULT_SSM_GROUP"
-  default_group_gid="$(getent group "$DEFAULT_SSM_GROUP" | cut -d: -f3 || true)"
-  if [[ -n "$default_group_gid" && "$default_group_gid" != "$PGID" ]]; then
-    desired_group_name="${DEFAULT_SSM_GROUP}-gid-$PGID"
-    entrypoint_log "WARN: Group '$DEFAULT_SSM_GROUP' already maps to GID '$default_group_gid'; using fallback group name '$desired_group_name' for requested PGID '$PGID'."
+if [[ "$ENTRYPOINT_NON_ROOT_MODE" = "0" ]]; then
+  existing_group_name="$(getent group "$PGID" | cut -d: -f1 || true)"
+  if [[ -z "$existing_group_name" ]]; then
+    desired_group_name="$DEFAULT_SSM_GROUP"
+    default_group_gid="$(getent group "$DEFAULT_SSM_GROUP" | cut -d: -f3 || true)"
+    if [[ -n "$default_group_gid" && "$default_group_gid" != "$PGID" ]]; then
+      desired_group_name="${DEFAULT_SSM_GROUP}-gid-$PGID"
+      entrypoint_log "WARN: Group '$DEFAULT_SSM_GROUP' already maps to GID '$default_group_gid'; using fallback group name '$desired_group_name' for requested PGID '$PGID'."
+    fi
+
+    groupadd --gid "$PGID" "$desired_group_name"
+  elif [[ "$existing_group_name" != "$DEFAULT_SSM_GROUP" ]]; then
+    default_group_gid="$(getent group "$DEFAULT_SSM_GROUP" | cut -d: -f3 || true)"
+    if [[ -n "$default_group_gid" && "$default_group_gid" != "$PGID" ]]; then
+      entrypoint_log "WARN: PGID '$PGID' already maps to group '$existing_group_name' (expected '$DEFAULT_SSM_GROUP'); continuing with existing group."
+    fi
   fi
 
-  groupadd --gid "$PGID" "$desired_group_name"
-elif [[ "$existing_group_name" != "$DEFAULT_SSM_GROUP" ]]; then
-  default_group_gid="$(getent group "$DEFAULT_SSM_GROUP" | cut -d: -f3 || true)"
-  if [[ -n "$default_group_gid" && "$default_group_gid" != "$PGID" ]]; then
-    entrypoint_log "WARN: PGID '$PGID' already maps to group '$existing_group_name' (expected '$DEFAULT_SSM_GROUP'); continuing with existing group."
+  if ! getent passwd "$PUID" >/dev/null 2>&1; then
+    desired_user_name="$DEFAULT_SSM_USER"
+    default_user_uid="$(getent passwd "$DEFAULT_SSM_USER" | cut -d: -f3 || true)"
+    if [[ -n "$default_user_uid" && "$default_user_uid" != "$PUID" ]]; then
+      desired_user_name="${DEFAULT_SSM_USER}-uid-$PUID"
+      entrypoint_log "WARN: User '$DEFAULT_SSM_USER' already maps to UID '$default_user_uid'; using fallback user name '$desired_user_name' for requested PUID '$PUID'."
+    fi
+
+    uid_min="$(read_login_defs_value UID_MIN 1000)"
+    uid_max="$(read_login_defs_value UID_MAX 60000)"
+    useradd_args=(--uid "$PUID" --gid "$PGID" --no-create-home --shell /usr/sbin/nologin)
+
+    if [[ "$PUID" -lt "$uid_min" ]]; then
+      useradd_args+=(-K "UID_MIN=$PUID")
+    fi
+
+    if [[ "$PUID" -gt "$uid_max" ]]; then
+      useradd_args+=(-K "UID_MAX=$PUID")
+    fi
+
+    useradd "${useradd_args[@]}" "$desired_user_name"
   fi
-fi
-
-if ! getent passwd "$PUID" >/dev/null 2>&1; then
-  desired_user_name="$DEFAULT_SSM_USER"
-  default_user_uid="$(getent passwd "$DEFAULT_SSM_USER" | cut -d: -f3 || true)"
-  if [[ -n "$default_user_uid" && "$default_user_uid" != "$PUID" ]]; then
-    desired_user_name="${DEFAULT_SSM_USER}-uid-$PUID"
-    entrypoint_log "WARN: User '$DEFAULT_SSM_USER' already maps to UID '$default_user_uid'; using fallback user name '$desired_user_name' for requested PUID '$PUID'."
-  fi
-
-  uid_min="$(read_login_defs_value UID_MIN 1000)"
-  uid_max="$(read_login_defs_value UID_MAX 60000)"
-  useradd_args=(--uid "$PUID" --gid "$PGID" --no-create-home --shell /usr/sbin/nologin)
-
-  if [[ "$PUID" -lt "$uid_min" ]]; then
-    useradd_args+=(-K "UID_MIN=$PUID")
-  fi
-
-  if [[ "$PUID" -gt "$uid_max" ]]; then
-    useradd_args+=(-K "UID_MAX=$PUID")
-  fi
-
-  useradd "${useradd_args[@]}" "$desired_user_name"
 fi
 
 ensure_merged_root_ownership() {
@@ -507,23 +588,26 @@ ensure_bind_root_child_ownership() {
 }
 
 mkdir -p /ssm/config /ssm/state /ssm/sources /ssm/override "$MERGED_ROOT_PATH"
-# Securely fix ownership of config and state trees without following symlinks, to avoid
-# privilege escalation via symlinks planted inside these directories.
-find /ssm/config /ssm/state -xdev -exec chown -h "$PUID:$PGID" {} + >/dev/null 2>&1 || true
-# Parent roots for child bind mounts (/ssm/sources/*, /ssm/override/*): set
-# non-recursive ownership only so mounted child volumes are never traversed.
-chown -h "$PUID:$PGID" /ssm/sources /ssm/override >/dev/null 2>&1 || true
-# Direct child bind roots may be recreated by Docker as root-owned when host paths are absent.
-# Repair one level of ownership so runtime writes still honor configured PUID/PGID.
-ensure_bind_root_child_ownership /ssm/sources
-ensure_bind_root_child_ownership /ssm/override
-# Only chown the merged root itself (not recursive) so stale FUSE mountpoints beneath
-# $MERGED_ROOT_PATH does not hard-fail container startup with transport-endpoint errors.
-ensure_merged_root_ownership
-resolve_runtime_gosu_identity
+if [[ "$ENTRYPOINT_NON_ROOT_MODE" = "0" ]]; then
+  # Securely fix ownership of config and state trees without following symlinks, to avoid
+  # privilege escalation via symlinks planted inside these directories.
+  find /ssm/config /ssm/state -xdev -exec chown -h "$PUID:$PGID" {} + >/dev/null 2>&1 || true
+  # Parent roots for child bind mounts (/ssm/sources/*, /ssm/override/*): set
+  # non-recursive ownership only so mounted child volumes are never traversed.
+  chown -h "$PUID:$PGID" /ssm/sources /ssm/override >/dev/null 2>&1 || true
+  # Direct child bind roots may be recreated by Docker as root-owned when host paths are absent.
+  # Repair one level of ownership so runtime writes still honor configured PUID/PGID.
+  ensure_bind_root_child_ownership /ssm/sources
+  ensure_bind_root_child_ownership /ssm/override
+  # Only chown the merged root itself (not recursive) so stale FUSE mountpoints beneath
+  # $MERGED_ROOT_PATH does not hard-fail container startup with transport-endpoint errors.
+  ensure_merged_root_ownership
+  resolve_runtime_gosu_identity
+fi
+
 ensure_runtime_fuse_device_access
 
-if [[ -d /ssm/mock-bin ]]; then
+if [[ "$ENTRYPOINT_NON_ROOT_MODE" = "0" && -d /ssm/mock-bin ]]; then
   chmod +x /ssm/mock-bin/* >/dev/null 2>&1 || true
 fi
 
@@ -531,5 +615,9 @@ if [[ "$#" -eq 0 ]]; then
   set -- dotnet /app/SuwayomiSourceMerge.dll
 fi
 
-ensure_entrypoint_log_file_ownership
-exec gosu "$RUNTIME_GOSU_IDENTITY" "$@"
+if [[ "$ENTRYPOINT_NON_ROOT_MODE" = "0" ]]; then
+  ensure_entrypoint_log_file_ownership
+  exec gosu "$RUNTIME_GOSU_IDENTITY" "$@"
+fi
+
+exec "$@"
