@@ -1,4 +1,7 @@
 # TASKS.md
+- [x] 2026-03-07 - Ensure `tools/setup-host-security.sh` is idempotent by hardening bind-path chain directory creation for repeated/concurrent runs and adding regression coverage for double-run convergence (including fuse.conf dedupe).
+- [x] 2026-03-07 - Keep host bootstrap bind-path ownership preflight in a single standalone `tools/setup-host-security.sh` script for user convenience (no secondary helper download required), and realign docs/index metadata.
+- [x] 2026-03-07 - Extend `tools/setup-host-security.sh` with bind-path parent ownership preflight (`--inspect-container` and repeatable `--bind-path`) that clones peer `/mnt/disk*` metadata via majority + mtime tie-breaks, add deterministic script regression tests, and document usage in README/DEVELOPMENT.
 - [x] 2026-03-07 - Implement AI-review follow-ups: strict host-profile checksum verification via repository manifest, fuse.conf regex parity for trailing whitespace handling, and Unraid Fuse Config Mode wording clarity.
 - [x] 2026-03-07 - Default container hardening to custom seccomp/AppArmor profile guidance with host bootstrap setup, add host-managed fuse.conf entrypoint mode fallback controls, and align integration coverage/docs/template.
 - [x] 2026-03-07 - Clarify that `tools/setup-host-security.sh` includes merged bind setup (`mount --bind`, `--make-private`, `--make-rshared`) so it can replace the inline host snippet directly.

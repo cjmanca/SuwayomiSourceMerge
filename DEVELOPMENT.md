@@ -238,8 +238,18 @@ Container defaults and paths:
 Hardened host setup helper:
 
 ```bash
-sudo ./tools/setup-host-security.sh
+sudo ./tools/setup-host-security.sh --inspect-container suwayomi-source-merge
 ```
+
+Host bind-path ownership preflight details:
+
+- `--inspect-container <name>` discovers host bind paths targeting `/ssm/sources/*` and `/ssm/override/*`.
+- `--bind-path <path>` is repeatable and supports first-run setups before a container exists.
+- The script is idempotent; repeated runs should converge on the same ownership/mode state without duplicate fuse.conf entries.
+- For each bind path, the script repairs missing/existing chain segments below `/mnt/<root>/...`.
+- Peer metadata cloning scans only `/mnt/disk*` for matching relative paths, then applies selected owner/group/mode to disk and pool/cache targets.
+- Peer selection: majority vote on `(uid,gid,mode)`, tie by newest `mtime`, final tie by lowest disk number.
+- When no peer exists, fallback owner defaults to discovered container `PUID`/`PGID` (or `99:100`), while mode is left as-is for existing paths and mkdir-default for newly created paths.
 
 Security mode matrix:
 

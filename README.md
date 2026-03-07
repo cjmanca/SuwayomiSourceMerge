@@ -49,25 +49,44 @@ What you should see:
 
 ## Prepare Host Security and Merged Sharing (Default)
 
-Run this once on host startup (array start in Unraid). It prepares merged bind propagation, installs the hardened seccomp profile, loads AppArmor when available, and ensures host `fuse.conf` contains `user_allow_other`.
+Run this once on host startup (array start in Unraid). It repairs bind-path parent ownership/mode on host volumes, prepares merged bind propagation, installs the hardened seccomp profile, loads AppArmor when available, and ensures host `fuse.conf` contains `user_allow_other`.
 
 ### Option A: Download host script
 
-Download [`tools/setup-host-security.sh`](tools/setup-host-security.sh), and run it at startup:
+Download [`tools/setup-host-security.sh`](tools/setup-host-security.sh), and run it at startup.
+
+For existing containers (recommended), use Docker inspect-based bind discovery:
 ```bash
-sudo /path/to/SuwayomiSourceMerge/tools/setup-host-security.sh --merged-root /mnt/cache/appdata/ssm/merged
+sudo /path/to/SuwayomiSourceMerge/tools/setup-host-security.sh \
+  --merged-root /mnt/cache/appdata/ssm/merged \
+  --inspect-container suwayomi-source-merge
 ```
-For most users, only `/path/to/SuwayomiSourceMerge/tools/setup-host-security.sh` and `--merged-root` need changes, however there are more switches available for advanced users.
+
+For first setup (container not created yet), provide bind paths directly:
+```bash
+sudo /path/to/SuwayomiSourceMerge/tools/setup-host-security.sh \
+  --merged-root /mnt/cache/appdata/ssm/merged \
+  --bind-path /mnt/disk1/share/suwayomi-manga-downloads/mangas \
+  --bind-path /mnt/disk2/share/suwayomi-manga-downloads/mangas \
+  --bind-path /mnt/disk1/share/override \
+  --bind-path /mnt/cache/ssm/override
+```
+
+This bind-path preflight clones owner/group/mode from matching peer paths under `/mnt/disk*` (majority vote, tie by newest mtime, then lowest disk number). If no peer exists, it falls back to container `PUID`/`PGID` (or `99:100` when not discoverable).
+The script is idempotent and safe to run repeatedly at host startup.
+
+For most users, only `/path/to/SuwayomiSourceMerge/tools/setup-host-security.sh`, `--merged-root`, and `--inspect-container` need changes, however there are more switches available for advanced users.
 The script strictly verifies downloaded security profiles against `docker/security/checksums.sha256` and exits on mismatch.
 
 What you should see:
 - The script exits without errors.
+- It prints bind-path repair diagnostics showing peer source or fallback ownership used for each path segment.
 - It prints the exact `docker run`/Compose security flags for your host.
 - `docker compose up -d` can start without merged-mount propagation issues.
 
 ### Option B: Copy/paste to User Scripts or `/boot/config/go`
 
-Use this only when you cannot use Option A. Option A includes strict checksum verification.
+Use this only when you cannot use Option A. Option A includes strict checksum verification and bind-path ownership preflight.
 
 ```bash
 #!/bin/bash
