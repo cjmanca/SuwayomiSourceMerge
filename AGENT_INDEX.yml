@@ -662,7 +662,7 @@ modules:
       - symbol: docker/entrypoint.sh
         kind: file
         path: docker/entrypoint.sh
-        purpose: Applies PUID/PGID identity mapping, uses consistent bash `[[ ... ]]` tests, parses settings scalars with YAML-aware inline-comment handling (including embedded `#` plain scalars) and escaped-backslash-aware quote handling for log mirroring, enforces runtime-parity logging.file_name safety checks (rooted/segmented, invalid/control chars, trailing dots/spaces, reserved device names) with fallback warnings, uses top-level fuse write-failure diagnostics helper flow, performs non-root FUSE device access preflight under the runtime identity, ensures `/ssm/sources` and `/ssm/override` roots exist for child bind-mount layouts, avoids recursive merged-root chown, performs best-effort first-level merged-child ownership repair with stale-endpoint-safe warnings, and launches the daemon.
+        purpose: Applies PUID/PGID identity mapping, uses consistent bash `[[ ... ]]` tests, parses settings scalars with YAML-aware inline-comment handling (including embedded `#` plain scalars) and escaped-backslash-aware quote handling for log mirroring, enforces runtime-parity logging.file_name safety checks (rooted/segmented, invalid/control chars, trailing dots/spaces, reserved device names) with fallback warnings, uses top-level fuse write-failure diagnostics helper flow, performs non-root FUSE device access preflight under the runtime identity, ensures `/ssm/sources` and `/ssm/override` roots exist for child bind-mount layouts, repairs one-level child bind-root ownership for sources/overrides, avoids recursive merged-root chown, performs best-effort first-level merged-child ownership repair with stale-endpoint-safe warnings, and launches the daemon.
       - symbol: Dockerfile
         kind: file
         path: Dockerfile
@@ -696,7 +696,7 @@ modules:
       - Canonical container startup log mirroring that parses settings scalars with YAML-aware inline-comment handling (embedded plain-scalar `#` values are preserved) plus escaped-backslash-aware quote handling, then writes entrypoint diagnostics into runtime log file path derived from settings/defaults; use docker/entrypoint.sh.
       - Canonical container startup logging.file_name safety gate that rejects rooted/segmented values, trailing dots/spaces, invalid/control characters, and reserved Windows device names, then falls back to default daemon.log with warning diagnostics; use docker/entrypoint.sh.
       - Canonical container startup non-root FUSE device access preflight under runtime identity (skip in mock-tool mode, warning when device is absent, fail-fast when present but inaccessible); use docker/entrypoint.sh.
-      - Canonical container startup root directory precreation for `/ssm/sources` and `/ssm/override` child bind-mount layouts without recursive ownership traversal; use docker/entrypoint.sh.
+      - Canonical container startup root directory precreation for `/ssm/sources` and `/ssm/override` child bind-mount layouts plus one-level child bind-root ownership repair without recursive ownership traversal; use docker/entrypoint.sh.
       - Canonical container startup ownership policy that avoids recursive chown under /ssm/merged and applies best-effort first-level child ownership repair (warning-only on stale endpoint failures); use docker/entrypoint.sh.
       - Canonical container startup PUID/PGID identity mapping and daemon launch; use docker/entrypoint.sh.
       - Canonical GHCR image build/publish GitHub Actions pipeline with Docker image volume-root guard for `/ssm/sources` and `/ssm/override`; use .github/workflows/docker-publish.yml.
@@ -1194,7 +1194,7 @@ modules:
     do_not_reimplement:
       - Canonical bad-mountpoint retry flow with explicit two-sentence labeled mountpoint-directory-creation failure diagnostics; use MergerfsMountCommandService.
       - Canonical branch-link staging and stale-directory cleanup semantics; use BranchLinkStagingService.
-      - Canonical branch-link staging should ensure read-write target directories exist before symlink creation; use BranchLinkStagingService.StageBranchLinks.
+      - Canonical branch-link staging should best-effort ensure read-write target directories exist before symlink creation while tolerating permission-denied setup failures; use BranchLinkStagingService.StageBranchLinks.
       - Canonical dangling-entry replacement semantics for branch-link staging (delete-any-entry before relink); use BranchLinkStagingService.StageBranchLinks.
       - Canonical desired-vs-actual reconciliation decision engine; use MountReconciliationService.Reconcile.
       - Canonical findmnt escaped-byte decoding must preserve UTF-8 mountpoint text and replace malformed surrogate halves with U+FFFD instead of throwing; use FindmntSnapshotLineParser.DecodeEscapedValue.
@@ -1543,6 +1543,7 @@ modules:
       - Canonical Docker integration image build, daemon preflight, and teardown image cleanup fixture setup; use DockerIntegrationFixture.
       - Canonical entrypoint non-root FUSE preflight validation that rejects non-character-device `FUSE_DEVICE_PATH` values; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
       - Canonical entrypoint non-root FUSE-device-access fail-fast harness; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
+      - Canonical entrypoint one-level child bind-root ownership repair harness for `/ssm/sources/*` and `/ssm/override/*`; use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs`.
       - Canonical entrypoint symlink-safety ownership hardening harness (merged-child and daemon-log chown skips); use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs`.
       - Canonical entrypoint symlink-safety assertions should be gated by an in-container bind-mount symlink precondition so host/runtime symlink flattening does not create false failures; use `IsContainerPathSymlink` in `ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs`.
       - Canonical entrypoint trusted-root log ownership guard that skips privileged chown outside `/ssm/config`; use ContainerRuntimeEndToEndTests.EntrypointLogPath.

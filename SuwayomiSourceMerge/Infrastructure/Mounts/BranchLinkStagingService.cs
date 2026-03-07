@@ -83,7 +83,15 @@ internal sealed class BranchLinkStagingService : IBranchLinkStagingService
 			return;
 		}
 
-		_fileSystem.CreateDirectory(branchLink.TargetPath);
+		try
+		{
+			_fileSystem.CreateDirectory(branchLink.TargetPath);
+		}
+		catch (UnauthorizedAccessException)
+		{
+			// Intentionally tolerate permission-denied setup so merge-pass branch staging remains resilient
+			// when preferred override directories are temporarily not writable.
+		}
 	}
 
 	/// <inheritdoc />

@@ -150,6 +150,66 @@ public sealed class BranchLinkStagingServiceTests
 	}
 
 	/// <summary>
+	/// Verifies staging continues when preferred read-write target setup is unauthorized.
+	/// </summary>
+	[Fact]
+	public void StageBranchLinks_Edge_ShouldContinue_WhenReadWriteTargetSetupIsUnauthorized()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string branchDirectoryPath = Path.Combine(temporaryDirectory.Path, "branches", "group-a");
+		string preferredOverridePath = Path.Combine(temporaryDirectory.Path, "override", "priority", "Title One");
+		string sourcePath = Path.Combine(temporaryDirectory.Path, "source", "Title One");
+		RecordingBranchLinkStagingFileSystem fileSystem = new();
+		fileSystem.CreateDirectoryUnauthorizedPaths.Add(preferredOverridePath);
+		BranchLinkStagingService service = new(fileSystem);
+		MergerfsBranchPlan plan = CreatePlan(
+			branchDirectoryPath,
+			[
+				new MergerfsBranchLinkDefinition(
+					"00_override",
+					Path.Combine(branchDirectoryPath, "00_override"),
+					preferredOverridePath,
+					MergerfsBranchAccessMode.ReadWrite),
+				new MergerfsBranchLinkDefinition(
+					"10_source",
+					Path.Combine(branchDirectoryPath, "10_source"),
+					sourcePath,
+					MergerfsBranchAccessMode.ReadOnly)
+			]);
+
+		service.StageBranchLinks(plan);
+
+		Assert.Contains(preferredOverridePath, fileSystem.AttemptedCreateDirectoryPaths);
+		Assert.Equal(preferredOverridePath, fileSystem.CreatedLinks[Path.Combine(branchDirectoryPath, "00_override")]);
+		Assert.Equal(sourcePath, fileSystem.CreatedLinks[Path.Combine(branchDirectoryPath, "10_source")]);
+	}
+
+	/// <summary>
+	/// Verifies non-permission setup failures are not swallowed during read-write target setup.
+	/// </summary>
+	[Fact]
+	public void StageBranchLinks_Failure_ShouldThrow_WhenReadWriteTargetSetupFailsWithIOException()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string branchDirectoryPath = Path.Combine(temporaryDirectory.Path, "branches", "group-a");
+		string preferredOverridePath = Path.Combine(temporaryDirectory.Path, "override", "priority", "Title One");
+		RecordingBranchLinkStagingFileSystem fileSystem = new();
+		fileSystem.CreateDirectoryIOExceptionPaths.Add(preferredOverridePath);
+		BranchLinkStagingService service = new(fileSystem);
+		MergerfsBranchPlan plan = CreatePlan(
+			branchDirectoryPath,
+			[
+				new MergerfsBranchLinkDefinition(
+					"00_override",
+					Path.Combine(branchDirectoryPath, "00_override"),
+					preferredOverridePath,
+					MergerfsBranchAccessMode.ReadWrite)
+			]);
+
+		Assert.Throws<IOException>(() => service.StageBranchLinks(plan));
+	}
+
+	/// <summary>
 	/// Verifies invalid link paths outside branch directory are rejected.
 	/// </summary>
 	[Fact]
@@ -214,6 +274,30 @@ public sealed class BranchLinkStagingServiceTests
 		{
 			get;
 		} = [];
+
+		/// <summary>
+		/// Gets attempted directory paths for create operations.
+		/// </summary>
+		public List<string> AttemptedCreateDirectoryPaths
+		{
+			get;
+		} = [];
+
+		/// <summary>
+		/// Gets directory paths that should throw unauthorized on create.
+		/// </summary>
+		public HashSet<string> CreateDirectoryUnauthorizedPaths
+		{
+			get;
+		} = new(StringComparer.Ordinal);
+
+		/// <summary>
+		/// Gets directory paths that should throw I/O failures on create.
+		/// </summary>
+		public HashSet<string> CreateDirectoryIOExceptionPaths
+		{
+			get;
+		} = new(StringComparer.Ordinal);
 
 		/// <summary>
 		/// Gets created symbolic links.
@@ -290,6 +374,18 @@ public sealed class BranchLinkStagingServiceTests
 		/// <inheritdoc />
 		public void CreateDirectory(string path)
 		{
+			AttemptedCreateDirectoryPaths.Add(path);
+
+			if (CreateDirectoryUnauthorizedPaths.Contains(path))
+			{
+				throw new UnauthorizedAccessException($"Access to the path '{path}' is denied.");
+			}
+
+			if (CreateDirectoryIOExceptionPaths.Contains(path))
+			{
+				throw new IOException($"I/O failure while creating '{path}'.");
+			}
+
 			CreatedDirectories.Add(path);
 			_directories.Add(path);
 		}
