@@ -4,7 +4,7 @@ SuwayomiSourceMerge combines manga from multiple download sources into one merge
 You then point Suwayomi Local Source to that merged library.
 This helps you keep reading in one place, even when chapters are split across different sources.
 It also supports override folders, so your own `details.json`, `cover.jpg`, or custom files can take priority.
-If you set up flaresolverr in the config, it can generate `details.json`, `cover.jpg` and find alternate titles automatically from comick.dev
+If you set up FlareSolverr in the config, it can generate `details.json`, `cover.jpg` and find alternate titles automatically from comick.dev.
 
 ## Before You Start
 
@@ -29,9 +29,9 @@ If you set up flaresolverr in the config, it can generate `details.json`, `cover
    - `/mnt/cache/appdata/ssm/config`
    - `/mnt/cache/appdata/ssm/merged` (This should NOT be on the array)
    - `/mnt/cache/appdata/ssm/state`
-   - `/mnt/user/share/override` (Note that you can put override on the array, but make sure to use individual disks when setting up volumes, ie. `/mnt/disk1/share/override`)
+   - `/mnt/disk1/share/override` (Note that you can put override on the array, but make sure to use individual disks when setting up docker volumes, ie. `/mnt/disk1/share/override`)
 2. Confirm each source path ends right before the source-name folders.
-3. Run the merged-folder sharing script in the next section.
+3. Run the host security bootstrap script in the next section.
 4. Set your Suwayomi Local Source bind/path to use the merged folder with `rw,slave` (details in "Connect Suwayomi Local Source to the Merged Folder" below).
 5. Choose one container creation method below (Option A, B, or C).
 6. Start the container with your chosen method and verify output.
@@ -47,24 +47,41 @@ What you should see:
 - Override paths exist and are writable. If override is on the array, they should also be added via raw disks, similar to above.
 - The `/ssm/override/priority` container volume is a special override directory. Anything written to the final local source directory will be written to that priority container. Good for an SSD cache pool that the mover would normally move files off from.
 
-## Prepare Merged Folder Sharing
+## Prepare Host Security and Merged Sharing (Default)
 
-Run this once on host startup (array start in unraid) so mount changes are visible where needed without creating duplicate host-visible mount entries.
+Run this once on host startup (array start in Unraid). It prepares merged bind propagation, installs the hardened seccomp profile, loads AppArmor when available, and ensures host `fuse.conf` contains `user_allow_other`.
+
+### Option A: Download host script
+
+Download [`tools/setup-host-security.sh`](tools/setup-host-security.sh), and run it at startup:
+```bash
+sudo /path/to/SuwayomiSourceMerge/tools/setup-host-security.sh --merged-root /mnt/cache/appdata/ssm/merged
+```
+For most users, only `/path/to/SuwayomiSourceMerge/tools/setup-host-security.sh` and `--merged-root` need changes, however there are more switches available for advanced users.
+The script strictly verifies downloaded security profiles against `docker/security/checksums.sha256` and exits on mismatch.
+
+What you should see:
+- The script exits without errors.
+- It prints the exact `docker run`/Compose security flags for your host.
+- `docker compose up -d` can start without merged-mount propagation issues.
+
+### Option B: Copy/paste to User Scripts or `/boot/config/go`
+
+Use this only when you cannot use Option A. Option A includes strict checksum verification.
 
 ```bash
 #!/bin/bash
 MERGED="/mnt/cache/appdata/ssm/merged"
-mkdir -p "$MERGED"
+PROFILE_BASE_URL="https://raw.githubusercontent.com/cjmanca/SuwayomiSourceMerge/main/docker/security"
+mkdir -p "$MERGED" /etc/docker/seccomp
 mountpoint -q "$MERGED" || mount --bind "$MERGED" "$MERGED"
-mount --make-private "$MERGED"
-mount --make-rshared "$MERGED"
+mount --make-private "$MERGED"; mount --make-rshared "$MERGED"
+grep -Eq '^[[:space:]]*user_allow_other([[:space:]]*#.*)?$' /etc/fuse.conf || printf '\nuser_allow_other\n' >> /etc/fuse.conf
+curl -fsSL "$PROFILE_BASE_URL/seccomp-mergerfs.json" -o /etc/docker/seccomp/ssm-mergerfs.json
+if command -v apparmor_parser >/dev/null 2>&1 && [[ -d /sys/module/apparmor ]]; then curl -fsSL "$PROFILE_BASE_URL/apparmor/ssm-mergerfs" -o /etc/apparmor.d/ssm-mergerfs && apparmor_parser -r /etc/apparmor.d/ssm-mergerfs; fi
 ```
 
 On Unraid, add this script to startup (for example in `/boot/config/go` or the User Scripts plugin).
-
-What you should see:
-- The script exits without errors.
-- `docker compose up -d` can start without merged-mount propagation issues.
 
 ## Connect Suwayomi Local Source to the Merged Folder
 
@@ -123,6 +140,7 @@ services:
     environment:
       PUID: "99"
       PGID: "100"
+      ENTRYPOINT_FUSE_CONF_MODE: "host-managed"
     volumes:
       - /mnt/cache/appdata/ssm/config:/ssm/config
       - /mnt/cache/appdata/ssm/merged:/ssm/merged:rw,shared
@@ -139,8 +157,8 @@ services:
     cap_add:
       - SYS_ADMIN
     security_opt:
-      - apparmor:unconfined
-      - seccomp:unconfined
+      - apparmor:ssm-mergerfs
+      - seccomp:/etc/docker/seccomp/ssm-mergerfs.json
     restart: unless-stopped
 ```
 
@@ -155,8 +173,9 @@ docker compose logs -f suwayomi-source-merge
 docker run --rm \
   --device /dev/fuse \
   --cap-add SYS_ADMIN \
-  --security-opt apparmor:unconfined \
-  --security-opt seccomp=unconfined \
+  --security-opt apparmor=ssm-mergerfs \
+  --security-opt seccomp=/etc/docker/seccomp/ssm-mergerfs.json \
+  -e ENTRYPOINT_FUSE_CONF_MODE=host-managed \
   -e PUID=99 \
   -e PGID=100 \
   -v /mnt/cache/appdata/ssm/config:/ssm/config \
@@ -165,6 +184,15 @@ docker run --rm \
   -v /mnt/disk1/share/suwayomi-manga-downloads/mangas:/ssm/sources/disk1 \
   -v /mnt/pool/share/override:/ssm/override/priority \
   ghcr.io/cjmanca/suwayomisourcemerge:latest
+```
+
+### Legacy Fallback (When Hardened Profiles Are Not Available)
+
+If your host cannot support profile loading (for example, no AppArmor tooling), keep using the legacy flags:
+
+```bash
+--security-opt apparmor=unconfined \
+--security-opt seccomp=unconfined
 ```
 
 ## Verify Startup

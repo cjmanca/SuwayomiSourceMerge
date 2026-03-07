@@ -7,10 +7,12 @@ DEFAULT_SSM_USER="ssm"
 DEFAULT_SSM_GROUP="ssm"
 DEFAULT_LOG_FILE_NAME="daemon.log"
 DEFAULT_LOG_ROOT_PATH="/ssm/config"
+DEFAULT_ENTRYPOINT_FUSE_CONF_MODE="auto"
 MERGED_ROOT_PATH="/ssm/merged"
 FUSE_CONF_PATH="${FUSE_CONF_PATH:-/etc/fuse.conf}"
 FUSE_DEVICE_PATH="${FUSE_DEVICE_PATH:-/dev/fuse}"
 ENTRYPOINT_SETTINGS_PATH="${ENTRYPOINT_SETTINGS_PATH:-/ssm/config/settings.yml}"
+ENTRYPOINT_FUSE_CONF_MODE="${ENTRYPOINT_FUSE_CONF_MODE:-$DEFAULT_ENTRYPOINT_FUSE_CONF_MODE}"
 ENTRYPOINT_LOG_FILE=""
 # Runtime identity string is intentionally formatted for direct gosu invocation.
 RUNTIME_GOSU_IDENTITY=""
@@ -305,6 +307,18 @@ if ! [[ "$PGID" =~ ^[0-9]+$ ]]; then
   exit 64
 fi
 
+validate_entrypoint_fuse_conf_mode() {
+  case "$ENTRYPOINT_FUSE_CONF_MODE" in
+    auto|host-managed)
+      return
+      ;;
+    *)
+      entrypoint_log "Invalid ENTRYPOINT_FUSE_CONF_MODE value: '$ENTRYPOINT_FUSE_CONF_MODE'. Expected one of: auto, host-managed."
+      exit 64
+      ;;
+  esac
+}
+
 ensure_user_allow_other() {
   if [[ "$PUID" = "0" ]]; then
     return
@@ -319,7 +333,7 @@ ensure_user_allow_other() {
     return
   fi
 
-  if grep -Eq '^[[:space:]]*user_allow_other([[:space:]]*#.*)?$' "$FUSE_CONF_PATH"; then
+  if grep -Eq '^[[:space:]]*user_allow_other([[:space:]]*#.*)?[[:space:]]*$' "$FUSE_CONF_PATH"; then
     return
   fi
 
@@ -330,7 +344,39 @@ ensure_user_allow_other() {
   fi
 }
 
-ensure_user_allow_other
+validate_host_managed_fuse_config() {
+  if [[ "$PUID" = "0" ]]; then
+    return
+  fi
+
+  if [[ ! -f "$FUSE_CONF_PATH" ]]; then
+    entrypoint_log "ERROR: Host-managed fuse mode requires '$FUSE_CONF_PATH' to contain 'user_allow_other', but the file does not exist."
+    entrypoint_log "Run host bootstrap setup (or add the value manually), or switch ENTRYPOINT_FUSE_CONF_MODE=auto."
+    exit 70
+  fi
+
+  if grep -Eq '^[[:space:]]*user_allow_other([[:space:]]*#.*)?[[:space:]]*$' "$FUSE_CONF_PATH"; then
+    return
+  fi
+
+  entrypoint_log "ERROR: Host-managed fuse mode requires '$FUSE_CONF_PATH' to contain 'user_allow_other'."
+  entrypoint_log "Run host bootstrap setup (or add the value manually), or switch ENTRYPOINT_FUSE_CONF_MODE=auto."
+  exit 70
+}
+
+apply_entrypoint_fuse_conf_policy() {
+  validate_entrypoint_fuse_conf_mode
+  case "$ENTRYPOINT_FUSE_CONF_MODE" in
+    auto)
+      ensure_user_allow_other
+      ;;
+    host-managed)
+      validate_host_managed_fuse_config
+      ;;
+  esac
+}
+
+apply_entrypoint_fuse_conf_policy
 
 resolve_runtime_gosu_identity() {
   local runtime_user_name

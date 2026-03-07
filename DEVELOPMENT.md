@@ -212,6 +212,11 @@ Run image with host bind mounts:
 
 ```bash
 docker run --rm \
+  --device /dev/fuse \
+  --cap-add SYS_ADMIN \
+  --security-opt apparmor=ssm-mergerfs \
+  --security-opt seccomp=/etc/docker/seccomp/ssm-mergerfs.json \
+  -e ENTRYPOINT_FUSE_CONF_MODE=host-managed \
   -e PUID=99 \
   -e PGID=100 \
   -v /host/ssm/config:/ssm/config \
@@ -227,9 +232,31 @@ Container defaults and paths:
 - `PUID` default: `99`
 - `PGID` default: `100`
 - Required mount paths: `/ssm/config`, `/ssm/sources`, `/ssm/override`, `/ssm/merged`, `/ssm/state`
+- `ENTRYPOINT_FUSE_CONF_MODE` default: `auto` (`host-managed` skips container fuse.conf edits and requires host-prepared `user_allow_other`)
 - If default `ssm` user/group names already map to different IDs, the entrypoint uses deterministic fallback names while honoring requested `PUID`/`PGID`.
 
-For real FUSE/mergerfs runtime behavior (not mocked test mode), the host/runtime must provide `/dev/fuse` and required capabilities (commonly `SYS_ADMIN` plus relaxed seccomp/apparmor constraints appropriate for FUSE).
+Hardened host setup helper:
+
+```bash
+sudo ./tools/setup-host-security.sh
+```
+
+Security mode matrix:
+
+- Hardened default:
+  - `--device /dev/fuse`
+  - `--cap-add SYS_ADMIN`
+  - `--security-opt apparmor=ssm-mergerfs`
+  - `--security-opt seccomp=/etc/docker/seccomp/ssm-mergerfs.json`
+  - `ENTRYPOINT_FUSE_CONF_MODE=host-managed`
+- Legacy fallback (when AppArmor tooling/support is unavailable on host):
+  - `--device /dev/fuse`
+  - `--cap-add SYS_ADMIN`
+  - `--security-opt apparmor=unconfined`
+  - `--security-opt seccomp=unconfined`
+  - `ENTRYPOINT_FUSE_CONF_MODE=auto`
+
+For real FUSE/mergerfs runtime behavior (not mocked test mode), `/dev/fuse` plus `SYS_ADMIN` remain required. Local runtime verification currently reproduces `Operation not permitted` without `SYS_ADMIN`.
 
 ## Docker end-to-end integration tests
 

@@ -14,7 +14,7 @@
   <WebUI/>
   <TemplateURL>https://raw.githubusercontent.com/cjmanca/SuwayomiSourceMerge/main/unraid/templates/my-SuwayomiSourceMerge.xml</TemplateURL>
   <Icon/>
-  <ExtraParams>--device=/dev/fuse --cap-add=SYS_ADMIN --security-opt apparmor=unconfined --security-opt seccomp=unconfined</ExtraParams>
+  <ExtraParams>--device=/dev/fuse --cap-add=SYS_ADMIN --security-opt apparmor=ssm-mergerfs --security-opt seccomp=/etc/docker/seccomp/ssm-mergerfs.json</ExtraParams>
   <PostArgs/>
   <CPUset/>
   <DateInstalled/>
@@ -23,6 +23,7 @@
   <Requires/>
   <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="Container user ID used for file ownership." Type="Variable" Display="always" Required="false" Mask="false">99</Config>
   <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Container group ID used for file ownership." Type="Variable" Display="always" Required="false" Mask="false">100</Config>
+  <Config Name="Fuse Config Mode" Target="ENTRYPOINT_FUSE_CONF_MODE" Default="host-managed" Mode="" Description="Entrypoint FUSE config policy: host-managed validates host fuse.conf user_allow_other; auto lets the container ensure it." Type="Variable" Display="always" Required="false" Mask="false">host-managed</Config>
   <Config Name="Appdata Config Path" Target="/ssm/config" Default="/mnt/cache/appdata/ssm/config" Mode="rw" Description="Container Path: /ssm/config" Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/ssm/config</Config>
   <Config Name="Runtime State Path" Target="/ssm/state" Default="/mnt/cache/appdata/ssm/state" Mode="rw" Description="Container Path: /ssm/state" Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/ssm/state</Config>
   <Config Name="Merged Output Path (shared bind)" Target="/ssm/merged" Default="/mnt/cache/appdata/ssm/merged" Mode="rw,shared" Description="Container Path: /ssm/merged (Docker bind should be rw,shared; host path should be prepared as isolated private+rshared)." Type="Path" Display="always" Required="true" Mask="false">/mnt/cache/appdata/ssm/merged</Config>

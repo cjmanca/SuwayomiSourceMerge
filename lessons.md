@@ -8,3 +8,4 @@
 - 2026-02-18: Keep startup/shutdown and high-level workflow progress on a default-visible log band (`normal`) so long-running maintenance phases are observable without enabling verbose debug logs.
 - 2026-02-19: Lifecycle cleanup must not leave stale mountpoint directories under merged; remove empty trees and quarantine non-empty residual directories under config once managed mounts are fully unmounted.
 - 2026-02-19: Never run merged-root residual cleanup when mount snapshot visibility is degraded, and validate config/merged root non-overlap at settings validation time to prevent unsafe self-relocation paths.
+- 2026-03-07: For host bootstrap scripts in Docker-first docs, do not assume a host-side repo checkout exists; provide a self-contained inline script path (or URL download fallback) that works on hosts with only container/runtime assets.

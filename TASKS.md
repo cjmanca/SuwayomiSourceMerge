@@ -1,4 +1,9 @@
 # TASKS.md
+- [x] 2026-03-07 - Implement AI-review follow-ups: strict host-profile checksum verification via repository manifest, fuse.conf regex parity for trailing whitespace handling, and Unraid Fuse Config Mode wording clarity.
+- [x] 2026-03-07 - Default container hardening to custom seccomp/AppArmor profile guidance with host bootstrap setup, add host-managed fuse.conf entrypoint mode fallback controls, and align integration coverage/docs/template.
+- [x] 2026-03-07 - Clarify that `tools/setup-host-security.sh` includes merged bind setup (`mount --bind`, `--make-private`, `--make-rshared`) so it can replace the inline host snippet directly.
+- [x] 2026-03-07 - Add copy/paste-ready `setup-host-security.sh` invocation arguments to README and clarify `fuse.conf` `user_allow_other` semantics.
+
 - [x] 2026-03-07 - Reorganize README into a beginner-first quickstart flow with consolidated mount rules.
 
 - [x] 2026-03-07 - Address unresolved PR #49 AI review threads by narrowing branch-target setup exception tolerance to permission denial only, documenting intentional catch behavior, and strengthening branch staging regression coverage.
