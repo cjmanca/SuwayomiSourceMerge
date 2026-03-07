@@ -1,5 +1,7 @@
 # TASKS.md
 
+- [x] 2026-03-07 - Repair one-level child bind-root ownership for `/ssm/sources/*` and `/ssm/override/*` during container startup to handle Docker root-owned recreation after mover-related path disappearance.
+
 - [x] 2026-03-07 - Prevent merge-pass build failures when preferred override title directory auto-create is unauthorized by keeping branch-link staging resilient to non-fatal RW target setup errors.
 
 - [x] 2026-03-06 - Prevent merge-pass canonical-title build failures when preferred override title directories are temporarily missing (for example after Unraid mover activity) by hardening branch-link staging target setup and adding regression coverage.

@@ -494,6 +494,18 @@ ensure_entrypoint_log_file_ownership() {
   chown -h "$PUID:$PGID" "$resolved_log_file_path" >/dev/null 2>&1 || true
 }
 
+ensure_bind_root_child_ownership() {
+  local root_path="$1"
+  if [[ ! -d "$root_path" ]]; then
+    return
+  fi
+
+  local child_path
+  while IFS= read -r -d '' child_path; do
+    chown -h "$PUID:$PGID" "$child_path" >/dev/null 2>&1 || true
+  done < <(find "$root_path" -mindepth 1 -maxdepth 1 -print0 2>/dev/null || true)
+}
+
 mkdir -p /ssm/config /ssm/state /ssm/sources /ssm/override "$MERGED_ROOT_PATH"
 # Securely fix ownership of config and state trees without following symlinks, to avoid
 # privilege escalation via symlinks planted inside these directories.
@@ -501,6 +513,10 @@ find /ssm/config /ssm/state -xdev -exec chown -h "$PUID:$PGID" {} + >/dev/null 2
 # Parent roots for child bind mounts (/ssm/sources/*, /ssm/override/*): set
 # non-recursive ownership only so mounted child volumes are never traversed.
 chown -h "$PUID:$PGID" /ssm/sources /ssm/override >/dev/null 2>&1 || true
+# Direct child bind roots may be recreated by Docker as root-owned when host paths are absent.
+# Repair one level of ownership so runtime writes still honor configured PUID/PGID.
+ensure_bind_root_child_ownership /ssm/sources
+ensure_bind_root_child_ownership /ssm/override
 # Only chown the merged root itself (not recursive) so stale FUSE mountpoints beneath
 # $MERGED_ROOT_PATH does not hard-fail container startup with transport-endpoint errors.
 ensure_merged_root_ownership

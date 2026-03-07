@@ -93,6 +93,42 @@ public sealed partial class ContainerRuntimeEndToEndTests
 	}
 
 	/// <summary>
+	/// Verifies startup ownership repair includes one-level child bind roots for sources and overrides.
+	/// </summary>
+	[Fact]
+	public void Run_Edge_ShouldRepairOneLevelChildBindRootOwnership_ForSourcesAndOverrides()
+	{
+		using ContainerFixtureWorkspace workspace = new();
+		Directory.CreateDirectory(Path.Combine(workspace.SourcesRootPath, "disk1"));
+		Directory.CreateDirectory(Path.Combine(workspace.OverrideRootPath, "priority"));
+		workspace.WriteMockToolScript(
+			"chown",
+			"""
+			#!/usr/bin/env sh
+			LOG_FILE="${MOCK_COMMAND_LOG_PATH:-/ssm/state/mock-commands.log}"
+			printf "%s %s\n" "chown" "$*" >> "$LOG_FILE"
+			exit 0
+			""");
+
+		DockerCommandResult result = RunEntrypointOnlyContainer(
+			workspace,
+			new Dictionary<string, string>(StringComparer.Ordinal)
+			{
+				["PUID"] = "99",
+				["PGID"] = "100",
+				["PATH"] = "/ssm/mock-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+				["MOCK_COMMAND_LOG_PATH"] = "/ssm/state/mock-commands.log"
+			});
+
+		Assert.False(result.TimedOut);
+		Assert.Equal(0, result.ExitCode);
+
+		string commandLogPath = Path.Combine(workspace.StateRootPath, "mock-commands.log");
+		DockerAssertions.WaitForFileContains(commandLogPath, "/ssm/sources/disk1", TimeSpan.FromSeconds(30));
+		DockerAssertions.WaitForFileContains(commandLogPath, "/ssm/override/priority", TimeSpan.FromSeconds(30));
+	}
+
+	/// <summary>
 	/// Attempts to create one directory symbolic link and returns false when host policy disallows it.
 	/// </summary>
 	/// <param name="symlinkPath">Symlink path.</param>
