@@ -10,3 +10,5 @@
 - 2026-02-19: Never run merged-root residual cleanup when mount snapshot visibility is degraded, and validate config/merged root non-overlap at settings validation time to prevent unsafe self-relocation paths.
 - 2026-03-07: For host bootstrap scripts in Docker-first docs, do not assume a host-side repo checkout exists; provide a self-contained inline script path (or URL download fallback) that works on hosts with only container/runtime assets.
 - 2026-03-07: When project conventions conflict with explicit user convenience requests (for example file-size limits on scripts), follow the user’s explicit preference and update docs/index bookkeeping accordingly.
+- 2026-03-07: For container identity behavior changes requested by users, prefer startup-EUID-based policy gates when they explicitly want `--user` semantics; avoid over-constraining to `PUID/PGID` matching unless requested.
+- 2026-03-07: On Windows hosts, prefer running Docker integration tests via WSL Linux shells for more deterministic device/path behavior and diagnostics.

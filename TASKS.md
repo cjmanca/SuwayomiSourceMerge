@@ -1,4 +1,7 @@
 # TASKS.md
+- [x] 2026-03-07 - Refine entrypoint non-root mismatch diagnostics and non-root FUSE access remediation messaging, with targeted integration test coverage updates.
+- [x] 2026-03-07 - Support non-root container startup when `--user` matches `PUID`/`PGID` by skipping root-only identity/ownership/gosu entrypoint operations, with mismatch fail-fast diagnostics and integration coverage.
+- [x] 2026-03-07 - Fix host-managed fuse.conf guidance by requiring container-visible `/etc/fuse.conf` bind mounts in runtime snippets/docs/template and clarifying entrypoint diagnostics.
 - [x] 2026-03-07 - Ensure `tools/setup-host-security.sh` is idempotent by hardening bind-path chain directory creation for repeated/concurrent runs and adding regression coverage for double-run convergence (including fuse.conf dedupe).
 - [x] 2026-03-07 - Keep host bootstrap bind-path ownership preflight in a single standalone `tools/setup-host-security.sh` script for user convenience (no secondary helper download required), and realign docs/index metadata.
 - [x] 2026-03-07 - Extend `tools/setup-host-security.sh` with bind-path parent ownership preflight (`--inspect-container` and repeatable `--bind-path`) that clones peer `/mnt/disk*` metadata via majority + mtime tie-breaks, add deterministic script regression tests, and document usage in README/DEVELOPMENT.

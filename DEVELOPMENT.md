@@ -219,6 +219,7 @@ docker run --rm \
   -e ENTRYPOINT_FUSE_CONF_MODE=host-managed \
   -e PUID=99 \
   -e PGID=100 \
+  -v /etc/fuse.conf:/etc/fuse.conf:ro \
   -v /host/ssm/config:/ssm/config \
   -v /host/ssm/sources:/ssm/sources \
   -v /host/ssm/override:/ssm/override \
@@ -232,7 +233,8 @@ Container defaults and paths:
 - `PUID` default: `99`
 - `PGID` default: `100`
 - Required mount paths: `/ssm/config`, `/ssm/sources`, `/ssm/override`, `/ssm/merged`, `/ssm/state`
-- `ENTRYPOINT_FUSE_CONF_MODE` default: `auto` (`host-managed` skips container fuse.conf edits and requires host-prepared `user_allow_other`)
+- `ENTRYPOINT_FUSE_CONF_MODE` default: `auto` (`host-managed` skips container fuse.conf edits and requires container-visible prepared `user_allow_other`, typically by binding host `/etc/fuse.conf` to container `/etc/fuse.conf`)
+- Optional `docker run --user UID:GID` / Compose `user: "UID:GID"` mode is supported: entrypoint detects non-root startup and skips root-only identity remapping, ownership repair, and `gosu` handoff.
 - If default `ssm` user/group names already map to different IDs, the entrypoint uses deterministic fallback names while honoring requested `PUID`/`PGID`.
 
 Hardened host setup helper:
@@ -259,6 +261,7 @@ Security mode matrix:
   - `--security-opt apparmor=ssm-mergerfs`
   - `--security-opt seccomp=/etc/docker/seccomp/ssm-mergerfs.json`
   - `ENTRYPOINT_FUSE_CONF_MODE=host-managed`
+  - `-v /etc/fuse.conf:/etc/fuse.conf:ro`
 - Legacy fallback (when AppArmor tooling/support is unavailable on host):
   - `--device /dev/fuse`
   - `--cap-add SYS_ADMIN`

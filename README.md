@@ -50,6 +50,7 @@ What you should see:
 ## Prepare Host Security and Merged Sharing (Default)
 
 Run this once on host startup (array start in Unraid). It repairs bind-path parent ownership/mode on host volumes, prepares merged bind propagation, installs the hardened seccomp profile, loads AppArmor when available, and ensures host `fuse.conf` contains `user_allow_other`.
+When using `ENTRYPOINT_FUSE_CONF_MODE=host-managed`, bind host `/etc/fuse.conf` into the container (`/etc/fuse.conf:/etc/fuse.conf:ro`) so the validation check sees the host-managed file.
 
 ### Option A: Download host script
 
@@ -161,6 +162,7 @@ services:
       PGID: "100"
       ENTRYPOINT_FUSE_CONF_MODE: "host-managed"
     volumes:
+      - /etc/fuse.conf:/etc/fuse.conf:ro
       - /mnt/cache/appdata/ssm/config:/ssm/config
       - /mnt/cache/appdata/ssm/merged:/ssm/merged:rw,shared
       - /mnt/cache/appdata/ssm/state:/ssm/state
@@ -186,6 +188,12 @@ docker compose up -d
 docker compose logs -f suwayomi-source-merge
 ```
 
+Optional non-root mode:
+- You can add `user: "1001:100"` (or your desired UID:GID) to run the container without root.
+- In non-root mode, entrypoint skips root-only identity remapping/ownership repair and runs directly as the container user.
+- Keep `PUID`/`PGID` aligned with `user:` values for consistent diagnostics.
+- Ensure all bind-mounted host paths already exist and are writable by that UID:GID.
+
 ### Option C: Docker Run (Short Form)
 
 ```bash
@@ -197,6 +205,7 @@ docker run --rm \
   -e ENTRYPOINT_FUSE_CONF_MODE=host-managed \
   -e PUID=99 \
   -e PGID=100 \
+  -v /etc/fuse.conf:/etc/fuse.conf:ro \
   -v /mnt/cache/appdata/ssm/config:/ssm/config \
   -v /mnt/cache/appdata/ssm/merged:/ssm/merged:rw,shared \
   -v /mnt/cache/appdata/ssm/state:/ssm/state \
@@ -204,6 +213,12 @@ docker run --rm \
   -v /mnt/pool/share/override:/ssm/override/priority \
   ghcr.io/cjmanca/suwayomisourcemerge:latest
 ```
+
+Optional non-root mode:
+- Add `--user 1001:100` (or your desired UID:GID) to run without root.
+- In non-root mode, entrypoint skips root-only identity remapping/ownership repair and executes directly as that user.
+- Keep `PUID`/`PGID` aligned with `--user` values for consistent diagnostics.
+- Ensure all bind-mounted host paths already exist and are writable by that UID:GID.
 
 ### Legacy Fallback (When Hardened Profiles Are Not Available)
 

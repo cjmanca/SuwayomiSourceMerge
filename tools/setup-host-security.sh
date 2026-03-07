@@ -750,8 +750,11 @@ Container runtime flags:
   --security-opt $apparmor_opt
   --security-opt $seccomp_opt
   -e ENTRYPOINT_FUSE_CONF_MODE=host-managed
+  -v /etc/fuse.conf:/etc/fuse.conf:ro
 
 Compose snippet:
+  volumes:
+    - /etc/fuse.conf:/etc/fuse.conf:ro
   devices:
     - /dev/fuse:/dev/fuse
   cap_add:
