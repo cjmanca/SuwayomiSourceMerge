@@ -1,4 +1,5 @@
 # TASKS.md
+- [x] 2026-03-07 - Reorganize README into a beginner-first quickstart flow with consolidated mount rules.
 
 - [x] 2026-03-07 - Address unresolved PR #49 AI review threads by narrowing branch-target setup exception tolerance to permission denial only, documenting intentional catch behavior, and strengthening branch staging regression coverage.
 

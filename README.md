@@ -1,80 +1,56 @@
 # SuwayomiSourceMerge
 
-SuwayomiSourceMerge combines duplicate manga libraries from multiple Suwayomi sources into one merged view so chapter gaps are easier to avoid while reading.
+SuwayomiSourceMerge combines manga from multiple download sources into one merged library.
+You then point Suwayomi Local Source to that merged library.
+This helps you keep reading in one place, even when chapters are split across different sources.
+It also supports override folders, so your own `details.json`, `cover.jpg`, or custom files can take priority.
+If you set up flaresolverr in the config, it can generate `details.json`, `cover.jpg` and find alternate titles automatically from comick.dev
 
-In Suwayomi, set your local manga directory to use the merged output from SuwayomiSourceMerge.
+## Before You Start
 
-If you're running Suwayomi in a docker container, you'll need to set the local source volume to `rw,slave`:
-`-v '/mnt/cache/appdata/ssm/merged':'/home/suwayomi/.local/share/Tachidesk/local':'rw,slave'`
+- This project is Linux-only.
+- Most users should run it in Docker. It was designed with Unraid in mind, but should work on any Linux system.
+- Create host folders for `config`, `sources`, `override`, `merged`, and `state`.
+- If you already used Suwayomi Local Source, move those files into the created override folder before you start.
 
-If you're running SuwayomiSourceMerge in Docker, set the `/ssm/merged` bind to `rw,shared`.
-On the host, set the merged root as an isolated shared bind (`private` then `rshared`) to avoid duplicate host-visible mount entries.
+### Required Mount Rules (Do Not Skip)
 
-It uses `mergerfs` under a .NET control plane to:
+- Use direct disk or pool paths like `/mnt/disk*`, `/mnt/cache`, or `/mnt/<pool-name>`.
+- Do not use `/mnt/user/...` for SSM paths.
+- Map sources as child paths under `/ssm/sources/*`.
+- Map overrides as child paths under `/ssm/override/*`.
+- Do not mount Docker named/anonymous volumes to `/ssm/sources` or `/ssm/override` parent roots.
+- Map `/ssm/merged` as `rw,shared` in the container.
+- On the host, prepare the merged root as isolated shared in this order: `mount --make-private` then `mount --make-rshared`.
 
-- combine equivalent manga titles from different sources
-- allow custom files to override existing files from the downloads
-- auto-handle chapter naming quirks that affect ordering
-- auto-create details.json from the ComicInfo.xml files that sources provide
+## Quick Setup (Unraid + Docker Compose)
 
-Of note if you already use local manga: Move anything from your current local manga directory into the overrides directory. It'll combine into the new merged directory, which you'll use for the new local manga directory.
+1. Create host folders (example):
+   - `/mnt/cache/appdata/ssm/config`
+   - `/mnt/cache/appdata/ssm/merged` (This should NOT be on the array)
+   - `/mnt/cache/appdata/ssm/state`
+   - `/mnt/user/share/override` (Note that you can put override on the array, but make sure to use individual disks when setting up volumes, ie. `/mnt/disk1/share/override`)
+2. Confirm each source path ends right before the source-name folders.
+3. Run the merged-folder sharing script in the next section.
+4. Set your Suwayomi Local Source bind/path to use the merged folder with `rw,slave` (details in "Connect Suwayomi Local Source to the Merged Folder" below).
+5. Choose one container creation method below (Option A, B, or C).
+6. Start the container with your chosen method and verify output.
 
-## Unraid Note:
+What you should see:
+- Source paths look like:
+	- For a path like: `/mnt/user/share/suwayomi-manga-downloads/mangas/Source Name/Manga Title/Chapter/file.webp`
+	- You'd use:
+		- `/mnt/cachepool/share/suwayomi-manga-downloads/mangas`
+		- `/mnt/disk1/share/suwayomi-manga-downloads/mangas`
+		- `/mnt/disk2/share/suwayomi-manga-downloads/mangas`
+		- `/mnt/disk3/share/suwayomi-manga-downloads/mangas`
+- Override paths exist and are writable. If override is on the array, they should also be added via raw disks, similar to above.
+- The `/ssm/override/priority` container volume is a special override directory. Anything written to the final local source directory will be written to that priority container. Good for an SSD cache pool that the mover would normally move files off from.
 
-DON'T USE THE `/mnt/user` SHARE FOR ANY PATHS. SuwayomiSourceMerge uses mergerfs to create a FUSE mount in much the same way as Unraid does for it's array. Trying to use a FUSE mount on top of another FUSE mount is just going to give you headaches.
+## Prepare Merged Folder Sharing
 
-Use raw disks for everything and you'll save yourself a lot of pulled hair. You can still use the disks in the unraid array, just reference them directly (see volume examples below).
+Run this once on host startup (array start in unraid) so mount changes are visible where needed without creating duplicate host-visible mount entries.
 
-## Use with Docker
-
-### Unraid Docker volume layout (important)
-
-Use direct disk or pool mount paths for runtime data:
-
-- `/mnt/disk*` for array disks (example: `/mnt/disk1/share/sources`)
-- `/mnt/cache` or `/mnt/<pool-name>` for cache/pool data (example: `/mnt/cache/share/override`)
-
-Avoid `/mnt/user/...` for these container paths:
-
-- `/ssm/sources/*`
-- `/ssm/override/*`
-- `/ssm/merged`
-
-Why: `/mnt/user` is Unraid's user-share FUSE layer. SuwayomiSourceMerge also depends on FUSE (`mergerfs`) plus `inotify` change detection. Stacking those on top of `/mnt/user` adds an extra virtualization layer that can cause slower scans, delayed/missed watcher behavior, and confusing write placement behavior.
-
-Mount policy for sources/overrides:
-
-- Map each physical source to a child path under `/ssm/sources/*` (for example `/ssm/sources/disk1`).
-- Map each physical override path to a child path under `/ssm/override/*` (for example `/ssm/override/priority`).
-- Do not map Docker named/anonymous volumes to parent roots `/ssm/sources` or `/ssm/override`.
-
-Recommended host-to-container mapping layout:
-
-- Config: `/mnt/cache/appdata/ssm/config` -> `/ssm/config`
-- Sources disk 1: `/mnt/disk1/share/suwayomi-manga-downloads/mangas` -> `/ssm/sources/disk1`
-- Sources disk 2: `/mnt/disk2/share/suwayomi-manga-downloads/mangas` -> `/ssm/sources/disk2`
-- Sources disk 3: `/mnt/disk3/share/suwayomi-manga-downloads/mangas` -> `/ssm/sources/disk3`
-- Preferred override: `/mnt/pool/share/override` -> `/ssm/override/priority`
-- Additional override disk 1: `/mnt/disk1/share/override` -> `/ssm/override/disk1`
-- Additional override disk 2: `/mnt/disk2/share/override` -> `/ssm/override/disk2`
-- Additional override disk 3: `/mnt/disk3/share/override` -> `/ssm/override/disk3`
-- Merged output root: `/mnt/cache/appdata/ssm/merged` -> `/ssm/merged`
-- Runtime state: `/mnt/cache/appdata/ssm/state` -> `/ssm/state`
-
-The override directory can be used to place your `details.json` and `cover.jpg` files, and any custom mangas that aren't found in the source downloads. If you currently have anything in your local manga directory, transfer it to the overrides directory instead. I'd recommend having an empty merged directory prior to running SuwayomiSourceMerge.
-
-The `Preferred override` directory will be used for new file creations within the merged directory.
-
-Each of the sources directories should contain suwayomi sources, such that if you use `/mnt/disk1/share/suwayomi-manga-downloads/mangas`, there should be a structure like this:
-`/mnt/disk1/share/suwayomi-manga-downloads/mangas/SourceName (EN)/Manga Name/Official__Chapter 1/001.webp`
-
-Note that the source name (`SourceName (EN)`) is a direct child to the entered volume path.
-
-## Prep merge directory for sharing
-
-The directory used for the merged output needs to be configured as an isolated shared bind so the two docker containers can interact with the FUSE mounts while avoiding duplicate host-visible mount entries.
-
-Create a script to set the merged directory as an isolated `rshared` mount:
 ```bash
 #!/bin/bash
 MERGED="/mnt/cache/appdata/ssm/merged"
@@ -84,69 +60,65 @@ mount --make-private "$MERGED"
 mount --make-rshared "$MERGED"
 ```
 
-You'll want to set this script to run at startup. On unraid this can be done in the `/boot/config/go` file or using the userscripts plugin.
+On Unraid, add this script to startup (for example in `/boot/config/go` or the User Scripts plugin).
 
-### Option A: pull from GHCR
+What you should see:
+- The script exits without errors.
+- `docker compose up -d` can start without merged-mount propagation issues.
 
-```bash
-docker pull ghcr.io/cjmanca/suwayomisourcemerge:latest
-```
+## Connect Suwayomi Local Source to the Merged Folder
 
-Branch builds are also published for testing with explicit branch tags:
+Set this on your Suwayomi container as part of setup so Local Source points to the merged output.
 
-- `ghcr.io/cjmanca/suwayomisourcemerge:branch-<branch-name>`
-- `ghcr.io/cjmanca/suwayomisourcemerge:sha-<short-sha>`
-- `ghcr.io/cjmanca/suwayomisourcemerge:v<version>` (tag pushes)
-
-#### Run the container
+If Suwayomi is in Docker, bind the same merged folder into Suwayomi with `rw,slave`:
 
 ```bash
-docker run --rm \
-  --device /dev/fuse \
-  --cap-add SYS_ADMIN \
-  --security-opt apparmor:unconfined \
-  --security-opt seccomp=unconfined \
-  -e PUID=99 \
-  -e PGID=100 \
-  -v /mnt/cache/appdata/ssm/config:/ssm/config \
-  -v /mnt/cache/appdata/ssm/merged:/ssm/merged:rw,shared \
-  -v /mnt/cache/appdata/ssm/state:/ssm/state \
-  -v /mnt/disk1/share/suwayomi-manga-downloads/mangas:/ssm/sources/disk1 \
-  -v /mnt/disk2/share/suwayomi-manga-downloads/mangas:/ssm/sources/disk2 \
-  -v /mnt/disk3/share/suwayomi-manga-downloads/mangas:/ssm/sources/disk3 \
-  -v /mnt/pool/share/override:/ssm/override/priority \
-  -v /mnt/disk1/share/override:/ssm/override/disk1 \
-  -v /mnt/disk2/share/override:/ssm/override/disk2 \
-  -v /mnt/disk3/share/override:/ssm/override/disk3 \
-  ghcr.io/cjmanca/suwayomisourcemerge:latest
+-v '/mnt/cache/appdata/ssm/merged':'/home/suwayomi/.local/share/Tachidesk/local':'rw,slave'
 ```
 
-Required container paths:
+In Unraid using the GUI, edit the Local Manga path and set `Access Mode` to `Read/Write - Slave`.
 
-- `/ssm/config`
-- `/ssm/sources`
-- `/ssm/override`
-- `/ssm/merged`
-- `/ssm/state`
+Then in Suwayomi, use Local Source as usual.
 
-`/ssm/merged` must be configured with `bind-propagation=shared`, and the host merged root should be prepared as an isolated shared bind (`mount --make-private` then `mount --make-rshared`).
+What you should see:
+- Local Source titles come from the merged folder.
+- Chapter gaps are reduced because matching titles are grouped together.
 
-For sources and overrides, use child bind mounts (`/ssm/sources/*` and `/ssm/override/*`) instead of parent-root Docker volumes.
+## Create the Container (Choose One Method)
 
-### Option B: deploy with Docker Compose
+### Option A: Unraid Template (GUI Setup)
 
-Use the compose example in the "Docker Compose and CI examples" section below.
+If you prefer Unraid's Docker UI instead of Compose, use this template:
 
-#### `compose.yaml` example
+- Raw template URL: `https://raw.githubusercontent.com/cjmanca/SuwayomiSourceMerge/main/unraid/templates/my-SuwayomiSourceMerge.xml`
+- Repo file: [`unraid/templates/my-SuwayomiSourceMerge.xml`](unraid/templates/my-SuwayomiSourceMerge.xml)
+
+On the Unraid host, download the template to your user templates folder:
+
+```bash
+mkdir -p /boot/config/plugins/dockerMan/templates-user
+wget -O /boot/config/plugins/dockerMan/templates-user/my-SuwayomiSourceMerge.xml \
+  https://raw.githubusercontent.com/cjmanca/SuwayomiSourceMerge/main/unraid/templates/my-SuwayomiSourceMerge.xml
+```
+
+Then in the Unraid web UI:
+
+1. Go to `Docker` > `Add Container`.
+2. Select the `SuwayomiSourceMerge` template.
+3. Fill in your host paths (use direct disk or pool paths, not `/mnt/user`).
+4. Keep `/ssm/merged` as `rw,shared`.
+5. Apply and start the container.
+
+What you should see:
+- The container starts without permission/mount errors.
+- Paths in the template map to the same required container targets used in this README.
+
+### Option B: Docker Compose
 
 ```yaml
 services:
   suwayomi-source-merge:
     image: ghcr.io/cjmanca/suwayomisourcemerge:latest
-    # Optional local build instead of pulling:
-    # build:
-    #   context: .
-    #   dockerfile: Dockerfile
     container_name: suwayomi-source-merge
     environment:
       PUID: "99"
@@ -155,8 +127,6 @@ services:
       - /mnt/cache/appdata/ssm/config:/ssm/config
       - /mnt/cache/appdata/ssm/merged:/ssm/merged:rw,shared
       - /mnt/cache/appdata/ssm/state:/ssm/state
-      # Use child bind mounts under /ssm/sources/* and /ssm/override/*.
-      # Do not mount Docker volumes to /ssm/sources or /ssm/override parent roots.
       - /mnt/disk1/share/suwayomi-manga-downloads/mangas:/ssm/sources/disk1
       - /mnt/disk2/share/suwayomi-manga-downloads/mangas:/ssm/sources/disk2
       - /mnt/disk3/share/suwayomi-manga-downloads/mangas:/ssm/sources/disk3
@@ -174,55 +144,103 @@ services:
     restart: unless-stopped
 ```
 
-Run with compose:
-
 ```bash
 docker compose up -d
 docker compose logs -f suwayomi-source-merge
-docker compose down
 ```
 
-## Bare metal use (Linux)
-
-Bare metal is supported, but current runtime defaults are container-oriented and expect `/ssm/...` paths.
-
-### Prerequisites
-
-- .NET SDK 9.0
-- `mergerfs`
-- `inotify-tools`
-- `util-linux` (`findmnt`)
-- `fuse3`
-
-Example on Debian/Ubuntu:
+### Option C: Docker Run (Short Form)
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y dotnet-sdk-9.0 mergerfs inotify-tools util-linux fuse3
+docker run --rm \
+  --device /dev/fuse \
+  --cap-add SYS_ADMIN \
+  --security-opt apparmor:unconfined \
+  --security-opt seccomp=unconfined \
+  -e PUID=99 \
+  -e PGID=100 \
+  -v /mnt/cache/appdata/ssm/config:/ssm/config \
+  -v /mnt/cache/appdata/ssm/merged:/ssm/merged:rw,shared \
+  -v /mnt/cache/appdata/ssm/state:/ssm/state \
+  -v /mnt/disk1/share/suwayomi-manga-downloads/mangas:/ssm/sources/disk1 \
+  -v /mnt/pool/share/override:/ssm/override/priority \
+  ghcr.io/cjmanca/suwayomisourcemerge:latest
 ```
 
-### Prepare runtime directories
+## Verify Startup
 
-```bash
-sudo mkdir -p /ssm/config /ssm/sources /ssm/override /ssm/merged /ssm/state
-sudo chown -R "$USER":"$USER" /ssm
+What you should see:
+- The container stays running in `docker ps`.
+- Logs show normal startup and scan activity (no repeating fatal errors).
+- After initial scan, manga title folders appear under your merged host path.
+
+## Configure `settings.yml` and `manga_equivalents.yml`
+
+Your config files live in `/ssm/config` (host path example: `/mnt/cache/appdata/ssm/config`).
+
+On first run, SuwayomiSourceMerge will create missing config files with defaults where supported. You can then edit them and restart the container.
+
+### `settings.yml` (app behavior)
+
+Use this file for scan timing, logging, metadata settings, and runtime options. It will be generated on first run, and auto-healed if missing settings.
+
+Start with defaults, then only change what you need. Common user changes are:
+- log level (`logging.level`)
+- excluded source names (`runtime.excluded_sources`)
+- FlareSolverr URL for metadata (`runtime.flaresolverr_server_url`)
+
+Example (partial):
+
+```yaml
+runtime:
+  flaresolverr_server_url: http://192.168.1.50:8191
+  excluded_sources:
+    - Local source
+
+logging:
+  level: normal
 ```
 
-At minimum, place your YAML config files under `/ssm/config` (`settings.yml`, `manga_equivalents.yml`, `scene_tags.yml`, `source_priority.yml`).
-Missing files/settings are bootstrapped where supported.
+### `manga_equivalents.yml` (manual title matching)
 
-You can use symlinks or mounts to populate /ssm/sources and /ssm/override, as described above.
+Use this file when the same series appears with different names across sources.
 
-### Run from source
+- `canonical` is the final merged display name.
+- `aliases` are alternate names that should map to the same series.
 
-```bash
-dotnet run --project SuwayomiSourceMerge/SuwayomiSourceMerge.csproj
+Example:
+
+```yaml
+groups:
+  - canonical: Solo Leveling
+    aliases:
+      - I Alone Level Up
+      - Only I Level Up
 ```
 
-## AI Disclaimer
+What you should see:
+- After restart, listed aliases merge into the canonical title.
+- If YAML has a formatting or validation error, startup fails and logs show the config error.
+- Full schema and all settings: [`docs/config-schema.md`](docs/config-schema.md)
+- This will be auto-populated from comick.dev metadata if you have flaresolverr information entered.
 
-This was largely ported by AI (ChatGPT-5.3-Codex) from an existing shell script, after the shell script became too unwieldy to continue maintaining.
+## Common Mistakes
 
-## Development
+1. Using `/mnt/user/...` paths.
+   - Fix: use direct disk/pool paths (`/mnt/disk*`, `/mnt/cache`, `/mnt/<pool-name>`).
+2. Wrong bind propagation on merged mount.
+   - Fix: container mount must be `rw,shared`, and host merged root must run `private` then `rshared`.
+3. Wrong source folder depth.
+   - Fix: each `/ssm/sources/*` bind should point to a folder whose direct children are source names.
 
-For contributor rules, validation expectations, and project implementation baseline, see `AGENTS.md` and `DEVELOPMENT.md`.
+## Non-Container Setup (Optional)
+
+### Bare Metal (Linux)
+
+Bare metal is supported, but defaults are container-oriented (`/ssm/...` paths). For full bare-metal steps and contributor-focused runtime details, use `DEVELOPMENT.md`.
+
+## Optional Advanced / Developer Links
+
+- Contributor and runtime internals: [`DEVELOPMENT.md`](DEVELOPMENT.md)
+- Config schema reference: [`docs/config-schema.md`](docs/config-schema.md)
+- Unraid app template: [`unraid/templates/my-SuwayomiSourceMerge.xml`](unraid/templates/my-SuwayomiSourceMerge.xml)
