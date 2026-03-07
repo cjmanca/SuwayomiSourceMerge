@@ -1,5 +1,7 @@
 # TASKS.md
 
+- [x] 2026-03-06 - Prevent merge-pass canonical-title build failures when preferred override title directories are temporarily missing (for example after Unraid mover activity) by hardening branch-link staging target setup and adding regression coverage.
+
 - [x] 2026-03-06 - Address unresolved PR #47 AI review threads by hard-failing findmnt snapshot capture on output-task faults, fixing `collect-mount-rca.sh` command logging redirection, and aligning README/Unraid merged-bind guidance to container `rw,shared` with host isolated `rshared`.
 
 - [x] 2026-03-06 - Update README merged-root setup guidance to require isolated shared host bind semantics (`mount --make-private` then `mount --make-rshared`) to avoid duplicate host-visible mount entries.
