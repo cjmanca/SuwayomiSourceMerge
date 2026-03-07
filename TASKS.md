@@ -1,5 +1,7 @@
 # TASKS.md
 
+- [x] 2026-03-07 - Address unresolved PR #49 AI review threads by narrowing branch-target setup exception tolerance to permission denial only, documenting intentional catch behavior, and strengthening branch staging regression coverage.
+
 - [x] 2026-03-07 - Repair one-level child bind-root ownership for `/ssm/sources/*` and `/ssm/override/*` during container startup to handle Docker root-owned recreation after mover-related path disappearance.
 
 - [x] 2026-03-07 - Prevent merge-pass build failures when preferred override title directory auto-create is unauthorized by keeping branch-link staging resilient to non-fatal RW target setup errors.

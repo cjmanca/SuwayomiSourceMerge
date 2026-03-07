@@ -87,23 +87,11 @@ internal sealed class BranchLinkStagingService : IBranchLinkStagingService
 		{
 			_fileSystem.CreateDirectory(branchLink.TargetPath);
 		}
-		catch (Exception exception) when (IsRecoverableBranchTargetDirectorySetupException(exception))
+		catch (UnauthorizedAccessException)
 		{
+			// Intentionally tolerate permission-denied setup so merge-pass branch staging remains resilient
+			// when preferred override directories are temporarily not writable.
 		}
-	}
-
-	/// <summary>
-	/// Determines whether one read-write branch-target directory setup exception is recoverable.
-	/// </summary>
-	/// <param name="exception">Exception to inspect.</param>
-	/// <returns><see langword="true"/> when setup failure should not fail staging; otherwise <see langword="false"/>.</returns>
-	private static bool IsRecoverableBranchTargetDirectorySetupException(Exception exception)
-	{
-		ArgumentNullException.ThrowIfNull(exception);
-		return exception is IOException
-			|| exception is UnauthorizedAccessException
-			|| exception is NotSupportedException
-			|| exception is PathTooLongException;
 	}
 
 	/// <inheritdoc />

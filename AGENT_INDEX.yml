@@ -1194,7 +1194,7 @@ modules:
     do_not_reimplement:
       - Canonical bad-mountpoint retry flow with explicit two-sentence labeled mountpoint-directory-creation failure diagnostics; use MergerfsMountCommandService.
       - Canonical branch-link staging and stale-directory cleanup semantics; use BranchLinkStagingService.
-      - Canonical branch-link staging should best-effort ensure read-write target directories before symlink creation while tolerating recoverable setup errors (for example permission denial); use BranchLinkStagingService.StageBranchLinks.
+      - Canonical branch-link staging should best-effort ensure read-write target directories exist before symlink creation while tolerating permission-denied setup failures; use BranchLinkStagingService.StageBranchLinks.
       - Canonical dangling-entry replacement semantics for branch-link staging (delete-any-entry before relink); use BranchLinkStagingService.StageBranchLinks.
       - Canonical desired-vs-actual reconciliation decision engine; use MountReconciliationService.Reconcile.
       - Canonical findmnt escaped-byte decoding must preserve UTF-8 mountpoint text and replace malformed surrogate halves with U+FFFD instead of throwing; use FindmntSnapshotLineParser.DecodeEscapedValue.
