@@ -44,6 +44,7 @@ internal sealed class BranchLinkStagingService : IBranchLinkStagingService
 				branchLink.LinkPath,
 				nameof(plan));
 			desiredLinkPaths.Add(safeLinkPath);
+			EnsureReadWriteBranchTargetDirectoryExists(branchLink);
 
 			if (TryValidateExistingLinkTarget(safeLinkPath, branchLink.TargetPath))
 			{
@@ -68,6 +69,21 @@ internal sealed class BranchLinkStagingService : IBranchLinkStagingService
 
 			DeleteExistingPathIfPresent(entryPath);
 		}
+	}
+
+	/// <summary>
+	/// Ensures read-write branch target directories exist before symbolic links are staged.
+	/// </summary>
+	/// <param name="branchLink">Branch-link definition being staged.</param>
+	private void EnsureReadWriteBranchTargetDirectoryExists(MergerfsBranchLinkDefinition branchLink)
+	{
+		ArgumentNullException.ThrowIfNull(branchLink);
+		if (branchLink.AccessMode != MergerfsBranchAccessMode.ReadWrite)
+		{
+			return;
+		}
+
+		_fileSystem.CreateDirectory(branchLink.TargetPath);
 	}
 
 	/// <inheritdoc />

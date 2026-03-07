@@ -117,6 +117,39 @@ public sealed class BranchLinkStagingServiceTests
 	}
 
 	/// <summary>
+	/// Verifies staging ensures preferred read-write override target directories exist before link creation.
+	/// </summary>
+	[Fact]
+	public void StageBranchLinks_Edge_ShouldEnsurePreferredReadWriteTargetDirectoryExists()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		string branchDirectoryPath = Path.Combine(temporaryDirectory.Path, "branches", "group-a");
+		string preferredOverridePath = Path.Combine(temporaryDirectory.Path, "override", "priority", "Title One");
+		string sourcePath = Path.Combine(temporaryDirectory.Path, "source", "Title One");
+		RecordingBranchLinkStagingFileSystem fileSystem = new();
+		BranchLinkStagingService service = new(fileSystem);
+		MergerfsBranchPlan plan = CreatePlan(
+			branchDirectoryPath,
+			[
+				new MergerfsBranchLinkDefinition(
+					"00_override",
+					Path.Combine(branchDirectoryPath, "00_override"),
+					preferredOverridePath,
+					MergerfsBranchAccessMode.ReadWrite),
+				new MergerfsBranchLinkDefinition(
+					"10_source",
+					Path.Combine(branchDirectoryPath, "10_source"),
+					sourcePath,
+					MergerfsBranchAccessMode.ReadOnly)
+			]);
+
+		service.StageBranchLinks(plan);
+
+		Assert.Contains(preferredOverridePath, fileSystem.CreatedDirectories);
+		Assert.DoesNotContain(sourcePath, fileSystem.CreatedDirectories);
+	}
+
+	/// <summary>
 	/// Verifies invalid link paths outside branch directory are rejected.
 	/// </summary>
 	[Fact]
