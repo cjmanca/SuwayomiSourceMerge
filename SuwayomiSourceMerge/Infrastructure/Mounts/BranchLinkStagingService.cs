@@ -83,7 +83,27 @@ internal sealed class BranchLinkStagingService : IBranchLinkStagingService
 			return;
 		}
 
-		_fileSystem.CreateDirectory(branchLink.TargetPath);
+		try
+		{
+			_fileSystem.CreateDirectory(branchLink.TargetPath);
+		}
+		catch (Exception exception) when (IsRecoverableBranchTargetDirectorySetupException(exception))
+		{
+		}
+	}
+
+	/// <summary>
+	/// Determines whether one read-write branch-target directory setup exception is recoverable.
+	/// </summary>
+	/// <param name="exception">Exception to inspect.</param>
+	/// <returns><see langword="true"/> when setup failure should not fail staging; otherwise <see langword="false"/>.</returns>
+	private static bool IsRecoverableBranchTargetDirectorySetupException(Exception exception)
+	{
+		ArgumentNullException.ThrowIfNull(exception);
+		return exception is IOException
+			|| exception is UnauthorizedAccessException
+			|| exception is NotSupportedException
+			|| exception is PathTooLongException;
 	}
 
 	/// <inheritdoc />
