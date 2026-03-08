@@ -477,6 +477,7 @@ ensure_bind_path_mover_lock_sentinel()
     exit 1
   fi
 
+  # Truncate or create the sentinel file after type and symlink safety checks.
   : > "$lock_sentinel_path"
 
   read_directory_metadata "$bind_path"

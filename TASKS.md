@@ -1,4 +1,5 @@
 # TASKS.md
+- [x] 2026-03-07 - Implement AI-review triage follow-ups: split non-root startup diagnostics to INFO-when-aligned and WARN-on-mismatch, align `user_allow_other` regex examples/checks for trailing-whitespace parity, and add readability comments for lock-sentinel truncation idioms.
 - [x] 2026-03-07 - Validate AI review-note mock dependency accuracy for setup-host-security and add focused regression coverage ensuring runtime snippets remain SYS_ADMIN-only without AppArmor/seccomp profile flags.
 - [x] 2026-03-08 - Remove custom container profile references project-wide, simplify host setup guidance/script to SYS_ADMIN-only runtime flags, and align tests/index/docs.
 - [x] 2026-03-08 - Add mover-lock sentinel support by creating `/.ssm-lock/.nosync` for each source/override bind path in `tools/setup-host-security.sh`, add entrypoint fallback validation/creation for bind children when host setup is skipped, make `--merged-root` optional in inspect mode by deriving `/ssm/merged` host bind from container inspection (with explicit-override and fail-fast behavior), and exclude reserved `.ssm-lock` directories from merge grouping/discovery.

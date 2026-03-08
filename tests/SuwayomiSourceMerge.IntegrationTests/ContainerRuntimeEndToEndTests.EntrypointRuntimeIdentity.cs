@@ -57,7 +57,8 @@ public sealed partial class ContainerRuntimeEndToEndTests
 		Assert.DoesNotContain("useradd:", result.StandardError, StringComparison.Ordinal);
 		Assert.DoesNotContain("groupadd:", result.StandardError, StringComparison.Ordinal);
 		Assert.DoesNotContain("gosu:", result.StandardError, StringComparison.Ordinal);
-		Assert.Contains("Non-root startup detected", result.StandardError, StringComparison.Ordinal);
+		Assert.Contains("INFO: Non-root startup detected", result.StandardError, StringComparison.Ordinal);
+		Assert.DoesNotContain("WARN: Non-root startup detected", result.StandardError, StringComparison.Ordinal);
 		Assert.DoesNotContain("differs from configured PUID/PGID", result.StandardError, StringComparison.Ordinal);
 	}
 
@@ -108,7 +109,7 @@ public sealed partial class ContainerRuntimeEndToEndTests
 
 		Assert.False(result.TimedOut);
 		Assert.Equal(0, result.ExitCode);
-		Assert.Contains("Non-root startup detected", result.StandardError, StringComparison.Ordinal);
+		Assert.Contains("WARN: Non-root startup detected", result.StandardError, StringComparison.Ordinal);
 		Assert.Contains("PUID/PGID identity remapping is skipped", result.StandardError, StringComparison.Ordinal);
 		Assert.Contains("differs from configured PUID/PGID", result.StandardError, StringComparison.Ordinal);
 	}

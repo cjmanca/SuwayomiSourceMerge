@@ -96,7 +96,7 @@ MERGED="/mnt/cache/appdata/ssm/merged"
 mkdir -p "$MERGED"
 mountpoint -q "$MERGED" || mount --bind "$MERGED" "$MERGED"
 mount --make-private "$MERGED"; mount --make-rshared "$MERGED"
-grep -Eq '^[[:space:]]*user_allow_other([[:space:]]*#.*)?$' /etc/fuse.conf || printf '\nuser_allow_other\n' >> /etc/fuse.conf
+grep -Eq '^[[:space:]]*user_allow_other([[:space:]]*#.*)?[[:space:]]*$' /etc/fuse.conf || printf '\nuser_allow_other\n' >> /etc/fuse.conf
 ```
 
 On Unraid, add this script to array startup (for example using the User Scripts plugin).

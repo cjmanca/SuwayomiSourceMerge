@@ -218,7 +218,7 @@ public sealed partial class ContainerRuntimeEndToEndTests
 			_fixture.ImageTag,
 			"bash",
 			"-lc",
-			"grep -Eq '^[[:space:]]*user_allow_other([[:space:]]*#.*)?$' /etc/fuse.conf"
+			"grep -Eq '^[[:space:]]*user_allow_other([[:space:]]*#.*)?[[:space:]]*$' /etc/fuse.conf"
 		],
 		timeout: TimeSpan.FromMinutes(2));
 

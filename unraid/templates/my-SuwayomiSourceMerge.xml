@@ -14,7 +14,7 @@
   <WebUI/>
   <TemplateURL>https://raw.githubusercontent.com/cjmanca/SuwayomiSourceMerge/main/unraid/templates/my-SuwayomiSourceMerge.xml</TemplateURL>
   <Icon/>
-  <ExtraParams>--device=/dev/fuse --cap-add=SYS_ADMIN --user 99:100</ExtraParams>
+  <ExtraParams>--device=/dev/fuse --cap-add=SYS_ADMIN</ExtraParams>
   <PostArgs/>
   <CPUset/>
   <DateInstalled/>

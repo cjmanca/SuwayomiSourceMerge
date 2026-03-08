@@ -277,7 +277,7 @@ How to fix:
    - Add this line exactly once:
        user_allow_other
    - Example command:
-       sh -c "grep -Eq '^[[:space:]]*user_allow_other([[:space:]]*#.*)?$' \"$FUSE_CONF_PATH\" || printf '\nuser_allow_other\n' >> \"$FUSE_CONF_PATH\""
+      sh -c "grep -Eq '^[[:space:]]*user_allow_other([[:space:]]*#.*)?[[:space:]]*$' \"$FUSE_CONF_PATH\" || printf '\nuser_allow_other\n' >> \"$FUSE_CONF_PATH\""
 
 2) Run as root:
    - Set environment variable:
@@ -388,6 +388,11 @@ apply_entrypoint_fuse_conf_policy() {
 
 log_non_root_startup_mode() {
   if [[ "$ENTRYPOINT_NON_ROOT_MODE" != "1" ]]; then
+    return
+  fi
+
+  if [[ "$PUID" == "$STARTUP_UID" && "$PGID" == "$STARTUP_GID" ]]; then
+    entrypoint_log "INFO: Non-root startup detected (uid=$STARTUP_UID gid=$STARTUP_GID). Startup identity matches configured PUID/PGID; PUID/PGID identity remapping is skipped, along with root-only ownership repair and gosu handoff."
     return
   fi
 
@@ -621,6 +626,7 @@ ensure_bind_path_mover_lock_sentinel() {
   fi
 
   local write_lock_error
+  # Truncate or create the sentinel file after type and symlink safety checks.
   if ! write_lock_error="$( : > "$lock_sentinel_path" 2>&1)"; then
     entrypoint_log "WARN: Failed to create mover lock sentinel '$lock_sentinel_path'. Detail: $write_lock_error"
     return
