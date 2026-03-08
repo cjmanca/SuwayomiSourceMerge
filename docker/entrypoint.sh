@@ -265,9 +265,14 @@ entrypoint_log_block() {
 
 report_fuse_conf_write_failure() {
   local write_error_detail="${1:-unknown write failure}"
+  local non_root_runtime_identity="$PUID:$PGID"
+  if [[ "$ENTRYPOINT_NON_ROOT_MODE" = "1" ]]; then
+    non_root_runtime_identity="$STARTUP_UID:$STARTUP_GID"
+  fi
+
   local failure_message
   failure_message="$(cat <<EOF
-ERROR: Failed to update '$FUSE_CONF_PATH' with 'user_allow_other' while running as non-root (PUID=$PUID).
+ERROR: Failed to update '$FUSE_CONF_PATH' with 'user_allow_other' while running as non-root runtime identity '$non_root_runtime_identity' (startup uid/gid '$STARTUP_UID:$STARTUP_GID'; configured PUID/PGID '$PUID:$PGID').
 Mergerfs option 'allow_other' requires this setting for non-root mounts.
 Root cause detail: $write_error_detail
 
@@ -330,6 +335,16 @@ validate_entrypoint_fuse_conf_mode() {
 ensure_user_allow_other() {
   if [[ "$ENTRYPOINT_NON_ROOT_MODE" = "0" && "$PUID" = "0" ]]; then
     return
+  fi
+
+  if [[ -L "$FUSE_CONF_PATH" ]]; then
+    report_fuse_conf_write_failure "Configured FUSE_CONF_PATH '$FUSE_CONF_PATH' must not be a symbolic link."
+    exit 70
+  fi
+
+  if [[ -e "$FUSE_CONF_PATH" && ! -f "$FUSE_CONF_PATH" ]]; then
+    report_fuse_conf_write_failure "Configured FUSE_CONF_PATH '$FUSE_CONF_PATH' exists but is not a regular file."
+    exit 70
   fi
 
   if [[ ! -f "$FUSE_CONF_PATH" ]]; then

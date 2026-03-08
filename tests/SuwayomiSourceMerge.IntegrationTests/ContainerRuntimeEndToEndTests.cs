@@ -280,10 +280,58 @@ public sealed partial class ContainerRuntimeEndToEndTests
 		Assert.False(result.TimedOut);
 		Assert.NotEqual(0, result.ExitCode);
 		Assert.Contains("Failed to update '/proc/1/mem' with 'user_allow_other'", result.StandardError, StringComparison.Ordinal);
+		Assert.Contains("while running as non-root runtime identity", result.StandardError, StringComparison.Ordinal);
+		Assert.Contains("configured PUID/PGID", result.StandardError, StringComparison.Ordinal);
 		Assert.Contains("Root cause detail:", result.StandardError, StringComparison.Ordinal);
 		Assert.Contains("Manual edit", result.StandardError, StringComparison.Ordinal);
 		Assert.Contains("sh -c", result.StandardError, StringComparison.Ordinal);
 		Assert.Contains("PUID=0", result.StandardError, StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// Verifies auto-mode fuse configuration mutation fails fast when <c>FUSE_CONF_PATH</c> is a symlink.
+	/// </summary>
+	[Fact]
+	public void Run_Failure_ShouldFailFastInAutoMode_WhenFuseConfigPathIsSymlink()
+	{
+		using ContainerFixtureWorkspace workspace = new();
+		string targetFuseConfigPath = Path.Combine(workspace.StateRootPath, "fuse-target.conf");
+		File.WriteAllText(targetFuseConfigPath, string.Empty);
+		string symlinkFuseConfigPath = Path.Combine(workspace.StateRootPath, "fuse-link.conf");
+		if (!TryCreateFileSymbolicLink(symlinkFuseConfigPath, targetFuseConfigPath))
+		{
+			return;
+		}
+
+		if (!IsContainerPathSymlink(workspace, "/ssm/state/fuse-link.conf"))
+		{
+			return;
+		}
+
+		DockerCommandResult result = _fixture.Runner.Execute(
+		[
+			"run",
+			"--rm",
+			"--volume",
+			$"{workspace.StateRootPath}:/ssm/state",
+			"--env",
+			"PUID=99",
+			"--env",
+			"PGID=100",
+			"--env",
+			"ENTRYPOINT_FUSE_CONF_MODE=auto",
+			"--env",
+			"FUSE_CONF_PATH=/ssm/state/fuse-link.conf",
+			_fixture.ImageTag,
+			"bash",
+			"-lc",
+			"true"
+		],
+		timeout: TimeSpan.FromMinutes(2));
+
+		Assert.False(result.TimedOut);
+		Assert.Equal(70, result.ExitCode);
+		Assert.Contains("must not be a symbolic link", result.StandardError, StringComparison.Ordinal);
 	}
 
 	/// <summary>

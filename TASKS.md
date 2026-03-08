@@ -1,4 +1,5 @@
 # TASKS.md
+- [x] 2026-03-08 - Address unresolved PR #51 reviewer threads by correcting PR metadata for optional non-root Unraid template behavior, adding fail-fast fuse.conf symlink/non-regular-path guards in container/host scripts, and expanding targeted unit/integration coverage.
 - [x] 2026-03-07 - Refine setup-host-security runtime-snippet regression test intent by removing misleading AppArmor-parser mock framing while keeping SYS_ADMIN-only/no-security-profile output assertions.
 - [x] 2026-03-07 - Implement AI review triage recommendations: add canonical user_allow_other regex parity guard coverage in repository policy tests, clarify README Option B fallback maintenance guidance, and tighten Unraid Fuse Config Mode wording.
 - [x] 2026-03-07 - Implement AI-review triage follow-ups: split non-root startup diagnostics to INFO-when-aligned and WARN-on-mismatch, align `user_allow_other` regex examples/checks for trailing-whitespace parity, and add readability comments for lock-sentinel truncation idioms.

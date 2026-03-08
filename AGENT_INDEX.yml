@@ -664,7 +664,7 @@ modules:
       - symbol: docker/entrypoint.sh
         kind: file
         path: docker/entrypoint.sh
-        purpose: Applies PUID/PGID identity mapping, uses consistent bash `[[ ... ]]` tests, parses settings scalars with YAML-aware inline-comment handling (including embedded `#` plain scalars) and escaped-backslash-aware quote handling for log mirroring, enforces runtime-parity logging.file_name safety checks (rooted/segmented, invalid/control chars, trailing dots/spaces, reserved device names) with fallback warnings, enforces `ENTRYPOINT_FUSE_CONF_MODE` policy (`auto` writable edits vs `host-managed` validation-only with container-visible bind guidance), supports non-root launch mode by skipping root-only identity/ownership/gosu operations, performs non-root FUSE device access preflight under the runtime identity, ensures `/ssm/sources` and `/ssm/override` roots exist for child bind-mount layouts, repairs one-level child bind-root ownership for sources/overrides, ensures mover lock sentinels (`.ssm-lock/.nosync`) for bind children with warning-only conflict handling, avoids recursive merged-root chown, performs best-effort first-level merged-child ownership repair with stale-endpoint-safe warnings, and launches the daemon.
+        purpose: Applies PUID/PGID identity mapping, uses consistent bash `[[ ... ]]` tests, parses settings scalars with YAML-aware inline-comment handling (including embedded `#` plain scalars) and escaped-backslash-aware quote handling for log mirroring, enforces runtime-parity logging.file_name safety checks (rooted/segmented, invalid/control chars, trailing dots/spaces, reserved device names) with fallback warnings, enforces `ENTRYPOINT_FUSE_CONF_MODE` policy (`auto` writable edits vs `host-managed` validation-only with container-visible bind guidance), rejects symlink/non-regular fuse.conf mutation targets in auto mode with startup-versus-configured identity diagnostics, supports non-root launch mode by skipping root-only identity/ownership/gosu operations, performs non-root FUSE device access preflight under the runtime identity, ensures `/ssm/sources` and `/ssm/override` roots exist for child bind-mount layouts, repairs one-level child bind-root ownership for sources/overrides, ensures mover lock sentinels (`.ssm-lock/.nosync`) for bind children with warning-only conflict handling, avoids recursive merged-root chown, performs best-effort first-level merged-child ownership repair with stale-endpoint-safe warnings, and launches the daemon.
       - symbol: Dockerfile
         kind: file
         path: Dockerfile
@@ -676,7 +676,7 @@ modules:
       - symbol: tools/setup-host-security.sh
         kind: file
         path: tools/setup-host-security.sh
-        purpose: Prepares idempotent host bind-path parent ownership/mode preflight, derives merged root from inspect `/ssm/merged` bind when `--inspect-container` is used (unless overridden), creates mover lock sentinels (`<bind-path>/.ssm-lock/.nosync`) for repaired source/override binds, prepares merged propagation, ensures fuse.conf `user_allow_other`, and prints runtime guidance including host `/etc/fuse.conf` bind-mount snippets for host-managed mode.
+        purpose: Prepares idempotent host bind-path parent ownership/mode preflight, derives merged root from inspect `/ssm/merged` bind when `--inspect-container` is used (unless overridden), creates mover lock sentinels (`<bind-path>/.ssm-lock/.nosync`) for repaired source/override binds, prepares merged propagation, ensures fuse.conf `user_allow_other` with symlink/non-regular path rejection before root writes, and prints runtime guidance including host `/etc/fuse.conf` bind-mount snippets for host-managed mode.
     extension_points:
       - how: Adapt runtime package set and image-stage composition by editing Dockerfile stages and apt package list.
         symbols: [Dockerfile]
@@ -701,9 +701,10 @@ modules:
       - Canonical container runtime package and multi-stage image definition must remove build-only curl after mergerfs package install; use Dockerfile.
       - Canonical container runtime package and multi-stage image definition; use Dockerfile.
       - Canonical container startup fuse policy: skip fuse.conf edits when running as root with PUID=0 and fail non-root startup with remediation guidance when /etc/fuse.conf cannot be updated; use docker/entrypoint.sh.
+      - Canonical container startup fuse mutation path safety: reject symlink and non-regular FUSE_CONF_PATH targets before auto-mode writes; use docker/entrypoint.sh.
       - Canonical container startup `ENTRYPOINT_FUSE_CONF_MODE` policy validation and host-managed fuse.conf gate (`user_allow_other` required without mutation); use docker/entrypoint.sh.
       - Canonical container startup host-managed fuse guidance must require container-visible fuse.conf mounts (default `/etc/fuse.conf` bind) when validating `user_allow_other`; use docker/entrypoint.sh and tools/setup-host-security.sh.
-      - Canonical container startup fuse write-failure diagnostics with root-cause details and manual `sh -c` remediation guidance; use docker/entrypoint.sh.
+      - Canonical container startup fuse write-failure diagnostics with startup-identity plus configured-PUID/PGID context, root-cause details, and manual `sh -c` remediation guidance; use docker/entrypoint.sh.
       - Canonical container startup log mirroring that parses settings scalars with YAML-aware inline-comment handling (embedded plain-scalar `#` values are preserved) plus escaped-backslash-aware quote handling, then writes entrypoint diagnostics into runtime log file path derived from settings/defaults; use docker/entrypoint.sh.
       - Canonical container startup logging.file_name safety gate that rejects rooted/segmented values, trailing dots/spaces, invalid/control characters, and reserved Windows device names, then falls back to default daemon.log with warning diagnostics; use docker/entrypoint.sh.
       - Canonical container startup non-root launch mode: if entrypoint starts with non-root EUID, skip root-only user/group remapping, ownership/chmod repair, and gosu handoff, emit info diagnostics when startup identity matches configured PUID/PGID and warning mismatch diagnostics otherwise, then execute directly as container user; use docker/entrypoint.sh.
@@ -711,6 +712,7 @@ modules:
       - Canonical container startup mover-lock sentinel fallback creation/validation for first-level `/ssm/sources/*` and `/ssm/override/*` bind children (`.ssm-lock/.nosync`) with warning-only conflict handling; use docker/entrypoint.sh.
       - Canonical host bind-path parent ownership preflight (peer `/mnt/disk*` majority + mtime tie-break + fallback owner); use tools/setup-host-security.sh.
       - Canonical host bind-path mover-lock sentinel provisioning at `<bind-path>/.ssm-lock/.nosync` during ownership preflight; use tools/setup-host-security.sh.
+      - Canonical host bootstrap fuse.conf mutation path safety: reject symlink and non-regular `--fuse-conf` targets before root writes; use tools/setup-host-security.sh.
       - Canonical inspect-mode merged-root resolution should derive from container `/ssm/merged` bind when `--merged-root` is omitted and fail fast when unavailable/ambiguous; use tools/setup-host-security.sh.
       - Canonical container startup root directory precreation for `/ssm/sources` and `/ssm/override` child bind-mount layouts plus one-level child bind-root ownership repair without recursive ownership traversal; use docker/entrypoint.sh.
       - Canonical container startup ownership policy that avoids recursive chown under /ssm/merged and applies best-effort first-level child ownership repair (warning-only on stale endpoint failures); use docker/entrypoint.sh.
@@ -1561,6 +1563,7 @@ modules:
       - Canonical entrypoint non-root FUSE preflight validation that rejects non-character-device `FUSE_DEVICE_PATH` values; use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
       - Canonical entrypoint non-root FUSE-device-access fail-fast harness (including derived-image non-writable character-device diagnostics assertions); use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
       - Canonical entrypoint non-root direct-launch harness that bypasses root-only identity/ownership/gosu startup operations and verifies info-level aligned skip-policy logging plus warning-level PUID/PGID mismatch diagnostics; use ContainerRuntimeEndToEndTests.EntrypointRuntimeIdentity.
+      - Canonical entrypoint auto-mode fuse.conf symlink-target fail-fast harness with in-container symlink precondition checks; use ContainerRuntimeEndToEndTests.
       - Canonical entrypoint `ENTRYPOINT_FUSE_CONF_MODE` integration harness (auto mutation compatibility, host-managed validation-only success/failure, and invalid-mode fail-fast); use ContainerRuntimeEndToEndTests.
       - Canonical entrypoint mover-lock sentinel fallback harness for `/ssm/sources/*` and `/ssm/override/*` bind children (`.ssm-lock/.nosync`) with warning-on-conflict behavior; use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs`.
       - Canonical entrypoint one-level child bind-root ownership repair harness for `/ssm/sources/*` and `/ssm/override/*`; use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs`.
@@ -1865,7 +1868,7 @@ modules:
       - symbol: SetupHostSecurityScriptTests
         kind: class
         path: tests/SuwayomiSourceMerge.UnitTests/Tools/SetupHostSecurityScriptTests.cs
-        purpose: Verifies setup-host-security bind-path preflight expected, tie-break edge, mover-lock sentinel creation/normalization, inspect-derived merged-root resolution/override/failure behavior, double-run idempotence, inspect-discovery failure behavior, and runtime snippet output remains SYS_ADMIN-only without AppArmor/seccomp profile dependency assumptions.
+        purpose: Verifies setup-host-security bind-path preflight expected, tie-break edge, mover-lock sentinel creation/normalization, inspect-derived merged-root resolution/override/failure behavior, fuse.conf mutation rejection for symlink/non-regular targets, double-run idempotence, inspect-discovery failure behavior, and runtime snippet output remains SYS_ADMIN-only without AppArmor/seccomp profile dependency assumptions.
       - symbol: SettingsSchemaTests
         kind: class
         path: tests/SuwayomiSourceMerge.UnitTests/Configuration/SettingsSchemaTests.cs
