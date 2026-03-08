@@ -47,9 +47,9 @@ What you should see:
 - Override paths exist and are writable. If override is on the array, they should also be added via raw disks, similar to above.
 - The `/ssm/override/priority` container volume is a special override directory. Anything written to the final local source directory will be written to that priority container. Good for an SSD cache pool that the mover would normally move files off from.
 
-## Prepare Host Security and Merged Sharing (Default)
+## Prepare Host Mounts, Merged Sharing, and Host Security (`setup-host-security.sh`)
 
-Run this once on host startup (array start in Unraid). It repairs bind-path parent ownership/mode on host volumes, prepares merged bind propagation, installs the hardened seccomp profile, loads AppArmor when available, and ensures host `fuse.conf` contains `user_allow_other`.
+Run this once on host startup (array start in Unraid). It repairs bind-path parent ownership/mode on host volumes, prepares merged bind propagation, and ensures host `fuse.conf` contains `user_allow_other`.
 When using `ENTRYPOINT_FUSE_CONF_MODE=host-managed`, bind host `/etc/fuse.conf` into the container (`/etc/fuse.conf:/etc/fuse.conf:ro`) so the validation check sees the host-managed file.
 
 ### Option A: Download host script
@@ -78,32 +78,28 @@ The script is idempotent and safe to run repeatedly at host startup.
 If you skip the host script, container entrypoint startup applies the same sentinel creation under first-level `/ssm/sources/*` and `/ssm/override/*` bind children.
 
 For most users, only `/path/to/SuwayomiSourceMerge/tools/setup-host-security.sh` and `--inspect-container` need changes, however there are more switches available for advanced users.
-The script strictly verifies downloaded security profiles against `docker/security/checksums.sha256` and exits on mismatch.
 
 What you should see:
 - The script exits without errors.
 - It prints bind-path repair diagnostics showing peer source or fallback ownership used for each path segment.
 - It creates/refreshes `.ssm-lock/.nosync` under each repaired source/override bind path.
-- It prints the exact `docker run`/Compose security flags for your host.
+- It prints the exact `docker run`/Compose runtime flags for your host.
 - `docker compose up -d` can start without merged-mount propagation issues.
 
-### Option B: Copy/paste to User Scripts or `/boot/config/go`
+### Option B: Copy/paste to User Scripts
 
-Use this only when you cannot use Option A. Option A includes strict checksum verification and bind-path ownership preflight.
+Use this only when you cannot use Option A. Option A includes bind-path ownership preflight.
 
 ```bash
 #!/bin/bash
 MERGED="/mnt/cache/appdata/ssm/merged"
-PROFILE_BASE_URL="https://raw.githubusercontent.com/cjmanca/SuwayomiSourceMerge/main/docker/security"
-mkdir -p "$MERGED" /etc/docker/seccomp
+mkdir -p "$MERGED"
 mountpoint -q "$MERGED" || mount --bind "$MERGED" "$MERGED"
 mount --make-private "$MERGED"; mount --make-rshared "$MERGED"
 grep -Eq '^[[:space:]]*user_allow_other([[:space:]]*#.*)?$' /etc/fuse.conf || printf '\nuser_allow_other\n' >> /etc/fuse.conf
-curl -fsSL "$PROFILE_BASE_URL/seccomp-mergerfs.json" -o /etc/docker/seccomp/ssm-mergerfs.json
-if command -v apparmor_parser >/dev/null 2>&1 && [[ -d /sys/module/apparmor ]]; then curl -fsSL "$PROFILE_BASE_URL/apparmor/ssm-mergerfs" -o /etc/apparmor.d/ssm-mergerfs && apparmor_parser -r /etc/apparmor.d/ssm-mergerfs; fi
 ```
 
-On Unraid, add this script to startup (for example in `/boot/config/go` or the User Scripts plugin).
+On Unraid, add this script to array startup (for example using the User Scripts plugin).
 
 ## Connect Suwayomi Local Source to the Merged Folder
 
@@ -179,9 +175,6 @@ services:
       - /dev/fuse:/dev/fuse
     cap_add:
       - SYS_ADMIN
-    security_opt:
-      - apparmor:ssm-mergerfs
-      - seccomp:/etc/docker/seccomp/ssm-mergerfs.json
     restart: unless-stopped
 ```
 
@@ -202,8 +195,6 @@ Optional non-root mode:
 docker run --rm \
   --device /dev/fuse \
   --cap-add SYS_ADMIN \
-  --security-opt apparmor=ssm-mergerfs \
-  --security-opt seccomp=/etc/docker/seccomp/ssm-mergerfs.json \
   -e ENTRYPOINT_FUSE_CONF_MODE=host-managed \
   -e PUID=99 \
   -e PGID=100 \
@@ -221,15 +212,6 @@ Optional non-root mode:
 - In non-root mode, entrypoint skips root-only identity remapping/ownership repair and executes directly as that user.
 - Keep `PUID`/`PGID` aligned with `--user` values for consistent diagnostics.
 - Ensure all bind-mounted host paths already exist and are writable by that UID:GID.
-
-### Legacy Fallback (When Hardened Profiles Are Not Available)
-
-If your host cannot support profile loading (for example, no AppArmor tooling), keep using the legacy flags:
-
-```bash
---security-opt apparmor=unconfined \
---security-opt seccomp=unconfined
-```
 
 ## Verify Startup
 

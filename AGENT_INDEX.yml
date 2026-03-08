@@ -643,14 +643,11 @@ modules:
       - YAML parser unknown-key tolerance for schema evolution; use YamlDocumentParser.
     related: [config-resolution, domain-normalization, logging-infrastructure, runtime-host, unit-test-suite]
   - id: container-runtime-assets
-    summary: Container runtime assets for entrypoint policy, host preflight ownership/security setup, and Docker publish workflow.
+    summary: Container runtime assets for entrypoint policy, host preflight ownership setup, and Docker publish workflow.
     tags: [container, docker, runtime]
     paths:
       - .dockerignore
       - .github/workflows/docker-publish.yml
-      - docker/security/apparmor/ssm-mergerfs
-      - docker/security/checksums.sha256
-      - docker/security/seccomp-mergerfs.json
       - docker/entrypoint.sh
       - Dockerfile
       - tests/SuwayomiSourceMerge.IntegrationTests/README.md
@@ -668,18 +665,6 @@ modules:
         kind: file
         path: docker/entrypoint.sh
         purpose: Applies PUID/PGID identity mapping, uses consistent bash `[[ ... ]]` tests, parses settings scalars with YAML-aware inline-comment handling (including embedded `#` plain scalars) and escaped-backslash-aware quote handling for log mirroring, enforces runtime-parity logging.file_name safety checks (rooted/segmented, invalid/control chars, trailing dots/spaces, reserved device names) with fallback warnings, enforces `ENTRYPOINT_FUSE_CONF_MODE` policy (`auto` writable edits vs `host-managed` validation-only with container-visible bind guidance), supports non-root launch mode by skipping root-only identity/ownership/gosu operations, performs non-root FUSE device access preflight under the runtime identity, ensures `/ssm/sources` and `/ssm/override` roots exist for child bind-mount layouts, repairs one-level child bind-root ownership for sources/overrides, ensures mover lock sentinels (`.ssm-lock/.nosync`) for bind children with warning-only conflict handling, avoids recursive merged-root chown, performs best-effort first-level merged-child ownership repair with stale-endpoint-safe warnings, and launches the daemon.
-      - symbol: docker/security/apparmor/ssm-mergerfs
-        kind: file
-        path: docker/security/apparmor/ssm-mergerfs
-        purpose: Defines the hardened AppArmor profile used for container runtime security_opt policy with mount/FUSE allowances.
-      - symbol: docker/security/checksums.sha256
-        kind: file
-        path: docker/security/checksums.sha256
-        purpose: Defines canonical SHA256 checksums used by host bootstrap setup to verify seccomp and AppArmor profile integrity before install.
-      - symbol: docker/security/seccomp-mergerfs.json
-        kind: file
-        path: docker/security/seccomp-mergerfs.json
-        purpose: Defines the hardened seccomp profile used for container runtime security_opt policy.
       - symbol: Dockerfile
         kind: file
         path: Dockerfile
@@ -691,7 +676,7 @@ modules:
       - symbol: tools/setup-host-security.sh
         kind: file
         path: tools/setup-host-security.sh
-        purpose: Prepares idempotent host bind-path parent ownership/mode preflight, derives merged root from inspect `/ssm/merged` bind when `--inspect-container` is used (unless overridden), creates mover lock sentinels (`<bind-path>/.ssm-lock/.nosync`) for repaired source/override binds, merged propagation, fuse.conf `user_allow_other`, seccomp/AppArmor install, and checksum-verified security runtime guidance including host `/etc/fuse.conf` bind-mount snippets for host-managed mode.
+        purpose: Prepares idempotent host bind-path parent ownership/mode preflight, derives merged root from inspect `/ssm/merged` bind when `--inspect-container` is used (unless overridden), creates mover lock sentinels (`<bind-path>/.ssm-lock/.nosync`) for repaired source/override binds, prepares merged propagation, ensures fuse.conf `user_allow_other`, and prints runtime guidance including host `/etc/fuse.conf` bind-mount snippets for host-managed mode.
     extension_points:
       - how: Adapt runtime package set and image-stage composition by editing Dockerfile stages and apt package list.
         symbols: [Dockerfile]
@@ -724,11 +709,9 @@ modules:
       - Canonical container startup non-root launch mode: if entrypoint starts with non-root EUID, skip root-only user/group remapping, ownership/chmod repair, and gosu handoff, emit mismatch diagnostics when startup identity differs from configured PUID/PGID, then execute directly as container user with warning telemetry; use docker/entrypoint.sh.
       - Canonical container startup non-root FUSE device access preflight under runtime identity (skip in mock-tool mode, warning when device is absent, fail-fast when present but inaccessible with actionable mapping/permission/SYS_ADMIN remediation guidance); use docker/entrypoint.sh.
       - Canonical container startup mover-lock sentinel fallback creation/validation for first-level `/ssm/sources/*` and `/ssm/override/*` bind children (`.ssm-lock/.nosync`) with warning-only conflict handling; use docker/entrypoint.sh.
-      - Canonical hardened runtime security profile assets (AppArmor/seccomp) and host bootstrap workflow; use docker/security/apparmor/ssm-mergerfs, docker/security/seccomp-mergerfs.json, and tools/setup-host-security.sh.
       - Canonical host bind-path parent ownership preflight (peer `/mnt/disk*` majority + mtime tie-break + fallback owner); use tools/setup-host-security.sh.
       - Canonical host bind-path mover-lock sentinel provisioning at `<bind-path>/.ssm-lock/.nosync` during ownership preflight; use tools/setup-host-security.sh.
       - Canonical inspect-mode merged-root resolution should derive from container `/ssm/merged` bind when `--merged-root` is omitted and fail fast when unavailable/ambiguous; use tools/setup-host-security.sh.
-      - Canonical host security-profile checksum manifest and strict install verification flow for downloaded/local seccomp and AppArmor assets; use docker/security/checksums.sha256 and tools/setup-host-security.sh.
       - Canonical container startup root directory precreation for `/ssm/sources` and `/ssm/override` child bind-mount layouts plus one-level child bind-root ownership repair without recursive ownership traversal; use docker/entrypoint.sh.
       - Canonical container startup ownership policy that avoids recursive chown under /ssm/merged and applies best-effort first-level child ownership repair (warning-only on stale endpoint failures); use docker/entrypoint.sh.
       - Canonical container startup PUID/PGID identity mapping and daemon launch; use docker/entrypoint.sh.
@@ -1692,7 +1675,7 @@ modules:
       - symbol: README.md
         kind: file
         path: README.md
-        purpose: Captures public usage guidance including Docker Compose, Unraid direct-disk mapping, optional non-root `user` mode behavior/caveats, child submount policy for `/ssm/sources/*` and `/ssm/override/*`, host-managed `/etc/fuse.conf` bind requirements, copy/paste host bootstrap security setup (inline + helper-script args), isolated shared merged-bind requirements (`private` then `rshared`), CI, and bare-metal runtime instructions.
+        purpose: Captures public usage guidance including Docker Compose, Unraid direct-disk mapping, optional non-root `user` mode behavior/caveats, child submount policy for `/ssm/sources/*` and `/ssm/override/*`, host-managed `/etc/fuse.conf` bind requirements, copy/paste host bootstrap setup (inline + helper-script args), isolated shared merged-bind requirements (`private` then `rshared`), CI, and bare-metal runtime instructions.
       - symbol: SuwayomiSourceMerge.csproj
         kind: file
         path: SuwayomiSourceMerge/SuwayomiSourceMerge.csproj
@@ -1700,7 +1683,7 @@ modules:
       - symbol: unraid/templates/my-SuwayomiSourceMerge.xml
         kind: file
         path: unraid/templates/my-SuwayomiSourceMerge.xml
-        purpose: Defines an Unraid Community Apps template with hardened default FUSE/security profile flags, host-managed fuse-conf mode wiring with host `/etc/fuse.conf` bind mapping, and source/override child-path slots through disk10.
+        purpose: Defines an Unraid Community Apps template with required FUSE runtime flags, host-managed fuse-conf mode wiring with host `/etc/fuse.conf` bind mapping, and source/override child-path slots through disk10.
     extension_points:
       - how: Add new runtime orchestration by introducing services and invoking them from Program.cs.
         symbols: [Program.cs]
@@ -1717,7 +1700,7 @@ modules:
       - Canonical public runtime usage and deployment documentation; use README.md.
       - Canonical Unraid Community Apps template wiring for this runtime; use unraid/templates/my-SuwayomiSourceMerge.xml.
       - Canonical user-facing mount guidance must keep source/override storage on child targets (`/ssm/sources/*`, `/ssm/override/*`), avoid parent-root Docker volumes, configure `/ssm/merged` container binds as `rw,shared`, and prepare the host merged root as isolated shared (`mount --make-private` then `mount --make-rshared`); use README.md and unraid/templates/my-SuwayomiSourceMerge.xml.
-      - Canonical user-facing hardened runtime guidance keeps `SYS_ADMIN` with `/dev/fuse`, uses custom AppArmor/seccomp profiles by default with host bootstrap setup, and reserves unconfined flags for fallback hosts; use README.md, DEVELOPMENT.md, and unraid/templates/my-SuwayomiSourceMerge.xml.
+      - Canonical user-facing runtime guidance keeps `SYS_ADMIN` with `/dev/fuse` for mergerfs mounts; use README.md, DEVELOPMENT.md, and unraid/templates/my-SuwayomiSourceMerge.xml.
       - Canonical user-facing host-managed fuse guidance requires a container-visible fuse.conf bind (default `/etc/fuse.conf:/etc/fuse.conf:ro`) or `FUSE_CONF_PATH` override to a mounted file; use README.md, DEVELOPMENT.md, tools/setup-host-security.sh, and unraid/templates/my-SuwayomiSourceMerge.xml.
       - Canonical user-facing non-root `--user`/Compose `user` guidance must explain that entrypoint skips root-only identity remapping, ownership repair, and gosu handoff when startup EUID is non-root; use README.md and DEVELOPMENT.md.
       - Console entrypoint bootstrapping; extend Program.cs.
@@ -1877,7 +1860,7 @@ modules:
       - symbol: SetupHostSecurityScriptTests
         kind: class
         path: tests/SuwayomiSourceMerge.UnitTests/Tools/SetupHostSecurityScriptTests.cs
-        purpose: Verifies setup-host-security bind-path preflight expected, tie-break edge, mover-lock sentinel creation/normalization, inspect-derived merged-root resolution/override/failure behavior, double-run idempotence, and inspect-discovery failure behavior.
+        purpose: Verifies setup-host-security bind-path preflight expected, tie-break edge, mover-lock sentinel creation/normalization, inspect-derived merged-root resolution/override/failure behavior, double-run idempotence, inspect-discovery failure behavior, and runtime snippet output remains SYS_ADMIN-only without AppArmor/seccomp profile dependency assumptions.
       - symbol: SettingsSchemaTests
         kind: class
         path: tests/SuwayomiSourceMerge.UnitTests/Configuration/SettingsSchemaTests.cs

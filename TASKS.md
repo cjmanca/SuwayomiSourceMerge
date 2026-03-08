@@ -1,4 +1,6 @@
 # TASKS.md
+- [x] 2026-03-07 - Validate AI review-note mock dependency accuracy for setup-host-security and add focused regression coverage ensuring runtime snippets remain SYS_ADMIN-only without AppArmor/seccomp profile flags.
+- [x] 2026-03-08 - Remove custom container profile references project-wide, simplify host setup guidance/script to SYS_ADMIN-only runtime flags, and align tests/index/docs.
 - [x] 2026-03-08 - Add mover-lock sentinel support by creating `/.ssm-lock/.nosync` for each source/override bind path in `tools/setup-host-security.sh`, add entrypoint fallback validation/creation for bind children when host setup is skipped, make `--merged-root` optional in inspect mode by deriving `/ssm/merged` host bind from container inspection (with explicit-override and fail-fast behavior), and exclude reserved `.ssm-lock` directories from merge grouping/discovery.
 - [x] 2026-03-07 - Refine entrypoint non-root mismatch diagnostics and non-root FUSE access remediation messaging, with targeted integration test coverage updates.
 - [x] 2026-03-07 - Support non-root container startup when `--user` matches `PUID`/`PGID` by skipping root-only identity/ownership/gosu entrypoint operations, with mismatch fail-fast diagnostics and integration coverage.
@@ -7,7 +9,7 @@
 - [x] 2026-03-07 - Keep host bootstrap bind-path ownership preflight in a single standalone `tools/setup-host-security.sh` script for user convenience (no secondary helper download required), and realign docs/index metadata.
 - [x] 2026-03-07 - Extend `tools/setup-host-security.sh` with bind-path parent ownership preflight (`--inspect-container` and repeatable `--bind-path`) that clones peer `/mnt/disk*` metadata via majority + mtime tie-breaks, add deterministic script regression tests, and document usage in README/DEVELOPMENT.
 - [x] 2026-03-07 - Implement AI-review follow-ups: strict host-profile checksum verification via repository manifest, fuse.conf regex parity for trailing whitespace handling, and Unraid Fuse Config Mode wording clarity.
-- [x] 2026-03-07 - Default container hardening to custom seccomp/AppArmor profile guidance with host bootstrap setup, add host-managed fuse.conf entrypoint mode fallback controls, and align integration coverage/docs/template.
+- [x] 2026-03-07 - Default container hardening to custom container profile guidance with host bootstrap setup, add host-managed fuse.conf entrypoint mode fallback controls, and align integration coverage/docs/template.
 - [x] 2026-03-07 - Clarify that `tools/setup-host-security.sh` includes merged bind setup (`mount --bind`, `--make-private`, `--make-rshared`) so it can replace the inline host snippet directly.
 - [x] 2026-03-07 - Add copy/paste-ready `setup-host-security.sh` invocation arguments to README and clarify `fuse.conf` `user_allow_other` semantics.
 

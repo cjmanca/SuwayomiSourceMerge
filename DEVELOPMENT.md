@@ -214,8 +214,6 @@ Run image with host bind mounts:
 docker run --rm \
   --device /dev/fuse \
   --cap-add SYS_ADMIN \
-  --security-opt apparmor=ssm-mergerfs \
-  --security-opt seccomp=/etc/docker/seccomp/ssm-mergerfs.json \
   -e ENTRYPOINT_FUSE_CONF_MODE=host-managed \
   -e PUID=99 \
   -e PGID=100 \
@@ -258,21 +256,13 @@ Host bind-path ownership preflight details:
 - When no peer exists, fallback owner defaults to discovered container `PUID`/`PGID` (or `99:100`), while mode is left as-is for existing paths and mkdir-default for newly created paths.
 - Merge title discovery excludes reserved support directory `.ssm-lock` so lock sentinels are never treated as manga/source titles.
 
-Security mode matrix:
+Runtime flag baseline:
 
-- Hardened default:
+- Required runtime flags:
   - `--device /dev/fuse`
   - `--cap-add SYS_ADMIN`
-  - `--security-opt apparmor=ssm-mergerfs`
-  - `--security-opt seccomp=/etc/docker/seccomp/ssm-mergerfs.json`
   - `ENTRYPOINT_FUSE_CONF_MODE=host-managed`
   - `-v /etc/fuse.conf:/etc/fuse.conf:ro`
-- Legacy fallback (when AppArmor tooling/support is unavailable on host):
-  - `--device /dev/fuse`
-  - `--cap-add SYS_ADMIN`
-  - `--security-opt apparmor=unconfined`
-  - `--security-opt seccomp=unconfined`
-  - `ENTRYPOINT_FUSE_CONF_MODE=auto`
 
 For real FUSE/mergerfs runtime behavior (not mocked test mode), `/dev/fuse` plus `SYS_ADMIN` remain required. Local runtime verification currently reproduces `Operation not permitted` without `SYS_ADMIN`.
 

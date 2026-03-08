@@ -210,6 +210,50 @@ public sealed class SetupHostSecurityScriptTests
 	}
 
 	/// <summary>
+	/// Verifies runtime snippets remain SYS_ADMIN-only and setup does not depend on AppArmor tooling.
+	/// </summary>
+	[Fact]
+	public void Run_Expected_ShouldPrintRuntimeSnippetsWithoutSecurityProfiles_AndNotInvokeAppArmorParser()
+	{
+		if (!OperatingSystem.IsLinux())
+		{
+			return;
+		}
+
+		string repositoryRoot = RepositoryRootLocator.FindRepositoryRoot();
+		using TemporaryDirectory temporaryDirectory = new();
+		ScriptFixture fixture = ScriptFixture.Create(temporaryDirectory.Path);
+
+		string diskOneRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "disk1")).FullName;
+		string diskTwoRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "disk2")).FullName;
+		string cacheRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "cache")).FullName;
+		Directory.CreateDirectory(Path.Combine(diskOneRootPath, "sources", "manga"));
+		Directory.CreateDirectory(Path.Combine(diskTwoRootPath, "sources", "manga"));
+		string sourceBindPath = Path.Combine(cacheRootPath, "sources", "manga");
+
+		string appArmorParserMockPath = Path.Combine(fixture.MockBinaryDirectoryPath, "apparmor_parser");
+		File.WriteAllText(
+			appArmorParserMockPath,
+			"#!/usr/bin/env bash\nexit 97\n",
+			Encoding.UTF8);
+		SetUnixMode(appArmorParserMockPath, "755");
+
+		ScriptExecutionResult result = ExecuteScript(
+			repositoryRoot,
+			fixture,
+			[
+				"--bind-path",
+				sourceBindPath
+			]);
+
+		Assert.Equal(0, result.ExitCode);
+		Assert.Contains("--cap-add SYS_ADMIN", result.StandardOutput, StringComparison.Ordinal);
+		Assert.DoesNotContain("--security-opt", result.StandardOutput, StringComparison.Ordinal);
+		Assert.DoesNotContain("apparmor=", result.StandardOutput, StringComparison.Ordinal);
+		Assert.DoesNotContain("seccomp=", result.StandardOutput, StringComparison.Ordinal);
+	}
+
+	/// <summary>
 	/// Verifies bind-path repair creates one mover lock sentinel directory and file under every repaired bind path.
 	/// </summary>
 	[Fact]
@@ -524,10 +568,6 @@ public sealed class SetupHostSecurityScriptTests
 		}
 		startInfo.ArgumentList.Add("--fuse-conf");
 		startInfo.ArgumentList.Add(fixture.FuseConfigPath);
-		startInfo.ArgumentList.Add("--seccomp-dest");
-		startInfo.ArgumentList.Add(fixture.SeccompDestinationPath);
-		startInfo.ArgumentList.Add("--apparmor-dest");
-		startInfo.ArgumentList.Add(fixture.AppArmorDestinationPath);
 		startInfo.ArgumentList.Add("--fallback-puid");
 		startInfo.ArgumentList.Add(Environment.GetEnvironmentVariable("UID") ?? "99");
 		startInfo.ArgumentList.Add("--fallback-pgid");
@@ -625,8 +665,6 @@ public sealed class SetupHostSecurityScriptTests
 	/// <param name="MountRootPath">Mount root path for simulated host mounts.</param>
 	/// <param name="MergedRootPath">Merged root path.</param>
 	/// <param name="FuseConfigPath">Fuse config path.</param>
-	/// <param name="SeccompDestinationPath">Seccomp destination path.</param>
-	/// <param name="AppArmorDestinationPath">AppArmor destination path.</param>
 	/// <param name="MockBinaryDirectoryPath">Mock command directory path.</param>
 	/// <param name="DockerMountsOutputPath">Mock Docker mounts output file path.</param>
 	/// <param name="DockerEnvironmentOutputPath">Mock Docker environment output file path.</param>
@@ -634,8 +672,6 @@ public sealed class SetupHostSecurityScriptTests
 		string MountRootPath,
 		string MergedRootPath,
 		string FuseConfigPath,
-		string SeccompDestinationPath,
-		string AppArmorDestinationPath,
 		string MockBinaryDirectoryPath,
 		string DockerMountsOutputPath,
 		string DockerEnvironmentOutputPath)
@@ -650,8 +686,6 @@ public sealed class SetupHostSecurityScriptTests
 			string mountRootPath = Directory.CreateDirectory(Path.Combine(workspaceRootPath, "mnt")).FullName;
 			string mergedRootPath = Path.Combine(workspaceRootPath, "merged");
 			string fuseConfigPath = Path.Combine(workspaceRootPath, "fuse.conf");
-			string seccompDestinationPath = Path.Combine(workspaceRootPath, "security", "seccomp", "ssm-mergerfs.json");
-			string appArmorDestinationPath = Path.Combine(workspaceRootPath, "security", "apparmor", "ssm-mergerfs");
 			string mockBinaryDirectoryPath = Directory.CreateDirectory(Path.Combine(workspaceRootPath, "mock-bin")).FullName;
 			string dockerMountsOutputPath = Path.Combine(workspaceRootPath, "docker-mounts.txt");
 			string dockerEnvironmentOutputPath = Path.Combine(workspaceRootPath, "docker-env.txt");
@@ -663,8 +697,6 @@ public sealed class SetupHostSecurityScriptTests
 				mountRootPath,
 				mergedRootPath,
 				fuseConfigPath,
-				seccompDestinationPath,
-				appArmorDestinationPath,
 				mockBinaryDirectoryPath,
 				dockerMountsOutputPath,
 				dockerEnvironmentOutputPath);
@@ -685,13 +717,6 @@ public sealed class SetupHostSecurityScriptTests
 
 			WriteExecutableScript(
 				Path.Combine(mockBinaryDirectoryPath, "mount"),
-				"""
-				#!/usr/bin/env bash
-				exit 0
-				""");
-
-			WriteExecutableScript(
-				Path.Combine(mockBinaryDirectoryPath, "apparmor_parser"),
 				"""
 				#!/usr/bin/env bash
 				exit 0
