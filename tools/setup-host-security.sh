@@ -394,7 +394,7 @@ repair_bind_path_chain()
 
     local created_segment=0
     if [[ ! -e "$current_path" ]]; then
-      # Use mkdir -p so repeated (or concurrent) runs remain idempotent.
+      # Use mkdir -p to create any missing parent directories and keep repeated (or concurrent) runs idempotent.
       mkdir -p "$current_path"
       created_segment=1
     fi
@@ -478,7 +478,7 @@ ensure_bind_path_mover_lock_sentinel()
   fi
 
   # Truncate or create the sentinel file after type and symlink safety checks.
-  : > "$lock_sentinel_path"
+  : > "$lock_sentinel_path"  # ':' is a no-op; redirection here creates/truncates the sentinel file
 
   read_directory_metadata "$bind_path"
   local bind_uid="$DIRECTORY_UID"

@@ -626,7 +626,7 @@ ensure_bind_path_mover_lock_sentinel() {
   fi
 
   local write_lock_error
-  # Truncate or create the sentinel file after type and symlink safety checks.
+  # Truncate or create the sentinel file after type and symlink safety checks; ':' is a no-op whose redirected output creates/truncates the file.
   if ! write_lock_error="$( : > "$lock_sentinel_path" 2>&1)"; then
     entrypoint_log "WARN: Failed to create mover lock sentinel '$lock_sentinel_path'. Detail: $write_lock_error"
     return

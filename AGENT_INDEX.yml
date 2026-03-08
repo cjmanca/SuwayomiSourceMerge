@@ -1833,6 +1833,7 @@ modules:
       - tests/SuwayomiSourceMerge.UnitTests/Infrastructure/Watching/PersistentInotifywaitEventReaderTests.BoundedPollBuffers.cs
       - tests/SuwayomiSourceMerge.UnitTests/ProgramEntryPointTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/README.md
+      - tests/SuwayomiSourceMerge.UnitTests/Repository/FuseConfigUserAllowOtherRegexPolicyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Repository/LineEndingPolicyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/Repository/NamingConventionPolicyTests.cs
       - tests/SuwayomiSourceMerge.UnitTests/stryker-config.json
@@ -1853,6 +1854,10 @@ modules:
         kind: class
         path: tests/SuwayomiSourceMerge.UnitTests/Configuration/Loading/ConfigurationValidationPipelineTests.cs
         purpose: Verifies parse/validate orchestration, guard clauses, and validator exception propagation.
+      - symbol: FuseConfigUserAllowOtherRegexPolicyTests
+        kind: class
+        path: tests/SuwayomiSourceMerge.UnitTests/Repository/FuseConfigUserAllowOtherRegexPolicyTests.cs
+        purpose: Verifies user_allow_other regex parity remains aligned across canonical docs/scripts/test literals.
       - symbol: LineEndingPolicyTests
         kind: class
         path: tests/SuwayomiSourceMerge.UnitTests/Repository/LineEndingPolicyTests.cs
@@ -1880,7 +1885,7 @@ modules:
     extension_points:
       - how: Add new deterministic unit tests in the unit test project and centralize reusable fixtures/helpers for reuse.
         symbols: [ProjectLayoutTests, SuwayomiSourceMerge.UnitTests.csproj]
-        paths: [tests/SuwayomiSourceMerge.UnitTests/Configuration/ConfigurationTestData.cs, tests/SuwayomiSourceMerge.UnitTests/Repository/LineEndingPolicyTests.cs, tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/PathTestUtilities.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/RecordingLogger.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/SceneTagMatcherTestDoubles.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/TemporaryDirectory.cs, tests/SuwayomiSourceMerge.UnitTests/UnitTest1.cs]
+        paths: [tests/SuwayomiSourceMerge.UnitTests/Configuration/ConfigurationTestData.cs, tests/SuwayomiSourceMerge.UnitTests/Repository/FuseConfigUserAllowOtherRegexPolicyTests.cs, tests/SuwayomiSourceMerge.UnitTests/Repository/LineEndingPolicyTests.cs, tests/SuwayomiSourceMerge.UnitTests/SuwayomiSourceMerge.UnitTests.csproj, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/PathTestUtilities.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/RecordingLogger.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/SceneTagMatcherTestDoubles.cs, tests/SuwayomiSourceMerge.UnitTests/TestInfrastructure/TemporaryDirectory.cs, tests/SuwayomiSourceMerge.UnitTests/UnitTest1.cs]
       - how: Adjust mutation-test scope and score gates in the stryker configuration file.
         symbols: [stryker-config.json]
         paths: [tests/SuwayomiSourceMerge.UnitTests/stryker-config.json]
@@ -1896,6 +1901,7 @@ modules:
       - Logging formatter/filter/rolling behavior coverage; extend Infrastructure/Logging test classes.
       - Metadata API pacing/cache option mapping and guard coverage; extend MergeMountWorkflowOptionsTests and MetadataOrchestrationOptionsTests.
       - Mutation-test scope and threshold gates; use stryker-config.json.
+      - Repository user_allow_other regex drift guard across canonical docs/scripts/test literals; extend FuseConfigUserAllowOtherRegexPolicyTests.
       - Repository LF line-ending drift guard; extend LineEndingPolicyTests.
       - Repository-policy test root discovery in unit tests; use RepositoryRootLocator.FindRepositoryRoot.
     related: [application-hosting, application-mounting, application-supervision, application-watching, build-and-quality, config-schema-validation, infrastructure-mounts, infrastructure-watching, logging-infrastructure, runtime-host, shared-test-support]

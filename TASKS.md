@@ -1,4 +1,5 @@
 # TASKS.md
+- [x] 2026-03-07 - Implement AI review triage recommendations: add canonical user_allow_other regex parity guard coverage in repository policy tests, clarify README Option B fallback maintenance guidance, and tighten Unraid Fuse Config Mode wording.
 - [x] 2026-03-07 - Implement AI-review triage follow-ups: split non-root startup diagnostics to INFO-when-aligned and WARN-on-mismatch, align `user_allow_other` regex examples/checks for trailing-whitespace parity, and add readability comments for lock-sentinel truncation idioms.
 - [x] 2026-03-07 - Validate AI review-note mock dependency accuracy for setup-host-security and add focused regression coverage ensuring runtime snippets remain SYS_ADMIN-only without AppArmor/seccomp profile flags.
 - [x] 2026-03-08 - Remove custom container profile references project-wide, simplify host setup guidance/script to SYS_ADMIN-only runtime flags, and align tests/index/docs.
