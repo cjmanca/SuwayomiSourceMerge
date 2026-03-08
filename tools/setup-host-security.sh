@@ -394,7 +394,7 @@ repair_bind_path_chain()
 
     local created_segment=0
     if [[ ! -e "$current_path" ]]; then
-      # Use mkdir -p to create any missing parent directories and keep repeated (or concurrent) runs idempotent.
+      # Use mkdir -p to create any missing parent directories; succeeds silently if already exists, keeping repeated (or concurrent) runs idempotent.
       mkdir -p "$current_path"
       created_segment=1
     fi

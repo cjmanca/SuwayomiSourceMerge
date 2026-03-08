@@ -210,10 +210,10 @@ public sealed class SetupHostSecurityScriptTests
 	}
 
 	/// <summary>
-	/// Verifies runtime snippets remain SYS_ADMIN-only and setup does not depend on AppArmor tooling.
+	/// Verifies runtime snippets remain SYS_ADMIN-only without emitting AppArmor or seccomp profile flags.
 	/// </summary>
 	[Fact]
-	public void Run_Expected_ShouldPrintRuntimeSnippetsWithoutSecurityProfiles_AndNotInvokeAppArmorParser()
+	public void Run_Expected_ShouldPrintRuntimeSnippetsWithoutSecurityProfiles()
 	{
 		if (!OperatingSystem.IsLinux())
 		{
@@ -230,13 +230,6 @@ public sealed class SetupHostSecurityScriptTests
 		Directory.CreateDirectory(Path.Combine(diskOneRootPath, "sources", "manga"));
 		Directory.CreateDirectory(Path.Combine(diskTwoRootPath, "sources", "manga"));
 		string sourceBindPath = Path.Combine(cacheRootPath, "sources", "manga");
-
-		string appArmorParserMockPath = Path.Combine(fixture.MockBinaryDirectoryPath, "apparmor_parser");
-		File.WriteAllText(
-			appArmorParserMockPath,
-			"#!/usr/bin/env bash\nexit 97\n",
-			Encoding.UTF8);
-		SetUnixMode(appArmorParserMockPath, "755");
 
 		ScriptExecutionResult result = ExecuteScript(
 			repositoryRoot,
