@@ -212,8 +212,12 @@ Run image with host bind mounts:
 
 ```bash
 docker run --rm \
+  --device /dev/fuse \
+  --cap-add SYS_ADMIN \
+  -e ENTRYPOINT_FUSE_CONF_MODE=host-managed \
   -e PUID=99 \
   -e PGID=100 \
+  -v /etc/fuse.conf:/etc/fuse.conf:ro \
   -v /host/ssm/config:/ssm/config \
   -v /host/ssm/sources:/ssm/sources \
   -v /host/ssm/override:/ssm/override \
@@ -227,9 +231,40 @@ Container defaults and paths:
 - `PUID` default: `99`
 - `PGID` default: `100`
 - Required mount paths: `/ssm/config`, `/ssm/sources`, `/ssm/override`, `/ssm/merged`, `/ssm/state`
+- `ENTRYPOINT_FUSE_CONF_MODE` default: `auto` (`host-managed` skips container fuse.conf edits and requires container-visible prepared `user_allow_other`, typically by binding host `/etc/fuse.conf` to container `/etc/fuse.conf`)
+- Optional `docker run --user UID:GID` / Compose `user: "UID:GID"` mode is supported: entrypoint detects non-root startup and skips root-only identity remapping, ownership repair, and `gosu` handoff.
 - If default `ssm` user/group names already map to different IDs, the entrypoint uses deterministic fallback names while honoring requested `PUID`/`PGID`.
+- Entrypoint startup ensures mover lock sentinels at `/.ssm-lock/.nosync` under first-level `/ssm/sources/*` and `/ssm/override/*` bind children (warning-only on unsafe path conflicts).
 
-For real FUSE/mergerfs runtime behavior (not mocked test mode), the host/runtime must provide `/dev/fuse` and required capabilities (commonly `SYS_ADMIN` plus relaxed seccomp/apparmor constraints appropriate for FUSE).
+Hardened host setup helper:
+
+```bash
+sudo ./tools/setup-host-security.sh --inspect-container suwayomi-source-merge
+```
+
+When `--inspect-container` is used, `--merged-root` is optional. The script derives merged root from the inspected host bind that targets `/ssm/merged`, and `--merged-root` can still be supplied as an explicit override.
+
+Host bind-path ownership preflight details:
+
+- `--inspect-container <name>` discovers host bind paths targeting `/ssm/sources/*` and `/ssm/override/*`.
+- `--bind-path <path>` is repeatable and supports first-run setups before a container exists.
+- The script is idempotent; repeated runs should converge on the same ownership/mode state without duplicate fuse.conf entries.
+- For each bind path, the script repairs missing/existing chain segments below `/mnt/<root>/...`.
+- For each repaired source/override bind path, the script also creates/refreshes `<bind-path>/.ssm-lock/.nosync` to keep mover from pruning empty bind roots.
+- Peer metadata cloning scans only `/mnt/disk*` for matching relative paths, then applies selected owner/group/mode to disk and pool/cache targets.
+- Peer selection: majority vote on `(uid,gid,mode)`, tie by newest `mtime`, final tie by lowest disk number.
+- When no peer exists, fallback owner defaults to discovered container `PUID`/`PGID` (or `99:100`), while mode is left as-is for existing paths and mkdir-default for newly created paths.
+- Merge title discovery excludes reserved support directory `.ssm-lock` so lock sentinels are never treated as manga/source titles.
+
+Runtime flag baseline:
+
+- Required runtime flags:
+  - `--device /dev/fuse`
+  - `--cap-add SYS_ADMIN`
+  - `ENTRYPOINT_FUSE_CONF_MODE=host-managed`
+  - `-v /etc/fuse.conf:/etc/fuse.conf:ro`
+
+For real FUSE/mergerfs runtime behavior (not mocked test mode), `/dev/fuse` plus `SYS_ADMIN` remain required. Local runtime verification currently reproduces `Operation not permitted` without `SYS_ADMIN`.
 
 ## Docker end-to-end integration tests
 

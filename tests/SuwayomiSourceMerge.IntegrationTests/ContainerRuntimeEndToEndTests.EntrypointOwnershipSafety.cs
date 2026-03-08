@@ -129,6 +129,96 @@ public sealed partial class ContainerRuntimeEndToEndTests
 	}
 
 	/// <summary>
+	/// Verifies entrypoint startup creates mover lock sentinel files under source and override bind children.
+	/// </summary>
+	[Fact]
+	public void Run_Expected_ShouldCreateMoverLockSentinels_ForBindChildren()
+	{
+		const string lockDirectoryName = ".ssm-lock";
+		const string lockSentinelFileName = ".nosync";
+
+		using ContainerFixtureWorkspace workspace = new();
+		Directory.CreateDirectory(Path.Combine(workspace.SourcesRootPath, "disk1"));
+		Directory.CreateDirectory(Path.Combine(workspace.OverrideRootPath, "priority"));
+
+		DockerCommandResult result = RunEntrypointOnlyContainer(
+			workspace,
+			new Dictionary<string, string>(StringComparer.Ordinal)
+			{
+				["PUID"] = "99",
+				["PGID"] = "100"
+			});
+
+		Assert.False(result.TimedOut);
+		Assert.Equal(0, result.ExitCode);
+
+		string sourceLockFilePath = Path.Combine(workspace.SourcesRootPath, "disk1", lockDirectoryName, lockSentinelFileName);
+		string overrideLockFilePath = Path.Combine(workspace.OverrideRootPath, "priority", lockDirectoryName, lockSentinelFileName);
+		Assert.True(File.Exists(sourceLockFilePath));
+		Assert.True(File.Exists(overrideLockFilePath));
+		Assert.Equal(0, new FileInfo(sourceLockFilePath).Length);
+		Assert.Equal(0, new FileInfo(overrideLockFilePath).Length);
+	}
+
+	/// <summary>
+	/// Verifies entrypoint startup normalizes existing lock sentinel files to empty files.
+	/// </summary>
+	[Fact]
+	public void Run_Edge_ShouldNormalizeExistingMoverLockSentinelFileToEmpty_WhenPresent()
+	{
+		const string lockDirectoryName = ".ssm-lock";
+		const string lockSentinelFileName = ".nosync";
+
+		using ContainerFixtureWorkspace workspace = new();
+		string sourceChildPath = Directory.CreateDirectory(Path.Combine(workspace.SourcesRootPath, "disk1")).FullName;
+		string lockDirectoryPath = Directory.CreateDirectory(Path.Combine(sourceChildPath, lockDirectoryName)).FullName;
+		string lockFilePath = Path.Combine(lockDirectoryPath, lockSentinelFileName);
+		File.WriteAllText(lockFilePath, "non-empty");
+
+		DockerCommandResult result = RunEntrypointOnlyContainer(
+			workspace,
+			new Dictionary<string, string>(StringComparer.Ordinal)
+			{
+				["PUID"] = "99",
+				["PGID"] = "100"
+			});
+
+		Assert.False(result.TimedOut);
+		Assert.Equal(0, result.ExitCode);
+		Assert.Equal(0, new FileInfo(lockFilePath).Length);
+	}
+
+	/// <summary>
+	/// Verifies lock-path type conflicts are reported as warnings and do not abort startup.
+	/// </summary>
+	[Fact]
+	public void Run_Failure_ShouldWarnAndContinue_WhenMoverLockPathIsNotDirectory()
+	{
+		const string lockDirectoryName = ".ssm-lock";
+		const string lockSentinelFileName = ".nosync";
+
+		using ContainerFixtureWorkspace workspace = new();
+		string sourceChildPath = Directory.CreateDirectory(Path.Combine(workspace.SourcesRootPath, "disk1")).FullName;
+		File.WriteAllText(Path.Combine(sourceChildPath, lockDirectoryName), "invalid");
+		Directory.CreateDirectory(Path.Combine(workspace.OverrideRootPath, "priority"));
+
+		DockerCommandResult result = RunEntrypointOnlyContainer(
+			workspace,
+			new Dictionary<string, string>(StringComparer.Ordinal)
+			{
+				["PUID"] = "99",
+				["PGID"] = "100"
+			});
+
+		Assert.False(result.TimedOut);
+		Assert.Equal(0, result.ExitCode);
+		Assert.Contains("exists but is not a directory; skipping lock sentinel setup", result.StandardError, StringComparison.Ordinal);
+		Assert.True(
+			File.Exists(Path.Combine(workspace.OverrideRootPath, "priority", lockDirectoryName, lockSentinelFileName)),
+			"Expected unaffected bind child to receive lock sentinel setup.");
+	}
+
+	/// <summary>
 	/// Attempts to create one directory symbolic link and returns false when host policy disallows it.
 	/// </summary>
 	/// <param name="symlinkPath">Symlink path.</param>

@@ -1,4 +1,22 @@
 # TASKS.md
+- [x] 2026-03-07 - Refine setup-host-security runtime-snippet regression test intent by removing misleading AppArmor-parser mock framing while keeping SYS_ADMIN-only/no-security-profile output assertions.
+- [x] 2026-03-07 - Implement AI review triage recommendations: add canonical user_allow_other regex parity guard coverage in repository policy tests, clarify README Option B fallback maintenance guidance, and tighten Unraid Fuse Config Mode wording.
+- [x] 2026-03-07 - Implement AI-review triage follow-ups: split non-root startup diagnostics to INFO-when-aligned and WARN-on-mismatch, align `user_allow_other` regex examples/checks for trailing-whitespace parity, and add readability comments for lock-sentinel truncation idioms.
+- [x] 2026-03-07 - Validate AI review-note mock dependency accuracy for setup-host-security and add focused regression coverage ensuring runtime snippets remain SYS_ADMIN-only without AppArmor/seccomp profile flags.
+- [x] 2026-03-08 - Remove custom container profile references project-wide, simplify host setup guidance/script to SYS_ADMIN-only runtime flags, and align tests/index/docs.
+- [x] 2026-03-08 - Add mover-lock sentinel support by creating `/.ssm-lock/.nosync` for each source/override bind path in `tools/setup-host-security.sh`, add entrypoint fallback validation/creation for bind children when host setup is skipped, make `--merged-root` optional in inspect mode by deriving `/ssm/merged` host bind from container inspection (with explicit-override and fail-fast behavior), and exclude reserved `.ssm-lock` directories from merge grouping/discovery.
+- [x] 2026-03-07 - Refine entrypoint non-root mismatch diagnostics and non-root FUSE access remediation messaging, with targeted integration test coverage updates.
+- [x] 2026-03-07 - Support non-root container startup when `--user` matches `PUID`/`PGID` by skipping root-only identity/ownership/gosu entrypoint operations, with mismatch fail-fast diagnostics and integration coverage.
+- [x] 2026-03-07 - Fix host-managed fuse.conf guidance by requiring container-visible `/etc/fuse.conf` bind mounts in runtime snippets/docs/template and clarifying entrypoint diagnostics.
+- [x] 2026-03-07 - Ensure `tools/setup-host-security.sh` is idempotent by hardening bind-path chain directory creation for repeated/concurrent runs and adding regression coverage for double-run convergence (including fuse.conf dedupe).
+- [x] 2026-03-07 - Keep host bootstrap bind-path ownership preflight in a single standalone `tools/setup-host-security.sh` script for user convenience (no secondary helper download required), and realign docs/index metadata.
+- [x] 2026-03-07 - Extend `tools/setup-host-security.sh` with bind-path parent ownership preflight (`--inspect-container` and repeatable `--bind-path`) that clones peer `/mnt/disk*` metadata via majority + mtime tie-breaks, add deterministic script regression tests, and document usage in README/DEVELOPMENT.
+- [x] 2026-03-07 - Implement AI-review follow-ups: strict host-profile checksum verification via repository manifest, fuse.conf regex parity for trailing whitespace handling, and Unraid Fuse Config Mode wording clarity.
+- [x] 2026-03-07 - Default container hardening to custom container profile guidance with host bootstrap setup, add host-managed fuse.conf entrypoint mode fallback controls, and align integration coverage/docs/template.
+- [x] 2026-03-07 - Clarify that `tools/setup-host-security.sh` includes merged bind setup (`mount --bind`, `--make-private`, `--make-rshared`) so it can replace the inline host snippet directly.
+- [x] 2026-03-07 - Add copy/paste-ready `setup-host-security.sh` invocation arguments to README and clarify `fuse.conf` `user_allow_other` semantics.
+
+- [x] 2026-03-07 - Reorganize README into a beginner-first quickstart flow with consolidated mount rules.
 
 - [x] 2026-03-07 - Address unresolved PR #49 AI review threads by narrowing branch-target setup exception tolerance to permission denial only, documenting intentional catch behavior, and strengthening branch staging regression coverage.
 
