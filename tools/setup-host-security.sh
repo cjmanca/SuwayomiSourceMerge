@@ -8,6 +8,8 @@ DEFAULT_APPARMOR_DEST="/etc/apparmor.d/ssm-mergerfs"
 DEFAULT_HOST_MNT_ROOT="/mnt"
 DEFAULT_FALLBACK_PUID=99
 DEFAULT_FALLBACK_PGID=100
+LOCK_DIRECTORY_NAME=".ssm-lock"
+LOCK_SENTINEL_FILE_NAME=".nosync"
 APPARMOR_PROFILE_NAME="ssm-mergerfs"
 DEFAULT_PROFILE_BASE_URL="https://raw.githubusercontent.com/cjmanca/SuwayomiSourceMerge/main/docker/security"
 CHECKSUM_MANIFEST_NAME="checksums.sha256"
@@ -21,11 +23,13 @@ PROFILE_BASE_URL="$DEFAULT_PROFILE_BASE_URL"
 PROFILE_CHECKSUM_URL="$DEFAULT_PROFILE_BASE_URL/$CHECKSUM_MANIFEST_NAME"
 
 MERGED_ROOT="$DEFAULT_MERGED_ROOT"
+MERGED_ROOT_EXPLICIT=0
 FUSE_CONF_PATH="$DEFAULT_FUSE_CONF_PATH"
 SECCOMP_DEST="$DEFAULT_SECCOMP_DEST"
 APPARMOR_DEST="$DEFAULT_APPARMOR_DEST"
 HOST_MNT_ROOT="${SETUP_HOST_SECURITY_MNT_ROOT:-$DEFAULT_HOST_MNT_ROOT}"
 INSPECT_CONTAINER_NAME=""
+INSPECTED_MERGED_ROOT=""
 FALLBACK_PUID=""
 FALLBACK_PGID=""
 FALLBACK_PUID_EXPLICIT=0
@@ -89,7 +93,7 @@ validate_bind_path()
   printf '%s\n' "$bind_path"
 }
 
-discover_container_bind_paths()
+discover_container_mount_paths()
 {
   local inspect_output
   if ! command -v docker >/dev/null 2>&1; then
@@ -104,6 +108,7 @@ discover_container_bind_paths()
   fi
 
   INSPECTED_BIND_PATHS=()
+  INSPECTED_MERGED_ROOT=""
   local line
   while IFS= read -r line; do
     [[ -n "$line" ]] || continue
@@ -118,6 +123,15 @@ discover_container_bind_paths()
     case "$mount_destination" in
       /ssm/sources/*|/ssm/override/*)
         INSPECTED_BIND_PATHS+=("$mount_source")
+        ;;
+      /ssm/merged)
+        if [[ -n "$INSPECTED_MERGED_ROOT" && "$INSPECTED_MERGED_ROOT" != "$mount_source" ]]; then
+          echo "Container '$INSPECT_CONTAINER_NAME' exposes multiple bind mounts for /ssm/merged." >&2
+          echo "Provide --merged-root explicitly to avoid ambiguity." >&2
+          exit 1
+        fi
+
+        INSPECTED_MERGED_ROOT="$mount_source"
         ;;
     esac
   done <<< "$inspect_output"
@@ -184,14 +198,34 @@ resolve_fallback_identity()
   fi
 }
 
+resolve_merged_root_path()
+{
+  if [[ "$MERGED_ROOT_EXPLICIT" -eq 0 && -n "$INSPECT_CONTAINER_NAME" ]]; then
+    if [[ -z "$INSPECTED_MERGED_ROOT" ]]; then
+      echo "Container '$INSPECT_CONTAINER_NAME' did not expose a bind mount for '/ssm/merged', and --merged-root was not provided." >&2
+      echo "Provide --merged-root PATH (or fix container mounts) before running this script." >&2
+      exit 1
+    fi
+
+    MERGED_ROOT="$INSPECTED_MERGED_ROOT"
+  fi
+
+  MERGED_ROOT="$(normalize_path "$MERGED_ROOT")"
+  if [[ "$MERGED_ROOT" != /* ]]; then
+    echo "Merged root '$MERGED_ROOT' must be an absolute path." >&2
+    exit 1
+  fi
+}
+
 prepare_bind_paths()
 {
   if [[ -n "$INSPECT_CONTAINER_NAME" ]]; then
-    discover_container_bind_paths
+    discover_container_mount_paths
     discover_container_fallback_identity
   fi
 
   resolve_fallback_identity
+  resolve_merged_root_path
 
   EFFECTIVE_BIND_PATHS=()
   declare -A unique_bind_paths=()
@@ -430,6 +464,46 @@ repair_bind_path_chain()
   done
 }
 
+ensure_bind_path_mover_lock_sentinel()
+{
+  local bind_path="$1"
+  local lock_directory_path="$bind_path/$LOCK_DIRECTORY_NAME"
+  local lock_sentinel_path="$lock_directory_path/$LOCK_SENTINEL_FILE_NAME"
+
+  if [[ -e "$lock_directory_path" && ! -d "$lock_directory_path" ]]; then
+    echo "Mover lock path '$lock_directory_path' exists but is not a directory. Cannot continue." >&2
+    exit 1
+  fi
+
+  mkdir -p "$lock_directory_path"
+
+  if [[ -L "$lock_directory_path" ]]; then
+    echo "Mover lock path '$lock_directory_path' is a symlink. Refusing to follow symlink during lock setup." >&2
+    exit 1
+  fi
+
+  if [[ -e "$lock_sentinel_path" && ! -f "$lock_sentinel_path" ]]; then
+    echo "Mover lock sentinel path '$lock_sentinel_path' exists but is not a regular file. Cannot continue." >&2
+    exit 1
+  fi
+
+  if [[ -L "$lock_sentinel_path" ]]; then
+    echo "Mover lock sentinel path '$lock_sentinel_path' is a symlink. Refusing to follow symlink during lock setup." >&2
+    exit 1
+  fi
+
+  : > "$lock_sentinel_path"
+
+  read_directory_metadata "$bind_path"
+  local bind_uid="$DIRECTORY_UID"
+  local bind_gid="$DIRECTORY_GID"
+
+  chown "$bind_uid:$bind_gid" "$lock_directory_path" "$lock_sentinel_path"
+  chmod 0644 "$lock_sentinel_path"
+
+  echo "  [lock] $lock_sentinel_path => owner=$bind_uid:$bind_gid mode=0644"
+}
+
 repair_bind_path_ownership()
 {
   if [[ "${#EFFECTIVE_BIND_PATHS[@]}" -eq 0 ]]; then
@@ -442,6 +516,7 @@ repair_bind_path_ownership()
   local bind_path
   for bind_path in "${EFFECTIVE_BIND_PATHS[@]}"; do
     repair_bind_path_chain "$bind_path"
+    ensure_bind_path_mover_lock_sentinel "$bind_path"
   done
 }
 
@@ -472,7 +547,7 @@ Options:
   --fallback-puid UID       Fallback owner UID when no peer disk path exists (default: container PUID, else $DEFAULT_FALLBACK_PUID)
   --fallback-pgid GID       Fallback owner GID when no peer disk path exists (default: container PGID, else $DEFAULT_FALLBACK_PGID)
   --mount-root PATH         Host mount root for bind paths and peer scanning (default: $DEFAULT_HOST_MNT_ROOT)
-  --merged-root PATH        Merged host path (default: $DEFAULT_MERGED_ROOT)
+  --merged-root PATH        Merged host path (default: inspect /ssm/merged bind when --inspect-container is used, else $DEFAULT_MERGED_ROOT)
   --fuse-conf PATH          fuse.conf path (default: $DEFAULT_FUSE_CONF_PATH)
   --seccomp-dest PATH       Seccomp destination (default: $DEFAULT_SECCOMP_DEST)
   --apparmor-dest PATH      AppArmor destination (default: $DEFAULT_APPARMOR_DEST)
@@ -533,6 +608,7 @@ while [[ $# -gt 0 ]]; do
     --merged-root)
       require_option_value "$1" "${2:-}"
       MERGED_ROOT="$2"
+      MERGED_ROOT_EXPLICIT=1
       shift 2
       ;;
     --fuse-conf)

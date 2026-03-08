@@ -12,6 +12,11 @@ namespace SuwayomiSourceMerge.Application.Mounting;
 internal sealed partial class MergeMountWorkflow
 {
 	/// <summary>
+	/// Reserved sentinel directory name used for mover lock bookkeeping under source/override bind roots.
+	/// </summary>
+	private const string MoverLockDirectoryName = ".ssm-lock";
+
+	/// <summary>
 	/// Builds title groups from discovered source volumes.
 	/// </summary>
 	/// <param name="sourceVolumePaths">Source volume roots.</param>
@@ -46,6 +51,11 @@ internal sealed partial class MergeMountWorkflow
 					continue;
 				}
 
+				if (IsIgnoredSupportDirectoryName(sourceName))
+				{
+					continue;
+				}
+
 				string sourceKey = SourceNameKeyNormalizer.NormalizeSourceKey(sourceName);
 				if (string.IsNullOrWhiteSpace(sourceKey) || _excludedSources.Contains(sourceKey))
 				{
@@ -59,6 +69,11 @@ internal sealed partial class MergeMountWorkflow
 					string titleDirectoryPath = titleDirectoryPaths[titleIndex];
 					string rawTitle = Path.GetFileName(titleDirectoryPath);
 					if (string.IsNullOrWhiteSpace(rawTitle))
+					{
+						continue;
+					}
+
+					if (IsIgnoredSupportDirectoryName(rawTitle))
 					{
 						continue;
 					}
@@ -261,6 +276,11 @@ internal sealed partial class MergeMountWorkflow
 					continue;
 				}
 
+				if (IsIgnoredSupportDirectoryName(title))
+				{
+					continue;
+				}
+
 				if (!TryCreateOverrideTitleCatalogEntry(title, titleDirectoryPath, out OverrideTitleCatalogEntry entry))
 				{
 					continue;
@@ -459,5 +479,16 @@ internal sealed partial class MergeMountWorkflow
 		return string.Create(
 			System.Globalization.CultureInfo.InvariantCulture,
 			$"'{path.Replace("'", "'\"'\"'", StringComparison.Ordinal)}'");
+	}
+
+	/// <summary>
+	/// Determines whether one discovered directory name is a reserved support directory that should be excluded from title grouping.
+	/// </summary>
+	/// <param name="directoryName">Discovered directory name.</param>
+	/// <returns><see langword="true"/> when the directory is reserved for support files; otherwise <see langword="false"/>.</returns>
+	private static bool IsIgnoredSupportDirectoryName(string directoryName)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(directoryName);
+		return string.Equals(directoryName, MoverLockDirectoryName, StringComparison.Ordinal);
 	}
 }

@@ -59,11 +59,10 @@ Download [`tools/setup-host-security.sh`](tools/setup-host-security.sh), and run
 For existing containers (recommended), use Docker inspect-based bind discovery:
 ```bash
 sudo /path/to/SuwayomiSourceMerge/tools/setup-host-security.sh \
-  --merged-root /mnt/cache/appdata/ssm/merged \
   --inspect-container suwayomi-source-merge
 ```
 
-For first setup (container not created yet), provide bind paths directly:
+For bare metal or if you want to run it before creating the container, provide bind paths directly:
 ```bash
 sudo /path/to/SuwayomiSourceMerge/tools/setup-host-security.sh \
   --merged-root /mnt/cache/appdata/ssm/merged \
@@ -74,14 +73,17 @@ sudo /path/to/SuwayomiSourceMerge/tools/setup-host-security.sh \
 ```
 
 This bind-path preflight clones owner/group/mode from matching peer paths under `/mnt/disk*` (majority vote, tie by newest mtime, then lowest disk number). If no peer exists, it falls back to container `PUID`/`PGID` (or `99:100` when not discoverable).
+It also ensures a mover lock sentinel at `<bind-path>/.ssm-lock/.nosync` for each repaired source/override bind path so mover does not prune empty bind roots. SuwayomiSourceMerge ignores these reserved `.ssm-lock` support directories during merge-title discovery.
 The script is idempotent and safe to run repeatedly at host startup.
+If you skip the host script, container entrypoint startup applies the same sentinel creation under first-level `/ssm/sources/*` and `/ssm/override/*` bind children.
 
-For most users, only `/path/to/SuwayomiSourceMerge/tools/setup-host-security.sh`, `--merged-root`, and `--inspect-container` need changes, however there are more switches available for advanced users.
+For most users, only `/path/to/SuwayomiSourceMerge/tools/setup-host-security.sh` and `--inspect-container` need changes, however there are more switches available for advanced users.
 The script strictly verifies downloaded security profiles against `docker/security/checksums.sha256` and exits on mismatch.
 
 What you should see:
 - The script exits without errors.
 - It prints bind-path repair diagnostics showing peer source or fallback ownership used for each path segment.
+- It creates/refreshes `.ssm-lock/.nosync` under each repaired source/override bind path.
 - It prints the exact `docker run`/Compose security flags for your host.
 - `docker compose up -d` can start without merged-mount propagation issues.
 

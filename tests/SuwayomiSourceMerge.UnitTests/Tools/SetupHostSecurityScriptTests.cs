@@ -210,6 +210,282 @@ public sealed class SetupHostSecurityScriptTests
 	}
 
 	/// <summary>
+	/// Verifies bind-path repair creates one mover lock sentinel directory and file under every repaired bind path.
+	/// </summary>
+	[Fact]
+	public void Run_Expected_ShouldCreateMoverLockSentinelForEachBindPath()
+	{
+		if (!OperatingSystem.IsLinux())
+		{
+			return;
+		}
+
+		const string lockDirectoryName = ".ssm-lock";
+		const string lockSentinelFileName = ".nosync";
+
+		string repositoryRoot = RepositoryRootLocator.FindRepositoryRoot();
+		using TemporaryDirectory temporaryDirectory = new();
+		ScriptFixture fixture = ScriptFixture.Create(temporaryDirectory.Path);
+
+		string diskOneRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "disk1")).FullName;
+		string diskTwoRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "disk2")).FullName;
+		string cacheRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "cache")).FullName;
+
+		string diskOneSourcesPath = Directory.CreateDirectory(Path.Combine(diskOneRootPath, "sources", "manga")).FullName;
+		string diskTwoSourcesPath = Directory.CreateDirectory(Path.Combine(diskTwoRootPath, "sources", "manga")).FullName;
+		string diskOneOverridesPath = Directory.CreateDirectory(Path.Combine(diskOneRootPath, "override", "manga")).FullName;
+		string diskTwoOverridesPath = Directory.CreateDirectory(Path.Combine(diskTwoRootPath, "override", "manga")).FullName;
+		SetUnixMode(Path.Combine(diskOneRootPath, "sources"), "775");
+		SetUnixMode(Path.Combine(diskTwoRootPath, "sources"), "775");
+		SetUnixMode(diskOneSourcesPath, "775");
+		SetUnixMode(diskTwoSourcesPath, "775");
+		SetUnixMode(Path.Combine(diskOneRootPath, "override"), "775");
+		SetUnixMode(Path.Combine(diskTwoRootPath, "override"), "775");
+		SetUnixMode(diskOneOverridesPath, "775");
+		SetUnixMode(diskTwoOverridesPath, "775");
+
+		string sourceBindPath = Path.Combine(cacheRootPath, "sources", "manga");
+		string overrideBindPath = Path.Combine(cacheRootPath, "override", "manga");
+		ScriptExecutionResult result = ExecuteScript(
+			repositoryRoot,
+			fixture,
+			[
+				"--bind-path",
+				sourceBindPath,
+				"--bind-path",
+				overrideBindPath
+			]);
+
+		Assert.Equal(0, result.ExitCode);
+		string sourceLockFilePath = Path.Combine(sourceBindPath, lockDirectoryName, lockSentinelFileName);
+		string overrideLockFilePath = Path.Combine(overrideBindPath, lockDirectoryName, lockSentinelFileName);
+		Assert.True(File.Exists(sourceLockFilePath));
+		Assert.True(File.Exists(overrideLockFilePath));
+		Assert.Equal(0, new FileInfo(sourceLockFilePath).Length);
+		Assert.Equal(0, new FileInfo(overrideLockFilePath).Length);
+	}
+
+	/// <summary>
+	/// Verifies existing lock sentinel files are normalized to empty files on repeated setup runs.
+	/// </summary>
+	[Fact]
+	public void Run_Edge_ShouldNormalizeExistingMoverLockSentinelFileToEmpty()
+	{
+		if (!OperatingSystem.IsLinux())
+		{
+			return;
+		}
+
+		const string lockDirectoryName = ".ssm-lock";
+		const string lockSentinelFileName = ".nosync";
+
+		string repositoryRoot = RepositoryRootLocator.FindRepositoryRoot();
+		using TemporaryDirectory temporaryDirectory = new();
+		ScriptFixture fixture = ScriptFixture.Create(temporaryDirectory.Path);
+
+		string diskOneRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "disk1")).FullName;
+		string diskTwoRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "disk2")).FullName;
+		string cacheRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "cache")).FullName;
+
+		Directory.CreateDirectory(Path.Combine(diskOneRootPath, "sources", "manga"));
+		Directory.CreateDirectory(Path.Combine(diskTwoRootPath, "sources", "manga"));
+
+		string sourceBindPath = Directory.CreateDirectory(Path.Combine(cacheRootPath, "sources", "manga")).FullName;
+		string lockDirectoryPath = Directory.CreateDirectory(Path.Combine(sourceBindPath, lockDirectoryName)).FullName;
+		string lockFilePath = Path.Combine(lockDirectoryPath, lockSentinelFileName);
+		File.WriteAllText(lockFilePath, "non-empty", Encoding.UTF8);
+
+		ScriptExecutionResult result = ExecuteScript(
+			repositoryRoot,
+			fixture,
+			[
+				"--bind-path",
+				sourceBindPath
+			]);
+
+		Assert.Equal(0, result.ExitCode);
+		Assert.True(File.Exists(lockFilePath));
+		Assert.Equal(0, new FileInfo(lockFilePath).Length);
+	}
+
+	/// <summary>
+	/// Verifies lock-directory type conflicts fail fast with actionable diagnostics.
+	/// </summary>
+	[Fact]
+	public void Run_Failure_ShouldExitWithActionableError_WhenMoverLockPathIsNotDirectory()
+	{
+		if (!OperatingSystem.IsLinux())
+		{
+			return;
+		}
+
+		const string lockDirectoryName = ".ssm-lock";
+
+		string repositoryRoot = RepositoryRootLocator.FindRepositoryRoot();
+		using TemporaryDirectory temporaryDirectory = new();
+		ScriptFixture fixture = ScriptFixture.Create(temporaryDirectory.Path);
+
+		string diskOneRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "disk1")).FullName;
+		string diskTwoRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "disk2")).FullName;
+		string cacheRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "cache")).FullName;
+
+		Directory.CreateDirectory(Path.Combine(diskOneRootPath, "sources", "manga"));
+		Directory.CreateDirectory(Path.Combine(diskTwoRootPath, "sources", "manga"));
+		string sourceBindPath = Directory.CreateDirectory(Path.Combine(cacheRootPath, "sources", "manga")).FullName;
+		File.WriteAllText(Path.Combine(sourceBindPath, lockDirectoryName), "invalid", Encoding.UTF8);
+
+		ScriptExecutionResult result = ExecuteScript(
+			repositoryRoot,
+			fixture,
+			[
+				"--bind-path",
+				sourceBindPath
+			]);
+
+		Assert.NotEqual(0, result.ExitCode);
+		Assert.Contains("exists but is not a directory", result.StandardError, StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// Verifies inspect-mode derives merged root from the container bind mount when <c>--merged-root</c> is omitted.
+	/// </summary>
+	[Fact]
+	public void Run_Expected_ShouldDeriveMergedRootFromInspectContainer_WhenMergedRootNotProvided()
+	{
+		if (!OperatingSystem.IsLinux())
+		{
+			return;
+		}
+
+		string repositoryRoot = RepositoryRootLocator.FindRepositoryRoot();
+		using TemporaryDirectory temporaryDirectory = new();
+		ScriptFixture fixture = ScriptFixture.Create(temporaryDirectory.Path);
+
+		string diskOneRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "disk1")).FullName;
+		string diskTwoRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "disk2")).FullName;
+		string cacheRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "cache")).FullName;
+		Directory.CreateDirectory(Path.Combine(diskOneRootPath, "sources", "disk1"));
+		Directory.CreateDirectory(Path.Combine(diskTwoRootPath, "sources", "disk1"));
+		Directory.CreateDirectory(Path.Combine(diskOneRootPath, "override", "priority"));
+		Directory.CreateDirectory(Path.Combine(diskTwoRootPath, "override", "priority"));
+		string inspectedSourcePath = Path.Combine(cacheRootPath, "sources", "disk1");
+		string inspectedOverridePath = Path.Combine(cacheRootPath, "override", "priority");
+		string inspectedMergedRootPath = Path.Combine(cacheRootPath, "merged-from-inspect");
+
+		File.WriteAllText(
+			fixture.DockerMountsOutputPath,
+			$"bind|{inspectedSourcePath}|/ssm/sources/disk1\n" +
+			$"bind|{inspectedOverridePath}|/ssm/override/priority\n" +
+			$"bind|{inspectedMergedRootPath}|/ssm/merged\n",
+			Encoding.UTF8);
+		File.WriteAllText(fixture.DockerEnvironmentOutputPath, "PUID=99\nPGID=100\n", Encoding.UTF8);
+
+		ScriptExecutionResult result = ExecuteScript(
+			repositoryRoot,
+			fixture,
+			[
+				"--inspect-container",
+				"ssm"
+			],
+			includeMergedRootArgument: false);
+
+		Assert.Equal(0, result.ExitCode);
+		Assert.True(Directory.Exists(inspectedMergedRootPath));
+		Assert.False(Directory.Exists(fixture.MergedRootPath));
+	}
+
+	/// <summary>
+	/// Verifies explicit <c>--merged-root</c> takes precedence over inspect-derived merged bind mounts.
+	/// </summary>
+	[Fact]
+	public void Run_Edge_ShouldPreferExplicitMergedRootOverInspectDerivedValue()
+	{
+		if (!OperatingSystem.IsLinux())
+		{
+			return;
+		}
+
+		string repositoryRoot = RepositoryRootLocator.FindRepositoryRoot();
+		using TemporaryDirectory temporaryDirectory = new();
+		ScriptFixture fixture = ScriptFixture.Create(temporaryDirectory.Path);
+
+		string diskOneRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "disk1")).FullName;
+		string diskTwoRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "disk2")).FullName;
+		string cacheRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "cache")).FullName;
+		Directory.CreateDirectory(Path.Combine(diskOneRootPath, "sources", "disk1"));
+		Directory.CreateDirectory(Path.Combine(diskTwoRootPath, "sources", "disk1"));
+		Directory.CreateDirectory(Path.Combine(diskOneRootPath, "override", "priority"));
+		Directory.CreateDirectory(Path.Combine(diskTwoRootPath, "override", "priority"));
+		string inspectedSourcePath = Path.Combine(cacheRootPath, "sources", "disk1");
+		string inspectedOverridePath = Path.Combine(cacheRootPath, "override", "priority");
+		string inspectedMergedRootPath = Path.Combine(cacheRootPath, "merged-from-inspect");
+		string explicitMergedRootPath = Path.Combine(cacheRootPath, "merged-explicit");
+
+		File.WriteAllText(
+			fixture.DockerMountsOutputPath,
+			$"bind|{inspectedSourcePath}|/ssm/sources/disk1\n" +
+			$"bind|{inspectedOverridePath}|/ssm/override/priority\n" +
+			$"bind|{inspectedMergedRootPath}|/ssm/merged\n",
+			Encoding.UTF8);
+		File.WriteAllText(fixture.DockerEnvironmentOutputPath, "PUID=99\nPGID=100\n", Encoding.UTF8);
+
+		ScriptExecutionResult result = ExecuteScript(
+			repositoryRoot,
+			fixture,
+			[
+				"--inspect-container",
+				"ssm",
+				"--merged-root",
+				explicitMergedRootPath
+			],
+			includeMergedRootArgument: false);
+
+		Assert.Equal(0, result.ExitCode);
+		Assert.True(Directory.Exists(explicitMergedRootPath));
+		Assert.False(Directory.Exists(inspectedMergedRootPath));
+	}
+
+	/// <summary>
+	/// Verifies inspect-mode fails fast when no merged bind mount is discoverable and <c>--merged-root</c> is omitted.
+	/// </summary>
+	[Fact]
+	public void Run_Failure_ShouldExitWithActionableError_WhenInspectDoesNotExposeMergedBindAndMergedRootNotProvided()
+	{
+		if (!OperatingSystem.IsLinux())
+		{
+			return;
+		}
+
+		string repositoryRoot = RepositoryRootLocator.FindRepositoryRoot();
+		using TemporaryDirectory temporaryDirectory = new();
+		ScriptFixture fixture = ScriptFixture.Create(temporaryDirectory.Path);
+
+		string cacheRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "cache")).FullName;
+		string inspectedSourcePath = Path.Combine(cacheRootPath, "sources", "disk1");
+		string inspectedOverridePath = Path.Combine(cacheRootPath, "override", "priority");
+
+		File.WriteAllText(
+			fixture.DockerMountsOutputPath,
+			$"bind|{inspectedSourcePath}|/ssm/sources/disk1\n" +
+			$"bind|{inspectedOverridePath}|/ssm/override/priority\n",
+			Encoding.UTF8);
+		File.WriteAllText(fixture.DockerEnvironmentOutputPath, "PUID=99\nPGID=100\n", Encoding.UTF8);
+
+		ScriptExecutionResult result = ExecuteScript(
+			repositoryRoot,
+			fixture,
+			[
+				"--inspect-container",
+				"ssm"
+			],
+			includeMergedRootArgument: false);
+
+		Assert.NotEqual(0, result.ExitCode);
+		Assert.Contains("did not expose a bind mount for '/ssm/merged'", result.StandardError, StringComparison.Ordinal);
+		Assert.Contains("Provide --merged-root PATH", result.StandardError, StringComparison.Ordinal);
+	}
+
+	/// <summary>
 	/// Executes the host setup script with deterministic temp-path arguments and mock toolchain.
 	/// </summary>
 	/// <param name="repositoryRoot">Absolute repository root path.</param>
@@ -219,7 +495,8 @@ public sealed class SetupHostSecurityScriptTests
 	private static ScriptExecutionResult ExecuteScript(
 		string repositoryRoot,
 		ScriptFixture fixture,
-		IReadOnlyList<string> arguments)
+		IReadOnlyList<string> arguments,
+		bool includeMergedRootArgument = true)
 	{
 		string scriptPath = Path.Combine(repositoryRoot, "tools", "setup-host-security.sh");
 		ProcessStartInfo startInfo = new()
@@ -240,8 +517,11 @@ public sealed class SetupHostSecurityScriptTests
 
 		startInfo.ArgumentList.Add("--mount-root");
 		startInfo.ArgumentList.Add(fixture.MountRootPath);
-		startInfo.ArgumentList.Add("--merged-root");
-		startInfo.ArgumentList.Add(fixture.MergedRootPath);
+		if (includeMergedRootArgument)
+		{
+			startInfo.ArgumentList.Add("--merged-root");
+			startInfo.ArgumentList.Add(fixture.MergedRootPath);
+		}
 		startInfo.ArgumentList.Add("--fuse-conf");
 		startInfo.ArgumentList.Add(fixture.FuseConfigPath);
 		startInfo.ArgumentList.Add("--seccomp-dest");

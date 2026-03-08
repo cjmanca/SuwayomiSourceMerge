@@ -149,6 +149,7 @@ modules:
       - Canonical merge-pass helper partitioning for action apply, force-remount resolution, and grouping helpers; use MergeMountWorkflow partial pass files.
       - Canonical merge-pass outcome mapping from action results (mixed when busy+failure, then busy over failure over success); use MergeMountWorkflow.RunMergePass.
       - Canonical merge-pass override-title catalog discovery/filtering before resolver construction; use MergeMountWorkflow.DiscoverExistingOverrideTitleCatalog and MergeMountWorkflow.TryCreateOverrideTitleCatalogEntry.
+      - Canonical merge-pass reserved support-directory filtering for mover lock sentinels (`.ssm-lock`) across source and override title discovery; use MergeMountWorkflow.BuildTitleGroups and MergeMountWorkflow.DiscoverExistingOverrideTitleCatalog.
       - Canonical merge-pass title metadata artifact orchestration and interruption signaling; use MergeMountWorkflow.EnsureTitleMetadata and IComickMetadataCoordinator.
       - Canonical merge-workflow lifecycle status-event emission (`merge.workflow.started`, `merge.workflow.completed`, cleanup pass summary) at normal severity; use MergeMountWorkflow.RunMergePass and MergeMountWorkflow.RunCleanupPass.
       - Canonical mount-action fail-fast counting should advance only on hard mount/remount failures while soft failures remain pass failures and reset consecutive hard-failure streaks; use MergeMountWorkflow.ApplyPlanActions and MountActionApplyResult.FailureSeverity.
@@ -666,7 +667,7 @@ modules:
       - symbol: docker/entrypoint.sh
         kind: file
         path: docker/entrypoint.sh
-        purpose: Applies PUID/PGID identity mapping, uses consistent bash `[[ ... ]]` tests, parses settings scalars with YAML-aware inline-comment handling (including embedded `#` plain scalars) and escaped-backslash-aware quote handling for log mirroring, enforces runtime-parity logging.file_name safety checks (rooted/segmented, invalid/control chars, trailing dots/spaces, reserved device names) with fallback warnings, enforces `ENTRYPOINT_FUSE_CONF_MODE` policy (`auto` writable edits vs `host-managed` validation-only with container-visible bind guidance), supports non-root launch mode by skipping root-only identity/ownership/gosu operations, performs non-root FUSE device access preflight under the runtime identity, ensures `/ssm/sources` and `/ssm/override` roots exist for child bind-mount layouts, repairs one-level child bind-root ownership for sources/overrides, avoids recursive merged-root chown, performs best-effort first-level merged-child ownership repair with stale-endpoint-safe warnings, and launches the daemon.
+        purpose: Applies PUID/PGID identity mapping, uses consistent bash `[[ ... ]]` tests, parses settings scalars with YAML-aware inline-comment handling (including embedded `#` plain scalars) and escaped-backslash-aware quote handling for log mirroring, enforces runtime-parity logging.file_name safety checks (rooted/segmented, invalid/control chars, trailing dots/spaces, reserved device names) with fallback warnings, enforces `ENTRYPOINT_FUSE_CONF_MODE` policy (`auto` writable edits vs `host-managed` validation-only with container-visible bind guidance), supports non-root launch mode by skipping root-only identity/ownership/gosu operations, performs non-root FUSE device access preflight under the runtime identity, ensures `/ssm/sources` and `/ssm/override` roots exist for child bind-mount layouts, repairs one-level child bind-root ownership for sources/overrides, ensures mover lock sentinels (`.ssm-lock/.nosync`) for bind children with warning-only conflict handling, avoids recursive merged-root chown, performs best-effort first-level merged-child ownership repair with stale-endpoint-safe warnings, and launches the daemon.
       - symbol: docker/security/apparmor/ssm-mergerfs
         kind: file
         path: docker/security/apparmor/ssm-mergerfs
@@ -690,7 +691,7 @@ modules:
       - symbol: tools/setup-host-security.sh
         kind: file
         path: tools/setup-host-security.sh
-        purpose: Prepares idempotent host bind-path parent ownership/mode preflight, merged propagation, fuse.conf `user_allow_other`, seccomp/AppArmor install, and checksum-verified security runtime guidance including host `/etc/fuse.conf` bind-mount snippets for host-managed mode.
+        purpose: Prepares idempotent host bind-path parent ownership/mode preflight, derives merged root from inspect `/ssm/merged` bind when `--inspect-container` is used (unless overridden), creates mover lock sentinels (`<bind-path>/.ssm-lock/.nosync`) for repaired source/override binds, merged propagation, fuse.conf `user_allow_other`, seccomp/AppArmor install, and checksum-verified security runtime guidance including host `/etc/fuse.conf` bind-mount snippets for host-managed mode.
     extension_points:
       - how: Adapt runtime package set and image-stage composition by editing Dockerfile stages and apt package list.
         symbols: [Dockerfile]
@@ -722,8 +723,11 @@ modules:
       - Canonical container startup logging.file_name safety gate that rejects rooted/segmented values, trailing dots/spaces, invalid/control characters, and reserved Windows device names, then falls back to default daemon.log with warning diagnostics; use docker/entrypoint.sh.
       - Canonical container startup non-root launch mode: if entrypoint starts with non-root EUID, skip root-only user/group remapping, ownership/chmod repair, and gosu handoff, emit mismatch diagnostics when startup identity differs from configured PUID/PGID, then execute directly as container user with warning telemetry; use docker/entrypoint.sh.
       - Canonical container startup non-root FUSE device access preflight under runtime identity (skip in mock-tool mode, warning when device is absent, fail-fast when present but inaccessible with actionable mapping/permission/SYS_ADMIN remediation guidance); use docker/entrypoint.sh.
+      - Canonical container startup mover-lock sentinel fallback creation/validation for first-level `/ssm/sources/*` and `/ssm/override/*` bind children (`.ssm-lock/.nosync`) with warning-only conflict handling; use docker/entrypoint.sh.
       - Canonical hardened runtime security profile assets (AppArmor/seccomp) and host bootstrap workflow; use docker/security/apparmor/ssm-mergerfs, docker/security/seccomp-mergerfs.json, and tools/setup-host-security.sh.
       - Canonical host bind-path parent ownership preflight (peer `/mnt/disk*` majority + mtime tie-break + fallback owner); use tools/setup-host-security.sh.
+      - Canonical host bind-path mover-lock sentinel provisioning at `<bind-path>/.ssm-lock/.nosync` during ownership preflight; use tools/setup-host-security.sh.
+      - Canonical inspect-mode merged-root resolution should derive from container `/ssm/merged` bind when `--merged-root` is omitted and fail fast when unavailable/ambiguous; use tools/setup-host-security.sh.
       - Canonical host security-profile checksum manifest and strict install verification flow for downloaded/local seccomp and AppArmor assets; use docker/security/checksums.sha256 and tools/setup-host-security.sh.
       - Canonical container startup root directory precreation for `/ssm/sources` and `/ssm/override` child bind-mount layouts plus one-level child bind-root ownership repair without recursive ownership traversal; use docker/entrypoint.sh.
       - Canonical container startup ownership policy that avoids recursive chown under /ssm/merged and applies best-effort first-level child ownership repair (warning-only on stale endpoint failures); use docker/entrypoint.sh.
@@ -1575,6 +1579,7 @@ modules:
       - Canonical entrypoint non-root FUSE-device-access fail-fast harness (including derived-image non-writable character-device diagnostics assertions); use ContainerRuntimeEndToEndTests.EntrypointFuseDevice.
       - Canonical entrypoint non-root direct-launch harness that bypasses root-only identity/ownership/gosu startup operations and logs skip-policy plus PUID/PGID mismatch diagnostics; use ContainerRuntimeEndToEndTests.EntrypointRuntimeIdentity.
       - Canonical entrypoint `ENTRYPOINT_FUSE_CONF_MODE` integration harness (auto mutation compatibility, host-managed validation-only success/failure, and invalid-mode fail-fast); use ContainerRuntimeEndToEndTests.
+      - Canonical entrypoint mover-lock sentinel fallback harness for `/ssm/sources/*` and `/ssm/override/*` bind children (`.ssm-lock/.nosync`) with warning-on-conflict behavior; use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs`.
       - Canonical entrypoint one-level child bind-root ownership repair harness for `/ssm/sources/*` and `/ssm/override/*`; use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs`.
       - Canonical entrypoint symlink-safety ownership hardening harness (merged-child and daemon-log chown skips); use ContainerRuntimeEndToEndTests in `ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs`.
       - Canonical entrypoint symlink-safety assertions should be gated by an in-container bind-mount symlink precondition so host/runtime symlink flattening does not create false failures; use `IsContainerPathSymlink` in `ContainerRuntimeEndToEndTests.EntrypointOwnershipSafety.cs`.
@@ -1872,7 +1877,7 @@ modules:
       - symbol: SetupHostSecurityScriptTests
         kind: class
         path: tests/SuwayomiSourceMerge.UnitTests/Tools/SetupHostSecurityScriptTests.cs
-        purpose: Verifies setup-host-security bind-path preflight expected, tie-break edge, double-run idempotence, and inspect-discovery failure behavior.
+        purpose: Verifies setup-host-security bind-path preflight expected, tie-break edge, mover-lock sentinel creation/normalization, inspect-derived merged-root resolution/override/failure behavior, double-run idempotence, and inspect-discovery failure behavior.
       - symbol: SettingsSchemaTests
         kind: class
         path: tests/SuwayomiSourceMerge.UnitTests/Configuration/SettingsSchemaTests.cs

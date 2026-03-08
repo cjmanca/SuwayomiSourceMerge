@@ -1,4 +1,5 @@
 # TASKS.md
+- [x] 2026-03-08 - Add mover-lock sentinel support by creating `/.ssm-lock/.nosync` for each source/override bind path in `tools/setup-host-security.sh`, add entrypoint fallback validation/creation for bind children when host setup is skipped, make `--merged-root` optional in inspect mode by deriving `/ssm/merged` host bind from container inspection (with explicit-override and fail-fast behavior), and exclude reserved `.ssm-lock` directories from merge grouping/discovery.
 - [x] 2026-03-07 - Refine entrypoint non-root mismatch diagnostics and non-root FUSE access remediation messaging, with targeted integration test coverage updates.
 - [x] 2026-03-07 - Support non-root container startup when `--user` matches `PUID`/`PGID` by skipping root-only identity/ownership/gosu entrypoint operations, with mismatch fail-fast diagnostics and integration coverage.
 - [x] 2026-03-07 - Fix host-managed fuse.conf guidance by requiring container-visible `/etc/fuse.conf` bind mounts in runtime snippets/docs/template and clarifying entrypoint diagnostics.

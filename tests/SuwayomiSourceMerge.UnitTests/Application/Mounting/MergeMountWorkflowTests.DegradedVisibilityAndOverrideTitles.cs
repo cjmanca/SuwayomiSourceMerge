@@ -75,6 +75,53 @@ public sealed partial class MergeMountWorkflowTests
 	}
 
 	/// <summary>
+	/// Verifies reserved mover lock directories are excluded from override-only title grouping.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Expected_ShouldIgnoreMoverLockDirectory_FromOverrideTitleCatalog()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		fixture.VolumeDiscoveryService.SourceVolumePaths = [];
+		Directory.CreateDirectory(Path.Combine(fixture.VolumeDiscoveryService.OverrideVolumePaths[0], ".ssm-lock"));
+		Directory.CreateDirectory(Path.Combine(fixture.VolumeDiscoveryService.OverrideVolumePaths[0], "Valid Override"));
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("interval elapsed", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Success, outcome);
+		Assert.NotNull(fixture.ReconciliationService.LastInput);
+		Assert.Single(fixture.ReconciliationService.LastInput!.DesiredMounts);
+		Assert.Equal(
+			Path.Combine(fixture.Options.MergedRootPath, "Valid Override"),
+			fixture.ReconciliationService.LastInput.DesiredMounts[0].MountPoint);
+	}
+
+	/// <summary>
+	/// Verifies reserved mover lock directories are excluded from source-directory and source-title grouping.
+	/// </summary>
+	[Fact]
+	public void RunMergePass_Edge_ShouldIgnoreMoverLockDirectory_FromSourceDiscovery()
+	{
+		using TemporaryDirectory temporaryDirectory = new();
+		WorkflowFixture fixture = CreateFixture(temporaryDirectory);
+		string sourceVolumePath = fixture.VolumeDiscoveryService.SourceVolumePaths[0];
+		Directory.CreateDirectory(Path.Combine(sourceVolumePath, ".ssm-lock", "Ignored Title"));
+		Directory.CreateDirectory(Path.Combine(sourceVolumePath, "SourceA", ".ssm-lock"));
+		MergeMountWorkflow workflow = fixture.CreateWorkflow();
+
+		MergeScanDispatchOutcome outcome = workflow.RunMergePass("interval elapsed", force: false);
+
+		Assert.Equal(MergeScanDispatchOutcome.Success, outcome);
+		Assert.NotNull(fixture.ReconciliationService.LastInput);
+		Assert.DoesNotContain(
+			fixture.ReconciliationService.LastInput!.DesiredMounts,
+			static mount => mount.MountPoint.EndsWith(
+				Path.DirectorySeparatorChar + ".ssm-lock",
+				StringComparison.Ordinal));
+	}
+
+	/// <summary>
 	/// Verifies source-discovery warnings suppress stale-unmount apply actions.
 	/// </summary>
 	[Fact]

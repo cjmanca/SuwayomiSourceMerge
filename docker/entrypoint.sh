@@ -8,6 +8,8 @@ DEFAULT_SSM_GROUP="ssm"
 DEFAULT_LOG_FILE_NAME="daemon.log"
 DEFAULT_LOG_ROOT_PATH="/ssm/config"
 DEFAULT_ENTRYPOINT_FUSE_CONF_MODE="auto"
+LOCK_DIRECTORY_NAME=".ssm-lock"
+LOCK_SENTINEL_FILE_NAME=".nosync"
 MERGED_ROOT_PATH="/ssm/merged"
 FUSE_CONF_PATH="${FUSE_CONF_PATH:-/etc/fuse.conf}"
 FUSE_DEVICE_PATH="${FUSE_DEVICE_PATH:-/dev/fuse}"
@@ -587,6 +589,74 @@ ensure_bind_root_child_ownership() {
   done < <(find "$root_path" -mindepth 1 -maxdepth 1 -print0 2>/dev/null || true)
 }
 
+ensure_bind_path_mover_lock_sentinel() {
+  local bind_path="$1"
+  local lock_directory_path="$bind_path/$LOCK_DIRECTORY_NAME"
+  local lock_sentinel_path="$lock_directory_path/$LOCK_SENTINEL_FILE_NAME"
+
+  if [[ -e "$lock_directory_path" && ! -d "$lock_directory_path" ]]; then
+    entrypoint_log "WARN: Mover lock path '$lock_directory_path' exists but is not a directory; skipping lock sentinel setup for '$bind_path'."
+    return
+  fi
+
+  local create_lock_error
+  if ! create_lock_error="$(mkdir -p "$lock_directory_path" 2>&1)"; then
+    entrypoint_log "WARN: Failed to create mover lock directory '$lock_directory_path'. Detail: $create_lock_error"
+    return
+  fi
+
+  if [[ -L "$lock_directory_path" ]]; then
+    entrypoint_log "WARN: Mover lock path '$lock_directory_path' is a symlink; skipping lock sentinel setup for '$bind_path'."
+    return
+  fi
+
+  if [[ -e "$lock_sentinel_path" && ! -f "$lock_sentinel_path" ]]; then
+    entrypoint_log "WARN: Mover lock sentinel path '$lock_sentinel_path' exists but is not a regular file; skipping lock sentinel setup for '$bind_path'."
+    return
+  fi
+
+  if [[ -L "$lock_sentinel_path" ]]; then
+    entrypoint_log "WARN: Mover lock sentinel path '$lock_sentinel_path' is a symlink; skipping lock sentinel setup for '$bind_path'."
+    return
+  fi
+
+  local write_lock_error
+  if ! write_lock_error="$( : > "$lock_sentinel_path" 2>&1)"; then
+    entrypoint_log "WARN: Failed to create mover lock sentinel '$lock_sentinel_path'. Detail: $write_lock_error"
+    return
+  fi
+
+  chmod 0644 "$lock_sentinel_path" >/dev/null 2>&1 || true
+  if [[ "$ENTRYPOINT_NON_ROOT_MODE" = "0" ]]; then
+    chown -h "$PUID:$PGID" "$lock_directory_path" "$lock_sentinel_path" >/dev/null 2>&1 || true
+  fi
+}
+
+ensure_bind_root_child_mover_lock_sentinels() {
+  local root_path="$1"
+  if [[ ! -d "$root_path" ]]; then
+    return
+  fi
+
+  local child_path
+  while IFS= read -r -d '' child_path; do
+    if [[ ! -d "$child_path" ]]; then
+      continue
+    fi
+
+    if [[ -L "$child_path" ]]; then
+      entrypoint_log "WARN: Skipping mover lock setup for symlinked bind child '$child_path'."
+      continue
+    fi
+
+    if [[ "$(basename "$child_path")" = "$LOCK_DIRECTORY_NAME" ]]; then
+      continue
+    fi
+
+    ensure_bind_path_mover_lock_sentinel "$child_path"
+  done < <(find "$root_path" -mindepth 1 -maxdepth 1 -print0 2>/dev/null || true)
+}
+
 mkdir -p /ssm/config /ssm/state /ssm/sources /ssm/override "$MERGED_ROOT_PATH"
 if [[ "$ENTRYPOINT_NON_ROOT_MODE" = "0" ]]; then
   # Securely fix ownership of config and state trees without following symlinks, to avoid
@@ -604,6 +674,9 @@ if [[ "$ENTRYPOINT_NON_ROOT_MODE" = "0" ]]; then
   ensure_merged_root_ownership
   resolve_runtime_gosu_identity
 fi
+
+ensure_bind_root_child_mover_lock_sentinels /ssm/sources
+ensure_bind_root_child_mover_lock_sentinels /ssm/override
 
 ensure_runtime_fuse_device_access
 
