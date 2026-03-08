@@ -384,6 +384,90 @@ public sealed class SetupHostSecurityScriptTests
 	}
 
 	/// <summary>
+	/// Verifies fuse configuration path validation fails fast when the configured path is a symbolic link.
+	/// </summary>
+	[Fact]
+	public void Run_Failure_ShouldExitWithActionableError_WhenFuseConfigPathIsSymlink()
+	{
+		if (!OperatingSystem.IsLinux())
+		{
+			return;
+		}
+
+		string repositoryRoot = RepositoryRootLocator.FindRepositoryRoot();
+		using TemporaryDirectory temporaryDirectory = new();
+		ScriptFixture fixture = ScriptFixture.Create(temporaryDirectory.Path);
+
+		string diskOneRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "disk1")).FullName;
+		string diskTwoRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "disk2")).FullName;
+		string cacheRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "cache")).FullName;
+		Directory.CreateDirectory(Path.Combine(diskOneRootPath, "sources", "manga"));
+		Directory.CreateDirectory(Path.Combine(diskTwoRootPath, "sources", "manga"));
+		string bindPath = Path.Combine(cacheRootPath, "sources", "manga");
+		string fuseTargetPath = Path.Combine(temporaryDirectory.Path, "fuse-target.conf");
+		File.WriteAllText(fuseTargetPath, string.Empty, Encoding.UTF8);
+
+		try
+		{
+			File.CreateSymbolicLink(fixture.FuseConfigPath, fuseTargetPath);
+		}
+		catch (PlatformNotSupportedException)
+		{
+			return;
+		}
+		catch (UnauthorizedAccessException) when (OperatingSystem.IsWindows())
+		{
+			return;
+		}
+
+		ScriptExecutionResult result = ExecuteScript(
+			repositoryRoot,
+			fixture,
+			[
+				"--bind-path",
+				bindPath
+			]);
+
+		Assert.NotEqual(0, result.ExitCode);
+		Assert.Contains("must not be a symbolic link", result.StandardError, StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	/// Verifies fuse configuration path validation fails fast when the configured path exists but is not a regular file.
+	/// </summary>
+	[Fact]
+	public void Run_Failure_ShouldExitWithActionableError_WhenFuseConfigPathIsNotRegularFile()
+	{
+		if (!OperatingSystem.IsLinux())
+		{
+			return;
+		}
+
+		string repositoryRoot = RepositoryRootLocator.FindRepositoryRoot();
+		using TemporaryDirectory temporaryDirectory = new();
+		ScriptFixture fixture = ScriptFixture.Create(temporaryDirectory.Path);
+
+		string diskOneRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "disk1")).FullName;
+		string diskTwoRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "disk2")).FullName;
+		string cacheRootPath = Directory.CreateDirectory(Path.Combine(fixture.MountRootPath, "cache")).FullName;
+		Directory.CreateDirectory(Path.Combine(diskOneRootPath, "sources", "manga"));
+		Directory.CreateDirectory(Path.Combine(diskTwoRootPath, "sources", "manga"));
+		string bindPath = Path.Combine(cacheRootPath, "sources", "manga");
+		Directory.CreateDirectory(fixture.FuseConfigPath);
+
+		ScriptExecutionResult result = ExecuteScript(
+			repositoryRoot,
+			fixture,
+			[
+				"--bind-path",
+				bindPath
+			]);
+
+		Assert.NotEqual(0, result.ExitCode);
+		Assert.Contains("exists but is not a regular file", result.StandardError, StringComparison.Ordinal);
+	}
+
+	/// <summary>
 	/// Verifies inspect-mode derives merged root from the container bind mount when <c>--merged-root</c> is omitted.
 	/// </summary>
 	[Fact]

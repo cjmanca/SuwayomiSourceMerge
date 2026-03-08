@@ -612,6 +612,16 @@ fi
 
 ensure_user_allow_other()
 {
+  if [[ -L "$FUSE_CONF_PATH" ]]; then
+    echo "Configured fuse.conf path '$FUSE_CONF_PATH' must not be a symbolic link." >&2
+    exit 1
+  fi
+
+  if [[ -e "$FUSE_CONF_PATH" && ! -f "$FUSE_CONF_PATH" ]]; then
+    echo "Configured fuse.conf path '$FUSE_CONF_PATH' exists but is not a regular file." >&2
+    exit 1
+  fi
+
   if [[ ! -f "$FUSE_CONF_PATH" ]]; then
     printf 'user_allow_other\n' > "$FUSE_CONF_PATH"
     return
